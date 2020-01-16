@@ -1,0 +1,108 @@
+---
+title: "Household Demography model"
+output: html_notebook
+---
+
+## loading simulation data
+
+```{r}
+endStates <- read.csv("output/3-householdDemography v.1.1 - kinship tabu for new couples exp-endstates-table.csv", skip = 6)
+```
+
+## Survival of populations
+
+```{r}
+hist(endStates$totalIndividuals)
+```
+
+### Initial household population
+
+This parameter has slight positive effect on population survival:
+
+```{r}
+summary(endStates$initialNumHouseholds[endStates$totalIndividuals == 0])
+summary(endStates$initialNumHouseholds[endStates$totalIndividuals > 0])
+```
+
+```{r}
+boxplot(endStates$initialNumHouseholds ~ (endStates$totalIndividuals > 0))
+```
+
+### Mortality factors
+
+Coale-Demeny Life Tables Model level parameter has great effect:
+
+```{r}
+summary(endStates$cdmlt.level[endStates$totalIndividuals == 0])
+summary(endStates$cdmlt.level[endStates$totalIndividuals > 0])
+```
+
+```{r}
+boxplot(endStates$cdmlt.level ~ (endStates$totalIndividuals > 0))
+```
+
+but region parameter has a smaller effect. East tends to survive more often.  
+
+```{r}
+table(endStates$coale.demeny.region, endStates$totalIndividuals > 0)
+```
+
+```{r}
+boxplot(data = endStates, totalIndividuals ~ coale.demeny.region)
+```
+
+### Fertility factors
+
+All have a visible effect, but particularly c1.fert and sigma1.fert. 
+
+```{r}
+layout(matrix(1:4, nrow = 2, byrow = T))
+boxplot(endStates$c1.fert ~ (endStates$totalIndividuals > 0), main = "c1.fert")
+boxplot(endStates$mu.fert ~ (endStates$totalIndividuals > 0), main = "mu.fert")
+boxplot(endStates$sigma1.fert ~ (endStates$totalIndividuals > 0), main = "sigma1.fert")
+boxplot(endStates$sigma2.fert ~ (endStates$totalIndividuals > 0), main = "sigma2.fert")
+```
+
+### Nuptiality factors
+
+Residential rule showing no clear effect:
+
+```{r}
+table(endStates$residence.rule, endStates$totalIndividuals > 0)
+```
+
+The effect of the acceptable kinship degree is also unclear: 
+
+```{r}
+boxplot(endStates$acceptable.kinship.degree.for.couples ~ (endStates$totalIndividuals > 0))
+```
+
+All nuptiality parameters for both men and women present a small, yet apparently consistent effect. c1 and sigma parameters have a positive effect while mu has a smaller negative effect.
+
+```{r}
+layout(matrix(1:8, nrow = 2, byrow = T))
+boxplot(endStates$c1.women ~ (endStates$totalIndividuals > 0), main = "c1.women")
+boxplot(endStates$mu.women ~ (endStates$totalIndividuals > 0), main = "mu.women")
+boxplot(endStates$sigma1.women ~ (endStates$totalIndividuals > 0), main = "sigma1.women")
+boxplot(endStates$sigma2.women ~ (endStates$totalIndividuals > 0), main = "sigma2.women")
+boxplot(endStates$c1.men ~ (endStates$totalIndividuals > 0), main = "c1.men")
+boxplot(endStates$mu.men ~ (endStates$totalIndividuals > 0), main = "mu.men")
+boxplot(endStates$sigma1.men ~ (endStates$totalIndividuals > 0), main = "sigma1.men")
+boxplot(endStates$sigma2.men ~ (endStates$totalIndividuals > 0), main = "sigma2.men")
+```
+
+## Timing of survival
+
+```{r}
+hist(endStates$X.step.)
+```
+
+```{r}
+table(endStates$X.step. > 0)
+```
+
+```{r}
+plot(endStates$initialNumHouseholds ~ endStates$X.step.)
+```
+
+
