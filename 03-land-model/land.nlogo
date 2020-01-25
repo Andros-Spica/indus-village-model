@@ -2,9 +2,10 @@
 ;;; GNU GENERAL PUBLIC LICENSE ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;  <MODEL NAME>
-;;  Copyright (C) <YEAR> <AUTHORS (EMAIL)>
-;;  Based on the 'Terrain Builder - waterFlow' template by Andreas Angourakis (andros.spica@gmail.com)
+;;  Land model
+;;  Copyright (C) Andreas Angourakis (andros.spica@gmail.com)
+;;  available at https://www.github.com/Andros-Spica/indus-village-model
+;;  Based on the 'Terrain Builder - waterFlow' template by same author
 ;;  This model is a cleaner version of the Terrain Generator model v.2 (https://github.com/Andros-Spica/ProceduralMap-NetLogo)
 ;;
 ;;  This program is free software: you can redistribute it and/or modify

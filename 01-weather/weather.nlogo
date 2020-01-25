@@ -2,11 +2,9 @@
 ;;; GNU GENERAL PUBLIC LICENSE ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;  <MODEL NAME>
-;;  Copyright (C) <YEAR> <AUTHORS (EMAIL)>
-;;  Based on the 'weather model' template by Andreas Angourakis (andros.spica@gmail.com)
-;;  last update Nov 2019
-;;  available at https://www.github.com/Andros-Spica/abm-templates
+;;  Weather model
+;;  Copyright (C) 2019 Andreas Angourakis (andros.spica@gmail.com)
+;;  available at https://www.github.com/Andros-Spica/indus-village-model
 ;;
 ;;  This program is free software: you can redistribute it and/or modify
 ;;  it under the terms of the GNU General Public License as published by

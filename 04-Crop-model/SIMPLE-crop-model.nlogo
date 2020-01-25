@@ -4,10 +4,11 @@
 
 ;;  SIMPLE crop model (NetLogo implementation)
 ;;  Copyright (C) 2019 Andreas Angourakis (andros.spica@gmail.com)
+;;  available at https://www.github.com/Andros-Spica/indus-village-model
 ;;  based on the model of Zhao et al. 2019 (https://doi.org/10.1016/j.eja.2019.01.009)
 ;;  and implementing the Soil Water Balance model from Wallach et al. 2006 'Working with dynamic crop models' (p. 24-28 and p. 138-144).
 ;;  last update Nov 2019
-;;  available at https://www.github.com/Andros-Spica/abm-templates
+;;  available at https://www.github.com/Andros-Spica/SIMPLE-crop-model
 ;;
 ;;  This program is free software: you can redistribute it and/or modify
 ;;  it under the terms of the GNU General Public License as published by
