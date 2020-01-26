@@ -1,0 +1,95 @@
+---
+title: "Demostration of stock decay curve of the Food Storage model"
+author: "Andreas Angourakis"
+date: "24 January 2020"
+output:
+  pdf_document: default
+  html_document:
+    number_sections: yes
+---
+
+## Preparation
+
+Declare generic function for generating decay curves depending on maximum stock age (i.e. the age in which the stock is reduced to 0) and an expontial describing the shape and steepness of the curve.
+
+```{r}
+generateStockDecayCurve <- function(maxStockAge = 4, exponential = 3)
+{
+  
+  curve <- c()
+  for (yearsOld in 0:maxStockAge)
+  {
+    curve <- c(curve, (1 - (yearsOld / maxStockAge) ^ exponential))
+  }
+  
+  return(curve)
+}
+```
+
+## Plot parameter exploration
+
+Set up six variations of parameter settings (e.g. c(maxStockAge, exponential)):
+
+```{r}
+parValues <- rbind(
+  c(1, 2),
+  c(2, 2),
+  c(3, 4),
+  c(3, 3),
+  c(4, 2),
+  c(5, 3)
+)
+
+maxMaxStockAge = max(parValues[, 1])
+```
+
+Plot curves:
+
+```{r}
+grScale = 2
+
+plotName = "stockDecayCurve.png"
+  
+png(plotName, width = grScale * 800, height = grScale * 480)
+
+par(cex = grScale * 1.2)
+
+plot(c(0, maxMaxStockAge + 2), # leave some space on the right side to display legend
+     c(0, 150), # leave some space on top to display equation 
+     type = "n", 
+     main = "Stock decay curve",
+     xlab = "stock age (years)",
+     ylab = "% of preserved stock",
+     cex.main = grScale
+)
+
+for (i in 1:nrow(parValues))
+{
+  curve <- 100 * 
+    generateStockDecayCurve(maxStockAge = parValues[i, 1], exponential = parValues[i, 2])
+  
+  lines((1:length(curve)) - 1, curve, 
+        col = i, lwd = grScale * 3)
+  
+  legend(x = maxMaxStockAge * 0.9, 
+         y = 100 * (1 - 0.1 * (i - 1)), 
+         legend = substitute(paste("maxStockAge = ", maxStockAge, 
+                                 ", exponential = ", exponential), 
+                           list(maxStockAge = parValues[i, 1], exponential = parValues[i, 2])), 
+         col = i,
+         lwd = grScale * 3, cex = 0.8,
+         title = NULL, bty = "n")
+}
+
+text(x = maxMaxStockAge * 0.7, y = 130,
+     expression(paste(
+       "preserved stock = ", 1 - bgroup("(",frac(age, maxStockAge),")")^exponential
+     ))
+     , cex = grScale * 0.8)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
