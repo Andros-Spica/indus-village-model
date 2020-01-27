@@ -39,6 +39,7 @@ globals
   ;;;; parameters for simulating inputs
   ;;;; Their values should eventually come from other submodels.
   desiredDietMin desiredDietMax             ; Minimum and maximum desired diet of households (stock units). Desired diet is randomised in each household at initialisation.
+  minMaxSurplusToSell maxMaxSurplusToSell   ;
 
   productionMin productionMax               ; Minimum and maximum production per household/time-step (stock units). Production is randomised in each household every time-step.
 
@@ -47,6 +48,8 @@ globals
   decayShape                                ; the exponential used to describe the shape of the decay curve.
 
   ;;; variables
+
+  market_stocks                             ; Stocks available for households to acquire distinguised by stock age (list of floats; stock units).
 
   ;;;; auxiliar
 
@@ -60,6 +63,11 @@ globals
   ;;; OUTFLOWS
   sumOfLosses                               ; Sum of all households stocks losses due to decay (stock units).
 
+  ;;; Market INFLOWS & OUTFLOWS
+  market_purchases                          ; Total stock units acquired by the market from households with surplus
+  market_sells                              ; Total stock units sold by the market to households with unfullfiled diets
+  market_sumOfLosses                        ; Sum of market stocks losses due to decay (stock units).
+
 ]
 
 ;;; agents variables
@@ -68,6 +76,8 @@ households-own
 [
   hh_dietDesired                   ; The amount of stock units desired by the household in each time-step (stock units).
   hh_dietUnfulfilled              ; The amount of stock units desired by the household, but currently unsatisfied (stock units).
+
+  hh_maxSurplusToSell              ; Maximum proportion of surplus that the household is willing to sell to the market (% of surplus).
 
   hh_stocks                        ; Household stocks distinguised by stock age (list of floats; stock units).
 ]
@@ -83,6 +93,8 @@ to setup
   set-parameters
 
   setup-households
+
+  setup-market
 
   reset-counters
 
@@ -109,6 +121,8 @@ to set-parameters
 
     set desiredDietMax desired-diet-max
     set desiredDietMin desired-diet-min
+    set minMaxSurplusToSell min-max-surplus-to-sell
+    set maxMaxSurplusToSell max-max-surplus-to-sell
 
     set productionMax production-max
     set productionMin production-min
@@ -123,6 +137,8 @@ to set-parameters
 
     set desiredDietMin random desired-diet-min
     set desiredDietMax desiredDietMin + random desired-diet-max
+    set minMaxSurplusToSell random-float min-max-surplus-to-sell
+    set maxMaxSurplusToSell minMaxSurplusToSell + random-float max-max-surplus-to-sell
 
     set productionMin random production-min
     set productionMax productionMin + random production-max
@@ -145,6 +161,9 @@ to parameters-check1
   if (desired-diet-max = 0)                     [ set desired-diet-max                     80 ]
   if (desired-diet-min = 0)                     [ set desired-diet-min                     30 ]
 
+  ;if (max-max-surplus-to-sell = 0)              [ set max-max-surplus-to-sell              80 ]
+  ;if (min-max-surplus-to-sell = 0)              [ set min-max-surplus-to-sell              20 ]
+
   if (production-max = 0)                       [ set production-max                       80 ]
   if (production-min = 0)                       [ set production-min                       30 ]
 
@@ -162,6 +181,9 @@ to parameters-to-default
 
   set desired-diet-max                     80
   set desired-diet-min                     30
+
+  set max-max-surplus-to-sell              80
+  set min-max-surplus-to-sell              20
 
   set production-max                       80
   set production-min                       30
@@ -200,6 +222,31 @@ to check-par-is-range [ parName parListMinMax ]
 
 end
 
+to setup-market
+
+  ;;; Initialise initial market stocks
+  ;;; It creates retrospectively one stock per year of production,
+  ;;; according to the baseline decay of the specific foodstuff and number of households
+
+  set market_stocks []
+
+  ;;; iterate per stock age (from CURRENT to OLDEST),
+  ;;; adding the estimated production of that year and discounting decay.
+  ;;; current-stock converge into 0 once number of iterations reach maxStockAge
+
+  let index 0
+
+  repeat maxStockAge
+  [
+    ;;; get new value according to decay proportional to years-old
+    ;;; and add it as the stock of this year
+    set market_stocks lput (sum [hh_get-init-stock index] of households) market_stocks
+
+    set index index + 1
+  ]
+
+end
+
 to setup-households
 
   ;;; create households (position are not relevant)
@@ -219,6 +266,8 @@ end
 to hh_initialise
 
   set hh_dietDesired hh_get-dietDesired
+
+  set hh_maxSurplusToSell hh_get-maxSurplusToSell
 
   hh_initialise-stocks
 
@@ -255,6 +304,12 @@ to-report hh_get-dietDesired
 
 end
 
+to-report hh_get-maxSurplusToSell
+
+  report get-random-in-range minMaxSurplusToSell maxMaxSurplusToSell
+
+end
+
 to-report hh_get-init-stock [ stockAge ]
 
   ;;; Get an initial quantity of production per year as stochastic variation,
@@ -273,6 +328,8 @@ to go
 
   reset-counters
 
+  market-stocks-decay
+
   update-households
 
   update-counters
@@ -288,6 +345,33 @@ to go
 end
 
 ;;; GLOBAL ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to market-stocks-decay
+
+  ;;; iterate per stock age (from OLDEST to CURRENT),
+  ;;; discounting decay and moving the stock to an older index
+  ;;; The oldest (index = maxStorageAge) is lost
+
+  let index (maxStockAge - 1)
+
+  repeat (maxStockAge - 1) ; "- 1" garantees that index 0 (the current produce) is ignored, i.e. it is still to be filled by this time step produce
+  [
+    ;;; get new value according to decay proportional to years-old
+    let newValue (item (index - 1) market_stocks) * (get-stock-preservation-rate index)
+
+    ;;; add value to the record of market losses
+    set market_sumOfLosses market_sumOfLosses + ((item (index - 1) market_stocks) - newValue)
+
+    ;;; and add it as the stock of this year
+    set market_stocks replace-item index market_stocks newValue
+
+    set index index - 1
+  ]
+
+  ;;; reset most recent stock to 0 (it may be later filled by households selling their surplus)
+  set market_stocks replace-item 0 market_stocks 0
+
+end
 
 to update-households
 
@@ -321,10 +405,39 @@ to stocks-update
     hh_stocks-produce
   ]
 
-  ;;; CONSUME
+  ;;; CONSUME, first attempt (before exchange)
   ask households
   [
     hh_stocks-consume
+  ]
+
+  ;;; SELL
+  ;;; households with surplus contribute a fraction of their surplus
+  ;;; to a common exchange pool ('market')
+  ask households with [hh_dietUnfulfilled = 0]
+  [
+    hh_stocks-sell
+  ]
+
+  ;;; BUY
+  ;;; households with unfullfilled diets may complement their stocks progressivelly.
+  ;;; by importing/acquiring/buying additional foodstuff at the common 'market'.
+  ;;; The iteration advances one unit of stock at a time
+  ;;; and stops when the market supply or demand is exhausted.
+
+  ;;; calculate the number of possible transactions as the minimum between supply (market-stocks) and demand (sum [hh_dietUnfulfilled] of households)
+  let numberOftransactions min (list (sum market_stocks) (sum [hh_dietUnfulfilled] of households) ) ; (sum [min (list hh_dietUnfulfilled hh_exchangePower)] of households) )
+
+  repeat numberOftransactions
+  [
+    ask one-of households with [hh_dietUnfulfilled > 0]
+    [
+      ;;; search & acquire
+      hh_stocks-buy
+
+      ;;; and then consume it
+      hh_stocks-consume
+    ]
   ]
 
 end
@@ -412,6 +525,67 @@ to hh_stocks-consume
 
 end
 
+to hh_stocks-sell
+
+  ;;; The household will sell a fraction of surplus to the market.
+  ;;; Households will only sell surplus from the most recent stock.
+  ;;; The corresponding "demand" is assumed to exist in the market
+
+  ;;; The fraction to sell depends on the household disposition (hh_maxSurplusToSell)
+  let transactionStocks (item 0 hh_stocks) * (hh_maxSurplusToSell / 100)
+
+  ;;; subtract transactionStocks from the most recent of household stocks
+  set hh_stocks replace-item 0 hh_stocks ((item 0 hh_stocks) - transactionStocks)
+
+  ;;; add transactionStocks to the most recent of market stocks
+  set market_stocks replace-item 0 market_stocks ((item 0 market_stocks) + transactionStocks)
+
+  ;;; add transactionStocks to the household exchange power
+  ;set hh_exchangePower hh_exchangePower + transactionStocks
+
+  ;;; add transactionStocks to the record of market purchases
+  set market_purchases market_purchases + transactionStocks
+
+end
+
+to hh_stocks-buy
+
+  ;;; The household will acquire one unit of stock from the market
+
+  let stocksToBuy 1
+
+  ;;; search the most recent produce available (assuming freshness is preferred)
+  ;;; and buy until the unit is fullfilled or there is no more stocks in the market
+  let index 0
+
+  repeat maxStockAge
+  [
+    if (stocksToBuy > 0 and (item index market_stocks) > 0)
+    [
+      ;;; Stock units to be acquired are 1 or less (in case the market is almost depleted)
+      let transactionStocks min (list stocksToBuy (item index market_stocks))
+
+      ;;; add transactionStocks to the most recent of household stocks
+      set hh_stocks replace-item index hh_stocks ((item index hh_stocks) + transactionStocks)
+
+      ;;; subtract transactionStocks from the most recent of market stocks
+      set market_stocks replace-item index market_stocks ((item index market_stocks) - transactionStocks)
+
+      ;;; subtract transactionStocks from the household exchange power
+      ;set hh_exchangePower hh_exchangePower - transactionStocks
+
+      ;;; add transactionStocks to the record of market sells
+      set market_sells market_sells + transactionStocks
+
+      ;;; discount bought stock from stocksToBuy (in most cases a single purchase is enough)
+      set stocksToBuy stocksToBuy - transactionStocks
+
+      set index index + 1
+    ]
+  ]
+
+end
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; GENERIC FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -444,6 +618,10 @@ to reset-counters
 
   set sumOfLosses 0
 
+  set market_purchases 0
+  set market_sells 0
+  set market_sumOfLosses 0
+
 end
 
 to update-counters
@@ -455,6 +633,8 @@ to update-counters
   set sumOfCurrentProduction sum [item 0 hh_stocks] of households
 
   ;;; sumOfLosses is updated every iteration of hh_stocks-decay.
+  ;;; market_purchases, market_sells, and market_sumOfLosses are updated
+  ;;; every iteration of hh_stocks-buy, hh_stocks-sell, and market-stocks-decay, respectively.
 
 end
 
@@ -752,9 +932,9 @@ HORIZONTAL
 
 PLOT
 576
-305
+422
 992
-442
+559
 Sum of stocks per age
 stock age
 stock units
@@ -845,6 +1025,101 @@ PRODUCTION & CONSUMPTION
 0.0
 1
 
+PLOT
+577
+142
+992
+272
+Market stocks INFLOWS & OUTFLOWS
+time steps
+stock units
+0.0
+10.0
+0.0
+10.0
+true
+true
+"" ""
+PENS
+"total" 1.0 0 -16777216 true "" "plot sum market_stocks"
+"losses" 1.0 0 -2674135 true "" "plot market_sumOfLosses"
+"purchases" 1.0 0 -13840069 true "" "plot market_purchases"
+"sells" 1.0 0 -8630108 true "" "plot market_sells"
+
+SLIDER
+164
+441
+365
+474
+min-max-surplus-to-sell
+min-max-surplus-to-sell
+0
+max-max-surplus-to-sell
+20.0
+0.01
+1
+%
+HORIZONTAL
+
+SLIDER
+364
+441
+557
+474
+max-max-surplus-to-sell
+max-max-surplus-to-sell
+min-max-surplus-to-sell
+100
+80.0
+0.01
+1
+%
+HORIZONTAL
+
+MONITOR
+995
+148
+1085
+185
+NIL
+sum market_stocks
+2
+1
+9
+
+MONITOR
+995
+191
+1097
+228
+NIL
+market_sumOfLosses
+2
+1
+9
+
+MONITOR
+995
+228
+1080
+265
+NIL
+market_purchases
+2
+1
+9
+
+MONITOR
+1082
+228
+1148
+265
+NIL
+market_sells
+2
+1
+9
+
 MONITOR
 998
 49
@@ -869,9 +1144,9 @@ sumOfCurrentProduction
 
 PLOT
 577
-155
+272
 992
-305
+422
 Household diet
 time steps
 stock units
