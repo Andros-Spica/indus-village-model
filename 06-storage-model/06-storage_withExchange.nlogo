@@ -38,8 +38,8 @@ globals
 
   ;;;; parameters for simulating inputs
   ;;;; Their values should eventually come from other submodels.
-  desiredDietMin desiredDietMax             ; Minimum and maximum desired diet of households (stock units). Desired diet is randomised in each household at initialisation.
-  minMaxSurplusToSell maxMaxSurplusToSell   ;
+  desiredDietMin desiredDietMax             ; Minimum and maximum desired diet of households (stock units). Desired diet (hh_desiredDiet) is randomised in each household at initialisation.
+  minMaxSurplusToSell maxMaxSurplusToSell   ; Minimum and maximum percentage up to which households are willing to sell their surplus to the market (stock units). hh_maxSurplusToSell is randomised in each household at initialisation.
 
   productionMin productionMax               ; Minimum and maximum production per household/time-step (stock units). Production is randomised in each household every time-step.
 
