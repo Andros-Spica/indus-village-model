@@ -65,14 +65,13 @@ globals
   precipitation_dailyCum_inflection2_yearlySd
   precipitation_dailyCum_rate2_yearlyMean
   precipitation_dailyCum_rate2_yearlySd
+  ;;; consult the study on modeling daily precipitation to understand role of these parameters:
+  ;;; https://github.com/Andros-Spica/parModelPrecipitation
 
   ;;;; CO2 (ppm)
   CO2_annualMin
   CO2_annualMax
   CO2_meanDailyFluctuation
-;  CO2_mean
-;  CO2_annualDeviation
-;  CO2_dailyFluctuation
 
   ;;;; Solar radiation (kWh/m2)
   solar_annualMax
@@ -364,7 +363,7 @@ to-report get-temperature [ dayOfYear ]
 
   ;;; get temperature base level for the current day (ºC at lowest elevation)
 
-  report (get-annual-sinosoid-with-fluctuation temperature_annualMinAt2m temperature_annualMaxAt2m temperature_meanDailyFluctuation dayOfYear)
+  report (get-annual-sinusoid-with-fluctuation temperature_annualMinAt2m temperature_annualMaxAt2m temperature_meanDailyFluctuation dayOfYear)
 
 end
 
@@ -379,46 +378,8 @@ end
 to set-precipitation-of-year
 
   ;;;===============================================================================
-  ;;; get double logistic curve as a proxy of the year series of daily cumulative precipitation
-
-  ;;; get randomised values of parameters for double logistic curve
-  let plateauValue clamp01 (random-normal precipitation_dailyCum_plateauValue_yearlyMean precipitation_dailyCum_plateauValue_yearlySd)
-  let inflection1 clampMinMax (random-normal precipitation_dailyCum_inflection1_yearlyMean precipitation_dailyCum_inflection1_yearlySd) 1 yearLengthInDays
-  let rate1 clampMin0 (random-normal precipitation_dailyCum_rate1_yearlyMean precipitation_dailyCum_rate1_yearlySd)
-  let inflection2 clampMinMax (random-normal precipitation_dailyCum_inflection2_yearlyMean precipitation_dailyCum_inflection2_yearlySd) 1 yearLengthInDays
-  let rate2 clampMin0 (random-normal precipitation_dailyCum_rate2_yearlyMean precipitation_dailyCum_rate2_yearlySd)
-  ;print (word "plateauValue = " plateauValue ", inflection1 = " inflection1 ", rate1 = " rate1 ", inflection2 = " inflection2 ", rate2 = " rate2)
-
-  ;;; get curve (we want one more point besides yearLengthInDays to account for the initial difference or daily precipitation
-  set precipitation_cumYearSeries get-double-logistic-curve (yearLengthInDays + 1) plateauValue inflection1 rate1 inflection2 rate2
-
-  ;;;===============================================================================
-  ;;; modify the curve breaking the continuous pattern by randomly aggregating values
-
-  let nSample round precipitation_dailyCum_nSample
-  let maxSampleSize round clampMinMax precipitation_dailyCum_maxSampleSize 1 yearLengthInDays
-
-  foreach n-values nSample [j -> j + 1] ; do not iterate for the first (0) element
-  [
-    sampleIndex ->
-    ; get a decreasing sample size proportionally to sample index
-    let thisSampleSize ceiling (maxSampleSize * sampleIndex / nSample)
-    ; get random day of year to have rain (we exclude 0, which is the extra day or the last day of previous year)
-    let rainDOY 1 + random yearLengthInDays
-    ; set sample limits
-    let earliestNeighbour max (list 1 (rainDOY - thisSampleSize))
-    let latestNeighbour min (list yearLengthInDays (rainDOY + thisSampleSize))
-    ; get mean of neighbourhood
-    let meanNeighbourhood mean (sublist precipitation_cumYearSeries earliestNeighbour latestNeighbour)
-    ;print (word "thisSampleSize = " thisSampleSize ", rainDOY = " rainDOY ", earliestNeighbour = " earliestNeighbour ", latestNeighbour = " latestNeighbour)
-    ;print meanNeighbourhood
-    ; assign mean to all days in neighbourhood
-    foreach n-values (latestNeighbour - earliestNeighbour) [k -> earliestNeighbour + k]
-    [
-      dayOfYearIndex ->
-      set precipitation_cumYearSeries replace-item dayOfYearIndex precipitation_cumYearSeries meanNeighbourhood
-    ]
-  ]
+  ;;; Simulate *cumulative proportion of year precipitation*.
+  set-daily-cumulative-precipitation
 
   ;;;===============================================================================
   ;;; Derivate *daily proportion of year precipitation* from simulated *cumulative proportion of year precipitation*.
@@ -446,11 +407,54 @@ to set-precipitation-of-year
 
 end
 
+to set-daily-cumulative-precipitation
+
+  ;;;===============================================================================
+  ;;; get double logistic curve as a proxy of the year series of daily cumulative precipitation
+
+  ;;; get randomised values for parameters of the double logistic curve
+  let plateauValue clamp01 (random-normal precipitation_dailyCum_plateauValue_yearlyMean precipitation_dailyCum_plateauValue_yearlySd)
+  let inflection1 clampMinMax (random-normal precipitation_dailyCum_inflection1_yearlyMean precipitation_dailyCum_inflection1_yearlySd) 1 yearLengthInDays
+  let rate1 clampMin0 (random-normal precipitation_dailyCum_rate1_yearlyMean precipitation_dailyCum_rate1_yearlySd)
+  let inflection2 clampMinMax (random-normal precipitation_dailyCum_inflection2_yearlyMean precipitation_dailyCum_inflection2_yearlySd) 1 yearLengthInDays
+  let rate2 clampMin0 (random-normal precipitation_dailyCum_rate2_yearlyMean precipitation_dailyCum_rate2_yearlySd)
+  ;print (word "plateauValue = " plateauValue ", inflection1 = " inflection1 ", rate1 = " rate1 ", inflection2 = " inflection2 ", rate2 = " rate2)
+
+  ;;; get curve (we want one more point besides yearLengthInDays to account for the initial difference or daily precipitation
+  set precipitation_cumYearSeries get-double-logistic-curve (yearLengthInDays + 1) plateauValue inflection1 rate1 inflection2 rate2
+
+  ;;;===============================================================================
+  ;;; modify the curve breaking the continuous pattern by randomly aggregating values
+
+  foreach n-values precipitation_dailyCum_nSample [j -> j + 1] ; do not iterate for the first (0) element
+  [
+    sampleIndex ->
+    ; get a decreasing sample size proportionally to sample index
+    let thisSampleSize ceiling (precipitation_dailyCum_maxSampleSize * sampleIndex / precipitation_dailyCum_nSample)
+    ; get random day of year to have rain (we exclude 0, which is the extra day or the last day of previous year)
+    let rainDOY 1 + random yearLengthInDays
+    ; set sample limits
+    let earliestNeighbour max (list 1 (rainDOY - thisSampleSize))
+    let latestNeighbour min (list yearLengthInDays (rainDOY + thisSampleSize))
+    ; get mean of neighbourhood
+    let meanNeighbourhood mean (sublist precipitation_cumYearSeries earliestNeighbour latestNeighbour)
+    ;print (word "thisSampleSize = " thisSampleSize ", rainDOY = " rainDOY ", earliestNeighbour = " earliestNeighbour ", latestNeighbour = " latestNeighbour)
+    ;print meanNeighbourhood
+    ; assign mean to all days in neighbourhood
+    foreach n-values (latestNeighbour - earliestNeighbour) [k -> earliestNeighbour + k]
+    [
+      dayOfYearIndex ->
+      set precipitation_cumYearSeries replace-item dayOfYearIndex precipitation_cumYearSeries meanNeighbourhood
+    ]
+  ]
+
+end
+
 to-report get-CO2 [ dayOfYear ]
 
   ;;; get CO2 atmospheric concentration for the current day (ppm)
 
-  report (get-annual-sinosoid-with-fluctuation CO2_annualMin CO2_annualMax CO2_meanDailyFluctuation dayOfYear)
+  report (get-annual-sinusoid-with-fluctuation CO2_annualMin CO2_annualMax CO2_meanDailyFluctuation dayOfYear)
 
 end
 
@@ -459,7 +463,7 @@ to-report get-solar-radiation [ dayOfYear ]
   ;;; get solar radiation for the current day (MJ/m2)
   ;;; return value converted from kWh/m2 to MJ/m2 (1 : 3.6)
 
-  report (get-annual-sinosoid-with-fluctuation solar_annualMin solar_annualMax solar_meanDailyFluctuation dayOfYear) * 3.6
+  report (get-annual-sinusoid-with-fluctuation solar_annualMin solar_annualMax solar_meanDailyFluctuation dayOfYear) * 3.6
   ;;; NOTE: it might be possible to decrease solar radiation depending on the current day precipitation. Further info on precipitation effect on solar radiation is needed.
 
 end
@@ -523,13 +527,13 @@ end
 ;;; GENERIC FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-to-report get-annual-sinosoid-with-fluctuation [ minValue maxValue meanFluctuation dayOfYear ]
+to-report get-annual-sinusoid-with-fluctuation [ minValue maxValue meanFluctuation dayOfYear ]
 
-  report max (list 0 random-normal (get-annual-sinosoid minValue maxValue dayOfYear) meanFluctuation)
+  report max (list 0 random-normal (get-annual-sinusoid minValue maxValue dayOfYear) meanFluctuation)
 
 end
 
-to-report get-annual-sinosoid [ minValue maxValue dayOfYear ]
+to-report get-annual-sinusoid [ minValue maxValue dayOfYear ]
 
   let amplitude (maxValue - minValue) / 2
 
@@ -557,6 +561,18 @@ to-report get-point-in-double-logistic [ pointIndex plateauValue inflection1 rat
 
   report (plateauValue / (1 + exp((inflection1 - pointIndex) * rate1))) + ((1 - plateauValue) / (1 + exp((inflection2 - pointIndex) * rate2)))
 
+end
+
+to-report clamp01 [ value ]
+  report min (list 1 (max (list 0 value)))
+end
+
+to-report clampMin0 [ value ]
+  report (max (list 0 value))
+end
+
+to-report clampMinMax [ value minValue maxValue ]
+  report min (list maxValue (max (list minValue value)))
 end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -602,22 +618,6 @@ to plot-precipitation-table-by-month
   ]
   plot-pen-up
 
-end
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;; numeric generic functions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-to-report clamp01 [ value ]
-  report min (list 1 (max (list 0 value)))
-end
-
-to-report clampMin0 [ value ]
-  report (max (list 0 value))
-end
-
-to-report clampMinMax [ value minValue maxValue ]
-  report min (list maxValue (max (list minValue value)))
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
