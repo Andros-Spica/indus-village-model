@@ -46,7 +46,7 @@ globals
   ;;;; temperature (ºC)
   temperature_annualMaxAt2m
   temperature_annualMinAt2m
-  temperature_dailyMeanFluctuation
+  temperature_meanDailyFluctuation
   temperature_dailyLowerDeviation
   temperature_dailyUpperDeviation
 
@@ -67,14 +67,17 @@ globals
   precipitation_dailyCum_rate2_yearlySd
 
   ;;;; CO2 (ppm)
-  CO2_mean
-  CO2_annualDeviation
-  CO2_dailyFluctuation
+  CO2_annualMin
+  CO2_annualMax
+  CO2_meanDailyFluctuation
+;  CO2_mean
+;  CO2_annualDeviation
+;  CO2_dailyFluctuation
 
   ;;;; Solar radiation (kWh/m2)
   solar_annualMax
   solar_annualMin
-  solar_dailyMeanFluctuation
+  solar_meanDailyFluctuation
 
   ;;; variables
   ;;;; time tracking
@@ -91,7 +94,7 @@ globals
   netSolarRadiation ; net solar radiation discount canopy reflection or albedo, assuming hypothetical grass reference crop (albedo = 0.23)
   precipitation_yearSeries
   precipitation_cumYearSeries
-  ET_0 ; reference evapotranspiration
+  ETr ; reference evapotranspiration
 ]
 
 ;;; agents variables
@@ -154,17 +157,17 @@ to set-parameters
     ;;; weather generation
     set temperature_annualMaxAt2m temperature_annual-max-at-2m
     set temperature_annualMinAt2m temperature_annual-min-at-2m
-    set temperature_dailyMeanFluctuation temperature_daily-mean-fluctuation
+    set temperature_meanDailyFluctuation temperature_mean-daily-fluctuation
     set temperature_dailyLowerDeviation temperature_daily-lower-deviation
     set temperature_dailyUpperDeviation temperature_daily-upper-deviation
 
-    set CO2_mean CO2-mean
-    set CO2_annualDeviation CO2-annual-deviation
-    set CO2_dailyFluctuation CO2-daily-fluctuation
+    set CO2_annualMin CO2-annual-min
+    set CO2_annualMax CO2-annual-max
+    set CO2_meanDailyFluctuation CO2-mean-daily-fluctuation
 
     set solar_annualMax solar_annual-max
     set solar_annualMin solar_annual-min
-    set solar_dailyMeanFluctuation solar_daily-mean-fluctuation
+    set solar_meanDailyFluctuation solar_mean-daily-fluctuation
 
     set precipitation_yearlyMean precipitation_yearly-mean
     set precipitation_yearlySd precipitation_yearly-sd
@@ -186,17 +189,17 @@ to set-parameters
     ;;; use values from user interface as a maximum for random uniform distributions
     set temperature_annualMaxAt2m 15 + random-float 35
     set temperature_annualMinAt2m -15 + random-float 30
-    set temperature_dailyMeanFluctuation random-float temperature_daily-mean-fluctuation
+    set temperature_meanDailyFluctuation random-float temperature_mean-daily-fluctuation
     set temperature_dailyLowerDeviation random-float temperature_daily-lower-deviation
     set temperature_dailyUpperDeviation random-float temperature_daily-upper-deviation
 
-    set CO2_mean random-normal 350 20
-    set CO2_annualDeviation max (list 0 random-normal 2.5 0.5)
-    set CO2_dailyFluctuation max (list 0 random-normal 2.5 0.5)
+    set CO2_annualMin random-normal 250 20
+    set CO2_annualMax CO2_annualMin + random-float 10
+    set CO2_meanDailyFluctuation max (list 0 random-normal 2.5 0.5)
 
     set solar_annualMin random-normal 4 0.1
     set solar_annualMax solar_annualMin + random-float 2
-    set solar_dailyMeanFluctuation 0.01
+    set solar_meanDailyFluctuation 0.01
 
     set precipitation_yearlyMean 200 + random-float 800
     set precipitation_yearlySd random-float 200
@@ -225,13 +228,13 @@ to parameters-check
 
   if (temperature_annual-max-at-2m = 0)                          [ set temperature_annual-max-at-2m                   40 ]
   if (temperature_annual-min-at-2m = 0)                          [ set temperature_annual-min-at-2m                   15 ]
-  if (temperature_daily-mean-fluctuation = 0)                    [ set temperature_daily-mean-fluctuation             5 ]
+  if (temperature_mean-daily-fluctuation = 0)                    [ set temperature_mean-daily-fluctuation             5 ]
   if (temperature_daily-lower-deviation = 0)                     [ set temperature_daily-lower-deviation              5 ]
   if (temperature_daily-upper-deviation = 0)                     [ set temperature_daily-upper-deviation              5 ]
 
-  if (CO2-mean = 0)                                              [ set CO2-mean                                       250 ]
-  if (CO2-annual-deviation = 0)                                  [ set CO2-annual-deviation                           2 ]
-  if (CO2-daily-fluctuation = 0)                                 [ set CO2-daily-fluctuation                          1 ]
+  if (CO2-annual-min = 0)                                        [ set CO2-annual-min                               245 ]
+  if (CO2-annual-max = 0)                                        [ set CO2-annual-max                               255 ]
+  if (CO2-mean-daily-fluctuation = 0)                            [ set CO2-mean-daily-fluctuation                     1 ]
 
   ;;; Global Horizontal Irradiation can vary from about 2 to 7 KWh/m-2 per day.
   ;;; See approx. values in https://globalsolaratlas.info/
@@ -239,7 +242,7 @@ to parameters-check
   ;;; see general info in http://www.physicalgeography.net/fundamentals/6i.html
   if (solar_annual-max = 0)                                      [ set solar_annual-max                              7 ]
   if (solar_annual-min = 0)                                      [ set solar_annual-min                              3 ]
-  if (solar_daily-mean-fluctuation = 0)                          [ set solar_daily-mean-fluctuation                  1 ]
+  if (solar_mean-daily-fluctuation = 0)                          [ set solar_mean-daily-fluctuation                  1 ]
 
   if (precipitation_yearly-mean = 0)                             [ set precipitation_yearly-mean                     400 ]
   if (precipitation_yearly-sd = 0)                               [ set precipitation_yearly-sd                       130 ]
@@ -265,17 +268,17 @@ to parameters-to-default
 
   set temperature_annual-max-at-2m                   40
   set temperature_annual-min-at-2m                   15
-  set temperature_daily-mean-fluctuation             5
+  set temperature_mean-daily-fluctuation             5
   set temperature_daily-lower-deviation              5
   set temperature_daily-upper-deviation              5
 
-  set CO2-mean                                       250
-  set CO2-annual-deviation                           2
-  set CO2-daily-fluctuation                          1
+  set CO2-annual-min                               245
+  set CO2-annual-max                               255
+  set CO2-mean-daily-fluctuation                     1
 
-  set solar_annual-max                              7
-  set solar_annual-min                              3
-  set solar_daily-mean-fluctuation                  1
+  set solar_annual-max                               7
+  set solar_annual-min                               3
+  set solar_mean-daily-fluctuation                   1
 
   set precipitation_yearly-mean                               400
   set precipitation_yearly-sd                                 130
@@ -343,13 +346,13 @@ to update-weather
   set solarRadiation get-solar-radiation currentDayOfYear
   set netSolarRadiation (1 - cropAlbedo) * solarRadiation
 
-  set ET_0 get-ET0
+  set ETr get-ETr
 
 end
 
 to update-temperature [ dayOfYear ]
 
-  set T random-normal (get-temperature dayOfYear) temperature_dailyMeanFluctuation
+  set T get-temperature dayOfYear
 
   set T_min T - temperature_dailyLowerDeviation
 
@@ -359,10 +362,9 @@ end
 
 to-report get-temperature [ dayOfYear ]
 
-  ; get temperature base level for the current day (ºC at lowest elevation)
+  ;;; get temperature base level for the current day (ºC at lowest elevation)
 
-  let amplitude (temperature_annualMaxAt2m - temperature_annualMinAt2m) / 2
-  report temperature_annualMinAt2m + amplitude * (1 + sin (270 + 360 * dayOfYear / yearLengthInDays)) ; sin function in NetLogo needs angle in degrees. 270º equivalent to 3 * pi / 2 and 360º equivalent to 2 * pi
+  report (get-annual-sinosoid-with-fluctuation temperature_annualMinAt2m temperature_annualMaxAt2m temperature_meanDailyFluctuation dayOfYear)
 
 end
 
@@ -444,49 +446,25 @@ to set-precipitation-of-year
 
 end
 
-to-report get-double-logistic-curve [ nPoints plateauValue inflection1 rate1 inflection2 rate2 ]
-
-  let curve (list)
-
-  foreach n-values nPoints [j -> j]
-  [
-    pointIndex ->
-    set curve lput (get-point-in-double-logistic pointIndex plateauValue inflection1 rate1 inflection2 rate2) curve
-  ]
-
-  report curve
-
-end
-
-to-report get-point-in-double-logistic [ pointIndex plateauValue inflection1 rate1 inflection2 rate2 ]
-
-  report (plateauValue / (1 + exp((inflection1 - pointIndex) * rate1))) + ((1 - plateauValue) / (1 + exp((inflection2 - pointIndex) * rate2)))
-
-end
-
 to-report get-CO2 [ dayOfYear ]
 
-  ; get CO2 atmospheric concentration for the current day (ppm)
-  let CO2-osc CO2_mean - CO2_annualDeviation + CO2_annualDeviation * (1 + sin (270 + 360 * dayOfYear / yearLengthInDays)) ; sin function in NetLogo needs angle in degrees. 270º equivalent to 3 * pi / 2 and 360º equivalent to 2 * pi
+  ;;; get CO2 atmospheric concentration for the current day (ppm)
 
-  report max (list 0 random-normal CO2-osc CO2_dailyFluctuation)
+  report (get-annual-sinosoid-with-fluctuation CO2_annualMin CO2_annualMax CO2_meanDailyFluctuation dayOfYear)
 
 end
 
 to-report get-solar-radiation [ dayOfYear ]
 
-  let amplitude (solar_annualMax - solar_annualMin) / 2
-  let modelBase solar_annualMin + amplitude * (1 + sin (270 + 360 * dayOfYear / yearLengthInDays)) ; sin function in NetLogo needs angle in degrees. 270º equivalent to 3 * pi / 2 and 360º equivalent to 2 * pi
-  let withFluctuation max (list 0 random-normal modelBase solar_dailyMeanFluctuation)
-
+  ;;; get solar radiation for the current day (MJ/m2)
   ;;; return value converted from kWh/m2 to MJ/m2 (1 : 3.6)
-  report withFluctuation * 3.6
 
+  report (get-annual-sinosoid-with-fluctuation solar_annualMin solar_annualMax solar_meanDailyFluctuation dayOfYear) * 3.6
   ;;; NOTE: it might be possible to decrease solar radiation depending on the current day precipitation. Further info on precipitation effect on solar radiation is needed.
 
 end
 
-to-report get-ET0
+to-report get-ETr
 
   ;;; useful references:
   ;;; Suleiman A A and Hoogenboom G 2007
@@ -529,15 +507,55 @@ to-report get-ET0
   let C_n 900
   let C_d 0.34
 
-  let ET0_temp (0.408 * DELTA * netSolarRadiation + gamma * (C_n / (T + 273)) * windSpeed * (e_s - e_a)) / (DELTA + gamma * (1 + C_d * windSpeed))
+  let ETr_temp (0.408 * DELTA * netSolarRadiation + gamma * (C_n / (T + 273)) * windSpeed * (e_s - e_a)) / (DELTA + gamma * (1 + C_d * windSpeed))
 
-  report ET0_temp
+  report ETr_temp
 
 end
 
 to-report get-vapour-pressure [ temp ]
 
   report (0.6108 * exp(17.27 * temp / (temp + 237.3)))
+
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; GENERIC FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to-report get-annual-sinosoid-with-fluctuation [ minValue maxValue meanFluctuation dayOfYear ]
+
+  report max (list 0 random-normal (get-annual-sinosoid minValue maxValue dayOfYear) meanFluctuation)
+
+end
+
+to-report get-annual-sinosoid [ minValue maxValue dayOfYear ]
+
+  let amplitude (maxValue - minValue) / 2
+
+  report minValue + amplitude * (1 + sin (270 + 360 * dayOfYear / yearLengthInDays))
+
+  ; NOTE: sin function in NetLogo needs angle in degrees. 270º equivalent to 3 * pi / 2 and 360º equivalent to 2 * pi
+
+end
+
+to-report get-double-logistic-curve [ nPoints plateauValue inflection1 rate1 inflection2 rate2 ]
+
+  let curve (list)
+
+  foreach n-values nPoints [j -> j]
+  [
+    pointIndex ->
+    set curve lput (get-point-in-double-logistic pointIndex plateauValue inflection1 rate1 inflection2 rate2) curve
+  ]
+
+  report curve
+
+end
+
+to-report get-point-in-double-logistic [ pointIndex plateauValue inflection1 rate1 inflection2 rate2 ]
+
+  report (plateauValue / (1 + exp((inflection1 - pointIndex) * rate1))) + ((1 - plateauValue) / (1 + exp((inflection2 - pointIndex) * rate2)))
 
 end
 
@@ -685,9 +703,9 @@ type-of-experiment
 0
 
 MONITOR
-1346
+1308
 44
-1528
+1490
 81
 NIL
 temperature_annualMinAt2m
@@ -713,9 +731,9 @@ NIL
 1
 
 MONITOR
-1346
+1308
 10
-1531
+1493
 47
 NIL
 temperature_annualMaxAt2m
@@ -729,18 +747,18 @@ INPUTBOX
 237
 128
 end-simulation-in-tick
-2000.0
+1825.0
 1
 0
 Number
 
 SLIDER
-977
+939
 86
-1348
+1310
 119
-temperature_daily-mean-fluctuation
-temperature_daily-mean-fluctuation
+temperature_mean-daily-fluctuation
+temperature_mean-daily-fluctuation
 0
 20
 5.0
@@ -750,9 +768,9 @@ temperature_daily-mean-fluctuation
 HORIZONTAL
 
 SLIDER
-977
+939
 121
-1344
+1306
 154
 temperature_daily-lower-deviation
 temperature_daily-lower-deviation
@@ -765,9 +783,9 @@ temperature_daily-lower-deviation
 HORIZONTAL
 
 SLIDER
-978
+940
 154
-1345
+1307
 187
 temperature_daily-upper-deviation
 temperature_daily-upper-deviation
@@ -780,9 +798,9 @@ temperature_daily-upper-deviation
 HORIZONTAL
 
 SLIDER
-975
+937
 12
-1346
+1308
 45
 temperature_annual-max-at-2m
 temperature_annual-max-at-2m
@@ -795,9 +813,9 @@ temperature_annual-min-at-2m
 HORIZONTAL
 
 SLIDER
-977
+939
 49
-1341
+1303
 82
 temperature_annual-min-at-2m
 temperature_annual-min-at-2m
@@ -810,20 +828,20 @@ temperature_annual-max-at-2m
 HORIZONTAL
 
 MONITOR
-1349
+1311
 82
-1527
+1491
 119
 NIL
-temperature_dailyMeanFluctuation
+temperature_meanDailyFluctuation
 2
 1
 9
 
 MONITOR
-1345
+1307
 120
-1519
+1481
 157
 NIL
 temperature_dailyLowerDeviation
@@ -832,9 +850,9 @@ temperature_dailyLowerDeviation
 9
 
 MONITOR
-1347
+1309
 156
-1521
+1483
 193
 NIL
 temperature_dailyUpperDeviation
@@ -885,33 +903,33 @@ currentDayOfYear
 11
 
 SLIDER
-979
+941
 205
-1217
+1238
 238
-CO2-mean
-CO2-mean
-250
-800
-250.0
+CO2-annual-min
+CO2-annual-min
+200
+CO2-annual-max
+245.0
 0.01
 1
-ppm (default: 250)
+ppm (default: 245)
 HORIZONTAL
 
 SLIDER
-980
+942
 241
-1249
+1238
 274
-CO2-annual-deviation
-CO2-annual-deviation
-0
-5
-2.0
+CO2-annual-max
+CO2-annual-max
+CO2-annual-min
+270
+255.0
 0.01
 1
-ppm (default: 2)
+ppm (default: 255)
 HORIZONTAL
 
 PLOT
@@ -928,17 +946,17 @@ ppm
 10.0
 true
 false
-"set-plot-y-range (floor CO2_mean - CO2_annualDeviation - CO2_dailyFluctuation - 2) (ceiling CO2_mean + CO2_annualDeviation + CO2_dailyFluctuation + 2)" "set-plot-y-range (floor CO2_mean - CO2_annualDeviation - CO2_dailyFluctuation - 2) (ceiling CO2_mean + CO2_annualDeviation + CO2_dailyFluctuation + 2)"
+"set-plot-y-range (floor CO2_annualMin - CO2_meanDailyFluctuation - 1) (ceiling CO2_annualMax + CO2_meanDailyFluctuation + 1)" "set-plot-y-range (floor CO2_annualMin - CO2_meanDailyFluctuation - 1) (ceiling CO2_annualMax + CO2_meanDailyFluctuation + 1)"
 PENS
 "default" 1.0 0 -16777216 true "" "plot CO2"
 
 SLIDER
-980
+942
 276
-1242
+1238
 309
-CO2-daily-fluctuation
-CO2-daily-fluctuation
+CO2-mean-daily-fluctuation
+CO2-mean-daily-fluctuation
 0
 5
 1.0
@@ -999,8 +1017,8 @@ SLIDER
 396
 1334
 429
-solar_daily-mean-fluctuation
-solar_daily-mean-fluctuation
+solar_mean-daily-fluctuation
+solar_mean-daily-fluctuation
 0
 4
 1.0
@@ -1023,39 +1041,39 @@ KWh/m2
 10.0
 true
 false
-"set-plot-y-range (floor solar_annualMin - solar_dailyMeanFluctuation - 1) (ceiling solar_annualMax + solar_dailyMeanFluctuation + 1)" "set-plot-y-range (floor solar_annualMin - solar_dailyMeanFluctuation - 1) (ceiling solar_annualMax + solar_dailyMeanFluctuation + 1)"
+"set-plot-y-range (floor solar_annualMin - solar_meanDailyFluctuation - 1) (ceiling solar_annualMax + solar_meanDailyFluctuation + 1)" "set-plot-y-range (floor solar_annualMin - solar_meanDailyFluctuation - 1) (ceiling solar_annualMax + solar_meanDailyFluctuation + 1)"
 PENS
 "default" 1.0 0 -16777216 true "" "plot solarRadiation / 3.6"
 
 MONITOR
-1248
-203
-1317
-240
+1238
+202
+1328
+239
 NIL
-CO2_mean
+CO2_annualMin
 2
 1
 9
 
 MONITOR
-1249
-240
-1368
+1239
+239
+1358
+276
+NIL
+CO2_annualMax
+2
+1
+9
+
+MONITOR
+1239
 277
+1385
+314
 NIL
-CO2_annualDeviation
-2
-1
-9
-
-MONITOR
-1249
-275
-1366
-312
-NIL
-CO2_dailyFluctuation
+CO2_meanDailyFluctuation
 2
 1
 9
@@ -1088,7 +1106,7 @@ MONITOR
 1495
 430
 NIL
-solar_dailyMeanFluctuation
+solar_meanDailyFluctuation
 3
 1
 9
@@ -1156,7 +1174,7 @@ HORIZONTAL
 SLIDER
 939
 586
-1491
+1569
 619
 precipitation_daily-cum_plateau-value_yearly-mean
 precipitation_daily-cum_plateau-value_yearly-mean
@@ -1171,7 +1189,7 @@ HORIZONTAL
 SLIDER
 941
 618
-1491
+1568
 651
 precipitation_daily-cum_plateau-value_yearly-sd
 precipitation_daily-cum_plateau-value_yearly-sd
@@ -1246,7 +1264,7 @@ HORIZONTAL
 SLIDER
 939
 657
-1420
+1568
 690
 precipitation_daily-cum_inflection2_yearly-mean
 precipitation_daily-cum_inflection2_yearly-mean
@@ -1261,7 +1279,7 @@ HORIZONTAL
 SLIDER
 940
 695
-1343
+1568
 728
 precipitation_daily-cum_inflection2_yearly-sd
 precipitation_daily-cum_inflection2_yearly-sd
@@ -1276,7 +1294,7 @@ HORIZONTAL
 SLIDER
 941
 732
-1346
+1568
 765
 precipitation_daily-cum_rate2_yearly-mean
 precipitation_daily-cum_rate2_yearly-mean
@@ -1291,7 +1309,7 @@ HORIZONTAL
 SLIDER
 941
 769
-1344
+1568
 802
 precipitation_daily-cum_rate2_yearly-sd
 precipitation_daily-cum_rate2_yearly-sd
@@ -1348,10 +1366,10 @@ precipitation_dailyCum_maxSampleSize
 9
 
 MONITOR
-1490
-585
-1618
-622
+1570
+584
+1698
+621
 NIL
 precipitation_dailyCum_plateauValue_yearlyMean
 2
@@ -1359,10 +1377,10 @@ precipitation_dailyCum_plateauValue_yearlyMean
 9
 
 MONITOR
-1492
-620
-1630
-657
+1572
+619
+1710
+656
 NIL
 precipitation_dailyCum_plateauValue_yearlySd
 2
@@ -1414,9 +1432,9 @@ precipitation_dailyCum_rate1_yearlySd
 9
 
 MONITOR
-1424
+1572
 656
-1580
+1728
 693
 NIL
 precipitation_dailyCum_inflection2_yearlyMean
@@ -1425,10 +1443,10 @@ precipitation_dailyCum_inflection2_yearlyMean
 9
 
 MONITOR
-1345
-698
-1499
-735
+1572
+691
+1726
+728
 NIL
 precipitation_dailyCum_inflection2_yearlySd
 2
@@ -1436,10 +1454,10 @@ precipitation_dailyCum_inflection2_yearlySd
 9
 
 MONITOR
-1343
-733
-1499
-770
+1570
+726
+1726
+763
 NIL
 precipitation_dailyCum_rate2_yearlyMean
 2
@@ -1447,10 +1465,10 @@ precipitation_dailyCum_rate2_yearlyMean
 9
 
 MONITOR
-1346
-772
-1500
-809
+1573
+765
+1727
+802
 NIL
 precipitation_dailyCum_rate2_yearlySd
 2
@@ -1474,7 +1492,7 @@ true
 "" ""
 PENS
 "RAIN" 1.0 1 -16777216 true "" "plot RAIN"
-"ET_0" 1.0 0 -2674135 true "" "plot ET_0"
+"ETr" 1.0 0 -2674135 true "" "plot ETr"
 
 PLOT
 27
