@@ -8,6 +8,8 @@ Overall design of the Indus Village model:
 
 ## Weather model
 
+![diagrams/01-WeatherModel.png](diagrams/01-WeatherModel.png)
+
 See the study on precipitation patterns done for the development of the parametric precipitation model: https://github.com/Andros-Spica/parModelPrecipitation
 
 ![screenshots/01-weather interface.png](screenshots/01-weather%20interface.png)
