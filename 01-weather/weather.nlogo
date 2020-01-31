@@ -38,7 +38,7 @@ globals
   maxDist
   yearLengthInDays
 
-  cropAlbedo ; canopy reflection or albedo of hypothetical grass reference crop (0.23)
+  albedo ; canopy reflection or albedo of hypothetical grass reference crop (0.23)
   elevation ; elevation above sea level [m] -- Convert to patch variable?
 
   ;;; modified parameters
@@ -343,7 +343,7 @@ to update-weather
   set CO2 get-CO2 currentDayOfYear
 
   set solarRadiation get-solar-radiation currentDayOfYear
-  set netSolarRadiation (1 - cropAlbedo) * solarRadiation
+  set netSolarRadiation (1 - albedo) * solarRadiation
 
   set ETr get-ETr
 
@@ -1508,7 +1508,7 @@ NIL
 10.0
 true
 false
-"set-plot-y-range -0.1 1.1\nset-plot-x-range 0 (yearLengthInDays + 1)" ""
+"set-plot-y-range -0.1 1.1\nset-plot-x-range 0 (yearLengthInDays + 1)" "if (currentDayOfYear = 1) [ clear-plot set-plot-y-range -0.1 1.1 set-plot-x-range 0 (yearLengthInDays + 1) ]"
 PENS
 "default" 1.0 0 -16777216 true "" "plot-cumPrecipitation-table"
 
