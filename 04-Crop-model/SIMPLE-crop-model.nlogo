@@ -2071,7 +2071,7 @@ NIL
 10.0
 true
 false
-"set-plot-y-range -0.1 1.1\nset-plot-x-range 0 (yearLengthInDays + 1)" ""
+"set-plot-y-range -0.1 1.1\nset-plot-x-range 0 (yearLengthInDays + 1)" "if (currentDayOfYear = 1) [ clear-plot set-plot-y-range -0.1 1.1 set-plot-x-range 0 (yearLengthInDays + 1) ]"
 PENS
 "default" 1.0 0 -16777216 true "" "plot-cumPrecipitation-table"
 
