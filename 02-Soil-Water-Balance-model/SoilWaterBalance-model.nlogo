@@ -350,9 +350,9 @@ to go
 
   ; --------------------------------------------
 
-  refresh-view
-
   advance-time
+
+  refresh-view
 
   tick
 
@@ -581,10 +581,11 @@ to update-WAT
   ; Soil Water Balance model
   ; Using the approach of:
   ; 'Working with dynamic crop models: Methods, tools, and examples for agriculture and enviromnent'
-  ;  Daniel Wallach, David Makowski, James W. Jones, François Brun (2006, 2014)
+  ;  Daniel Wallach, David Makowski, James W. Jones, François Brun (2006, 2014, 2019)
   ;  Model description in p. 24-28, R code example in p. 138-144.
   ;  see also https://github.com/cran/ZeBook/blob/master/R/watbal.model.r
   ; Some additional info about run off at: https://engineering.purdue.edu/mapserve/LTHIA7/documentation/scs.htm
+  ; and at: https://en.wikipedia.org/wiki/Runoff_curve_number
 
   ; Maximum abstraction (mm; for run off)
   let S 25400 / CN - 254
