@@ -135,8 +135,6 @@ to setup
 
   ; ------------------------------------------
 
-  refresh-view
-
   reset-ticks
 
 end
@@ -351,8 +349,6 @@ to go
   ; --------------------------------------------
 
   advance-time
-
-  refresh-view
 
   tick
 
@@ -631,27 +627,6 @@ end
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; DISPLAY ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-to refresh-view
-
-  refresh-to-display-mode
-
-end
-
-to refresh-to-display-mode
-
-  if (display-mode = "ARID")
-  [
-    ask patches [ display-arid ]
-  ]
-
-end
-
-to display-arid
-
-  set pcolor 14 + 5 * (1 - ARID)
-
-end
 
 to plot-precipitation-table
 
@@ -1101,33 +1076,6 @@ currentDayOfYear
 0
 1
 11
-
-CHOOSER
-30
-275
-193
-320
-display-mode
-display-mode
-"ARID"
-0
-
-BUTTON
-198
-282
-288
-315
-refresh view
-refresh-view
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
 
 BUTTON
 151
