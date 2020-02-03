@@ -32,6 +32,7 @@ globals
   maxDist
 
   ;;; parameters (copies) ===============================================================
+
   ;;;; elevation
   numContinents
   numOceans
@@ -1015,7 +1016,7 @@ to import-terrain
   ;;; corresponding to the random seed given as a parameter in the interface
 
   ;;; build a unique file name according to the user setting
-  let filePath (word "terrains//terrainGenerator_v2_" type-of-experiment "_w=" world-width "_h=" world-height "_a=" algorithm-style "_fill-sinks=" do-fill-sinks "_seed=" randomSeed)
+  let filePath (word "terrains//terrain_" type-of-experiment "_w=" world-width "_h=" world-height "_a=" algorithm-style "_fill-sinks=" do-fill-sinks "_seed=" randomSeed)
 
   if (type-of-experiment = "user-defined") [ set filePath (word filePath "_" date-and-time) ]
   ;if (type-of-experiment = "defined by expNumber") [set filePath (word filePath "_" expNumber) ]
@@ -1052,24 +1053,23 @@ to import-terrain
           if (item globalIndex globalNames = "display-mode") [ set display-mode read-from-string item globalIndex globalValues ]
           if (item globalIndex globalNames = "do-fill-sinks") [ set do-fill-sinks item globalIndex globalValues ]
 
-          if (item globalIndex globalNames = "par_rangeelevation") [ set par_rangeElevation item globalIndex globalValues ]
-          if (item globalIndex globalNames = "par_riftelevation") [ set par_riftElevation item globalIndex globalValues ]
-          if (item globalIndex globalNames = "par_elevationnoise") [ set par_elevationNoise item globalIndex globalValues ]
-
           if (item globalIndex globalNames = "numcontinents") [ set numContinents item globalIndex globalValues ]
           if (item globalIndex globalNames = "numoceans") [ set numOceans item globalIndex globalValues ]
 
           if (item globalIndex globalNames = "numranges") [ set numRanges item globalIndex globalValues ]
           if (item globalIndex globalNames = "rangelength") [ set rangeLength item globalIndex globalValues ]
+          if (item globalIndex globalNames = "par_rangeelevation") [ set par_rangeElevation item globalIndex globalValues ]
           if (item globalIndex globalNames = "rangeaggregation") [ set rangeAggregation item globalIndex globalValues ]
 
           if (item globalIndex globalNames = "numrifts") [ set numRifts item globalIndex globalValues ]
           if (item globalIndex globalNames = "riftlength") [ set riftLength item globalIndex globalValues ]
+          if (item globalIndex globalNames = "par_riftelevation") [ set par_riftElevation item globalIndex globalValues ]
           if (item globalIndex globalNames = "riftaggregation") [ set riftAggregation item globalIndex globalValues ]
 
-          if (item globalIndex globalNames = "sealevel") [ set seaLevel item globalIndex globalValues ]
+          if (item globalIndex globalNames = "featureanglerange") [ set featureAngleRange item globalIndex globalValues ]
           if (item globalIndex globalNames = "continentality") [ set continentality item globalIndex globalValues ]
-
+          if (item globalIndex globalNames = "par_elevationnoise") [ set par_elevationNoise item globalIndex globalValues ]
+          if (item globalIndex globalNames = "sealevel") [ set seaLevel item globalIndex globalValues ]
           if (item globalIndex globalNames = "elevationsmoothstep") [ set elevationSmoothStep item globalIndex globalValues ]
           if (item globalIndex globalNames = "smoothingneighborhood") [ set smoothingNeighborhood item globalIndex globalValues ]
 
@@ -1173,20 +1173,6 @@ to-report get-flowHolder-who-from-link-data [ linkDataEntry ]
   set str remove "r" str
   set str remove " " str
   report read-from-string remove "}" str
-
-end
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; Auxiliary math functions
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-to-report diminishing-returns [ inputValue scaleNumber ]
-
-    let factor inputValue / scaleNumber
-    let pos (sqrt(8 * factor + 1) - 1) / 2
-    let output pos * scaleNumber
-
-    report output
 
 end
 @#$#@#$#@
