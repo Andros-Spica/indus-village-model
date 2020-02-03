@@ -34,8 +34,6 @@ extensions [csv vid]
 globals
 [
   ;;; default constants
-  totalPatches
-  maxDist
   yearLengthInDays
 
   albedo ; canopy reflection or albedo of hypothetical grass reference crop (0.23)
@@ -128,10 +126,6 @@ to set-constants
 
   ; "constants" are variables that will not be explored as parameters
   ; and may be used during a simulation.
-  ; In this example, the constants depend on the size of the dimensions (x,y)
-  set totalPatches count patches
-  ; maximum distance
-  set maxDist sqrt (((max-pxcor - min-pxcor) ^ 2) + ((max-pxcor - min-pxcor) ^ 2))
 
   set yearLengthInDays 365
 
