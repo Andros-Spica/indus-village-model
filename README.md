@@ -10,13 +10,29 @@ Overall design of the Indus Village model:
 
 ![diagrams/01-WeatherModel.png](diagrams/01-WeatherModel.png)
 
+![screenshots/01-weather interface.png](screenshots/01-weather%20interface.png)
+
 See the study on precipitation patterns done for the development of the parametric precipitation model: https://github.com/Andros-Spica/parModelPrecipitation
 
-![screenshots/01-weather interface.png](screenshots/01-weather%20interface.png)
+### Weather model with spatial diversity
+
+![diagrams/01-WeatherModel_withSpatialDiversity.png](diagrams/01-WeatherModel_withSpatialDiversity.png)
+
+![screenshots/01-weather_withSpatialDiversity interface.png](screenshots/01-weather_withSpatialDiversity%20interface.png)
 
 ## Soil Water Balance model
 
 ![02-Soil-Water-Balance-model/plots/SoilWaterBalanceModel_Rakhigarhi_1990-2000-plotSet.png](02-Soil-Water-Balance-model/plots/SoilWaterBalanceModel_Rakhigarhi_1990-2000-plotSet.png)
+
+![diagrams/02-SoilWaterBalanceModel.png](diagrams/02-SoilWaterBalanceModel.png)
+
+![screenshots/02-SoilWaterBalance-model interface.png](screenshots/02-SoilWaterBalance-model%20interface.png)
+
+### Soil Water Balance model with spatial diversity
+
+![diagrams/02-SoilWaterBalanceModel_withSpatialDiversity.png](diagrams/02-SoilWaterBalanceModel_withSpatialDiversity.png)
+
+![screenshots/02-SoilWaterBalance-model_withSpatialDiversity interface.png](screenshots/02-SoilWaterBalance-model_withSpatialDiversity%20interface.png)
 
 ## Land model
 
@@ -40,7 +56,7 @@ See the study on precipitation patterns done for the development of the parametr
 
 ![screenshots/06-storage interface.png](screenshots/06-storage%20interface.png)
 
-### With local exchange mechanism
+### Food Storage model with local exchange mechanism
 
 In this version, the Food Storage model is complemented by a exchange mechanism that describes a common "market" that "buys" the surplus stock units released by households, stores them, and "sells" them back to households needing extra units to fulfill their desired diet. This "market" is called as such in sake of implementation simplicity; it is actually more representative of a centralised redistribution institution, because there is no accountability of value of stock units "bought" or "sold" by households and, thus, no stock unit price.
 
