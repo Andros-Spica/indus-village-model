@@ -111,7 +111,6 @@ globals
 
 patches-own
 [
-  albedo ; canopy reflection or albedo of hypothetical grass reference crop (0.23)
   elevation ; elevation above sea level [m] --- within the Indus Village model, elevation is an input coming out the land model
 
   ;;;; soil
@@ -125,6 +124,8 @@ patches-own
   WAT ; Water content in the soil profile for the rooting depth (mm)
   WATp ; Volumetric Soil Water content (fraction : mm.mm-1). calculated as WAT/z
 
+  ;;;; cover
+  albedo ; canopy reflection or albedo of hypothetical grass reference crop (0.23)
   netSolarRadiation ; net solar radiation discount canopy reflection or albedo, assuming hypothetical grass reference crop (albedo = 0.23)
   ETr ; reference evapotranspiration
 ]
