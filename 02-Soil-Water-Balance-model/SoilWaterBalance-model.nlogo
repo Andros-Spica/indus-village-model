@@ -688,7 +688,7 @@ end
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 to-report clamp01 [ value ]
-  report min (list 1 (max (list 0 value)))
+  report min (list 1 (clampMin0 value))
 end
 
 to-report clampMin0 [ value ]

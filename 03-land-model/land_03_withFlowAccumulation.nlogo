@@ -2,7 +2,7 @@
 ;;; GNU GENERAL PUBLIC LICENSE ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;  Land model
+;;  Land model - v03 with flow accumulation
 ;;  Copyright (C) Andreas Angourakis (andros.spica@gmail.com)
 ;;  available at https://www.github.com/Andros-Spica/indus-village-model
 ;;  Based on the 'Terrain Builder - waterFlow' template by same author
@@ -1058,17 +1058,17 @@ to import-terrain
 
           if (item globalIndex globalNames = "numranges") [ set numRanges item globalIndex globalValues ]
           if (item globalIndex globalNames = "rangelength") [ set rangeLength item globalIndex globalValues ]
-          if (item globalIndex globalNames = "par_rangeelevation") [ set par_rangeElevation item globalIndex globalValues ]
+          if (item globalIndex globalNames = "rangeelevation") [ set rangeElevation item globalIndex globalValues ]
           if (item globalIndex globalNames = "rangeaggregation") [ set rangeAggregation item globalIndex globalValues ]
 
           if (item globalIndex globalNames = "numrifts") [ set numRifts item globalIndex globalValues ]
           if (item globalIndex globalNames = "riftlength") [ set riftLength item globalIndex globalValues ]
-          if (item globalIndex globalNames = "par_riftelevation") [ set par_riftElevation item globalIndex globalValues ]
+          if (item globalIndex globalNames = "riftelevation") [ set riftElevation item globalIndex globalValues ]
           if (item globalIndex globalNames = "riftaggregation") [ set riftAggregation item globalIndex globalValues ]
 
           if (item globalIndex globalNames = "featureanglerange") [ set featureAngleRange item globalIndex globalValues ]
           if (item globalIndex globalNames = "continentality") [ set continentality item globalIndex globalValues ]
-          if (item globalIndex globalNames = "par_elevationnoise") [ set par_elevationNoise item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elevationnoise") [ set elevationNoise item globalIndex globalValues ]
           if (item globalIndex globalNames = "sealevel") [ set seaLevel item globalIndex globalValues ]
           if (item globalIndex globalNames = "elevationsmoothstep") [ set elevationSmoothStep item globalIndex globalValues ]
           if (item globalIndex globalNames = "smoothingneighborhood") [ set smoothingNeighborhood item globalIndex globalValues ]
@@ -1092,16 +1092,19 @@ to import-terrain
         ;;; create a auxiliar turtles
         while [ length thisLine > 1 ]
         [
-          create-flowHolders 1
+          if (item 8 thisLine = "{breed flowholders}")
           [
-            set xcor item 3 thisLine
-            set ycor item 4 thisLine
-            set hidden? item 9 thisLine
-            if (xcor = max-pxcor or xcor = min-pxcor or ycor = max-pycor or ycor = min-pycor)
+            create-flowHolders 1
             [
-              set color item 1 thisLine
-              set heading item 2 thisLine
-              set shape read-from-string item 5 thisLine
+              set xcor item 3 thisLine
+              set ycor item 4 thisLine
+              set hidden? item 9 thisLine
+              if (xcor = max-pxcor or xcor = min-pxcor or ycor = max-pycor or ycor = min-pycor)
+              [
+                set color item 1 thisLine
+                set heading item 2 thisLine
+                set shape read-from-string item 5 thisLine
+              ]
             ]
           ]
           set thisLine csv:from-row file-read-line
@@ -1282,7 +1285,7 @@ INPUTBOX
 156
 70
 randomSeed
-17.0
+1.0
 1
 0
 Number
@@ -1758,7 +1761,7 @@ SWITCH
 578
 show-transects
 show-transects
-1
+0
 1
 -1000
 
@@ -1846,8 +1849,8 @@ BUTTON
 13
 380
 46
-NIL
 import-terrain
+import-terrain\nsetup-patch-coordinates-labels \"bottom\" \"left\"\nsetup-transect\nupdate-transects\nupdate-plots
 NIL
 1
 T
