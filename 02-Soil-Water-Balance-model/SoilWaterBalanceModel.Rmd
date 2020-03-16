@@ -57,7 +57,7 @@ And skip to the steps related to the Soil Water Balance model (bellow).
 
 ---
 
-We use the data downloaded at NASA´s POWER access viewer (power.larc.nasa.gov/data-access-viewer/) selecting the user community 'Agroclimatology' and pin pointing the archaeological site of Rakhigarhi (Haryana, India; Lat 29.1687, Lon 76.0687) between 01/01/1984 and 31/12/2018.
+We use the data downloaded at NASA´s POWER access viewer (power.larc.nasa.gov/data-access-viewer/) selecting the user community 'Agroclimatology' and pin-pointing the archaeological site of Rakhigarhi (Haryana, India; Lat 29.1687, Lon 76.0687) between 01/01/1984 and 31/12/2018.
 
 We selected the ICASA Format's parameters:
 
