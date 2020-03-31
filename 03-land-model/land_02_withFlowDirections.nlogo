@@ -100,8 +100,16 @@ patches-own
   elevation             ; average elevation above reference of the land unit (metres).
                         ; The reference is an arbitrary elevation from which all
                         ; algorithms will sculpt the terrain.
-  flowDirection
-  receivesFlow
+
+  flowDirection         ; the numeric code for the (main) direction of flow or 
+                        ; drainage within the land unit. 
+                        ; Following Jenson & Domingue (1988) convention:
+                        ; NW = 64,   N = 128,        NE = 1,
+                        ; W = 32,     <CENTRE>,   E = 2,
+                        ; SW = 16,     S = 8,          SE = 4
+                        
+  receivesFlow          ; Boolean variable stating whether or not the land unit receives 
+                        ; the flow of a neighbour.
 ]
 
 breed [ mapSetters mapSetter ] ; used when algorithm-style = "NetLogo"

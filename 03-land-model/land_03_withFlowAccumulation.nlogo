@@ -31,58 +31,101 @@ globals
   patchArea
   maxDist
 
+  ; algorithm-style (GUI): style of algorithm to create land features "ranges" and "rifts".
+  ; The algorithms styles available are: "NetLogo", using auxiliary agents and
+  ; less parameters but with less control, and "C#", without agents and more
+  ; parameters.
+
+  ; do-fill-sinks (GUI): whether to apply algorithm to fill all drainage "sinks" (land units
+  ;                      not on the edge of the map where there is no flow towards a neighbour).
+  ;                      Those sinks are likely to have been created by land forming algorithms.
+
   ;;; parameters (copies) ===============================================================
 
   ;;;; elevation
-  numContinents
-  numOceans
-
-  numRanges
-  rangeLength
-  rangeElevation
-  rangeAggregation
-
+  numRanges                  ; number of landforming features ("ranges", "rifts").
   numRifts
+
+  rangeLength                ; maximum length, in land units, of landforming features.
   riftLength
-  riftElevation
-  riftAggregation
 
-  featureAngleRange
-  continentality
-  elevationNoise
-  seaLevel
-  elevationSmoothStep
-  smoothingNeighborhood
+  rangeElevation             ; the starting elevation of landforming features.
+  riftElevation              ; These are also used as maximum and minimum elevation
+                             ; for x,y, and valley slopes.
 
-  xSlope
+  featureAngleRange          ; the maximum change in features angle (direction every step)
+
+  elevationSmoothStep        ; the level of smoothing applied to elevation.
+                             ; 0 = none, 1 = values are equated to the mean of neighbours.
+  smoothingNeighborhood      ; maximum distance to include land units in another's neihgbourhood.
+                             ; Applied as a radius surrounding a land unit.
+
+  xSlope                     ; the level of adjustment of elevation to x (West-East) and
+                             ; y (North-South) slopes. 0 = no slope, 1 = no variation besides slopes.
   ySlope
 
-  valleyAxisInclination
-  valleySlope
+  valleyAxisInclination      ; the level of inclination of the North-South valley.
+                             ; 0 = centred, 1 = top-right to bottom-left diagonal.
+  valleySlope                ; the level of adjustment of elevation to the North-South valley.
+                             ; 0 = no valley, 1 = no variation besides valley.
+
+  ;;;;; used when algorithm-style = "C#"
+  numProtuberances           ; numDepressions: (approximated) number of distinct
+  numDepressions             ; protuberances/depressions. Consider those are acheived by aglutinating
+                             ; elevated and depressed land units.
+
+
+  rangeAggregation           ; the minimum proximity required between
+  riftAggregation            ; landform features, expressed as percentage of the map's maximum distance.
+
+  elevationNoise              ; noise to be added/subtracted to elevation as the standard
+                              ; deviation of a centred normal distribution.
+
+  ;;;;; used when algorithm-style = "NetLogo"
+  inversionIterations         ; the number of iterations all land units with neighbours
+                              ; with opposite elevation sign (i.e., if elevation = 10, neighbours with elevation < 0)
+                              ; have their elevation exchanged with one of those neighbours.
 
   ;;;; water flow accumulation
-  riverFlowAccumulationAtStart
+  riverFlowAccumulationAtStart ; the amount of flow units added to a land unit at the edge of the map.
+                               ; These units may be transmitted following flow directions,
+                               ; drawing meanders of a passing river.
 
   ;;; variables ===============================================================
-  landOceanRatio
-  elevationDistribution
-  minElevation
+  seaLevel                    ; elevation considered as sea level for display purposes.
+
+  landRatio                   ; the ratio of land units above seaLevel.
+  elevationDistribution       ; the set or list containing the elevation of all land units
+  minElevation                ; statistics on the elevation of land units.
   sdElevation
   maxElevation
 ]
 
 patches-own
 [
-  elevation             ; in metres (m)
-  flowDirection
-  receivesFlow
-  flowAccumulationState
-  flowAccumulation
+  elevation             ; average elevation above reference of the land unit (metres).
+                        ; The reference is an arbitrary elevation from which all
+                        ; algorithms will sculpt the terrain.
+
+  flowDirection         ; the numeric code for the (main) direction of flow or
+                        ; drainage within the land unit.
+                        ; Following Jenson & Domingue (1988) convention:
+                        ; NW = 64,   N = 128,        NE = 1,
+                        ; W = 32,     <CENTRE>,   E = 2,
+                        ; SW = 16,     S = 8,          SE = 4
+  receivesFlow          ; Boolean variable stating whether or not the land unit receives
+                        ; the flow of a neighbour.
+
+  flowAccumulation      ; the amount of flow units accumulated in the land unit.
+                        ; A Flow unit is the volume of runoff water flowing from one land unit
+                        ; to another (assumed constant and without losses).
+  flowAccumulationState ; the state of the land unit regarding the calculation of flow
+                        ; accumulation (auxiliary variable).
 ]
 
-breed [ mapSetters mapSetter ]
+breed [ mapSetters mapSetter ] ; used when algorithm-style = "NetLogo"
 
-mapSetters-own [ points ]
+mapSetters-own [ numPoints ] ; the number of land units to be chained together as a "rift" or "range".
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; SETUP ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -117,15 +160,25 @@ to create-terrain
 
   set-flow-directions
 
+  introduce-river-flow
+
   set-flow-accumulations
 
   ;;; END - flow related procedures ;;;;;;;;;;;;;;;;;;;;;;;
 
-  set landOceanRatio count patches with [elevation > seaLevel] / count patches
   set elevationDistribution [elevation] of patches
+
   set minElevation min [elevation] of patches
+
   set maxElevation max [elevation] of patches
+
   set sdElevation standard-deviation [elevation] of patches
+
+  ;;; default seaLevel to minElevation (seaLevel afects patch color and landRatio measurement)
+  set par_seaLevel (floor minElevation) - 1
+  set seaLevel par_seaLevel
+
+  set landRatio count patches with [elevation > seaLevel] / count patches
 
   paint-patches
 
@@ -146,13 +199,13 @@ to set-parameters
   set patchArea 1 ; 10,000 m^2 = 1 hectare
   set maxDist (sqrt (( (max-pxcor - min-pxcor) ^ 2) + ((max-pycor - min-pycor) ^ 2)) / 2)
 
-  ;parameters-check-1
+  ;parameters-check-1 ; in case you want to avoid zeros (optional)
 
   if (type-of-experiment = "user-defined")
   [
     ;;; load parameters from user interface
-    set numContinents par_numContinents
-    set numOceans par_numOceans
+    set numProtuberances par_numProtuberances
+    set numDepressions par_numDepressions
 
     set numRanges par_numRanges
     set rangeLength round ( par_rangeLength * maxDist)
@@ -168,12 +221,10 @@ to set-parameters
 
     set featureAngleRange par_featureAngleRange
 
-    set continentality par_continentality * count patches
+    set inversionIterations par_inversionIterations
 
     set elevationSmoothStep par_elevationSmoothStep
     set smoothingNeighborhood par_smoothingNeighborhood * maxDist
-
-    set seaLevel par_seaLevel
 
     set xSlope par_xSlope
     set ySlope par_ySlope
@@ -189,35 +240,33 @@ to set-parameters
     ;;; get random values within an arbitrary (reasonable) range of values
     ;;; this depends on what type and scale of terrain you want
     ;;; Here, our aim is to create inland/coastal, plain, small-scale terrains with a general flow running from N to S (e.g., 5km^2 Haryana, India)
-    set numContinents 1 + random 10
-    set numOceans 1 + random 10
+    set numProtuberances 1 + random 10
+    set numDepressions 1 + random 10
 
     set numRanges 1 + random 100
     set rangeLength round ( (random-float 100) * maxDist)
-    set rangeElevation random-float 20
+    set rangeElevation random-float 50
     set rangeAggregation random-float 1
 
     set numRifts 1 + random 100
     set riftLength round ( (random-float 100) * maxDist)
-    set riftElevation 0;-1 * random-float 1
+    set riftElevation -1 * random-float 50
     set riftAggregation random-float 1
 
-    set elevationNoise random-float 1
+    set elevationNoise random-float 5
 
     set featureAngleRange random-float 30
 
-    set continentality (random-float 2) * count patches
+    set inversionIterations (random-float 2)
 
     set elevationSmoothStep 1 ; not randomised
     set smoothingNeighborhood 0.1 * maxDist ; not randomised
 
-    set seaLevel 0 ; riftElevation + (random-float (rangeElevation - riftElevation))
-
-    set xSlope random-float 0.01 ; W depression
-    set ySlope random-float 0.01 ; S depression
+    set xSlope random-float 0.1 ; W depression
+    set ySlope random-float 0.3 ; S depression
 
     set valleyAxisInclination random-float 1
-    set valleySlope random-float 0.02 ; only valley (no ridges)
+    set valleySlope random-float 0.01 ; only valley (no ridges)
 
     set riverFlowAccumulationAtStart random 1E6
   ]
@@ -237,10 +286,10 @@ to parameters-check-1
   if (par_riftElevation = 0)                     [ set par_riftElevation                    0 ]
   if (par_elevationNoise = 0)                      [ set par_elevationNoise                     1 ]
 
-  if (par_numContinents = 0)                    [ set par_numContinents                   1 ]
-  if (par_numOceans = 0)                        [ set par_numOceans                       1 ]
+  if (par_numProtuberances = 0)                    [ set par_numProtuberances                   1 ]
+  if (par_numDepressions = 0)                        [ set par_numDepressions                       1 ]
 
-  if (par_continentality = 0)                   [ set par_continentality                  5 ]
+  if (par_inversionIterations = 0)                   [ set par_inversionIterations                  5 ]
 
   if (par_numRanges = 0)                        [ set par_numRanges                       1 ]
   if (par_rangeLength = 0)                      [ set par_rangeLength                   100 ]
@@ -250,7 +299,6 @@ to parameters-check-1
   if (par_riftLength = 0)                       [ set par_riftLength                    100 ]
   if (par_riftAggregation = 0)                  [ set par_riftAggregation                 0.9 ]
 
-  if (par_seaLevel = 0)                         [ set par_seaLevel                        0 ]
   if (par_elevationSmoothStep = 0)              [ set par_elevationSmoothStep             1 ]
   if (par_smoothingNeighborhood = 0)            [ set par_smoothingNeighborhood           0.1 ]
 
@@ -270,10 +318,10 @@ to parameters-to-default
   set par_riftElevation                    0
   set par_elevationNoise                     1
 
-  set par_numContinents                   1
-  set par_numOceans                       1
+  set par_numProtuberances                   1
+  set par_numDepressions                       1
 
-  set par_continentality                  5
+  set par_inversionIterations                  5
 
   set par_numRanges                       1
   set par_rangeLength                   100
@@ -283,7 +331,6 @@ to parameters-to-default
   set par_riftLength                    100
   set par_riftAggregation                 0.9
 
-  set par_seaLevel                        0
   set par_elevationSmoothStep             1
   set par_smoothingNeighborhood           0.1
 
@@ -296,23 +343,23 @@ to parameters-to-default
 
 end
 
-to set-landform-NetLogo ;[ numRanges rangeLength rangeElevation numRifts riftLength riftElevation continentality smoothingNeighborhood elevationSmoothStep]
+to set-landform-NetLogo ;[ numRanges rangeLength rangeElevation numRifts riftLength riftElevation inversionIterations smoothingNeighborhood elevationSmoothStep]
 
   ; Netlogo-like code
-  ask n-of numRanges patches [ sprout-mapSetters 1 [ set points random rangeLength ] ]
-  ask n-of numRifts patches with [any? turtles-here = false] [ sprout-mapSetters 1 [ set points (random riftLength) * -1 ] ]
+  ask n-of numRanges patches [ sprout-mapSetters 1 [ set numPoints random rangeLength ] ]
+  ask n-of numRifts patches with [any? turtles-here = false] [ sprout-mapSetters 1 [ set numPoints (random riftLength) * -1 ] ]
 
-  let steps sum [ abs points ] of mapSetters
+  let steps sum [ abs numPoints ] of mapSetters
   repeat steps
   [
     ask one-of mapSetters
     [
       let sign 1
-      let scale maxElevation
-      if ( points < 0 ) [ set sign -1 set scale minElevation ]
+      let scale rangeElevation
+      if ( numPoints < 0 ) [ set sign -1 set scale riftElevation ]
       ask patch-here [ set elevation scale ]
-      set points points - sign
-      if (points = 0) [die]
+      set numPoints numPoints - sign
+      if (numPoints = 0) [die]
       rt (random-exponential featureAngleRange) * (1 - random-float 2)
       forward 1
     ]
@@ -320,20 +367,20 @@ to set-landform-NetLogo ;[ numRanges rangeLength rangeElevation numRifts riftLen
 
   smooth-elevation-all
 
-  let underWaterPatches patches with [elevation < 0]
-  let aboveWaterPatches patches with [elevation > 0]
+  let depressedPatches patches with [elevation < 0]
+  let elevatedPatches patches with [elevation > 0]
 
-  repeat continentality
+  repeat inversionIterations * count patches
   [
-    if (any? underWaterPatches AND any? aboveWaterPatches)
+    if (any? depressedPatches AND any? elevatedPatches)
     [
-      let p_ocean max-one-of underWaterPatches [ count neighbors with [elevation > 0] ]
-      let p_land  max-one-of aboveWaterPatches [ count neighbors with [elevation < 0] ]
-      let temp [elevation] of p_ocean
-      ask p_ocean [ set elevation [elevation] of p_land ]
-      ask p_land [ set elevation temp ]
-      set underWaterPatches underWaterPatches with [pxcor != [pxcor] of p_ocean AND pycor != [pycor] of p_ocean]
-      set aboveWaterPatches aboveWaterPatches with [pxcor != [pxcor] of p_land AND pycor != [pycor] of p_land]
+      let p_depression max-one-of depressedPatches [ count neighbors with [elevation > 0] ]
+      let p_protuberance  max-one-of elevatedPatches [ count neighbors with [elevation < 0] ]
+      let temp [elevation] of p_depression
+      ask p_depression [ set elevation [elevation] of p_protuberance ]
+      ask p_protuberance [ set elevation temp ]
+      set depressedPatches depressedPatches with [pxcor != [pxcor] of p_depression AND pycor != [pycor] of p_depression]
+      set elevatedPatches elevatedPatches with [pxcor != [pxcor] of p_protuberance AND pycor != [pycor] of p_protuberance]
     ]
   ]
 
@@ -341,16 +388,18 @@ to set-landform-NetLogo ;[ numRanges rangeLength rangeElevation numRifts riftLen
 
 end
 
-to set-landform-Csharp ;[ elevationNoise numContinents numRanges rangeLength rangeElevation rangeAggregation numOceans numRifts riftLength riftElevation riftAggregation smoothingNeighborhood elevationSmoothStep]
+to set-landform-Csharp ;[ elevationNoise numProtuberances numRanges rangeLength rangeElevation rangeAggregation numDepressions numRifts riftLength riftElevation riftAggregation smoothingNeighborhood elevationSmoothStep]
 
   ; C#-like code
   let p1 0
   let sign 0
   let len 0
   let elev 0
+  let numRiftsToDo numRifts
+  let numRangesToDo numRifts
 
-  let continents n-of numContinents patches
-  let oceans n-of numOceans patches
+  let protuberances n-of numProtuberances patches
+  let depressions n-of numDepressions patches
 
   let maxDistBetweenRanges (1.1 - rangeAggregation) * maxDist
   let maxDistBetweenRifts (1.1 - riftAggregation) * maxDist
@@ -358,22 +407,22 @@ to set-landform-Csharp ;[ elevationNoise numContinents numRanges rangeLength ran
   repeat (numRanges + numRifts)
   [
     set sign -1 + 2 * (random 2)
-    if (numRanges = 0) [ set sign -1 ]
-    if (numRifts = 0) [ set sign 1 ]
+    if (numRangesToDo = 0) [ set sign -1 ]
+    if (numRiftsToDo = 0) [ set sign 1 ]
 
     ifelse (sign = -1)
     [
-      set numRifts numRifts - 1
+      set numRiftsToDo numRiftsToDo - 1
       set len riftLength - 2
-      set elev minElevation
+      set elev riftElevation
       ;ifelse (any? patches with [elevation < 0]) [set p0 one-of patches with [elevation < 0]] [set p0 one-of patches]
-      set p1 one-of patches with [ distance one-of oceans < maxDistBetweenRifts ]
+      set p1 one-of patches with [ distance one-of depressions < maxDistBetweenRifts ]
     ]
     [
-      set numRanges numRanges - 1
+      set numRangesToDo numRangesToDo - 1
       set len rangeLength - 2
-      set elev maxElevation
-      set p1 one-of patches with [ distance one-of continents < maxDistBetweenRanges ]
+      set elev rangeElevation
+      set p1 one-of patches with [ distance one-of protuberances < maxDistBetweenRanges ]
     ]
 
     draw-elevation-pattern p1 len elev
@@ -381,9 +430,9 @@ to set-landform-Csharp ;[ elevationNoise numContinents numRanges rangeLength ran
 
   smooth-elevation-all
 
-  ask patches with [elevation = 0]
+  ask patches
   [
-    set elevation random-normal 0 elevationNoise
+    set elevation elevation + random-normal 0 elevationNoise
   ]
 
   smooth-elevation-all
@@ -393,23 +442,21 @@ end
 to draw-elevation-pattern [ p1 len elev ]
 
   let p2 0
-  let x-direction 0
-  let y-direction 0
+  let xDirection 0
+  let yDirection 0
   let directionAngle 0
 
   ask p1 [ set elevation elev set p2 one-of neighbors ]
-  set x-direction ([pxcor] of p2) - ([pxcor] of p1)
-  set y-direction ([pycor] of p2) - ([pycor] of p1)
-  ifelse (x-direction = 1 AND y-direction = 0) [ set directionAngle 0 ]
-  [ ifelse (x-direction = 1 AND y-direction = 1) [ set directionAngle 45 ]
-    [ ifelse (x-direction = 0 AND y-direction = 1) [ set directionAngle 90 ]
-      [ ifelse (x-direction = -1 AND y-direction = 1) [ set directionAngle 135 ]
-        [ ifelse (x-direction = -1 AND y-direction = 0) [ set directionAngle 180 ]
-          [ ifelse (x-direction = -1 AND y-direction = -1) [ set directionAngle 225 ]
-            [ ifelse (x-direction = 0 AND y-direction = -1) [ set directionAngle 270 ]
-              [ ifelse (x-direction = 1 AND y-direction = -1) [ set directionAngle 315 ]
-                [ if (x-direction = 1 AND y-direction = 0) [ set directionAngle 360 ] ]
-              ]
+  set xDirection ([pxcor] of p2) - ([pxcor] of p1)
+  set yDirection ([pycor] of p2) - ([pycor] of p1)
+  ifelse (xDirection = 1 AND yDirection = 0) [ set directionAngle 0 ]
+  [ ifelse (xDirection = 1 AND yDirection = 1) [ set directionAngle 45 ]
+    [ ifelse (xDirection = 0 AND yDirection = 1) [ set directionAngle 90 ]
+      [ ifelse (xDirection = -1 AND yDirection = 1) [ set directionAngle 135 ]
+        [ ifelse (xDirection = -1 AND yDirection = 0) [ set directionAngle 180 ]
+          [ ifelse (xDirection = -1 AND yDirection = -1) [ set directionAngle 225 ]
+            [ ifelse (xDirection = 0 AND yDirection = -1) [ set directionAngle 270 ]
+              [ if (xDirection = 1 AND yDirection = -1) [ set directionAngle 315 ]]
             ]
           ]
         ]
@@ -419,7 +466,7 @@ to draw-elevation-pattern [ p1 len elev ]
 
   repeat len
   [
-    set directionAngle directionAngle + (random-exponential featureAngleRange) * (1 - random-float 2)
+    set directionAngle directionAngle + (random-exponential featureAngleRange) * (1 - random 2)
     set directionAngle directionAngle mod 360
 
     set p1 p2
@@ -452,20 +499,9 @@ to set-xySlope
 
   ask patches
   [
-    ifelse (pxcor < (world-height / 2))
-    [
-      set elevation elevation - (xSlope * (elevation - riftElevation) * ((world-width / 2) - pxcor))
-    ]
-    [
-      set elevation elevation + (xSlope * (rangeElevation - elevation) * (pxcor - (world-width / 2)))
-    ]
-    ifelse (pycor < (world-width / 2))
-    [
-      set elevation elevation - (ySlope * (elevation - riftElevation) * ((world-height / 2) - pycor))
-    ]
-    [
-      set elevation elevation + (ySlope * (rangeElevation - elevation) * (pycor - (world-height / 2)))
-    ]
+    set elevation (1 - xSlope) * elevation + (xSlope * (rangeElevation - riftElevation) * (pxcor - min-pxcor) / world-width)
+
+    set elevation (1 - ySlope) * elevation + (ySlope * (rangeElevation - riftElevation) * (pycor - min-pycor) / world-height)
   ]
 
 end
@@ -476,31 +512,17 @@ to set-valleySlope
   ask patches
   [
     let xValley (world-width / 2) + valleyAxisInclination * (pycor - (world-height / 2))
-    set elevation elevation + (valleySlope * (rangeElevation - elevation) * abs (xValley - pxcor))
-  ]
-
-  ; find which edge has the lower average elevation
-  let highestEdge patches with [pycor = max-pycor] ; north
-  if (mean [elevation] of highestEdge < mean [elevation] of patches with [pycor = min-pycor])
-  [ set highestEdge patches with [pycor = min-pycor] ] ; south
-
-  ; give an arbitrarily, ridiculously high value (riverFlowAccumulationAtStart) of flowAccumulation to the lowest patch at that edge
-  ; assign it an inward flowDirection (set-flowDirection will not overwrite this)
-  ask min-one-of highestEdge [elevation] ; a patch at the bottom of the valley
-  [
-    print self
-    set flowAccumulation riverFlowAccumulationAtStart
-    let downstreamPatch min-one-of neighbors with [not is-at-edge] [elevation]
-    set flowDirection get-flow-direction-encoding ([pxcor] of downstreamPatch - pxcor) ([pycor] of downstreamPatch - pycor)
+    set elevation (1 - valleySlope) * elevation + (valleySlope * (rangeElevation - riftElevation) * abs (xValley - pxcor))
   ]
 
 end
 
+
+
 ;=======================================================================================================
 ;;; START of algorithms based on:
-;;; Huang P C and Lee K T 2015
-;;; A simple depression-filling method for raster and irregular elevation datasets
-;;; J. Earth Syst. Sci. 124 1653–65
+;;; Huang, P., Lee, K.T. A simple depression-filling method for raster and irregular elevation datasets.
+;;; J Earth Syst Sci 124, 1653–1665 (2015). https://doi.org/10.1007/s12040-015-0641-2
 ;=======================================================================================================
 
 to fill-sinks
@@ -533,9 +555,8 @@ end
 ;;; Extracting topographic structure from digital elevation data for geographic information system analysis.
 ;;; Photogrammetric engineering and remote sensing, 54(11), 1593-1600.
 ;;; ===BUT used elsewhere, such as in the algorithms based on:
-;;; Huang P C and Lee K T 2015
-;;; A simple depression-filling method for raster and irregular elevation datasets
-;;; J. Earth Syst. Sci. 124 1653–65
+;;; Huang, P., Lee, K.T. A simple depression-filling method for raster and irregular elevation datasets.
+;;; J Earth Syst Sci 124, 1653–1665 (2015). https://doi.org/10.1007/s12040-015-0641-2
 ;=======================================================================================================
 
 to-report get-drop-from [ aPatch ] ; ego = patch
@@ -572,16 +593,16 @@ end
 
 to-report get-flow-direction-encoding [ x y ]
 
-  if (x = -1 and y = -1) [ report 16 ]
-  if (x = -1 and y = 0) [ report 32 ]
-  if (x = -1 and y = 1) [ report 64 ]
+  if (x = -1 and y = -1) [ report 16 ] ; Southwest
+  if (x = -1 and y = 0) [ report 32 ]  ; West
+  if (x = -1 and y = 1) [ report 64 ]  ; Northwest
 
-  if (x = 0 and y = -1) [ report 8 ]
-  if (x = 0 and y = 1) [ report 128 ]
+  if (x = 0 and y = -1) [ report 8 ]   ; South
+  if (x = 0 and y = 1) [ report 128 ]  ; North
 
-  if (x = 1 and y = -1) [ report 4 ]
-  if (x = 1 and y = 0) [ report 2 ]
-  if (x = 1 and y = 1) [ report 1 ]
+  if (x = 1 and y = -1) [ report 4 ]   ; Southeast
+  if (x = 1 and y = 0) [ report 2 ]    ; East
+  if (x = 1 and y = 1) [ report 1 ]    ; Northeast
 
 end
 
@@ -621,14 +642,21 @@ end
 
 to set-flow-directions
 
-  ask patches with [ flowDirection = 0 ]
+  ask patches
   [
     ifelse (is-at-edge)
     [
-      if ( pxcor = min-pxcor ) [ set flowDirection 32 ] ; west
-      if ( pxcor = max-pxcor ) [ set flowDirection 2 ] ; east
-      if ( pycor = min-pycor ) [ set flowDirection 8 ] ; south
-      if ( pycor = max-pycor ) [ set flowDirection 128 ] ; north
+      ifelse ( pxcor = min-pxcor )
+      [ set flowDirection 32 ] ; west
+      [
+        ifelse ( pxcor = max-pxcor )
+        [ set flowDirection 2 ] ; east
+        [
+          ifelse ( pycor = min-pycor )
+          [ set flowDirection 8 ] ; south
+          [ set flowDirection 128 ] ; north
+        ]
+      ]
     ]
     [
       set-flow-direction
@@ -643,6 +671,28 @@ to set-flow-direction ; ego = patch
 
   let downstreamPatch max-one-of neighbors [get-drop-from thisPatch]
   set flowDirection get-flow-direction-encoding ([pxcor] of downstreamPatch - pxcor) ([pycor] of downstreamPatch - pycor)
+
+end
+
+to introduce-river-flow
+
+  ; get average elevation of edges
+  let southEdgeAverageElevation  mean [elevation] of patches with [pycor = min-pycor]
+  let northEdgeAverageElevation  mean [elevation] of patches with [pycor = max-pycor]
+
+  ; find which edge has the highest average elevation
+  let highestEdge patches with [pycor = max-pycor] ; assume north
+  if (southEdgeAverageElevation > northEdgeAverageElevation)
+  [ set highestEdge patches with [pycor = min-pycor] ] ; change to south
+
+  ; give value (riverFlowAccumulationAtStart) of flowAccumulation to the lowest patch at that edge
+  ; and assign it an inward flowDirection
+  ask min-one-of highestEdge [elevation] ; a patch at the bottom of a valley
+  [
+    set flowAccumulation riverFlowAccumulationAtStart
+    let downstreamPatch min-one-of neighbors with [not is-at-edge] [elevation]
+    set flowDirection get-flow-direction-encoding ([pxcor] of downstreamPatch - pxcor) ([pycor] of downstreamPatch - pycor)
+  ]
 
 end
 
@@ -841,6 +891,8 @@ end
 to refresh-view-after-seaLevel-change
 
   set seaLevel par_seaLevel
+
+  set landRatio count patches with [elevation > seaLevel] / count patches
 
   update-plots
 
@@ -1053,8 +1105,8 @@ to import-terrain
           if (item globalIndex globalNames = "display-mode") [ set display-mode read-from-string item globalIndex globalValues ]
           if (item globalIndex globalNames = "do-fill-sinks") [ set do-fill-sinks item globalIndex globalValues ]
 
-          if (item globalIndex globalNames = "numcontinents") [ set numContinents item globalIndex globalValues ]
-          if (item globalIndex globalNames = "numoceans") [ set numOceans item globalIndex globalValues ]
+          if (item globalIndex globalNames = "numprotuberances") [ set numProtuberances item globalIndex globalValues ]
+          if (item globalIndex globalNames = "numdepressions") [ set numDepressions item globalIndex globalValues ]
 
           if (item globalIndex globalNames = "numranges") [ set numRanges item globalIndex globalValues ]
           if (item globalIndex globalNames = "rangelength") [ set rangeLength item globalIndex globalValues ]
@@ -1067,7 +1119,7 @@ to import-terrain
           if (item globalIndex globalNames = "riftaggregation") [ set riftAggregation item globalIndex globalValues ]
 
           if (item globalIndex globalNames = "featureanglerange") [ set featureAngleRange item globalIndex globalValues ]
-          if (item globalIndex globalNames = "continentality") [ set continentality item globalIndex globalValues ]
+          if (item globalIndex globalNames = "inversionIterations") [ set inversionIterations item globalIndex globalValues ]
           if (item globalIndex globalNames = "elevationnoise") [ set elevationNoise item globalIndex globalValues ]
           if (item globalIndex globalNames = "sealevel") [ set seaLevel item globalIndex globalValues ]
           if (item globalIndex globalNames = "elevationsmoothstep") [ set elevationSmoothStep item globalIndex globalValues ]
@@ -1223,27 +1275,57 @@ NIL
 NIL
 1
 
+TEXTBOX
+167
+93
+238
+118
+ELEVATION
+11
+0.0
+1
+
+TEXTBOX
+10
+367
+315
+543
+---------- used when algorithm-style = C# -------------------------------------------\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|___________________________________________________________|
+9
+0.0
+1
+
+TEXTBOX
+322
+427
+488
+452
+used when algorithm-style = NetLogo
+9
+0.0
+1
+
 MONITOR
-577
-383
-678
-428
-NIL
-landOceanRatio
+559
+368
+660
+413
+land ratio
+landRatio
 4
 1
 11
 
 SLIDER
-448
-166
-643
-199
+489
+224
+684
+257
 par_seaLevel
 par_seaLevel
 round min (list minElevation par_riftElevation)
 round max (list maxElevation par_rangeElevation)
-0.0
+18.0
 1
 1
 m
@@ -1251,9 +1333,9 @@ HORIZONTAL
 
 SLIDER
 15
-169
+175
 187
-202
+208
 par_elevationNoise
 par_elevationNoise
 0
@@ -1265,10 +1347,10 @@ m
 HORIZONTAL
 
 SLIDER
-194
-104
-376
-137
+14
+217
+196
+250
 par_elevationSmoothStep
 par_elevationSmoothStep
 0
@@ -1285,27 +1367,27 @@ INPUTBOX
 156
 70
 randomSeed
-1.0
+2.0
 1
 0
 Number
 
 INPUTBOX
-251
-426
-352
-486
-par_continentality
-1.0
+345
+438
+468
+498
+par_inversionIterations
+5.0
 1
 0
 Number
 
 MONITOR
-413
-429
-511
-474
+563
+456
+661
+501
 sdElevation
 precision sdElevation 4
 4
@@ -1313,10 +1395,10 @@ precision sdElevation 4
 11
 
 MONITOR
-510
-429
-592
-474
+526
+411
+608
+456
 minElevation
 precision minElevation 4
 4
@@ -1324,10 +1406,10 @@ precision minElevation 4
 11
 
 MONITOR
-586
-429
-673
-474
+602
+411
+689
+456
 maxElevation
 precision maxElevation 4
 4
@@ -1335,10 +1417,10 @@ precision maxElevation 4
 11
 
 INPUTBOX
-16
-205
-104
-265
+307
+106
+395
+166
 par_numRanges
 1.0
 1
@@ -1346,21 +1428,21 @@ par_numRanges
 Number
 
 INPUTBOX
-105
-206
-197
-266
+308
+226
+400
+286
 par_rangeLength
-0.2
+100.0
 1
 0
 Number
 
 INPUTBOX
-16
-265
-103
-325
+308
+165
+395
+225
 par_numRifts
 1.0
 1
@@ -1368,21 +1450,21 @@ par_numRifts
 Number
 
 INPUTBOX
-105
-266
-197
-326
+308
+286
+400
+346
 par_riftLength
-0.5
+100.0
 1
 0
 Number
 
 SLIDER
 15
-103
+109
 187
-136
+142
 par_riftElevation
 par_riftElevation
 -500
@@ -1394,10 +1476,10 @@ m
 HORIZONTAL
 
 BUTTON
-442
-204
-650
-237
+483
+262
+691
+295
 refresh after changing sea level
 refresh-view-after-seaLevel-change
 NIL
@@ -1412,24 +1494,24 @@ NIL
 
 SLIDER
 15
-136
+142
 187
-169
+175
 par_rangeElevation
 par_rangeElevation
 0
 500
-10.0
+15.0
 1
 1
 m
 HORIZONTAL
 
 MONITOR
-415
-383
-500
-428
+525
+156
+610
+201
 NIL
 count patches
 0
@@ -1437,62 +1519,62 @@ count patches
 11
 
 SLIDER
-33
-485
-187
-518
+32
+468
+186
+501
 par_rangeAggregation
 par_rangeAggregation
 0
 1
-1.0
+0.75
 0.01
 1
 NIL
 HORIZONTAL
 
 SLIDER
-33
-518
-187
-551
+32
+501
+186
+534
 par_riftAggregation
 par_riftAggregation
 0
 1
-0.96
+0.9
 .01
 1
 NIL
 HORIZONTAL
 
 INPUTBOX
-15
-427
-122
-487
-par_numContinents
+14
+380
+137
+440
+par_numProtuberances
 1.0
 1
 0
 Number
 
 INPUTBOX
-122
-427
-214
-487
-par_numOceans
+154
+380
+270
+440
+par_numDepressions
 1.0
 1
 0
 Number
 
 SLIDER
-194
-137
-375
-170
+14
+250
+195
+283
 par_smoothingNeighborhood
 par_smoothingNeighborhood
 0
@@ -1504,10 +1586,10 @@ NIL
 HORIZONTAL
 
 MONITOR
-505
-383
-570
-428
+615
+156
+680
+201
 maxDist
 precision maxDist 4
 4
@@ -1515,10 +1597,10 @@ precision maxDist 4
 11
 
 MONITOR
-212
-169
-361
-206
+48
+283
+197
+320
 smoothing neighborhood size
 (word (count patches with [ distance patch 0 0 < smoothingNeighborhood ] - 1) \" patches\")
 0
@@ -1526,10 +1608,10 @@ smoothing neighborhood size
 9
 
 PLOT
-321
-494
-677
-614
+323
+510
+697
+630
 Elevation per patch
 m
 NIL
@@ -1545,106 +1627,75 @@ PENS
 "pen-1" 1.0 1 -2674135 true "" "histogram n-values plot-y-max [j -> seaLevel]"
 
 CHOOSER
-23
-361
-189
-406
+322
+365
+506
+410
 algorithm-style
 algorithm-style
 "NetLogo" "C#"
 1
 
-TEXTBOX
-41
-416
-191
-434
-used when algorithm-style = C#
-9
-0.0
-1
-
-TEXTBOX
-228
-415
-394
-440
-used when algorithm-style = Netlogo
-9
-0.0
-1
-
 SLIDER
 17
-326
+323
 197
-359
+356
 par_featureAngleRange
 par_featureAngleRange
 0
 360
-35.0
+0.0
 1
 1
 º
 HORIZONTAL
 
 SLIDER
-208
-273
-404
-306
+15
+588
+211
+621
 par_ySlope
 par_ySlope
 -0.1
 0.1
-0.013
+0.1
 0.001
 1
 NIL
 HORIZONTAL
 
-SWITCH
-442
-122
-562
-155
-show-flows
-show-flows
-0
-1
--1000
-
 CHOOSER
-423
-67
-561
-112
+543
+66
+681
+111
 display-mode
 display-mode
 "terrain"
 0
 
 SLIDER
-208
-240
-404
-273
+15
+555
+211
+588
 par_xSlope
 par_xSlope
 -0.1
 0.1
-0.009
+0.1
 0.001
 1
 NIL
 HORIZONTAL
 
 BUTTON
-574
-96
-646
-129
+573
+113
+645
+146
 refresh
 refresh-view
 NIL
@@ -1655,16 +1706,6 @@ NIL
 2
 NIL
 NIL
-1
-
-TEXTBOX
-167
-87
-238
-112
-ELEVATION
-11
-0.0
 1
 
 PLOT
@@ -1696,7 +1737,7 @@ yTransect
 yTransect
 min-pycor
 max-pycor
-33.0
+49.0
 1
 1
 NIL
@@ -1711,7 +1752,7 @@ xTransect
 xTransect
 min-pxcor
 max-pxcor
-22.0
+36.0
 1
 1
 NIL
@@ -1765,57 +1806,35 @@ show-transects
 1
 -1000
 
-SWITCH
-487
-261
-604
-294
-do-fill-sinks
-do-fill-sinks
-0
-1
--1000
-
 SLIDER
-208
-308
-403
-341
+15
+623
+210
+656
 par_valleyAxisInclination
 par_valleyAxisInclination
 0
 1
-0.37
+0.1
 0.01
 1
 NIL
 HORIZONTAL
 
 SLIDER
-208
-341
-403
-374
+15
+656
+210
+689
 par_valleySlope
 par_valleySlope
 -0.1
 0.1
-0.039
+0.02
 0.001
 1
 NIL
 HORIZONTAL
-
-INPUTBOX
-454
-311
-634
-371
-par_riverFlowAccumulationAtStart
-100000.0
-1
-0
-Number
 
 CHOOSER
 393
@@ -1894,6 +1913,248 @@ NIL
 NIL
 NIL
 1
+
+MONITOR
+186
+108
+251
+145
+NIL
+riftElevation
+2
+1
+9
+
+MONITOR
+186
+142
+262
+179
+NIL
+rangeElevation
+2
+1
+9
+
+MONITOR
+186
+173
+261
+210
+NIL
+elevationNoise
+2
+1
+9
+
+MONITOR
+196
+215
+296
+252
+NIL
+elevationSmoothStep
+2
+1
+9
+
+MONITOR
+194
+250
+306
+287
+NIL
+smoothingNeighborhood
+2
+1
+9
+
+MONITOR
+395
+117
+454
+154
+NIL
+numRanges
+0
+1
+9
+
+MONITOR
+396
+175
+453
+212
+NIL
+numRifts
+0
+1
+9
+
+MONITOR
+401
+237
+467
+274
+NIL
+rangeLength
+0
+1
+9
+
+MONITOR
+400
+301
+457
+338
+NIL
+riftLength
+0
+1
+9
+
+MONITOR
+198
+322
+302
+359
+NIL
+featureAngleRange
+0
+1
+9
+
+MONITOR
+215
+552
+281
+589
+NIL
+xSlope
+4
+1
+9
+
+MONITOR
+217
+589
+281
+626
+NIL
+ySlope
+4
+1
+9
+
+MONITOR
+217
+626
+318
+663
+NIL
+valleyAxisInclination
+4
+1
+9
+
+MONITOR
+216
+663
+317
+700
+NIL
+valleySlope
+4
+1
+9
+
+MONITOR
+15
+427
+105
+464
+NIL
+numProtuberances
+0
+1
+9
+
+MONITOR
+154
+425
+238
+462
+NIL
+numDepressions
+0
+1
+9
+
+MONITOR
+188
+466
+285
+503
+NIL
+rangeAggregation
+4
+1
+9
+
+MONITOR
+189
+503
+272
+540
+NIL
+riftAggregation
+4
+1
+9
+
+SWITCH
+471
+312
+572
+345
+do-fill-sinks
+do-fill-sinks
+0
+1
+-1000
+
+SWITCH
+572
+312
+676
+345
+show-flows
+show-flows
+0
+1
+-1000
+
+INPUTBOX
+330
+637
+510
+697
+par_riverFlowAccumulationAtStart
+1000000.0
+1
+0
+Number
+
+MONITOR
+514
+651
+671
+688
+NIL
+riverFlowAccumulationAtStart
+2
+1
+9
 
 @#$#@#$#@
 ## WHAT IS IT?
