@@ -559,8 +559,8 @@ to-report get-flow-direction-encoding [ x y ]
   if (x = 0 and y = 1) [ report 128 ]  ; North
 
   if (x = 1 and y = -1) [ report 4 ]   ; Southeast
-  if (x = 1 and y = 0) [ report 2 ]    ; East
-  if (x = 1 and y = 1) [ report 1 ]    ; Northeast
+  if (x = 1 and y = 0) [ report 2 ]    ;
+  if (x = 1 and y = 1) [ report 1 ]
 
 end
 
