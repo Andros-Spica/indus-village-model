@@ -17,7 +17,7 @@
     <node id="n0">
       <data key="d6">
         <y:GenericNode configuration="ShinyPlateNode">
-          <y:Geometry height="124.76535764375876" width="1538.0332756800406" x="30.62481770654597" y="-105.51623784105266"/>
+          <y:Geometry height="124.76535764375876" width="1538.0332756800406" x="30.62481770654597" y="-156.03913317839147"/>
           <y:Fill color="#FF9900" transparent="false"/>
           <y:BorderStyle hasColor="false" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="48" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="121.609375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="438.7890625" x="549.6221065900203" xml:space="preserve" y="1.5779913218793808">Land model
@@ -71,7 +71,7 @@
               <y:BorderInsets bottom="1" bottomF="1.4372874294540452" left="0" leftF="0.0" right="13" rightF="13.3056640625" top="0" topF="0.0"/>
             </y:GroupNode>
             <y:GroupNode>
-              <y:Geometry height="50.0" width="285.6162003927068" x="334.13063974718455" y="748.2809966277592"/>
+              <y:Geometry height="50.0" width="285.6162003927068" x="334.13063974718455" y="765.1042499758121"/>
               <y:Fill color="#F5F5F5" transparent="false"/>
               <y:BorderStyle color="#000000" type="dashed" width="1.0"/>
               <y:NodeLabel alignment="right" autoSizePolicy="node_width" backgroundColor="#EBEBEB" borderDistance="0.0" fontFamily="Dialog" fontSize="15" fontStyle="plain" hasLineColor="false" height="22.37646484375" horizontalTextPosition="center" iconTextGap="4" modelName="internal" modelPosition="t" textColor="#000000" verticalTextPosition="bottom" visible="true" width="285.6162003927068" x="0.0" xml:space="preserve" y="0.0">set-landform-NetLogo </y:NodeLabel>
@@ -253,8 +253,8 @@ numPoints = -1 * random int U(0, riftLength)<y:LabelModel><y:SmartNodeLabelModel
               <y:Geometry height="35.39814246216349" width="137.44777107600282" x="347.6078887167139" y="1239.6185616187377"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="33.40234375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="125.74609375" x="5.8508386630014115" xml:space="preserve" y="0.9978993560816889">sign = 1
-scale = rangeElevation
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="33.40234375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="111.068359375" x="13.189705850501412" xml:space="preserve" y="0.9978993560816889">sign = 1
+scale = rangeHeight
 <y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
@@ -286,8 +286,8 @@ scale = rangeElevation
               <y:Geometry height="35.39814246216349" width="116.27311705075738" x="358.1952157293367" y="1343.3341780749488"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="33.40234375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="108.384765625" x="3.944175712878689" xml:space="preserve" y="0.9978993560816889">sign = -1
-scale = riftElevation
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="33.40234375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="93.70703125" x="11.283042900378689" xml:space="preserve" y="0.9978993560816889">sign = -1
+scale = riftHeight
 <y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
@@ -759,10 +759,10 @@ remove p_protuberance from elevatedPatches<y:LabelModel><y:SmartNodeLabelModel d
     <node id="n5">
       <data key="d6">
         <y:GenericNode configuration="ShinyPlateNode">
-          <y:Geometry height="50.52289533733881" width="1538.0332756800406" x="30.62481770654597" y="19.249119802706105"/>
+          <y:Geometry height="50.52289533733881" width="1538.0332756800406" x="30.62481770654597" y="-31.273775534632705"/>
           <y:Fill color="#FFCC00" transparent="false"/>
           <y:BorderStyle hasColor="false" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="24" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="33.40234375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="498.9765625" x="519.5283565900203" xml:space="preserve" y="8.560275793669405">by Andreas Angourakis (last update: 03/2020).<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="24" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="33.40234375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="498.9765625" x="519.5283565900203" xml:space="preserve" y="8.560275793669405">by Andreas Angourakis (last update: 05/2020).<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
         </y:GenericNode>
       </data>
     </node>
@@ -955,7 +955,7 @@ maxDistBetweenRifts = (1.1 - riftAggregation) * maxDist<y:LabelModel><y:SmartNod
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
               <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="48.103515625" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="188.388671875" x="6.545664062500009" xml:space="preserve" y="1.6370219911466393">numRiftsToDo = numRiftsToDo - 1
 len = riftLength - 2
-elev = riftElevation<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+elev = riftHeight<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
@@ -988,7 +988,7 @@ elev = riftElevation<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:Lab
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
               <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="48.103515625" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="223.111328125" x="5.8684694418409435" xml:space="preserve" y="1.6370219911466393">numRangesToDo = numRangesToDo - 1
 len = rangeLength - 2
-elev = rangeElevation<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+elev = rangeHeight<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
@@ -1076,7 +1076,7 @@ elev = rangeElevation<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:La
               <y:Geometry height="40.0" width="325.0599438990182" x="1164.999038968687" y="1458.4703758746373"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="310.1640625" x="7.44794069950899" xml:space="preserve" y="10.6494140625">elevation = elevation + random Normal(0, elevationNoise)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="260.13671875" x="32.46161257450899" xml:space="preserve" y="10.6494140625">elevation = elevation + random Normal(0, noise)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
@@ -1355,52 +1355,59 @@ elev = rangeElevation<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:La
     <node id="n8">
       <data key="d6">
         <y:ShapeNode>
-          <y:Geometry height="642.1902768976173" width="488.56733379933456" x="34.59322724093934" y="80.0825422923628"/>
+          <y:Geometry height="745.855130173106" width="488.56733379933456" x="34.59322724093934" y="19.249119802706105"/>
           <y:Fill color="#FFCC00" transparent="false"/>
           <y:BorderStyle color="#000000" raised="false" type="line" width="1.0"/>
-          <y:NodeLabel alignment="left" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="636.150390625" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="473.587890625" x="7.489721587167281" xml:space="preserve" y="3.0199431363087115">Constants:
-maxX, minX, maxY, minY: maximum and minimum X and Y coordinates of land units.
+          <y:NodeLabel alignment="left" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="739.05859375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="435.58984375" x="26.48874502466728" xml:space="preserve" y="3.398268211553045">Constants:
+- maxX, minX, maxY, minY: maximum and minimum X and Y coordinates of 
+  land units.
+- maxDist: maximum distance between land units (length of diagonal in a 
+  rectangular map).
 
 Parameters:
 
-- Elevation:
-    - algorithm-style: style of algorithm to create land features "ranges" and "rifts". 
-      The algorithms styles available are: "NetLogo", using auxiliary agents and 
-      less parameters but with less control, and "C#", without agents and more 
-      parameters.
-    - numRanges, numRifts: number of landforming features ("ranges", "rifts").
-    - rangeLength, riftLength: maximum length, in land units, of landforming features.
-    - rangeElevation, riftElevation: the starting elevation of landforming features.
-      These are also used as maximum and minimum elevation 
-      for x,y, and valley slopes.
-    - featureAngleRange: the maximum change in features angle (direction every step)
-    - elevationSmoothStep: the level of smoothing applied to elevation. 
-      0 = none, 1 = values are equated to the mean of neighbours.
-    - smoothingNeighborhood: maximum distance to include land units 
-      in another's neihgbourhood. Applied as a radius surroundingg a land unit. 
-    - xSlope, ySlope: the level of adjustment of elevation to x (West-East) and 
-      y (North-South) slopes. 0 = no slope, 1 = no variation besides slopes.
-    - valleyAxisInclination: the level of inclination of the North-South valley. 
+- Elevation (naming format: "elev_&lt;NAME&gt;", prefix hidden in the graph):
+    - elev_algorithm-style: style of algorithm to create land features "ranges" 
+      and "rifts". The algorithms styles available are: "NetLogo", using auxiliary 
+      agents and less parameters but with less control, and "C#", without 
+      agents and more parameters.
+    - elev_numRanges, numRifts: number of landforming features ("ranges",
+      "rifts").
+    - elev_rangeLength, riftLength: maximum length, in land units, of
+      landforming features.
+    - elev_rangeHeight, riftHeight: the starting elevation of landforming
+      features. These are also used as maximum and minimum elevation for 
+      x,y, and valley slopes.
+    - elev_featureAngleRange: the maximum change in features angle 
+      (direction every step)
+    - elev_smoothStep: the level of smoothing applied to elevation. 0 = none, 
+      1 = values are equated to the mean of neighbours.
+    - elev_smoothingRadius: maximum distance to include land units in
+      another's neihgbourhood. Applied as a radius surroundingg a land unit.
+    - elev_xSlope, ySlope: the level of adjustment of elevation to x (West-East)
+      and y (North-South) slopes. 0 = no slope, 1 = no variation besides slopes.
+    - elev_valleyAxisInclination: the level of inclination of the North-South valley.
       0 = centred, 1 = top-right to bottom-left diagonal.
-    - valleySlope: the level of adjustment of elevation to the North-South valley.
-      0 = no valley, 1 = no variation besides valley.
-used when algorithm-style = "C#":
-    - numProtuberances, numDepressions: (approximated) number of distinct
-      protuberances/depressions. Consider those are acheived by aglutinating
+    - elev_valleySlope: the level of adjustment of elevation to the North-South 
+      valley. 0 = no valley, 1 = no variation besides valley.
+Used when algorithm-style = "C#":
+    - numProtuberances, numDepressions: (approximated) number of distinct 
+      protuberances/depressions. Consider those are acheived by aglutinating 
       elevated and depressed land units.
-    - rangeAggregation, riftAggregation: the minimum proximity required between
-      landform features, expressed as percentage of the map's maximum distance.
-    - elevationNoise: noise to be added/subtracted to elevation as the standard 
-      deviation of a centred normal distribution.
-used when algorithm-style = "NetLogo":
-    - inversionIterations: the number of iterations all land units with neighbours 
-      with opposite elevation sign (i.e., if elevation = 10, neighbours with elevation &lt; 0) 
-      have their elevation exchanged with one of those neighbours.
+    - rangeAggregation, riftAggregation: the minimum proximity required
+      between landform features, expressed as percentage of the map's
+      maximum distance.
+    - noise: noise to be added/subtracted to elevation as the standard deviation
+      of a centred normal distribution.
+Used when algorithm-style = "NetLogo":
+    - inversionIterations: the number of iterations all land units with neighbours
+      with opposite elevation sign (i.e., if elevation = 10, neighbours with 
+      elevation &lt; 0) have their elevation exchanged with one of those neighbours.
 
-- Flow:
-    - do-fill-sinks: whether to apply algorithm to fill all drainage "sinks" (land units 
-                         not on the edge of the map where there is no flow towards a neighbour). 
-                         Those sinks are likely to have been created by land forming algorithms.<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+- Flow (naming format: "flow_&lt;NAME&gt;", prefix hidden in the graph):
+    - flow_do-fill-sinks: whether to apply algorithm to fill all drainage "sinks" (land  
+      units not on the edge of the map where there is no flow towards a neighbour).
+      Those sinks are likely to have been created by land forming algorithms.<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
           <y:Shape type="rectangle3d"/>
         </y:ShapeNode>
       </data>
@@ -1408,33 +1415,29 @@ used when algorithm-style = "NetLogo":
     <node id="n9">
       <data key="d6">
         <y:ShapeNode>
-          <y:Geometry height="387.2042738913913" width="476.8804535700566" x="1082.079747072511" y="90.38736896387107"/>
+          <y:Geometry height="353.6154940877448" width="476.8804535700566" x="1082.079747072511" y="29.574801249894932"/>
           <y:Fill color="#FFCC00" transparent="false"/>
           <y:BorderStyle color="#000000" raised="false" type="line" width="1.0"/>
-          <y:NodeLabel alignment="left" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="371.529296875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="439.5625" x="18.658976785028244" xml:space="preserve" y="7.837488508195634">Land unit variable:
+          <y:NodeLabel alignment="left" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="312.724609375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="439.5625" x="18.658976785028244" xml:space="preserve" y="20.445442356372382">Land unit variable:
 - elevation: average elevation above reference of the land unit (metres). 
-                 The reference is an arbitrary elevation from which all 
-                 algorithms will sculpt the terrain.
-- flowDirection: the numeric code for the (main) direction of flow or 
-                      drainage within the land unit. 
-                      Following Jenson &amp; Domingue (1988) convention:
-                      NW = 64,   N = 128,        NE = 1,
-                      W = 32,     &lt;CENTRE&gt;,   E = 2,
-                      SW = 16,     S = 8,          SE = 4
-- receivesFlow: Boolean variable stating whether or not the land unit receives 
-                       the flow of a neighbour.
+  The reference is an arbitrary elevation from which all algorithms will 
+  sculpt the terrain.
+- flow_direction: the numeric code for the (main) direction of flow or 
+  drainage within the land unit. 
+  Following Jenson &amp; Domingue (1988) convention:
+    NW = 64,   N = 128,        NE = 1,
+    W = 32,     &lt;CENTRE&gt;,   E = 2,
+    SW = 16,     S = 8,          SE = 4
 
 Auxiliary agent: Map setters (used when algorithm-style = "NetLogo")
 
 Map setters variable:
-- numPoints: the number of land units to be chained together as 
-             a "rift" or "range".
+- numPoints: the number of land units to be chained together as a "rift" or "range".
 
 Global variables (output):
 - seaLevel: elevation considered as sea level for display purposes.
 - landRatio: the ratio of land units above seaLevel. 
-- elevationDistribution: the set or list containing the elevation 
-                                 of all land units 
+- elevationDistribution: the set or list containing the elevation of all land units 
 - minElevation, maxElevation, sdElevation: statistics on the elevation of land units.<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
           <y:Shape type="rectangle3d"/>
         </y:ShapeNode>
@@ -1486,7 +1489,7 @@ Global variables (output):
               <y:BorderInsets bottom="0" bottomF="0.0" left="0" leftF="0.0" right="0" rightF="0.0" top="0" topF="0.0"/>
             </y:GroupNode>
             <y:GroupNode>
-              <y:Geometry height="50.0" width="196.1148990728476" x="693.440191521321" y="832.6875830795457"/>
+              <y:Geometry height="50.0" width="196.1148990728476" x="693.440191521321" y="846.5665860494978"/>
               <y:Fill color="#F5F5F5" transparent="false"/>
               <y:BorderStyle color="#000000" type="dashed" width="1.0"/>
               <y:NodeLabel alignment="right" autoSizePolicy="node_width" backgroundColor="#EBEBEB" borderDistance="0.0" fontFamily="Dialog" fontSize="15" fontStyle="plain" hasLineColor="false" height="22.37646484375" horizontalTextPosition="center" iconTextGap="4" modelName="internal" modelPosition="t" textColor="#000000" verticalTextPosition="bottom" visible="true" width="196.1148990728476" x="0.0" xml:space="preserve" y="0.0">smooth-elevation-all </y:NodeLabel>
@@ -1594,7 +1597,7 @@ Global variables (output):
               <y:BorderInsets bottom="0" bottomF="0.0" left="0" leftF="0.0" right="0" rightF="0.0" top="0" topF="0.0"/>
             </y:GroupNode>
             <y:GroupNode>
-              <y:Geometry height="50.0" width="201.48000000000002" x="693.440191521321" y="897.9701671035368"/>
+              <y:Geometry height="50.0" width="201.48000000000002" x="693.440191521321" y="911.849170073489"/>
               <y:Fill color="#F5F5F5" transparent="false"/>
               <y:BorderStyle color="#000000" type="dashed" width="1.0"/>
               <y:NodeLabel alignment="right" autoSizePolicy="node_width" backgroundColor="#EBEBEB" borderDistance="0.0" fontFamily="Dialog" fontSize="15" fontStyle="plain" hasLineColor="false" height="22.37646484375" horizontalTextPosition="center" iconTextGap="4" modelName="internal" modelPosition="t" textColor="#000000" verticalTextPosition="bottom" visible="true" width="201.48000000000002" x="0.0" xml:space="preserve" y="0.0">smooth-elevation </y:NodeLabel>
@@ -1633,8 +1636,8 @@ Global variables (output):
               <y:Geometry height="40.0" width="493.61620039270684" x="653.0652924484734" y="898.5625916741146"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="33.40234375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="485.306640625" x="4.154779883853394" xml:space="preserve" y="3.298828125">smoothedElevation = mean elevation of land units within smoothingNeighborhood distance
-elevation = elevation + (smoothedElevation - elevation) * elevationSmoothStep<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="33.40234375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="447.267578125" x="23.174311133853394" xml:space="preserve" y="3.298828125">smoothedElevation = mean elevation of land units within smoothingRadius distance
+elevation = elevation + (smoothedElevation - elevation) * smoothStep<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
@@ -1676,7 +1679,7 @@ elevation = elevation + (smoothedElevation - elevation) * elevationSmoothStep<y:
               <y:BorderInsets bottom="0" bottomF="0.0" left="0" leftF="0.0" right="0" rightF="0.0" top="0" topF="0.0"/>
             </y:GroupNode>
             <y:GroupNode>
-              <y:Geometry height="50.0" width="171.60530309933768" x="440.865701763427" y="812.6494518816862"/>
+              <y:Geometry height="50.0" width="171.60530309933768" x="440.865701763427" y="847.4807148195621"/>
               <y:Fill color="#F5F5F5" transparent="false"/>
               <y:BorderStyle color="#000000" type="dashed" width="1.0"/>
               <y:NodeLabel alignment="right" autoSizePolicy="node_width" backgroundColor="#EBEBEB" borderDistance="0.0" fontFamily="Dialog" fontSize="15" fontStyle="plain" hasLineColor="false" height="22.37646484375" horizontalTextPosition="center" iconTextGap="4" modelName="internal" modelPosition="t" textColor="#000000" verticalTextPosition="bottom" visible="true" width="171.60530309933768" x="0.0" xml:space="preserve" y="0.0">set-xySlope </y:NodeLabel>
@@ -1742,11 +1745,11 @@ elevation = elevation + (smoothedElevation - elevation) * elevationSmoothStep<y:
               <y:Geometry height="81.90446259523128" width="379.84826700868166" x="393.6793402664451" y="1022.2636163947739"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="77.505859375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="371.435546875" x="4.206360066840887" xml:space="preserve" y="2.1993016101157536">elevation
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="77.505859375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="342.080078125" x="18.884094441840887" xml:space="preserve" y="2.1993016101157536">elevation
 =
 (1 - xSlope) * elevation
 +
-(xSlope * (rangeElevation - riftElevation) * (x - minX) / (maxX - minX))
+(xSlope * (rangeHeight - riftHeight) * (x - minX) / (maxX - minX))
 <y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
@@ -1757,11 +1760,11 @@ elevation = elevation + (smoothedElevation - elevation) * elevationSmoothStep<y:
               <y:Geometry height="81.90446259523128" width="379.84826700868166" x="393.67934026644485" y="1123.0016742191779"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="77.505859375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="371.435546875" x="4.206360066840887" xml:space="preserve" y="2.1993016101155263">elevation
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="77.505859375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="342.080078125" x="18.884094441840887" xml:space="preserve" y="2.1993016101155263">elevation
 =
 (1 - ySlope) * elevation
 +
-(ySlope * (rangeElevation - riftElevation) * (y - minY) / (maxY - minY))
+(ySlope * (rangeHeight - riftHeight) * (y - minY) / (maxY - minY))
 <y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
@@ -1834,7 +1837,7 @@ elevation = elevation + (smoothedElevation - elevation) * elevationSmoothStep<y:
               <y:BorderInsets bottom="0" bottomF="0.0" left="20" leftF="19.500000000000227" right="20" rightF="19.5" top="0" topF="0.0"/>
             </y:GroupNode>
             <y:GroupNode>
-              <y:Geometry height="50.0" width="198.7661774834437" x="406.8933649551864" y="877.0179071356131"/>
+              <y:Geometry height="50.0" width="198.7661774834437" x="406.8933649551864" y="911.849170073489"/>
               <y:Fill color="#F5F5F5" transparent="false"/>
               <y:BorderStyle color="#000000" type="dashed" width="1.0"/>
               <y:NodeLabel alignment="right" autoSizePolicy="node_width" backgroundColor="#EBEBEB" borderDistance="0.0" fontFamily="Dialog" fontSize="15" fontStyle="plain" hasLineColor="false" height="22.37646484375" horizontalTextPosition="center" iconTextGap="4" modelName="internal" modelPosition="t" textColor="#000000" verticalTextPosition="bottom" visible="true" width="198.7661774834437" x="0.0" xml:space="preserve" y="0.0">set-valleySlope </y:NodeLabel>
@@ -1926,11 +1929,11 @@ minY, maxY = minimum, maximum y coordinate of land units<y:LabelModel><y:SmartNo
               <y:Geometry height="81.90446259523128" width="325.0599438990182" x="652.2927997533867" y="1618.2613486360008"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="77.505859375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="315.033203125" x="5.013370387009104" xml:space="preserve" y="2.1993016101157536">elevation
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="77.505859375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="285.677734375" x="19.691104762009104" xml:space="preserve" y="2.1993016101157536">elevation
 =
 (1 - valleySlope) * elevation
 +
-(valleySlope * (rangeElevation - riftElevation) * |xValley - x|
+(valleySlope * (rangeHeight - riftHeight) * |xValley - x|
 <y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
@@ -2702,7 +2705,7 @@ Geographic Information System Analysis Photogramm. Eng. Remote Sensing 54 1593â€
               <y:Geometry height="22.58929997194946" width="144.61620039270684" x="1017.2182342416598" y="1228.5052968038317"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="138.373046875" x="3.1215767588533936" xml:space="preserve" y="1.9440640484747291">flowDirection = 32 (West)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="143.0546875" x="0.7807564463533936" xml:space="preserve" y="1.9440640484747291">flow_direction = 32 (West)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
@@ -2712,7 +2715,7 @@ Geographic Information System Analysis Photogramm. Eng. Remote Sensing 54 1593â€
               <y:Geometry height="22.58929997194946" width="138.49999999999994" x="877.9682342416597" y="1228.5052968038317"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="128.376953125" x="5.0615234375" xml:space="preserve" y="1.9440640484747291">flowDirection = 2 (East)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="133.05859375" x="2.720703125" xml:space="preserve" y="1.9440640484747291">flow_direction = 2 (East)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
@@ -2722,7 +2725,7 @@ Geographic Information System Analysis Photogramm. Eng. Remote Sensing 54 1593â€
               <y:Geometry height="22.58929997194946" width="144.61620039270684" x="732.6020338489529" y="1228.5052968038317"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="135.724609375" x="4.445795508853394" xml:space="preserve" y="1.9440640484747291">flowDirection = 8 (South)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="140.40625" x="2.1049751963533936" xml:space="preserve" y="1.9440640484747291">flow_direction = 8 (South)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
@@ -2732,7 +2735,7 @@ Geographic Information System Analysis Photogramm. Eng. Remote Sensing 54 1593â€
               <y:Geometry height="22.58929997194946" width="149.96880000000004" x="581.883233848953" y="1228.5052968038317"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="147.056640625" x="1.4560796875000506" xml:space="preserve" y="1.9440640484747291">flowDirection = 128 (North)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="151.73828125" x="-0.8847406249999494" xml:space="preserve" y="1.9440640484747291">flow_direction = 128 (North)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
@@ -2804,9 +2807,9 @@ downstreamPatch = select random neighbour with maxDrop <y:LabelModel><y:SmartNod
               <y:Geometry height="56.0" width="368.6162003927068" x="98.45632474832792" y="1199.622308344035"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="48.103515625" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="351.80078125" x="8.407709571353394" xml:space="preserve" y="3.9482421875">xDirection = (x of downstreamPatch) - x
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="48.103515625" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="356.482421875" x="6.066889258853394" xml:space="preserve" y="3.9482421875">xDirection = (x of downstreamPatch) - x
 yDirection = (y of downstreamPatch) - y
-flowDirection = get-flow-direction-encoding(xDirection, yDirection)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+flow_direction = get-flow-direction-encoding(xDirection, yDirection)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
@@ -2969,7 +2972,7 @@ flowDirection = get-flow-direction-encoding(xDirection, yDirection)<y:LabelModel
               <y:Geometry height="22.58929997194946" width="144.61620039270684" x="374.08858375077614" y="1503.8817616475817"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="138.373046875" x="3.1215767588533936" xml:space="preserve" y="1.9440640484747291">flowDirection = 32 (West)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="143.0546875" x="0.7807564463533936" xml:space="preserve" y="1.9440640484747291">flow_direction = 32 (West)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
@@ -2979,7 +2982,7 @@ flowDirection = get-flow-direction-encoding(xDirection, yDirection)<y:LabelModel
               <y:Geometry height="22.58929997194946" width="138.49999999999994" x="1196.0457590943947" y="1503.8817616475817"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="128.376953125" x="5.0615234375" xml:space="preserve" y="1.9440640484747291">flowDirection = 2 (East)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="133.05859375" x="2.720703125" xml:space="preserve" y="1.9440640484747291">flow_direction = 2 (East)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
@@ -2989,7 +2992,7 @@ flowDirection = get-flow-direction-encoding(xDirection, yDirection)<y:LabelModel
               <y:Geometry height="22.58929997194946" width="144.61620039270684" x="714.1466839471295" y="1503.8817616475817"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="135.724609375" x="4.445795508853394" xml:space="preserve" y="1.9440640484747291">flowDirection = 8 (South)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="140.40625" x="2.1049751963533936" xml:space="preserve" y="1.9440640484747291">flow_direction = 8 (South)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
@@ -2999,7 +3002,7 @@ flowDirection = get-flow-direction-encoding(xDirection, yDirection)<y:LabelModel
               <y:Geometry height="22.58929997194946" width="149.96880000000004" x="872.2338342416597" y="1503.8817616475817"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="147.056640625" x="1.4560796875000506" xml:space="preserve" y="1.9440640484747291">flowDirection = 128 (North)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="151.73828125" x="-0.8847406249999494" xml:space="preserve" y="1.9440640484747291">flow_direction = 128 (North)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
@@ -3019,7 +3022,7 @@ flowDirection = get-flow-direction-encoding(xDirection, yDirection)<y:LabelModel
               <y:Geometry height="22.58929997194946" width="171.5581001963534" x="189.0595336525995" y="1503.8817616475817"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="167.072265625" x="2.242917285676697" xml:space="preserve" y="1.9440640484747291">flowDirection = 16 (Southwest)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="171.75390625" x="-0.09790302682330321" xml:space="preserve" y="1.9440640484747291">flow_direction = 16 (Southwest)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
@@ -3039,7 +3042,7 @@ flowDirection = get-flow-direction-encoding(xDirection, yDirection)<y:LabelModel
               <y:Geometry height="22.58929997194946" width="171.5581001963534" x="529.1176338489529" y="1503.8817616475817"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="165.056640625" x="3.25072978567664" xml:space="preserve" y="1.9440640484747291">flowDirection = 64 (Northwest)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="169.73828125" x="0.90990947317664" xml:space="preserve" y="1.9440640484747291">flow_direction = 64 (Northwest)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
@@ -3059,7 +3062,7 @@ flowDirection = get-flow-direction-encoding(xDirection, yDirection)<y:LabelModel
               <y:Geometry height="22.58929997194946" width="161.49999999999994" x="1030.173584143483" y="1503.8817616475817"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="158.40625" x="1.546875" xml:space="preserve" y="1.9440640484747291">flowDirection = 4 (Southeast)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="163.087890625" x="-0.7939453125" xml:space="preserve" y="1.9440640484747291">flow_direction = 4 (Southeast)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
@@ -3069,7 +3072,7 @@ flowDirection = get-flow-direction-encoding(xDirection, yDirection)<y:LabelModel
               <y:Geometry height="22.58929997194946" width="161.49999999999994" x="1349.1579340453063" y="1442.587111661607"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="156.390625" x="2.5546875" xml:space="preserve" y="1.9440640484747291">flowDirection = 1 (Northeast)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="161.072265625" x="0.2138671875" xml:space="preserve" y="1.9440640484747291">flow_direction = 1 (Northeast)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
@@ -3172,7 +3175,7 @@ flowDirection = get-flow-direction-encoding(xDirection, yDirection)<y:LabelModel
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="-3.5389816142885153" sy="21.94013359320195" tx="-41.16327181030192" ty="4.5644528703828655">
-            <y:Point x="750.3343692474429" y="795.2211302209612"/>
+            <y:Point x="750.3343692474429" y="812.044383569014"/>
           </y:Path>
           <y:LineStyle color="#000000" type="dashed_dotted" width="2.0"/>
           <y:Arrows source="none" target="standard"/>
@@ -3186,7 +3189,7 @@ flowDirection = get-flow-direction-encoding(xDirection, yDirection)<y:LabelModel
           <y:Path sx="-9.318782238724822" sy="20.79289775442146" tx="-0.9131286687104695" ty="-12.941788615325322">
             <y:Point x="1072.4188323972442" y="542.5065385804885"/>
             <y:Point x="1016.8243336157873" y="542.5065385804885"/>
-            <y:Point x="1016.8243336157873" y="844.0156020450413"/>
+            <y:Point x="1016.8243336157873" y="857.8946050149934"/>
           </y:Path>
           <y:LineStyle color="#000000" type="dashed_dotted" width="2.0"/>
           <y:Arrows source="none" target="standard"/>
@@ -3200,7 +3203,7 @@ flowDirection = get-flow-direction-encoding(xDirection, yDirection)<y:LabelModel
           <y:Path sx="-9.318782238724822" sy="14.11835199741165" tx="7.979985862927619" ty="-12.941788615325322">
             <y:Point x="1072.4188323972442" y="535.8319928234787"/>
             <y:Point x="1016.8243336157873" y="535.8319928234787"/>
-            <y:Point x="1016.8243336157873" y="844.0156020450413"/>
+            <y:Point x="1016.8243336157873" y="857.8946050149934"/>
           </y:Path>
           <y:LineStyle color="#000000" type="dashed_dotted" width="2.0"/>
           <y:Arrows source="none" target="standard"/>
@@ -3212,8 +3215,8 @@ flowDirection = get-flow-direction-encoding(xDirection, yDirection)<y:LabelModel
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="3.4116990188701948" tx="34.942440310279835" ty="-15.05374331521216">
-            <y:Point x="668.3888662000019" y="861.0992820984159"/>
-            <y:Point x="668.3888662000019" y="907.9164237883247"/>
+            <y:Point x="668.3888662000019" y="874.978285068368"/>
+            <y:Point x="668.3888662000019" y="921.7954267582768"/>
           </y:Path>
           <y:LineStyle color="#000000" type="dashed_dotted" width="2.0"/>
           <y:Arrows source="none" target="standard"/>
@@ -3226,7 +3229,7 @@ flowDirection = get-flow-direction-encoding(xDirection, yDirection)<y:LabelModel
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="59.49358507873728" ty="-19.44978322006716">
             <y:Point x="630.8805185855434" y="412.8026939472526"/>
-            <y:Point x="630.8805185855434" y="818.1996686616191"/>
+            <y:Point x="630.8805185855434" y="853.0309315994949"/>
           </y:Path>
           <y:LineStyle color="#000000" type="dashed_dotted" width="2.0"/>
           <y:Arrows source="none" target="standard"/>
@@ -3239,7 +3242,7 @@ flowDirection = get-flow-direction-encoding(xDirection, yDirection)<y:LabelModel
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="-59.98353418335308" ty="-22.152278269054023">
             <y:Point x="644.0139140855434" y="482.8026939472526"/>
-            <y:Point x="644.0139140855434" y="879.8656288665591"/>
+            <y:Point x="644.0139140855434" y="914.6968918044349"/>
           </y:Path>
           <y:LineStyle color="#000000" type="dashed_dotted" width="2.0"/>
           <y:Arrows source="none" target="standard"/>

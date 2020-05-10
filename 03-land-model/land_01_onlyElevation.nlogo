@@ -29,56 +29,56 @@ globals
   patchArea
   maxDist
 
-  ; algorithm-style (GUI): style of algorithm to create land features "ranges" and "rifts".
+  ; elev_algorithm-style (GUI): style of algorithm to create land features "ranges" and "rifts".
   ; The algorithms styles available are: "NetLogo", using auxiliary agents and
   ; less parameters but with less control, and "C#", without agents and more
   ; parameters.
 
-  ;;; parameters (copies) ===============================================================
+  ;;; parameters (modified copies of interface input) ===============================================================
 
   ;;;; elevation
-  numRanges                  ; number of landforming features ("ranges", "rifts").
-  numRifts
+  elev_numRanges                  ; number of landforming features ("ranges", "rifts").
+  elev_numRifts
 
-  rangeLength                ; maximum length, in land units, of landforming features.
-  riftLength
+  elev_rangeLength                ; maximum length, in land units, of landforming features.
+  elev_riftLength
 
-  rangeElevation             ; the starting elevation of landforming features.
-  riftElevation              ; These are also used as maximum and minimum elevation
-                             ; for x,y, and valley slopes.
+  elev_rangeHeight                ; the starting elevation of landforming features.
+  elev_riftHeight                 ; These are also used as maximum and minimum elevation
+                                  ; for x,y, and valley slopes.
 
-  featureAngleRange          ; the maximum change in features angle (direction every step)
+  elev_featureAngleRange          ; the maximum change in features angle (direction every step)
 
-  elevationSmoothStep        ; the level of smoothing applied to elevation.
-                             ; 0 = none, 1 = values are equated to the mean of neighbours.
-  smoothingNeighborhood      ; maximum distance to include land units in another's neihgbourhood.
-                             ; Applied as a radius surrounding a land unit.
+  elev_smoothStep                 ; the level of smoothing applied to elevation.
+                                  ; 0 = none, 1 = values are equated to the mean of neighbours.
+  elev_smoothingRadius            ; maximum distance to include land units in another's neihgbourhood.
+                                  ; Applied as a radius surrounding a land unit.
 
-  xSlope                     ; the level of adjustment of elevation to x (West-East) and
-                             ; y (North-South) slopes. 0 = no slope, 1 = no variation besides slopes.
-  ySlope
+  elev_xSlope                     ; the level of adjustment of elevation to x (West-East) and
+                                  ; y (North-South) slopes. 0 = no slope, 1 = no variation besides slopes.
+  elev_ySlope
 
-  valleyAxisInclination      ; the level of inclination of the North-South valley.
-                             ; 0 = centred, 1 = top-right to bottom-left diagonal.
-  valleySlope                ; the level of adjustment of elevation to the North-South valley.
-                             ; 0 = no valley, 1 = no variation besides valley.
+  elev_valleyAxisInclination      ; the level of inclination of the North-South valley.
+                                  ; 0 = centred, 1 = top-right to bottom-left diagonal.
+  elev_valleySlope                ; the level of adjustment of elevation to the North-South valley.
+                                  ; 0 = no valley, 1 = no variation besides valley.
 
   ;;;;; used when algorithm-style = "C#"
-  numProtuberances           ; numDepressions: (approximated) number of distinct
-  numDepressions             ; protuberances/depressions. Consider those are acheived by aglutinating
-                             ; elevated and depressed land units.
+  elev_numProtuberances           ; numDepressions: (approximated) number of distinct
+  elev_numDepressions             ; protuberances/depressions. Consider those are acheived by aglutinating
+                                  ; elevated and depressed land units.
 
 
-  rangeAggregation           ; the minimum proximity required between
-  riftAggregation            ; landform features, expressed as percentage of the map's maximum distance.
+  elev_rangeAggregation           ; the minimum proximity required between
+  elev_riftAggregation            ; landform features, expressed as percentage of the map's maximum distance.
 
-  elevationNoise              ; noise to be added/subtracted to elevation as the standard
-                              ; deviation of a centred normal distribution.
+  elev_noise                      ; noise to be added/subtracted to elevation as the standard
+                                  ; deviation of a centred normal distribution.
 
   ;;;;; used when algorithm-style = "NetLogo"
-  inversionIterations         ; the number of iterations all land units with neighbours
-                              ; with opposite elevation sign (i.e., if elevation = 10, neighbours with elevation < 0)
-                              ; have their elevation exchanged with one of those neighbours.
+  elev_inversionIterations         ; the number of iterations all land units with neighbours
+                                   ; with opposite elevation sign (i.e., if elevation = 10, neighbours with elevation < 0)
+                                   ; have their elevation exchanged with one of those neighbours.
 
   ;;; variables ===============================================================
   seaLevel                    ; elevation considered as sea level for display purposes.
@@ -97,7 +97,7 @@ patches-own
                         ; algorithms will sculpt the terrain.
 ]
 
-breed [ mapSetters mapSetter ] ; used when algorithm-style = "NetLogo"
+breed [ mapSetters mapSetter ] ; used when elev_algorithm-style = "NetLogo"
 
 mapSetters-own [ numPoints ] ; the number of land units to be chained together as a "rift" or "range".
 
@@ -113,7 +113,7 @@ to create-terrain
 
   reset-timer
 
-  ifelse (algorithm-style = "NetLogo")
+  ifelse (elev_algorithm-style = "NetLogo")
   [
     set-landform-NetLogo
   ]
@@ -125,19 +125,7 @@ to create-terrain
 
   set-valleySlope
 
-  set elevationDistribution [elevation] of patches
-
-  set minElevation min [elevation] of patches
-
-  set maxElevation max [elevation] of patches
-
-  set sdElevation standard-deviation [elevation] of patches
-
-  ;;; default seaLevel to minElevation (seaLevel afects patch color and landRatio measurement)
-  set par_seaLevel (floor minElevation) - 1
-  set seaLevel par_seaLevel
-
-  set landRatio count patches with [elevation > seaLevel] / count patches
+  set-output-stats
 
   paint-patches
 
@@ -155,7 +143,6 @@ to set-parameters
 
   random-seed randomSeed
 
-  set patchArea 1 ; 10,000 m^2 = 1 hectare
   set maxDist (sqrt (( (max-pxcor - min-pxcor) ^ 2) + ((max-pycor - min-pycor) ^ 2)) / 2)
 
   ;parameters-check-1 ; in case you want to avoid zeros (optional)
@@ -163,33 +150,33 @@ to set-parameters
   if (type-of-experiment = "user-defined")
   [
     ;;; load parameters from user interface
-    set numProtuberances par_numProtuberances
-    set numDepressions par_numDepressions
+    set elev_numProtuberances par_elev_numProtuberances
+    set elev_numDepressions par_elev_numDepressions
 
-    set numRanges par_numRanges
-    set rangeLength round ( par_rangeLength * maxDist)
-    set rangeElevation par_rangeElevation
-    set rangeAggregation par_rangeAggregation
+    set elev_numRanges par_elev_numRanges
+    set elev_rangeLength round ( par_elev_rangeLength * maxDist)
+    set elev_rangeHeight par_elev_rangeHeight
+    set elev_rangeAggregation par_elev_rangeAggregation
 
-    set numRifts par_numRifts
-    set riftLength round ( par_riftLength * maxDist)
-    set riftElevation par_riftElevation
-    set riftAggregation par_riftAggregation
+    set elev_numRifts par_elev_numRifts
+    set elev_riftLength round ( par_elev_riftLength * maxDist)
+    set elev_riftHeight par_elev_riftHeight
+    set elev_riftAggregation par_elev_riftAggregation
 
-    set elevationNoise par_elevationNoise
+    set elev_noise par_elev_noise
 
-    set featureAngleRange par_featureAngleRange
+    set elev_featureAngleRange par_elev_featureAngleRange
 
-    set inversionIterations par_inversionIterations
+    set elev_inversionIterations par_elev_inversionIterations
 
-    set elevationSmoothStep par_elevationSmoothStep
-    set smoothingNeighborhood par_smoothingNeighborhood * maxDist
+    set elev_smoothStep par_elev_smoothStep
+    set elev_smoothingRadius par_elev_smoothingRadius * maxDist
 
-    set xSlope par_xSlope
-    set ySlope par_ySlope
+    set elev_xSlope par_elev_xSlope
+    set elev_ySlope par_elev_ySlope
 
-    set valleyAxisInclination par_valleyAxisInclination
-    set valleySlope par_valleySlope
+    set elev_valleyAxisInclination par_elev_valleyAxisInclination
+    set elev_valleySlope par_elev_valleySlope
   ]
 
   if (type-of-experiment = "random") ; TODO
@@ -197,33 +184,33 @@ to set-parameters
     ;;; get random values within an arbitrary (reasonable) range of values
     ;;; this depends on what type and scale of terrain you want
     ;;; Here, our aim is to create inland/coastal, plain, small-scale terrains with a general flow running from N to S (e.g., 5km^2 Haryana, India)
-    set numProtuberances 1 + random 10
-    set numDepressions 1 + random 10
+    set elev_numProtuberances 1 + random 10
+    set elev_numDepressions 1 + random 10
 
-    set numRanges 1 + random 100
-    set rangeLength round ( (random-float 100) * maxDist)
-    set rangeElevation random-float 50
-    set rangeAggregation random-float 1
+    set elev_numRanges 1 + random 100
+    set elev_rangeLength round ( (random-float 100) * maxDist)
+    set elev_rangeHeight random-float 50
+    set elev_rangeAggregation random-float 1
 
-    set numRifts 1 + random 100
-    set riftLength round ( (random-float 100) * maxDist)
-    set riftElevation -1 * random-float 50
-    set riftAggregation random-float 1
+    set elev_numRifts 1 + random 100
+    set elev_riftLength round ( (random-float 100) * maxDist)
+    set elev_riftHeight -1 * random-float 50
+    set elev_riftAggregation random-float 1
 
-    set elevationNoise random-float 5
+    set elev_noise random-float 5
 
-    set featureAngleRange random-float 30
+    set elev_featureAngleRange random-float 30
 
-    set inversionIterations (random-float 2)
+    set elev_inversionIterations (random-float 2)
 
-    set elevationSmoothStep 1 ; not randomised
-    set smoothingNeighborhood 0.1 * maxDist ; not randomised
+    set elev_smoothStep 1 ; not randomised
+    set elev_smoothingRadius 0.1 * maxDist ; not randomised
 
-    set xSlope random-float 0.01 ; W depression
-    set ySlope random-float 0.01 ; S depression
+    set elev_xSlope random-float 0.01 ; W depression
+    set elev_ySlope random-float 0.01 ; S depression
 
-    set valleyAxisInclination random-float 1
-    set valleySlope random-float 0.02 ; only valley (no ridges)
+    set elev_valleyAxisInclination random-float 1
+    set elev_valleySlope random-float 0.02 ; only valley (no ridges)
   ]
   if (type-of-experiment = "defined by experiment-number")
   [
@@ -237,68 +224,68 @@ to parameters-check-1
   ;;; check if values were reset to 0 (comment out lines if 0 is a valid value)
   ;;; and set default values
 
-  if (par_rangeElevation = 0)                     [ set par_rangeElevation                   15 ]
-  if (par_riftElevation = 0)                     [ set par_riftElevation                    0 ]
-  if (par_elevationNoise = 0)                      [ set par_elevationNoise                     1 ]
+  if (par_elev_rangeHeight = 0)                    [ set par_elev_rangeHeight                   15 ]
+  if (par_elev_riftHeight = 0)                     [ set par_elev_riftHeight                     0 ]
+  if (par_elev_noise = 0)                          [ set par_elev_noise                          1 ]
 
-  if (par_numProtuberances = 0)                    [ set par_numProtuberances                   1 ]
-  if (par_numDepressions = 0)                        [ set par_numDepressions                       1 ]
+  if (par_elev_numProtuberances = 0)               [ set par_elev_numProtuberances               1 ]
+  if (par_elev_numDepressions = 0)                 [ set par_elev_numDepressions                 1 ]
 
-  if (par_inversionIterations = 0)                   [ set par_inversionIterations                  5 ]
+  if (par_elev_inversionIterations = 0)            [ set par_elev_inversionIterations            5 ]
 
-  if (par_numRanges = 0)                        [ set par_numRanges                       1 ]
-  if (par_rangeLength = 0)                      [ set par_rangeLength                   100 ]
-  if (par_rangeAggregation = 0)                 [ set par_rangeAggregation                0.75 ]
+  if (par_elev_numRanges = 0)                      [ set par_elev_numRanges                       1 ]
+  if (par_elev_rangeLength = 0)                    [ set par_elev_rangeLength                   100 ]
+  if (par_elev_rangeAggregation = 0)               [ set par_elev_rangeAggregation                0.75 ]
 
-  if (par_numRifts = 0)                         [ set par_numRifts                        1 ]
-  if (par_riftLength = 0)                       [ set par_riftLength                    100 ]
-  if (par_riftAggregation = 0)                  [ set par_riftAggregation                 0.9 ]
+  if (par_elev_numRifts = 0)                       [ set par_elev_numRifts                        1 ]
+  if (par_elev_riftLength = 0)                     [ set par_elev_riftLength                    100 ]
+  if (par_elev_riftAggregation = 0)                [ set par_elev_riftAggregation                 0.9 ]
 
-  if (par_elevationSmoothStep = 0)              [ set par_elevationSmoothStep             1 ]
-  if (par_smoothingNeighborhood = 0)            [ set par_smoothingNeighborhood           0.1 ]
+  if (par_elev_smoothStep = 0)                     [ set par_elev_smoothStep                      1 ]
+  if (par_elev_smoothingRadius = 0)                [ set par_elev_smoothingRadius                 0.1 ]
 
-  if (par_xSlope = 0)                           [ set par_xSlope                          0.01 ]
-  if (par_ySlope = 0)                           [ set par_ySlope                          0.025 ]
-  if (par_valleyAxisInclination = 0)            [ set par_valleyAxisInclination           0.1 ]
-  if (par_valleySlope = 0)                      [ set par_valleySlope                     0.02 ]
+  if (par_elev_xSlope = 0)                          [ set par_elev_xSlope                          0.01 ]
+  if (par_elev_ySlope = 0)                          [ set par_elev_ySlope                          0.025 ]
+  if (par_elev_valleyAxisInclination = 0)           [ set par_elev_valleyAxisInclination           0.1 ]
+  if (par_elev_valleySlope = 0)                     [ set par_elev_valleySlope                     0.02 ]
 
 end
 
 to parameters-to-default
 
   ;;; set parameters to a default value
-  set par_rangeElevation                   15
-  set par_riftElevation                    0
-  set par_elevationNoise                     1
+  set par_elev_rangeHeight                   15
+  set par_elev_riftHeight                    0
+  set par_elev_noise                     1
 
-  set par_numProtuberances                   1
-  set par_numDepressions                       1
+  set par_elev_numProtuberances                   1
+  set par_elev_numDepressions                       1
 
-  set par_inversionIterations                  5
+  set par_elev_inversionIterations                  5
 
-  set par_numRanges                       1
-  set par_rangeLength                   100
-  set par_rangeAggregation                0.75
+  set par_elev_numRanges                       1
+  set par_elev_rangeLength                   100
+  set par_elev_rangeAggregation                0.75
 
-  set par_numRifts                        1
-  set par_riftLength                    100
-  set par_riftAggregation                 0.9
+  set par_elev_numRifts                        1
+  set par_elev_riftLength                    100
+  set par_elev_riftAggregation                 0.9
 
-  set par_elevationSmoothStep             1
-  set par_smoothingNeighborhood           0.1
+  set par_elev_smoothStep             1
+  set par_elev_smoothingRadius           0.1
 
-  set par_xSlope                          0.01
-  set par_ySlope                          0.025
-  set par_valleyAxisInclination           0.1
-  set par_valleySlope                     0.02
+  set par_elev_xSlope                          0.01
+  set par_elev_ySlope                          0.025
+  set par_elev_valleyAxisInclination           0.1
+  set par_elev_valleySlope                     0.02
 
 end
 
-to set-landform-NetLogo ;[ numRanges rangeLength rangeElevation numRifts riftLength riftElevation inversionIterations smoothingNeighborhood elevationSmoothStep]
+to set-landform-NetLogo ;[ elev_numRanges elev_rangeLength elev_rangeHeight elev_numRifts elev_riftLength elev_riftHeight inversionIterations smoothingNeighborhood elevationSmoothStep]
 
   ; Netlogo-like code
-  ask n-of numRanges patches [ sprout-mapSetters 1 [ set numPoints random rangeLength ] ]
-  ask n-of numRifts patches with [any? turtles-here = false] [ sprout-mapSetters 1 [ set numPoints (random riftLength) * -1 ] ]
+  ask n-of elev_numRanges patches [ sprout-mapSetters 1 [ set numPoints random elev_rangeLength ] ]
+  ask n-of elev_numRifts patches with [any? turtles-here = false] [ sprout-mapSetters 1 [ set numPoints (random elev_riftLength) * -1 ] ]
 
   let steps sum [ abs numPoints ] of mapSetters
   repeat steps
@@ -306,12 +293,12 @@ to set-landform-NetLogo ;[ numRanges rangeLength rangeElevation numRifts riftLen
     ask one-of mapSetters
     [
       let sign 1
-      let scale rangeElevation
-      if ( numPoints < 0 ) [ set sign -1 set scale riftElevation ]
+      let scale elev_rangeHeight
+      if ( numPoints < 0 ) [ set sign -1 set scale elev_riftHeight ]
       ask patch-here [ set elevation scale ]
       set numPoints numPoints - sign
       if (numPoints = 0) [die]
-      rt (random-exponential featureAngleRange) * (1 - random-float 2)
+      rt (random-exponential elev_featureAngleRange) * (1 - random-float 2)
       forward 1
     ]
   ]
@@ -321,7 +308,7 @@ to set-landform-NetLogo ;[ numRanges rangeLength rangeElevation numRifts riftLen
   let depressedPatches patches with [elevation < 0]
   let elevatedPatches patches with [elevation > 0]
 
-  repeat inversionIterations * count patches
+  repeat elev_inversionIterations * count patches
   [
     if (any? depressedPatches AND any? elevatedPatches)
     [
@@ -339,40 +326,40 @@ to set-landform-NetLogo ;[ numRanges rangeLength rangeElevation numRifts riftLen
 
 end
 
-to set-landform-Csharp ;[ elevationNoise numProtuberances numRanges rangeLength rangeElevation rangeAggregation numDepressions numRifts riftLength riftElevation riftAggregation smoothingNeighborhood elevationSmoothStep]
+to set-landform-Csharp ;[ elev_noise elev_numProtuberances elev_numRanges elev_rangeLength elev_rangeHeight rangeAggregation numDepressions elev_numRifts elev_riftLength elev_riftHeight riftAggregation smoothingNeighborhood elevationSmoothStep]
 
   ; C#-like code
   let p1 0
   let sign 0
   let len 0
   let elev 0
-  let numRiftsToDo numRifts
-  let numRangesToDo numRifts
+  let elev_numRiftsToDo elev_numRifts
+  let elev_numRangesToDo elev_numRifts
 
-  let protuberances n-of numProtuberances patches
-  let depressions n-of numDepressions patches
+  let protuberances n-of elev_numProtuberances patches
+  let depressions n-of elev_numDepressions patches
 
-  let maxDistBetweenRanges (1.1 - rangeAggregation) * maxDist
-  let maxDistBetweenRifts (1.1 - riftAggregation) * maxDist
+  let maxDistBetweenRanges (1.1 - elev_rangeAggregation) * maxDist
+  let maxDistBetweenRifts (1.1 - elev_riftAggregation) * maxDist
 
-  repeat (numRanges + numRifts)
+  repeat (elev_numRanges + elev_numRifts)
   [
     set sign -1 + 2 * (random 2)
-    if (numRangesToDo = 0) [ set sign -1 ]
-    if (numRiftsToDo = 0) [ set sign 1 ]
+    if (elev_numRangesToDo = 0) [ set sign -1 ]
+    if (elev_numRiftsToDo = 0) [ set sign 1 ]
 
     ifelse (sign = -1)
     [
-      set numRiftsToDo numRiftsToDo - 1
-      set len riftLength - 2
-      set elev riftElevation
+      set elev_numRiftsToDo elev_numRiftsToDo - 1
+      set len elev_riftLength - 2
+      set elev elev_riftHeight
       ;ifelse (any? patches with [elevation < 0]) [set p0 one-of patches with [elevation < 0]] [set p0 one-of patches]
       set p1 one-of patches with [ distance one-of depressions < maxDistBetweenRifts ]
     ]
     [
-      set numRangesToDo numRangesToDo - 1
-      set len rangeLength - 2
-      set elev rangeElevation
+      set elev_numRangesToDo elev_numRangesToDo - 1
+      set len elev_rangeLength - 2
+      set elev elev_rangeHeight
       set p1 one-of patches with [ distance one-of protuberances < maxDistBetweenRanges ]
     ]
 
@@ -383,7 +370,7 @@ to set-landform-Csharp ;[ elevationNoise numProtuberances numRanges rangeLength 
 
   ask patches
   [
-    set elevation elevation + random-normal 0 elevationNoise
+    set elevation elevation + random-normal 0 elev_noise
   ]
 
   smooth-elevation-all
@@ -417,7 +404,7 @@ to draw-elevation-pattern [ p1 len elev ]
 
   repeat len
   [
-    set directionAngle directionAngle + (random-exponential featureAngleRange) * (1 - random 2)
+    set directionAngle directionAngle + (random-exponential elev_featureAngleRange) * (1 - random 2)
     set directionAngle directionAngle mod 360
 
     set p1 p2
@@ -441,8 +428,8 @@ end
 
 to smooth-elevation
 
-  let smoothedElevation mean [elevation] of patches in-radius smoothingNeighborhood
-  set elevation elevation + (smoothedElevation - elevation) * elevationSmoothStep
+  let smoothedElevation mean [elevation] of patches in-radius elev_smoothingRadius
+  set elevation elevation + (smoothedElevation - elevation) * elev_smoothStep
 
 end
 
@@ -450,9 +437,9 @@ to set-xySlope
 
   ask patches
   [
-    set elevation (1 - xSlope) * elevation + (xSlope * (rangeElevation - riftElevation) * (pxcor - min-pxcor) / world-width)
+    set elevation (1 - elev_xSlope) * elevation + (elev_xSlope * (elev_rangeHeight - elev_riftHeight) * (pxcor - min-pxcor) / world-width)
 
-    set elevation (1 - ySlope) * elevation + (ySlope * (rangeElevation - riftElevation) * (pycor - min-pycor) / world-height)
+    set elevation (1 - elev_ySlope) * elevation + (elev_ySlope * (elev_rangeHeight - elev_riftHeight) * (pycor - min-pycor) / world-height)
   ]
 
 end
@@ -462,9 +449,31 @@ to set-valleySlope
   ; bend terrain as a valley (valleySlope > 0) or a ridge (valleySlope < 0) following a North-South pattern
   ask patches
   [
-    let xValley (world-width / 2) + valleyAxisInclination * (pycor - (world-height / 2))
-    set elevation (1 - valleySlope) * elevation + (valleySlope * (rangeElevation - riftElevation) * abs (xValley - pxcor))
+    let xValley (world-width / 2) + elev_valleyAxisInclination * (pycor - (world-height / 2))
+    set elevation (1 - elev_valleySlope) * elevation + (elev_valleySlope * (elev_rangeHeight - elev_riftHeight) * abs (xValley - pxcor))
   ]
+
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; OUTPUT STATS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to set-output-stats
+
+  set elevationDistribution [elevation] of patches
+
+  set minElevation min [elevation] of patches
+
+  set maxElevation max [elevation] of patches
+
+  set sdElevation standard-deviation [elevation] of patches
+
+  ;;; default seaLevel to minElevation (seaLevel afects patch color and landRatio measurement)
+  set par_seaLevel (floor minElevation) - 1
+  set seaLevel par_seaLevel
+
+  set landRatio count patches with [elevation > seaLevel] / count patches
 
 end
 
@@ -474,26 +483,53 @@ end
 
 to paint-patches
 
-  ask patches
+  if (display-mode = "terrain")
   [
-    if (display-mode = "terrain")
+    ask patches
     [
-      let elevationGradient 0
-      ifelse (elevation < seaLevel)
-      [
-        let normSubElevation (-1) * (seaLevel - elevation)
-        let normSubMinElevation (-1) * (seaLevel - minElevation) + 1E-6
-        set elevationGradient 20 + (200 * (1 - normSubElevation / normSubMinElevation))
-        set pcolor rgb 0 0 elevationGradient
-      ]
-      [
-        let normSupElevation elevation - seaLevel
-        let normSupMaxElevation maxElevation - seaLevel + 1E-6
-        set elevationGradient 100 + (155 * (normSupElevation / normSupMaxElevation))
-        set pcolor rgb (elevationGradient - 100) elevationGradient 0
-      ]
+      set pcolor get-elevation-color elevation
     ]
-    ;;; other modes of display can be added here
+    set-legend-elevation 10
+  ]
+  ;;; other modes of display can be added here
+
+end
+
+to-report get-elevation-color [ elevationValue ]
+
+  let elevationGradient 0
+
+  ifelse (elevationValue < seaLevel)
+  [
+    let normSubElevation (-1) * (seaLevel - elevationValue)
+    let normSubMinElevation (-1) * (seaLevel - minElevation) + 1E-6
+    set elevationGradient 20 + (200 * (1 - normSubElevation / normSubMinElevation))
+    report rgb 0 0 elevationGradient
+  ]
+  [
+    let normSupElevation elevationValue - seaLevel
+    let normSupMaxElevation maxElevation - seaLevel + 1E-6
+    set elevationGradient 100 + (155 * (normSupElevation / normSupMaxElevation))
+    report rgb (elevationGradient - 100) elevationGradient 0
+  ]
+
+end
+
+to set-legend-elevation [ numberOfKeys ]
+
+  set-current-plot "Legend"
+
+  clear-plot
+
+  let step precision ((maxElevation - minElevation) / numberOfKeys) 4
+
+  let value maxElevation
+
+  while [ value > minElevation ]
+  [
+    create-temporary-plot-pen (word "" (precision value 4) "")
+    set-plot-pen-color get-elevation-color value
+    set value value - step
   ]
 
 end
@@ -659,7 +695,7 @@ to export-terrain
   update-transects
 
   ;;; build a file name as unique to this setting as possible
-  let filePath (word "terrains//terrain_" type-of-experiment "_w=" world-width "_h=" world-height "_a=" algorithm-style "_seed=" randomSeed)
+  let filePath (word "terrains//terrain_" type-of-experiment "_w=" world-width "_h=" world-height "_a=" elev_algorithm-style "_seed=" randomSeed)
 
   if (type-of-experiment = "user-defined") [ set filePath (word filePath "_" random 9999) ]
   ;if (type-of-experiment = "defined by expNumber") [set filePath (word filePath "_" expNumber) ]
@@ -686,7 +722,7 @@ to import-terrain
   ;;; corresponding to the random seed given as a parameter in the interface
 
   ;;; build a unique file name according to the user setting
-  let filePath (word "terrains//terrain_" type-of-experiment "_w=" world-width "_h=" world-height "_a=" algorithm-style "_seed=" randomSeed)
+  let filePath (word "terrains//terrain_" type-of-experiment "_w=" world-width "_h=" world-height "_a=" elev_algorithm-style "_seed=" randomSeed)
 
   if (type-of-experiment = "user-defined") [ set filePath (word filePath "_" date-and-time) ]
   ;if (type-of-experiment = "defined by expNumber") [set filePath (word filePath "_" expNumber) ]
@@ -719,34 +755,36 @@ to import-terrain
         [
           globalIndex ->
 
-          if (item globalIndex globalNames = "algorithm-style") [ set algorithm-style read-from-string item globalIndex globalValues ]
           if (item globalIndex globalNames = "display-mode") [ set display-mode read-from-string item globalIndex globalValues ]
 
-          if (item globalIndex globalNames = "numprotuberances") [ set numProtuberances item globalIndex globalValues ]
-          if (item globalIndex globalNames = "numdepressions") [ set numDepressions item globalIndex globalValues ]
-
-          if (item globalIndex globalNames = "numranges") [ set numRanges item globalIndex globalValues ]
-          if (item globalIndex globalNames = "rangelength") [ set rangeLength item globalIndex globalValues ]
-          if (item globalIndex globalNames = "rangeelevation") [ set rangeElevation item globalIndex globalValues ]
-          if (item globalIndex globalNames = "rangeaggregation") [ set rangeAggregation item globalIndex globalValues ]
-
-          if (item globalIndex globalNames = "numrifts") [ set numRifts item globalIndex globalValues ]
-          if (item globalIndex globalNames = "riftlength") [ set riftLength item globalIndex globalValues ]
-          if (item globalIndex globalNames = "riftelevation") [ set riftElevation item globalIndex globalValues ]
-          if (item globalIndex globalNames = "riftaggregation") [ set riftAggregation item globalIndex globalValues ]
-
-          if (item globalIndex globalNames = "featureanglerange") [ set featureAngleRange item globalIndex globalValues ]
-          if (item globalIndex globalNames = "inversionIterations") [ set inversionIterations item globalIndex globalValues ]
-          if (item globalIndex globalNames = "elevationnoise") [ set elevationNoise item globalIndex globalValues ]
           if (item globalIndex globalNames = "sealevel") [ set seaLevel item globalIndex globalValues ]
-          if (item globalIndex globalNames = "elevationsmoothstep") [ set elevationSmoothStep item globalIndex globalValues ]
-          if (item globalIndex globalNames = "smoothingneighborhood") [ set smoothingNeighborhood item globalIndex globalValues ]
 
-          if (item globalIndex globalNames = "xslope") [ set xSlope item globalIndex globalValues ]
-          if (item globalIndex globalNames = "yslope") [ set ySlope item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_algorithm-style") [ set elev_algorithm-style read-from-string item globalIndex globalValues ]
 
-          if (item globalIndex globalNames = "valleyaxisinclination") [ set valleyAxisInclination item globalIndex globalValues ]
-          if (item globalIndex globalNames = "valleyslope") [ set valleySlope item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_numprotuberances") [ set elev_numProtuberances item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_numdepressions") [ set elev_numDepressions item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "elev_numranges") [ set elev_numRanges item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_rangelength") [ set elev_rangeLength item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_rangeheight") [ set elev_rangeHeight item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_rangeaggregation") [ set elev_rangeAggregation item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "elev_numrifts") [ set elev_numRifts item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_riftlength") [ set elev_riftLength item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_riftheight") [ set elev_riftHeight item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_riftaggregation") [ set elev_riftAggregation item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "elev_featureanglerange") [ set elev_featureAngleRange item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_inversioniterations") [ set elev_inversionIterations item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_noise") [ set elev_noise item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_smoothstep") [ set elev_smoothStep item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_smoothingradius") [ set elev_smoothingradius item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "elev_xslope") [ set elev_xSlope item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_yslope") [ set elev_ySlope item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "elev_valleyaxisinclination") [ set elev_valleyAxisInclination item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_valleyslope") [ set elev_valleySlope item globalIndex globalValues ]
         ]
       ]
 
@@ -771,6 +809,8 @@ to import-terrain
     ]
     file-close
   ]
+
+  set-output-stats
 
 end
 @#$#@#$#@
@@ -800,6 +840,24 @@ GRAPHICS-WINDOW
 1
 ticks
 30.0
+
+PLOT
+1246
+36
+1474
+522
+Legend
+NIL
+NIL
+0.0
+1.0
+0.0
+1.0
+true
+true
+"" ""
+PENS
+"Patch color legend" 1.0 0 -1 true "" "plot 1"
 
 BUTTON
 9
@@ -860,15 +918,15 @@ landRatio
 11
 
 SLIDER
-489
-224
-684
-257
+494
+229
+689
+262
 par_seaLevel
 par_seaLevel
-round min (list minElevation par_riftElevation)
-round max (list maxElevation par_rangeElevation)
-0.0
+round min (list minElevation par_elev_riftHeight)
+round max (list maxElevation par_elev_rangeHeight)
+-50.0
 1
 1
 m
@@ -879,10 +937,10 @@ SLIDER
 175
 187
 208
-par_elevationNoise
-par_elevationNoise
+par_elev_noise
+par_elev_noise
 0
-(par_rangeElevation - par_riftElevation) / 2
+(par_elev_rangeHeight - par_elev_riftHeight) / 2
 1.0
 1
 1
@@ -894,8 +952,8 @@ SLIDER
 217
 196
 250
-par_elevationSmoothStep
-par_elevationSmoothStep
+par_elev_smoothStep
+par_elev_smoothStep
 0
 1
 0.0
@@ -920,7 +978,7 @@ INPUTBOX
 438
 468
 498
-par_inversionIterations
+par_elev_inversionIterations
 0.0
 1
 0
@@ -964,7 +1022,7 @@ INPUTBOX
 106
 395
 166
-par_numRanges
+par_elev_numRanges
 0.0
 1
 0
@@ -975,7 +1033,7 @@ INPUTBOX
 226
 400
 286
-par_rangeLength
+par_elev_rangeLength
 0.0
 1
 0
@@ -986,7 +1044,7 @@ INPUTBOX
 165
 395
 225
-par_numRifts
+par_elev_numRifts
 0.0
 1
 0
@@ -997,7 +1055,7 @@ INPUTBOX
 286
 400
 346
-par_riftLength
+par_elev_riftLength
 0.0
 1
 0
@@ -1008,8 +1066,8 @@ SLIDER
 109
 187
 142
-par_riftElevation
-par_riftElevation
+par_elev_riftHeight
+par_elev_riftHeight
 -500
 0
 0.0
@@ -1019,10 +1077,10 @@ m
 HORIZONTAL
 
 BUTTON
-483
-262
-691
-295
+488
+267
+696
+300
 refresh after changing sea level
 refresh-view-after-seaLevel-change
 NIL
@@ -1040,8 +1098,8 @@ SLIDER
 142
 187
 175
-par_rangeElevation
-par_rangeElevation
+par_elev_rangeHeight
+par_elev_rangeHeight
 0
 500
 0.0
@@ -1062,12 +1120,12 @@ count patches
 11
 
 SLIDER
-32
-468
-186
-501
-par_rangeAggregation
-par_rangeAggregation
+16
+469
+214
+502
+par_elev_rangeAggregation
+par_elev_rangeAggregation
 0
 1
 0.0
@@ -1077,12 +1135,12 @@ NIL
 HORIZONTAL
 
 SLIDER
-32
-501
-186
-534
-par_riftAggregation
-par_riftAggregation
+17
+502
+211
+535
+par_elev_riftAggregation
+par_elev_riftAggregation
 0
 1
 0.0
@@ -1096,7 +1154,7 @@ INPUTBOX
 380
 137
 440
-par_numProtuberances
+par_elev_numProtuberances
 0.0
 1
 0
@@ -1107,7 +1165,7 @@ INPUTBOX
 380
 270
 440
-par_numDepressions
+par_elev_numDepressions
 0.0
 1
 0
@@ -1118,8 +1176,8 @@ SLIDER
 250
 195
 283
-par_smoothingNeighborhood
-par_smoothingNeighborhood
+par_elev_smoothingRadius
+par_elev_smoothingRadius
 0
 .1
 0.0
@@ -1145,16 +1203,16 @@ MONITOR
 197
 320
 smoothing neighborhood size
-(word (count patches with [ distance patch 0 0 < smoothingNeighborhood ] - 1) \" patches\")
+(word (count patches with [ distance patch 0 0 < elev_smoothingRadius ] - 1) \" patches\")
 0
 1
 9
 
 PLOT
-323
-510
-697
-630
+320
+507
+694
+627
 Elevation per patch
 m
 NIL
@@ -1174,8 +1232,8 @@ CHOOSER
 365
 506
 410
-algorithm-style
-algorithm-style
+elev_algorithm-style
+elev_algorithm-style
 "NetLogo" "C#"
 1
 
@@ -1184,8 +1242,8 @@ SLIDER
 323
 197
 356
-par_featureAngleRange
-par_featureAngleRange
+par_elev_featureAngleRange
+par_elev_featureAngleRange
 0
 360
 0.0
@@ -1199,8 +1257,8 @@ SLIDER
 588
 211
 621
-par_ySlope
-par_ySlope
+par_elev_ySlope
+par_elev_ySlope
 -0.1
 0.1
 0.0
@@ -1224,8 +1282,8 @@ SLIDER
 555
 211
 588
-par_xSlope
-par_xSlope
+par_elev_xSlope
+par_elev_xSlope
 -0.1
 0.1
 0.0
@@ -1345,17 +1403,17 @@ SWITCH
 578
 show-transects
 show-transects
-0
+1
 1
 -1000
 
 SLIDER
 15
 623
-210
+217
 656
-par_valleyAxisInclination
-par_valleyAxisInclination
+par_elev_valleyAxisInclination
+par_elev_valleyAxisInclination
 0
 1
 0.0
@@ -1369,8 +1427,8 @@ SLIDER
 656
 210
 689
-par_valleySlope
-par_valleySlope
+par_elev_valleySlope
+par_elev_valleySlope
 -0.1
 0.1
 0.0
@@ -1460,10 +1518,10 @@ NIL
 MONITOR
 186
 108
-251
+263
 145
 NIL
-riftElevation
+elev_riftHeight
 2
 1
 9
@@ -1471,10 +1529,10 @@ riftElevation
 MONITOR
 186
 142
-262
+273
 179
 NIL
-rangeElevation
+elev_rangeHeight
 2
 1
 9
@@ -1485,7 +1543,7 @@ MONITOR
 261
 210
 NIL
-elevationNoise
+elev_noise
 2
 1
 9
@@ -1496,7 +1554,7 @@ MONITOR
 296
 252
 NIL
-elevationSmoothStep
+elev_smoothStep
 2
 1
 9
@@ -1507,7 +1565,7 @@ MONITOR
 306
 287
 NIL
-smoothingNeighborhood
+elev_smoothingRadius
 2
 1
 9
@@ -1515,10 +1573,10 @@ smoothingNeighborhood
 MONITOR
 395
 117
-454
+483
 154
 NIL
-numRanges
+elev_numRanges
 0
 1
 9
@@ -1526,10 +1584,10 @@ numRanges
 MONITOR
 396
 175
-453
+483
 212
 NIL
-numRifts
+elev_numRifts
 0
 1
 9
@@ -1537,10 +1595,10 @@ numRifts
 MONITOR
 401
 237
-467
+486
 274
 NIL
-rangeLength
+elev_rangeLength
 0
 1
 9
@@ -1548,10 +1606,10 @@ rangeLength
 MONITOR
 400
 301
-457
+475
 338
 NIL
-riftLength
+elev_riftLength
 0
 1
 9
@@ -1562,7 +1620,7 @@ MONITOR
 302
 359
 NIL
-featureAngleRange
+elev_featureAngleRange
 0
 1
 9
@@ -1573,7 +1631,7 @@ MONITOR
 281
 589
 NIL
-xSlope
+elev_xSlope
 4
 1
 9
@@ -1584,7 +1642,7 @@ MONITOR
 281
 626
 NIL
-ySlope
+elev_ySlope
 4
 1
 9
@@ -1592,10 +1650,10 @@ ySlope
 MONITOR
 217
 626
-318
+336
 663
 NIL
-valleyAxisInclination
+elev_valleyAxisInclination
 4
 1
 9
@@ -1606,7 +1664,7 @@ MONITOR
 317
 700
 NIL
-valleySlope
+elev_valleySlope
 4
 1
 9
@@ -1614,10 +1672,10 @@ valleySlope
 MONITOR
 15
 427
-105
+128
 464
 NIL
-numProtuberances
+elev_numProtuberances
 0
 1
 9
@@ -1625,32 +1683,32 @@ numProtuberances
 MONITOR
 154
 425
-238
+258
 462
 NIL
-numDepressions
+elev_numDepressions
 0
 1
 9
 
 MONITOR
-188
-466
-285
-503
+209
+465
+306
+502
 NIL
-rangeAggregation
+elev_rangeAggregation
 4
 1
 9
 
 MONITOR
-189
-503
-272
-540
+210
+502
+293
+539
 NIL
-riftAggregation
+elev_riftAggregation
 4
 1
 9
