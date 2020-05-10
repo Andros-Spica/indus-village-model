@@ -1,4 +1,4 @@
-"""source: Table 2.6 at https://passel2.unl.edu/view/lesson/0cff7943f577/10 Conservation Service, Engineering Division; table at https://support.rainmachine.com/hc/en-us/articles/228001248-Soil-Types""",,,,,,,,,
+"""source: Plant & Soil Sciences eLibrary, Lesson: Soils - Part 2: Physical Properties of Soil and Soil Water, page 10 (Soil Water), Table 2.6. https://passel2.unl.edu/view/lesson/0cff7943f577/10; Rain Machine support documentation, ""Zones"", ""Soil Types"", Table. https://support.rainmachine.com/hc/en-us/articles/228001248-Soil-Types""",,,,,,,,,
 """NOTES: water holding capacity=0 when missing value; """,,,,,,,,,
 """types of texture types from row """,6,""" to """,17,,,,,,
 """Texture type in column """,1,"""Field capacity (%) in column """,2,"""Water holding capacity (in/ft; min, max) in columns """,3,""" and """,4,"""Intake rate (mm/hour) in column """,5

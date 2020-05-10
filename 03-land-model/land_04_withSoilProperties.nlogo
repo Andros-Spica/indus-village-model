@@ -2,10 +2,9 @@
 ;;; GNU GENERAL PUBLIC LICENSE ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;  Land model - v03 with flow accumulation
+;;  Land model - v04 with soil properties
 ;;  Copyright (C) Andreas Angourakis (andros.spica@gmail.com)
 ;;  available at https://www.github.com/Andros-Spica/indus-village-model
-;;  Based on the 'Terrain Builder - waterFlow' template by same author
 ;;  This model is a cleaner version of the Terrain Generator model v.2 (https://github.com/Andros-Spica/ProceduralMap-NetLogo)
 ;;
 ;;  This program is free software: you can redistribute it and/or modify
@@ -29,12 +28,21 @@ breed [ flowHolders flowHolder ]
 globals
 [
   ;;; constants
-  patchArea
   maxDist
+
+  ; elev_algorithm-style (GUI): style of algorithm to create land features "ranges" and "rifts".
+  ; The algorithms styles available are: "NetLogo", using auxiliary agents and
+  ; less parameters but with less control, and "C#", without agents and more
+  ; parameters.
+
+  ; flow_do-fill-sinks (GUI): whether to apply algorithm to fill all drainage "sinks" (land units
+  ;                      not on the edge of the map where there is no flow towards a neighbour).
+  ;                      Those sinks are likely to have been created by land forming algorithms.
 
   ;;; table inputs
   ;;;;; hydrologic Soil Groups table
   soil_textureTypes                           ; Types of soil according to % of sand, silt and clay (ternary diagram) established by USDA
+  soil_textureTypes_display                   ; The content of soil_textureTypes ordered specifically for display (i.e. meaninful fixed colour pallete)
   soil_hydrologicSoilGroups                   ; USDA classification of soils according to water infiltration (A, B, C, and D) per each texture type
 
   ;;;;; run off curve number table
@@ -49,71 +57,109 @@ globals
   ;;; parameters (modified copies of interface input) ===============================================================
 
   ;;;; elevation
-  numContinents
-  numOceans
+  elev_numRanges                  ; number of landforming features ("ranges", "rifts").
+  elev_numRifts
 
-  numRanges
-  rangeLength
-  rangeElevation
-  rangeAggregation
+  elev_rangeLength                ; maximum length, in land units, of landforming features.
+  elev_riftLength
 
-  numRifts
-  riftLength
-  riftElevation
-  riftAggregation
+  elev_rangeHeight                ; the starting elevation of landforming features.
+  elev_riftHeight                 ; These are also used as maximum and minimum elevation
+                                  ; for x,y, and valley slopes.
 
-  featureAngleRange
-  continentality
-  elevationNoise
-  seaLevel
-  elevationSmoothStep
-  smoothingNeighborhood
+  elev_featureAngleRange          ; the maximum change in features angle (direction every step)
 
-  xSlope
-  ySlope
+  elev_smoothStep                 ; the level of smoothing applied to elevation.
+                                  ; 0 = none, 1 = values are equated to the mean of neighbours.
+  elev_smoothingRadius            ; maximum distance to include land units in another's neihgbourhood.
+                                  ; Applied as a radius surrounding a land unit.
 
-  valleyAxisInclination
-  valleySlope
+  elev_xSlope                     ; the level of adjustment of elevation to x (West-East) and
+                                  ; y (North-South) slopes. 0 = no slope, 1 = no variation besides slopes.
+  elev_ySlope
+
+  elev_valleyAxisInclination      ; the level of inclination of the North-South valley.
+                                  ; 0 = centred, 1 = top-right to bottom-left diagonal.
+  elev_valleySlope                ; the level of adjustment of elevation to the North-South valley.
+                                  ; 0 = no valley, 1 = no variation besides valley.
+
+  ;;;;; used when algorithm-style = "C#"
+  elev_numProtuberances           ; numDepressions: (approximated) number of distinct
+  elev_numDepressions             ; protuberances/depressions. Consider those are acheived by aglutinating
+                                  ; elevated and depressed land units.
+
+
+  elev_rangeAggregation           ; the minimum proximity required between
+  elev_riftAggregation            ; landform features, expressed as percentage of the map's maximum distance.
+
+  elev_noise                      ; noise to be added/subtracted to elevation as the standard
+                                  ; deviation of a centred normal distribution.
+
+  ;;;;; used when algorithm-style = "NetLogo"
+  elev_inversionIterations         ; the number of iterations all land units with neighbours
+                                   ; with opposite elevation sign (i.e., if elevation = 10, neighbours with elevation < 0)
+                                   ; have their elevation exchanged with one of those neighbours.
 
   ;;;; water flow accumulation
-  riverFlowAccumulationAtStart
+  flow_riverAccumulationAtStart ; the amount of flow units added to a land unit at the edge of the map.
+                                ; These units may be transmitted following flow directions,
+                                ; drawing meanders of a passing river.
 
   ;;;; soil
+  soil_formativeErosionRate              ; rate of increase in soil depth, decrease of % sand,
+                                         ; increase of % silt, and increase of % clay, depending on flow_accumulation.
   soil_minDepth                          ; minimum soil depth
   soil_maxDepth                          ; maximum soil depth
-  soil_erosionRate_depth                 ; rate of increase in soil depth depending on flowAccumulation
-  soil_depthNoise                        ; random variation in soil depth (standard deviation)
+  soil_depthNoise                        ; normal random variation in soil depth (standard deviation)
 
   soil_min%sand                          ; minimum percentage of sand (within the represented area)
   soil_max%sand                          ; maximum percentage of sand (within the represented area)
-  soil_erosionRate_%sand                 ; rate of decrease of % sand depending on flowAccumulation
   soil_min%silt                          ; minimum percentage of silt (within the represented area)
   soil_max%silt                          ; maximum percentage of silt (within the represented area)
-  soil_erosionRate_%silt                 ; rate of increase of % silt depending on flowAccumulation
   soil_min%clay                          ; minimum percentage of clay (within the represented area)
   soil_max%clay                          ; maximum percentage of clay (within the represented area)
-  soil_erosionRate_%clay                 ; rate of increase of % clay depending on flowAccumulation
-  soil_textureNoise                      ; random variation in the proportion of sand/silt/clay (standard deviation of every component previous to normalisation)
+  soil_textureNoise                      ; normal random variation in the proportion of sand/silt/clay (standard deviation of every component previous to normalisation)
 
   ;;; variables ===============================================================
-  landOceanRatio
-  elevationDistribution
-  minElevation
+  seaLevel                    ; elevation considered as sea level for display purposes.
+
+  landRatio                   ; the ratio of land units above seaLevel.
+  elevationDistribution       ; the set or list containing the elevation of all land units
+  minElevation                ; statistics on the elevation of land units.
   sdElevation
   maxElevation
+
+  landWithRiver               ; count of land units with passing river
   maxFlowAccumulation
 ]
 
 patches-own
 [
-  elevation             ; in metres (m)
-  flowDirection
-  receivesFlow
-  flowAccumulationState
-  flowAccumulation
+  elevation             ; average elevation above reference of the land unit (metres).
+                        ; The reference is an arbitrary elevation from which all
+                        ; algorithms will sculpt the terrain.
+
+  flow_direction        ; the numeric code for the (main) direction of flow or
+                        ; drainage within the land unit.
+                        ; Following Jenson & Domingue (1988) convention:
+                        ; NW = 64,   N = 128,        NE = 1,
+                        ; W = 32,     <CENTRE>,   E = 2,
+                        ; SW = 16,     S = 8,          SE = 4
+
+  flow_receive          ; Boolean variable stating whether or not the land unit receives
+                        ; the flow of a neighbour.
+
+  flow_accumulation     ; the amount of flow units accumulated in the land unit.
+                        ; A Flow unit is the volume of runoff water flowing from one land unit
+                        ; to another (assumed constant and without losses).
+  flow_accumulationState ; the state of the land unit regarding the calculation of flow
+                        ; accumulation (auxiliary variable).
 
   ;;; soil conditions
-  p_soil_depth          ; in milimeters (mm)
+  p_soil_formativeErosion   ; the intensity of previous erosion of parent materials
+                            ; forming soil and finer soil elements (scale 0-1).
+
+  p_soil_depth          ; soil depth in milimeters (mm)
 
   p_soil_%sand          ; percentage of sand fraction in soil
   p_soil_%silt          ; percentage of silt fraction in soil
@@ -147,9 +193,9 @@ patches-own
   p_soil_deepDrainageCoefficient    ; fraction of soil water above field capacity drained per day (%)
 ]
 
-breed [ mapSetters mapSetter ]
+breed [ mapSetters mapSetter ] ; used when elev_algorithm-style = "NetLogo"
 
-mapSetters-own [ points ]
+mapSetters-own [ numPoints ] ; the number of land units to be chained together as a "rift" or "range".
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; SETUP ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -163,7 +209,7 @@ to create-terrain
 
   reset-timer
 
-  ifelse (algorithm-style = "NetLogo")
+  ifelse (elev_algorithm-style = "NetLogo")
   [
     set-landform-NetLogo
   ]
@@ -177,12 +223,14 @@ to create-terrain
 
   ;;; START - flow related procedures ;;;;;;;;;;;;;;;;;;;;;;;
 
-  if (do-fill-sinks)
+  if (flow_do-fill-sinks)
   [
     fill-sinks
   ]
 
   set-flow-directions
+
+  introduce-river-flow
 
   set-flow-accumulations
 
@@ -200,11 +248,7 @@ to create-terrain
 
   ;;; END - soil related procedures ;;;;;;;;;;;;;;;;;;;;;;;
 
-  set landOceanRatio count patches with [elevation > seaLevel] / count patches
-  set elevationDistribution [elevation] of patches
-  set minElevation min [elevation] of patches
-  set maxElevation max [elevation] of patches
-  set sdElevation standard-deviation [elevation] of patches
+  set-output-stats
 
   paint-patches
 
@@ -222,62 +266,67 @@ to set-parameters
 
   random-seed randomSeed
 
-  set patchArea 1 ; 10,000 m^2 = 1 hectare
   set maxDist (sqrt (( (max-pxcor - min-pxcor) ^ 2) + ((max-pycor - min-pycor) ^ 2)) / 2)
 
-  ;parameters-check-1
+  ;;; Ordered list of soil texture types used for visualisation
+  ;;; this order corresponds to an approximation to the soil texture palette (red: sand, green: silt, blue: clay)
+  set soil_textureTypes_display (list
+    "Sand"             "Loamy sand"        "Sandy loam"     ; red         orange  brown
+    "Loam"             "Silt loam"         "Silt"           ; yellow      green   lime
+    "Silty clay loam"  "Silty clay"        "Clay"           ; turquoise   cyan    sky
+    "Clay loam"        "Sandy clay"        "Sandy clay loam"; blue        violet  magenta
+  )
+
+  ;parameters-check-1 ; in case you want to avoid zeros (optional)
 
   if (type-of-experiment = "user-defined")
   [
     ;;; load parameters from user interface
-    set numContinents par_numContinents
-    set numOceans par_numOceans
+    set elev_numProtuberances par_elev_numProtuberances
+    set elev_numDepressions par_elev_numDepressions
 
-    set numRanges par_numRanges
-    set rangeLength round ( par_rangeLength * maxDist)
-    set rangeElevation par_rangeElevation
-    set rangeAggregation par_rangeAggregation
+    set elev_numRanges par_elev_numRanges
+    set elev_rangeLength round ( par_elev_rangeLength * maxDist)
+    set elev_rangeHeight par_elev_rangeHeight
+    set elev_rangeAggregation par_elev_rangeAggregation
 
-    set numRifts par_numRifts
-    set riftLength round ( par_riftLength * maxDist)
-    set riftElevation par_riftElevation
-    set riftAggregation par_riftAggregation
+    set elev_numRifts par_elev_numRifts
+    set elev_riftLength round ( par_elev_riftLength * maxDist)
+    set elev_riftHeight par_elev_riftHeight
+    set elev_riftAggregation par_elev_riftAggregation
 
-    set elevationNoise par_elevationNoise
+    set elev_noise par_elev_noise
 
-    set featureAngleRange par_featureAngleRange
+    set elev_featureAngleRange par_elev_featureAngleRange
 
-    set continentality par_continentality * count patches
+    set elev_inversionIterations par_elev_inversionIterations
 
-    set elevationSmoothStep par_elevationSmoothStep
-    set smoothingNeighborhood par_smoothingNeighborhood * maxDist
+    set elev_smoothStep par_elev_smoothStep
+    set elev_smoothingRadius par_elev_smoothingRadius * maxDist
 
-    set seaLevel par_seaLevel
+    set elev_xSlope par_elev_xSlope
+    set elev_ySlope par_elev_ySlope
 
-    set xSlope par_xSlope
-    set ySlope par_ySlope
+    set elev_valleyAxisInclination par_elev_valleyAxisInclination
+    set elev_valleySlope par_elev_valleySlope
 
-    set valleyAxisInclination par_valleyAxisInclination
-    set valleySlope par_valleySlope
+    set flow_riverAccumulationAtStart par_flow_riverAccumulationAtStart
 
-    set riverFlowAccumulationAtStart par_riverFlowAccumulationAtStart
+    set soil_formativeErosionRate par_soil_formativeErosionRate
 
     set soil_minDepth par_soil_minDepth
     set soil_maxDepth par_soil_maxDepth
-    set soil_erosionRate_depth par_soil_erosionRate_depth
+
     set soil_depthNoise par_soil_depthNoise
 
     set soil_min%sand par_soil_min%sand
     set soil_max%sand par_soil_max%sand
-    set soil_erosionRate_%sand par_soil_erosionRate_%sand
 
     set soil_min%silt par_soil_min%silt
     set soil_max%silt par_soil_max%silt
-    set soil_erosionRate_%silt par_soil_erosionRate_%silt
 
     set soil_min%clay par_soil_min%clay
     set soil_max%clay par_soil_max%clay
-    set soil_erosionRate_%clay par_soil_erosionRate_%clay
 
     set soil_textureNoise par_soil_textureNoise
   ]
@@ -287,54 +336,51 @@ to set-parameters
     ;;; get random values within an arbitrary (reasonable) range of values
     ;;; this depends on what type and scale of terrain you want
     ;;; Here, our aim is to create inland/coastal, plain, small-scale terrains with a general flow running from N to S (e.g., 5km^2 Haryana, India)
-    set numContinents 1 + random 10
-    set numOceans 1 + random 10
+    set elev_numProtuberances 1 + random 10
+    set elev_numDepressions 1 + random 10
 
-    set numRanges 1 + random 100
-    set rangeLength round ( (random-float 100) * maxDist)
-    set rangeElevation random-float 20
-    set rangeAggregation random-float 1
+    set elev_numRanges 1 + random 100
+    set elev_rangeLength round ( (random-float 100) * maxDist)
+    set elev_rangeHeight random-float 50
+    set elev_rangeAggregation random-float 1
 
-    set numRifts 1 + random 100
-    set riftLength round ( (random-float 100) * maxDist)
-    set riftElevation 0;-1 * random-float 1
-    set riftAggregation random-float 1
+    set elev_numRifts 1 + random 100
+    set elev_riftLength round ( (random-float 100) * maxDist)
+    set elev_riftHeight -1 * random-float 50
+    set elev_riftAggregation random-float 1
 
-    set elevationNoise random-float 1
+    set elev_noise random-float 5
 
-    set featureAngleRange random-float 30
+    set elev_featureAngleRange random-float 30
 
-    set continentality (random-float 2) * count patches
+    set elev_inversionIterations (random-float 2)
 
-    set elevationSmoothStep 1 ; not randomised
-    set smoothingNeighborhood 0.1 * maxDist ; not randomised
+    set elev_smoothStep 1 ; not randomised
+    set elev_smoothingRadius 0.1 * maxDist ; not randomised
 
-    set seaLevel 0 ; riftElevation + (random-float (rangeElevation - riftElevation))
+    set elev_xSlope random-float 0.01 ; W depression
+    set elev_ySlope random-float 0.01 ; S depression
 
-    set xSlope random-float 0.01 ; W depression
-    set ySlope random-float 0.01 ; S depression
+    set elev_valleyAxisInclination random-float 1
+    set elev_valleySlope random-float 0.02 ; only valley (no ridges)
 
-    set valleyAxisInclination random-float 1
-    set valleySlope random-float 0.02 ; only valley (no ridges)
+    set flow_riverAccumulationAtStart random 1E6
 
-    set riverFlowAccumulationAtStart random 1E6
+    set soil_formativeErosionRate random-float 3
 
     set soil_minDepth 50 + random-float 250
     set soil_maxDepth soil_minDepth + random-float 300
-    set soil_erosionRate_depth random-float 0.1
+
     set soil_depthNoise random-float 50
 
     set soil_min%sand random-float 100
     set soil_max%sand soil_min%sand + random-float (100 - soil_min%sand)
-    set soil_erosionRate_%sand random-float 0.1;(1 + random 2) / (1 + random 2)
 
     set soil_min%silt random-float 100
     set soil_max%silt soil_min%silt + random-float (100 - soil_min%silt)
-    set soil_erosionRate_%silt random-float 0.1;(1 + random 2) / (1 + random 2)
 
     set soil_min%clay random-float 100
     set soil_max%clay soil_min%clay + random-float (100 - soil_min%clay)
-    set soil_erosionRate_%clay random-float 0.1; (1 + random 2) / (1 + random 2)
 
     set soil_textureNoise random-float 10
   ]
@@ -350,50 +396,47 @@ to parameters-check-1
   ;;; check if values were reset to 0 (comment out lines if 0 is a valid value)
   ;;; and set default values
 
-  if (par_rangeElevation = 0)                     [ set par_rangeElevation                   15 ]
-  if (par_riftElevation = 0)                     [ set par_riftElevation                    0 ]
-  if (par_elevationNoise = 0)                      [ set par_elevationNoise                     1 ]
+  if (par_elev_rangeHeight = 0)                    [ set par_elev_rangeHeight                   15 ]
+  if (par_elev_riftHeight = 0)                     [ set par_elev_riftHeight                     0 ]
+  if (par_elev_noise = 0)                          [ set par_elev_noise                          1 ]
 
-  if (par_numContinents = 0)                    [ set par_numContinents                   1 ]
-  if (par_numOceans = 0)                        [ set par_numOceans                       1 ]
+  if (par_elev_numProtuberances = 0)               [ set par_elev_numProtuberances               1 ]
+  if (par_elev_numDepressions = 0)                 [ set par_elev_numDepressions                 1 ]
 
-  if (par_continentality = 0)                   [ set par_continentality                  5 ]
+  if (par_elev_inversionIterations = 0)            [ set par_elev_inversionIterations            5 ]
 
-  if (par_numRanges = 0)                        [ set par_numRanges                       1 ]
-  if (par_rangeLength = 0)                      [ set par_rangeLength                   100 ]
-  if (par_rangeAggregation = 0)                 [ set par_rangeAggregation                0.75 ]
+  if (par_elev_numRanges = 0)                      [ set par_elev_numRanges                       1 ]
+  if (par_elev_rangeLength = 0)                    [ set par_elev_rangeLength                   100 ]
+  if (par_elev_rangeAggregation = 0)               [ set par_elev_rangeAggregation                0.75 ]
 
-  if (par_numRifts = 0)                         [ set par_numRifts                        1 ]
-  if (par_riftLength = 0)                       [ set par_riftLength                    100 ]
-  if (par_riftAggregation = 0)                  [ set par_riftAggregation                 0.9 ]
+  if (par_elev_numRifts = 0)                       [ set par_elev_numRifts                        1 ]
+  if (par_elev_riftLength = 0)                     [ set par_elev_riftLength                    100 ]
+  if (par_elev_riftAggregation = 0)                [ set par_elev_riftAggregation                 0.9 ]
 
-  if (par_seaLevel = 0)                         [ set par_seaLevel                        0 ]
-  if (par_elevationSmoothStep = 0)              [ set par_elevationSmoothStep             1 ]
-  if (par_smoothingNeighborhood = 0)            [ set par_smoothingNeighborhood           0.1 ]
+  if (par_elev_smoothStep = 0)                     [ set par_elev_smoothStep                      1 ]
+  if (par_elev_smoothingRadius = 0)                [ set par_elev_smoothingRadius                 0.1 ]
 
-  if (par_xSlope = 0)                           [ set par_xSlope                          0.01 ]
-  if (par_ySlope = 0)                           [ set par_ySlope                          0.025 ]
-  if (par_valleyAxisInclination = 0)            [ set par_valleyAxisInclination           0.1 ]
-  if (par_valleySlope = 0)                      [ set par_valleySlope                     0.02 ]
+  if (par_elev_xSlope = 0)                          [ set par_elev_xSlope                         0.01 ]
+  if (par_elev_ySlope = 0)                          [ set par_elev_ySlope                         0.025 ]
+  if (par_elev_valleyAxisInclination = 0)           [ set par_elev_valleyAxisInclination          0.1 ]
+  if (par_elev_valleySlope = 0)                     [ set par_elev_valleySlope                    0.02 ]
 
-  if (par_riverFlowAccumulationAtStart = 0)     [ set par_riverFlowAccumulationAtStart  1E6 ]
+  if (par_flow_riverAccumulationAtStart = 0)     [ set par_flow_riverAccumulationAtStart  1E6 ]
+
+  if (soil_formativeErosionRate = 0)             [ set soil_formativeErosionRate               2 ]
 
   if (par_soil_minDepth = 0)                    [ set par_soil_minDepth                300 ]
   if (par_soil_maxDepth = 0)                    [ set par_soil_maxDepth                500 ]
-  if (par_soil_erosionRate_depth = 0)          [ set par_soil_erosionRate_depth        0.04 ]
   if (par_soil_depthNoise = 0)                  [ set par_soil_depthNoise               50 ]
 
   if (par_soil_min%sand = 0)                    [ set par_soil_min%sand                 60 ]
   if (par_soil_max%sand = 0)                    [ set par_soil_max%sand                 90 ]
-  if (par_soil_erosionRate_%sand = 0)          [ set par_soil_erosionRate_%sand        0.04 ]
 
   if (par_soil_min%silt = 0)                    [ set par_soil_min%silt                 40 ]
   if (par_soil_max%silt = 0)                    [ set par_soil_max%silt                 70 ]
-  if (par_soil_erosionRate_%silt = 0)          [ set par_soil_erosionRate_%silt        0.02 ]
 
   if (par_soil_min%clay = 0)                    [ set par_soil_min%clay                  0 ]
   if (par_soil_max%clay = 0)                    [ set par_soil_max%clay                 50 ]
-  if (par_soil_erosionRate_%clay = 0)          [ set par_soil_erosionRate_%clay        0.01 ]
 
   if (par_soil_textureNoise = 0)                [ set par_soil_textureNoise              5 ]
 
@@ -402,93 +445,89 @@ end
 to parameters-to-default
 
   ;;; set parameters to a default value
-  set par_rangeElevation                   15
-  set par_riftElevation                    0
-  set par_elevationNoise                     1
+  set par_elev_rangeHeight                   15
+  set par_elev_riftHeight                    0
+  set par_elev_noise                     1
 
-  set par_numContinents                   1
-  set par_numOceans                       1
+  set par_elev_numProtuberances                   1
+  set par_elev_numDepressions                       1
 
-  set par_continentality                  5
+  set par_elev_inversionIterations                  5
 
-  set par_numRanges                       1
-  set par_rangeLength                   100
-  set par_rangeAggregation                0.75
+  set par_elev_numRanges                       1
+  set par_elev_rangeLength                   100
+  set par_elev_rangeAggregation                0.75
 
-  set par_numRifts                        1
-  set par_riftLength                    100
-  set par_riftAggregation                 0.9
+  set par_elev_numRifts                        1
+  set par_elev_riftLength                    100
+  set par_elev_riftAggregation                 0.9
 
-  set par_seaLevel                        0
-  set par_elevationSmoothStep             1
-  set par_smoothingNeighborhood           0.1
+  set par_elev_smoothStep             1
+  set par_elev_smoothingRadius           0.1
 
-  set par_xSlope                          0.01
-  set par_ySlope                          0.025
-  set par_valleyAxisInclination           0.1
-  set par_valleySlope                     0.02
+  set par_elev_xSlope                          0.01
+  set par_elev_ySlope                          0.025
+  set par_elev_valleyAxisInclination           0.1
+  set par_elev_valleySlope                     0.02
 
-  set par_riverFlowAccumulationAtStart  1E6
+  set par_flow_riverAccumulationAtStart  1E6
 
+  set soil_formativeErosionRate              2
   set par_soil_minDepth                    300
   set par_soil_maxDepth                    500
-  set par_soil_erosionRate_depth            2
-  set par_soil_depthNoise                    0.04
+  set par_soil_depthNoise                   50
 
   set par_soil_min%sand                     60
   set par_soil_max%sand                     90
-  set par_soil_erosionRate_%sand            0.04
 
   set par_soil_min%silt                     40
   set par_soil_max%silt                     70
-  set par_soil_erosionRate_%silt            0.02
 
   set par_soil_min%clay                      0
   set par_soil_max%clay                     50
-  set par_soil_erosionRate_%clay            0.01
 
   set par_soil_textureNoise 5
 
 end
 
-to set-landform-NetLogo ;[ numRanges rangeLength rangeElevation numRifts riftLength riftElevation continentality smoothingNeighborhood elevationSmoothStep]
+to set-landform-NetLogo ;[ elev_numRanges elev_rangeLength elev_rangeHeight elev_numRifts elev_riftLength elev_riftHeight inversionIterations smoothingNeighborhood elevationSmoothStep]
 
   ; Netlogo-like code
-  ask n-of numRanges patches [ sprout-mapSetters 1 [ set points random rangeLength ] ]
-  ask n-of numRifts patches with [any? turtles-here = false] [ sprout-mapSetters 1 [ set points (random riftLength) * -1 ] ]
+  ask n-of elev_numRanges patches [ sprout-mapSetters 1 [ set numPoints random elev_rangeLength ] ]
+  ask n-of elev_numRifts patches with [any? turtles-here = false] [ sprout-mapSetters 1 [ set numPoints (random elev_riftLength) * -1 ] ]
 
-  let steps sum [ abs points ] of mapSetters
+  let steps sum [ abs numPoints ] of mapSetters
   repeat steps
   [
     ask one-of mapSetters
     [
       let sign 1
-      let scale maxElevation
-      if ( points < 0 ) [ set sign -1 set scale minElevation ]
+      let scale elev_rangeHeight
+      if ( numPoints < 0 ) [ set sign -1 set scale elev_riftHeight ]
       ask patch-here [ set elevation scale ]
-      set points points - sign
-      if (points = 0) [die]
-      rt (random-exponential featureAngleRange) * (1 - random-float 2)
+      set numPoints numPoints - sign
+      if (numPoints = 0) [die]
+      rt (random-exponential elev_featureAngleRange) * (1 - random-float 2)
       forward 1
     ]
   ]
 
   smooth-elevation-all
 
-  let underWaterPatches patches with [elevation < 0]
-  let aboveWaterPatches patches with [elevation > 0]
+  let depressedPatches patches with [elevation < 0]
+  let elevatedPatches patches with [elevation > 0]
 
-  repeat continentality
+  repeat elev_inversionIterations * count patches
   [
-    if (any? underWaterPatches AND any? aboveWaterPatches)
+    if (any? depressedPatches AND any? elevatedPatches)
     [
-      let p_ocean max-one-of underWaterPatches [ count neighbors with [elevation > 0] ]
-      let p_land  max-one-of aboveWaterPatches [ count neighbors with [elevation < 0] ]
-      let temp [elevation] of p_ocean
-      ask p_ocean [ set elevation [elevation] of p_land ]
-      ask p_land [ set elevation temp ]
-      set underWaterPatches underWaterPatches with [pxcor != [pxcor] of p_ocean AND pycor != [pycor] of p_ocean]
-      set aboveWaterPatches aboveWaterPatches with [pxcor != [pxcor] of p_land AND pycor != [pycor] of p_land]
+      let p_depression max-one-of depressedPatches [ count neighbors with [elevation > 0] ]
+      let p_protuberance  max-one-of elevatedPatches [ count neighbors with [elevation < 0] ]
+      let temp [elevation] of p_depression
+      ask p_depression [ set elevation [elevation] of p_protuberance ]
+      ask p_protuberance [ set elevation temp ]
+      set depressedPatches depressedPatches with [pxcor != [pxcor] of p_depression AND pycor != [pycor] of p_depression]
+      set elevatedPatches elevatedPatches with [pxcor != [pxcor] of p_protuberance AND pycor != [pycor] of p_protuberance]
     ]
   ]
 
@@ -496,39 +535,41 @@ to set-landform-NetLogo ;[ numRanges rangeLength rangeElevation numRifts riftLen
 
 end
 
-to set-landform-Csharp ;[ elevationNoise numContinents numRanges rangeLength rangeElevation rangeAggregation numOceans numRifts riftLength riftElevation riftAggregation smoothingNeighborhood elevationSmoothStep]
+to set-landform-Csharp ;[ elev_noise elev_numProtuberances elev_numRanges elev_rangeLength elev_rangeHeight rangeAggregation numDepressions elev_numRifts elev_riftLength elev_riftHeight riftAggregation smoothingNeighborhood elevationSmoothStep]
 
   ; C#-like code
   let p1 0
   let sign 0
   let len 0
   let elev 0
+  let elev_numRiftsToDo elev_numRifts
+  let elev_numRangesToDo elev_numRifts
 
-  let continents n-of numContinents patches
-  let oceans n-of numOceans patches
+  let protuberances n-of elev_numProtuberances patches
+  let depressions n-of elev_numDepressions patches
 
-  let maxDistBetweenRanges (1.1 - rangeAggregation) * maxDist
-  let maxDistBetweenRifts (1.1 - riftAggregation) * maxDist
+  let maxDistBetweenRanges (1.1 - elev_rangeAggregation) * maxDist
+  let maxDistBetweenRifts (1.1 - elev_riftAggregation) * maxDist
 
-  repeat (numRanges + numRifts)
+  repeat (elev_numRanges + elev_numRifts)
   [
     set sign -1 + 2 * (random 2)
-    if (numRanges = 0) [ set sign -1 ]
-    if (numRifts = 0) [ set sign 1 ]
+    if (elev_numRangesToDo = 0) [ set sign -1 ]
+    if (elev_numRiftsToDo = 0) [ set sign 1 ]
 
     ifelse (sign = -1)
     [
-      set numRifts numRifts - 1
-      set len riftLength - 2
-      set elev minElevation
+      set elev_numRiftsToDo elev_numRiftsToDo - 1
+      set len elev_riftLength - 2
+      set elev elev_riftHeight
       ;ifelse (any? patches with [elevation < 0]) [set p0 one-of patches with [elevation < 0]] [set p0 one-of patches]
-      set p1 one-of patches with [ distance one-of oceans < maxDistBetweenRifts ]
+      set p1 one-of patches with [ distance one-of depressions < maxDistBetweenRifts ]
     ]
     [
-      set numRanges numRanges - 1
-      set len rangeLength - 2
-      set elev maxElevation
-      set p1 one-of patches with [ distance one-of continents < maxDistBetweenRanges ]
+      set elev_numRangesToDo elev_numRangesToDo - 1
+      set len elev_rangeLength - 2
+      set elev elev_rangeHeight
+      set p1 one-of patches with [ distance one-of protuberances < maxDistBetweenRanges ]
     ]
 
     draw-elevation-pattern p1 len elev
@@ -536,9 +577,9 @@ to set-landform-Csharp ;[ elevationNoise numContinents numRanges rangeLength ran
 
   smooth-elevation-all
 
-  ask patches with [elevation = 0]
+  ask patches
   [
-    set elevation random-normal 0 elevationNoise
+    set elevation elevation + random-normal 0 elev_noise
   ]
 
   smooth-elevation-all
@@ -548,23 +589,21 @@ end
 to draw-elevation-pattern [ p1 len elev ]
 
   let p2 0
-  let x-direction 0
-  let y-direction 0
+  let xDirection 0
+  let yDirection 0
   let directionAngle 0
 
   ask p1 [ set elevation elev set p2 one-of neighbors ]
-  set x-direction ([pxcor] of p2) - ([pxcor] of p1)
-  set y-direction ([pycor] of p2) - ([pycor] of p1)
-  ifelse (x-direction = 1 AND y-direction = 0) [ set directionAngle 0 ]
-  [ ifelse (x-direction = 1 AND y-direction = 1) [ set directionAngle 45 ]
-    [ ifelse (x-direction = 0 AND y-direction = 1) [ set directionAngle 90 ]
-      [ ifelse (x-direction = -1 AND y-direction = 1) [ set directionAngle 135 ]
-        [ ifelse (x-direction = -1 AND y-direction = 0) [ set directionAngle 180 ]
-          [ ifelse (x-direction = -1 AND y-direction = -1) [ set directionAngle 225 ]
-            [ ifelse (x-direction = 0 AND y-direction = -1) [ set directionAngle 270 ]
-              [ ifelse (x-direction = 1 AND y-direction = -1) [ set directionAngle 315 ]
-                [ if (x-direction = 1 AND y-direction = 0) [ set directionAngle 360 ] ]
-              ]
+  set xDirection ([pxcor] of p2) - ([pxcor] of p1)
+  set yDirection ([pycor] of p2) - ([pycor] of p1)
+  ifelse (xDirection = 1 AND yDirection = 0) [ set directionAngle 0 ]
+  [ ifelse (xDirection = 1 AND yDirection = 1) [ set directionAngle 45 ]
+    [ ifelse (xDirection = 0 AND yDirection = 1) [ set directionAngle 90 ]
+      [ ifelse (xDirection = -1 AND yDirection = 1) [ set directionAngle 135 ]
+        [ ifelse (xDirection = -1 AND yDirection = 0) [ set directionAngle 180 ]
+          [ ifelse (xDirection = -1 AND yDirection = -1) [ set directionAngle 225 ]
+            [ ifelse (xDirection = 0 AND yDirection = -1) [ set directionAngle 270 ]
+              [ if (xDirection = 1 AND yDirection = -1) [ set directionAngle 315 ]]
             ]
           ]
         ]
@@ -574,7 +613,7 @@ to draw-elevation-pattern [ p1 len elev ]
 
   repeat len
   [
-    set directionAngle directionAngle + (random-exponential featureAngleRange) * (1 - random-float 2)
+    set directionAngle directionAngle + (random-exponential elev_featureAngleRange) * (1 - random 2)
     set directionAngle directionAngle mod 360
 
     set p1 p2
@@ -598,8 +637,8 @@ end
 
 to smooth-elevation
 
-  let smoothedElevation mean [elevation] of patches in-radius smoothingNeighborhood
-  set elevation elevation + (smoothedElevation - elevation) * elevationSmoothStep
+  let smoothedElevation mean [elevation] of patches in-radius elev_smoothingRadius
+  set elevation elevation + (smoothedElevation - elevation) * elev_smoothStep
 
 end
 
@@ -607,20 +646,9 @@ to set-xySlope
 
   ask patches
   [
-    ifelse (pxcor < (world-height / 2))
-    [
-      set elevation elevation - (xSlope * (elevation - riftElevation) * ((world-width / 2) - pxcor))
-    ]
-    [
-      set elevation elevation + (xSlope * (rangeElevation - elevation) * (pxcor - (world-width / 2)))
-    ]
-    ifelse (pycor < (world-width / 2))
-    [
-      set elevation elevation - (ySlope * (elevation - riftElevation) * ((world-height / 2) - pycor))
-    ]
-    [
-      set elevation elevation + (ySlope * (rangeElevation - elevation) * (pycor - (world-height / 2)))
-    ]
+    set elevation (1 - elev_xSlope) * elevation + (elev_xSlope * (elev_rangeHeight - elev_riftHeight) * (pxcor - min-pxcor) / world-width)
+
+    set elevation (1 - elev_ySlope) * elevation + (elev_ySlope * (elev_rangeHeight - elev_riftHeight) * (pycor - min-pycor) / world-height)
   ]
 
 end
@@ -630,31 +658,16 @@ to set-valleySlope
   ; bend terrain as a valley (valleySlope > 0) or a ridge (valleySlope < 0) following a North-South pattern
   ask patches
   [
-    let xValley (world-width / 2) + valleyAxisInclination * (pycor - (world-height / 2))
-    set elevation elevation + (valleySlope * (rangeElevation - elevation) * abs (xValley - pxcor))
-  ]
-
-  ; find which edge has the lower average elevation
-  let highestEdge patches with [pycor = max-pycor] ; north
-  if (mean [elevation] of highestEdge < mean [elevation] of patches with [pycor = min-pycor])
-  [ set highestEdge patches with [pycor = min-pycor] ] ; south
-
-  ; give an arbitrarily, ridiculously high value (riverFlowAccumulationAtStart) of flowAccumulation to the lowest patch at that edge
-  ; assign it an inward flowDirection (set-flowDirection will not overwrite this)
-  ask min-one-of highestEdge [elevation] ; a patch at the bottom of the valley
-  [
-    set flowAccumulation riverFlowAccumulationAtStart
-    let downstreamPatch min-one-of neighbors with [not is-at-edge] [elevation]
-    set flowDirection get-flow-direction-encoding ([pxcor] of downstreamPatch - pxcor) ([pycor] of downstreamPatch - pycor)
+    let xValley (world-width / 2) + elev_valleyAxisInclination * (pycor - (world-height / 2))
+    set elevation (1 - elev_valleySlope) * elevation + (elev_valleySlope * (elev_rangeHeight - elev_riftHeight) * abs (xValley - pxcor))
   ]
 
 end
 
 ;=======================================================================================================
 ;;; START of algorithms based on:
-;;; Huang P C and Lee K T 2015
-;;; A simple depression-filling method for raster and irregular elevation datasets
-;;; J. Earth Syst. Sci. 124 1653–65
+;;; Huang, P., Lee, K.T. A simple depression-filling method for raster and irregular elevation datasets.
+;;; J Earth Syst Sci 124, 1653–1665 (2015). https://doi.org/10.1007/s12040-015-0641-2
 ;=======================================================================================================
 
 to fill-sinks
@@ -687,9 +700,8 @@ end
 ;;; Extracting topographic structure from digital elevation data for geographic information system analysis.
 ;;; Photogrammetric engineering and remote sensing, 54(11), 1593-1600.
 ;;; ===BUT used elsewhere, such as in the algorithms based on:
-;;; Huang P C and Lee K T 2015
-;;; A simple depression-filling method for raster and irregular elevation datasets
-;;; J. Earth Syst. Sci. 124 1653–65
+;;; Huang, P., Lee, K.T. A simple depression-filling method for raster and irregular elevation datasets.
+;;; J Earth Syst Sci 124, 1653–1665 (2015). https://doi.org/10.1007/s12040-015-0641-2
 ;=======================================================================================================
 
 to-report get-drop-from [ aPatch ] ; ego = patch
@@ -709,7 +721,7 @@ end
 
 to-report has-flow-direction-code ; ego = patch
 
-  if (member? flowDirection [ 1 2 4 8 16 32 64 128 ]) [ report true ]
+  if (member? flow_direction [ 1 2 4 8 16 32 64 128 ]) [ report true ]
 
   report false
 
@@ -717,7 +729,7 @@ end
 
 to-report flow-direction-is [ centralPatch ]
 
-  if (flowDirection = get-flow-direction-encoding ([pxcor] of centralPatch - pxcor) ([pycor] of centralPatch - pycor))
+  if (flow_direction = get-flow-direction-encoding ([pxcor] of centralPatch - pxcor) ([pycor] of centralPatch - pycor))
   [ report true ]
 
   report false
@@ -726,16 +738,16 @@ end
 
 to-report get-flow-direction-encoding [ x y ]
 
-  if (x = -1 and y = -1) [ report 16 ]
-  if (x = -1 and y = 0) [ report 32 ]
-  if (x = -1 and y = 1) [ report 64 ]
+  if (x = -1 and y = -1) [ report 16 ] ; Southwest
+  if (x = -1 and y = 0) [ report 32 ]  ; West
+  if (x = -1 and y = 1) [ report 64 ]  ; Northwest
 
-  if (x = 0 and y = -1) [ report 8 ]
-  if (x = 0 and y = 1) [ report 128 ]
+  if (x = 0 and y = -1) [ report 8 ]   ; South
+  if (x = 0 and y = 1) [ report 128 ]  ; North
 
-  if (x = 1 and y = -1) [ report 4 ]
-  if (x = 1 and y = 0) [ report 2 ]
-  if (x = 1 and y = 1) [ report 1 ]
+  if (x = 1 and y = -1) [ report 4 ]   ; Southeast
+  if (x = 1 and y = 0) [ report 2 ]    ; East
+  if (x = 1 and y = 1) [ report 1 ]    ; Northeast
 
 end
 
@@ -763,7 +775,7 @@ end
 to-report flow-direction-is-loop ; ego = patch
 
   let thisPatch self
-  let dowstreamPatch get-patch-in-flow-direction flowDirection
+  let dowstreamPatch get-patch-in-flow-direction flow_direction
   ;print (word "thisPatch: " thisPatch "dowstreamPatch: " dowstreamPatch)
 
   if (dowstreamPatch != nobody)
@@ -775,14 +787,21 @@ end
 
 to set-flow-directions
 
-  ask patches with [ flowDirection = 0 ]
+  ask patches
   [
     ifelse (is-at-edge)
     [
-      if ( pxcor = min-pxcor ) [ set flowDirection 32 ] ; west
-      if ( pxcor = max-pxcor ) [ set flowDirection 2 ] ; east
-      if ( pycor = min-pycor ) [ set flowDirection 8 ] ; south
-      if ( pycor = max-pycor ) [ set flowDirection 128 ] ; north
+      ifelse ( pxcor = min-pxcor )
+      [ set flow_direction 32 ] ; west
+      [
+        ifelse ( pxcor = max-pxcor )
+        [ set flow_direction 2 ] ; east
+        [
+          ifelse ( pycor = min-pycor )
+          [ set flow_direction 8 ] ; south
+          [ set flow_direction 128 ] ; north
+        ]
+      ]
     ]
     [
       set-flow-direction
@@ -796,7 +815,29 @@ to set-flow-direction ; ego = patch
   let thisPatch self
 
   let downstreamPatch max-one-of neighbors [get-drop-from thisPatch]
-  set flowDirection get-flow-direction-encoding ([pxcor] of downstreamPatch - pxcor) ([pycor] of downstreamPatch - pycor)
+  set flow_direction get-flow-direction-encoding ([pxcor] of downstreamPatch - pxcor) ([pycor] of downstreamPatch - pycor)
+
+end
+
+to introduce-river-flow
+
+  ; get average elevation of edges
+  let southEdgeAverageElevation  mean [elevation] of patches with [pycor = min-pycor]
+  let northEdgeAverageElevation  mean [elevation] of patches with [pycor = max-pycor]
+
+  ; find which edge has the highest average elevation
+  let highestEdge patches with [pycor = max-pycor] ; assume north
+  if (southEdgeAverageElevation > northEdgeAverageElevation)
+  [ set highestEdge patches with [pycor = min-pycor] ] ; change to south
+
+  ; give value (flow_riverAccumulationAtStart) of flow_accumulation to the lowest patch at that edge
+  ; and assign it an inward flowDirection
+  ask min-one-of highestEdge [elevation] ; a patch at the bottom of a valley
+  [
+    set flow_accumulation flow_riverAccumulationAtStart
+    let downstreamPatch min-one-of neighbors with [not is-at-edge] [elevation]
+    set flow_Direction get-flow-direction-encoding ([pxcor] of downstreamPatch - pxcor) ([pycor] of downstreamPatch - pycor)
+  ]
 
 end
 
@@ -815,48 +856,48 @@ to set-flow-accumulations
   ; identify patches that receive flow and those that do not (this makes the next step much easier)
   ask patches
   [
-    set receivesFlow false
-    set flowAccumulationState "start"
+    set flow_receive false
+    set flow_accumulationState "start"
     ;set pcolor red
   ]
 
   ask patches with [has-flow-direction-code]
   [
-    let patchInFlowDirection get-patch-in-flow-direction flowDirection
+    let patchInFlowDirection get-patch-in-flow-direction flow_direction
     if (patchInFlowDirection != nobody)
     [
       ask patchInFlowDirection
       [
-        set receivesFlow true
-        set flowAccumulationState "pending"
+        set flow_receive true
+        set flow_accumulationState "pending"
         ;set pcolor yellow
       ]
     ]
   ]
 
   let maxIterations 100000 ; just as a safety measure, to avoid infinite loop
-  while [count patches with [flowAccumulationState = "pending" and not flow-direction-is-loop] > 0 and maxIterations > 0 and count patches with [flowAccumulationState = "start"] > 0 ]
+  while [count patches with [flow_accumulationState = "pending" and not flow-direction-is-loop] > 0 and maxIterations > 0 and count patches with [flow_accumulationState = "start"] > 0 ]
   [
-    ask one-of patches with [flowAccumulationState = "start"]
+    ask one-of patches with [flow_accumulationState = "start"]
     [
-      let downstreamPatch get-patch-in-flow-direction flowDirection
-      let nextFlowAccumulation flowAccumulation + 1
+      let downstreamPatch get-patch-in-flow-direction flow_direction
+      let nextFlow_accumulation flow_accumulation + 1
 
-      set flowAccumulationState "done"
+      set flow_accumulationState "done"
       ;set pcolor orange
 
       if (downstreamPatch != nobody)
       [
         ask downstreamPatch
         [
-          set flowAccumulation flowAccumulation + nextFlowAccumulation
+          set flow_accumulation flow_accumulation + nextFlow_accumulation
           if (count neighbors with [
-            get-patch-in-flow-direction flowDirection = downstreamPatch and
-            (flowAccumulationState = "pending" or flowAccumulationState = "start")
+            get-patch-in-flow-direction flow_direction = downstreamPatch and
+            (flow_accumulationState = "pending" or flow_accumulationState = "start")
             ] = 0
           )
           [
-            set flowAccumulationState "start"
+            set flow_accumulationState "start"
             ;set pcolor red
           ]
         ]
@@ -882,10 +923,12 @@ end
 to setup-soil-conditions
 
   ; set maximum flow accumulation as a reference excluding the flow entering through the river
-  set maxFlowAccumulation max [flowAccumulation] of patches with [flowAccumulation < riverFlowAccumulationAtStart]
+  set maxFlowAccumulation max [flow_accumulation] of patches with [flow_accumulation < flow_riverAccumulationAtStart]
 
   ask patches
   [
+    setup-soil-formative-erosion
+
     setup-soil-depth
 
     setup-soil-texture
@@ -897,20 +940,32 @@ to setup-soil-conditions
 
 end
 
-to setup-soil-depth
+to setup-soil-formative-erosion
 
-  set p_soil_depth clampMinMax (
-    get-soil-depth (flowAccumulation / maxFlowAccumulation)
-    + (random-normal 0 soil_depthNoise))
-    0 100
+  set p_soil_formativeErosion get-soil-formative-erosion flow_accumulation
 
 end
 
-to-report get-soil-depth [ relativeFlowAccumulation ]
+to-report get-soil-formative-erosion [ flowAccumulation ]
 
-  ;;; Following the same rationale of soil texture, soil depth is positively related to flow accumulation.
+  report get-value-in-sigmoid (flowAccumulation / maxFlowAccumulation) soil_formativeErosionRate
+
+end
+
+to setup-soil-depth
+
+  set p_soil_depth max (list 0
+    (get-soil-depth p_soil_formativeErosion
+    + (random-normal 0 soil_depthNoise))
+    )
+
+end
+
+to-report get-soil-depth [ soil_formativeErosion ]
+
+  ;;; Following the same rationale of soil texture, soil depth is positively related to p_soil_erosion.
   ;;; Soil particles are derived from the parent geological material, eroded by environmental factors, and assumingly accumulate more downhill following the flow path.
-  report soil_minDepth + (soil_maxDepth - soil_minDepth) * (get-value-in-sigmoid relativeFlowAccumulation soil_erosionRate_depth)
+  report soil_minDepth + (soil_maxDepth - soil_minDepth) * soil_formativeErosion
 
 end
 
@@ -921,17 +976,17 @@ to setup-soil-texture
   ;;; useful reference: https://www.earthonlinemedia.com/ebooks/tpe_3e/soil_systems/soil__development_soil_forming_factors.html
 
   set p_soil_%sand clampMinMax (
-    get-soil-%sand (flowAccumulation / maxFlowAccumulation)               ; as function of flowAccumulation
-    + (random-normal 0 soil_textureNoise))   ; add some random variation
-    0 100                                    ; clampMinMax <value> 0 100 -- keeps value within range of 0-100, after adding normal noise
+    get-soil-%sand p_soil_formativeErosion    ; as function of p_soil_formativeErosion
+    + (random-normal 0 soil_textureNoise))    ; add some random variation
+    0 100                                     ; clampMinMax <value> 0 100 -- keeps value within range of 0-100, after adding normal noise
 
   set p_soil_%silt clampMinMax (
-    get-soil-%silt (flowAccumulation / maxFlowAccumulation)
+    get-soil-%silt p_soil_formativeErosion
     + (random-normal 0 soil_textureNoise))
     0 100
 
   set p_soil_%clay clampMinMax (
-    get-soil-%clay (flowAccumulation / maxFlowAccumulation)
+    get-soil-%clay p_soil_formativeErosion
     + (random-normal 0 soil_textureNoise))
     0 100
 
@@ -954,27 +1009,27 @@ end
 ;;; it might be possible to reduce the number of parameters related to soil texture by:
 ;;; - using a single erosion curve parameter (must consult with pedologist)
 
-to-report get-soil-%sand [ relativeFlowAccumulation ]
+to-report get-soil-%sand [ soil_erosion ]
 
   ;;; %sand is negatively related to flow accumulation. Sand is the coarser fraction of particles derived from the parent geological material
   ;;; that will assumingly erode progressively into finer particles down the flow path through physical and chemical processes.
-  report soil_min%sand + (soil_max%sand - soil_min%sand) * (1 - get-value-in-sigmoid relativeFlowAccumulation soil_erosionRate_%sand)
+  report soil_min%sand + (soil_max%sand - soil_min%sand) * (1 - soil_erosion)
 
 end
 
-to-report get-soil-%silt [ relativeFlowAccumulation ]
+to-report get-soil-%silt [ soil_erosion ]
 
   ;;; %silt is positively related to flow accumulation. Silt is the intermediate, finer fraction of particles derived from sand and, ultimately,
   ;;; the parent geological material. Thus, silt is being accumulated through the erosion of sand by environmental factors, assumingly following the flow path.
-  report soil_min%silt + (soil_max%silt - soil_min%silt) * (get-value-in-sigmoid relativeFlowAccumulation soil_erosionRate_%silt)
+  report soil_min%silt + (soil_max%silt - soil_min%silt) * soil_erosion
 
 end
 
-to-report get-soil-%clay [ relativeFlowAccumulation ]
+to-report get-soil-%clay [ soil_erosion ]
 
   ;;; %clay is positively related to flow accumulation. Clay is the finest fraction of particles derived from sand, silt, and, ultimately,
   ;;; the parent geological material. Thus, clay is being accumulated through the erosion of coarser particles by environmental factors, assumingly following the flow path.
-  report soil_min%clay + (soil_max%clay - soil_min%clay) * (get-value-in-sigmoid relativeFlowAccumulation soil_erosionRate_%clay)
+  report soil_min%clay + (soil_max%clay - soil_min%clay) * soil_erosion
 
 end
 
@@ -1012,6 +1067,9 @@ end
 
 to setup-soil-coverAndTreatment
 
+  ;;; set soil cover-treatment-hydrological condition
+  ;;; in this version, all land units have the same cover+treatment+condition, "fallow | crop residue | poor", the first one in  "runOffCurveNumberTable.csv".
+  ;;; This is temporary, it should be defined by ecological community
   set p_soil_coverTreatmentAndHydrologicCondition get-coverTreatmentAndHydrologicCondition 1
 
 end
@@ -1072,8 +1130,33 @@ to-report get-deepDrainageCoefficient [ textureType ]
   ; get intake rate (mm/hour) of the given texture type
   let intakeRate item (position textureType soil_textureTypes) soil_intakeRate
 
-  ; return daily intake rate as approximation of deep drainage coefficient
-  report 24 * intakeRate
+  ; return daily intake rate divided by volume of soil above field capacity (intake/draina rate at saturation) as approximation of deep drainage coefficient
+  ; TO-DO: ideally, data on deep drainage coefficient should be used instead.
+  report 24 * intakeRate / ((1 - p_soil_fieldCapacity) * p_soil_depth + 1E-6) ; + 1E-6 to avoid error when p_soil_depth = 0
+
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; OUTPUT STATS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to set-output-stats
+
+  set elevationDistribution [elevation] of patches
+
+  set minElevation min [elevation] of patches
+
+  set maxElevation max [elevation] of patches
+
+  set sdElevation standard-deviation [elevation] of patches
+
+  ;;; default seaLevel to minElevation (seaLevel afects patch color and landRatio measurement)
+  set par_seaLevel (floor minElevation) - 1
+  set seaLevel par_seaLevel
+
+  set landRatio count patches with [elevation > seaLevel] / count patches
+
+  set landWithRiver count patches with [flow_accumulation >= flow_riverAccumulationAtStart]
 
 end
 
@@ -1083,64 +1166,210 @@ end
 
 to paint-patches
 
+  ;;; several soil properties must be rescaled to enhance visualisation
+  ;;; (the parametric max and min values of some of these are never realised for various reasons)
+  let mindepth min [p_soil_depth] of patches
+  let maxdepth max [p_soil_depth] of patches
   let min%sand min [p_soil_%sand] of patches
   let max%sand max [p_soil_%sand] of patches
   let min%silt min [p_soil_%silt] of patches
   let max%silt max [p_soil_%silt] of patches
   let min%clay min [p_soil_%clay] of patches
   let max%clay max [p_soil_%clay] of patches
+  let minWaterHoldingCapacity min [p_soil_waterHoldingCapacity] of patches
+  let maxWaterHoldingCapacity max [p_soil_waterHoldingCapacity] of patches
+  let minDeepDrainageCoefficient min [p_soil_deepDrainageCoefficient] of patches
+  let maxDeepDrainageCoefficient max [p_soil_deepDrainageCoefficient] of patches
 
-  ask patches
+  if (display-mode = "terrain")
   [
-    if (display-mode = "terrain")
+    ask patches
     [
-      let elevationGradient 0
-      ifelse (elevation < seaLevel)
-      [
-        let normSubElevation (-1) * (seaLevel - elevation)
-        let normSubMinElevation (-1) * (seaLevel - minElevation) + 1E-6
-        set elevationGradient 20 + (200 * (1 - normSubElevation / normSubMinElevation))
-        set pcolor rgb 0 0 elevationGradient
-      ]
-      [
-        let normSupElevation elevation - seaLevel
-        let normSupMaxElevation maxElevation - seaLevel + 1E-6
-        set elevationGradient 100 + (155 * (normSupElevation / normSupMaxElevation))
-        set pcolor rgb (elevationGradient - 100) elevationGradient 0
-      ]
+      set pcolor get-elevation-color elevation
     ]
-    if (display-mode = "soil texture")
+    set-legend-elevation 10
+  ]
+  if (display-mode = "soil formative erosion")
+  [
+    ask patches [ set pcolor 8 - 6 * p_soil_formativeErosion ]
+    set-legend-continuous-range 1 0 8 2 6 false
+  ]
+  if (display-mode = "soil depth")
+  [
+    ask patches [ set pcolor 38 - 6 * (p_soil_depth - mindepth) / (maxdepth - mindepth) ]
+    set-legend-continuous-range 100 0 38 32 6 false
+  ]
+  if (display-mode = "soil texture")
+  [
+    ask patches
     [
       ;;; red: sand, green: silt, blue: clay
-      set pcolor rgb
-        (240 * ((p_soil_%sand - min%sand) / (max%sand - min%sand)))
-        (240 * ((p_soil_%silt - min%silt) / (max%silt - min%silt)))
-        (240 * ((p_soil_%clay - min%clay) / (max%clay - min%clay)))
-      ;;; with range fixed at 0-100
-;      set pcolor rgb
-;        (240 * (p_soil_%sand / 100))
-;        (240 * (p_soil_%silt / 100))
-;        (240 * (p_soil_%clay / 100))
-
+      set pcolor get-texture-color (list p_soil_%sand min%sand max%sand) (list p_soil_%silt min%silt max%silt) (list p_soil_%clay min%clay max%clay)
     ]
-    if (display-mode = "soil texture group")
-    [
-      ;;; this order corresponds to an approximation to the soil texture palette (red: sand, green: silt, blue: clay)
-      let soilTextureGroups (list
-        "Sand"             "Loamy sand"        "Sandy loam"     ; red         orange  brown
-        "Loam"             "Silt loam"         "Silt"           ; yellow      green   lime
-        "Silty clay loam"  "Silty clay"        "Clay"           ; turquoise   cyan    sky
-        "Clay loam"        "Sandy clay"        "Sandy clay loam"; blue        violet  magenta
-      )
-
-      set pcolor 15 + 10 * (position (
-        get-soil-texture-type (p_soil_%sand) (p_soil_%silt) (p_soil_%clay)
-        ) soilTextureGroups)
-    ]
-    ;;; other modes of display can be added here
+    set-legend-texture (list min%sand max%sand) (list min%silt max%silt) (list min%clay max%clay)
   ]
+  if (display-mode = "soil texture types")
+  [
+    ask patches
+    [
+      set pcolor get-textureType-color (get-soil-texture-type (p_soil_%sand) (p_soil_%silt) (p_soil_%clay))
+    ]
+    set-legend-soil-texture-type
+  ]
+  if (display-mode = "soil run off curve number")
+  [
+    ask patches [ set pcolor 18 - 6 * p_soil_runOffCurveNumber / 100 ] ;;; runoff curve number is limited between 0-100
+    set-legend-continuous-range 100 0 18 12 6 false
+  ]
+  if (display-mode = "soil water holding capacity")
+  [
+    ask patches
+    [
+      set pcolor 98 - 6 * (p_soil_waterHoldingCapacity - minWaterHoldingCapacity) / (maxWaterHoldingCapacity - minWaterHoldingCapacity) ;;; water holding capacity is %, but often small
+    ]
+    set-legend-continuous-range maxWaterHoldingCapacity minWaterHoldingCapacity 98 92 6 false
+  ]
+  if (display-mode = "soil deep drainage coefficient")
+  [
+    ask patches
+    [
+      set pcolor 102 + 6 * (p_soil_deepDrainageCoefficient - minDeepDrainageCoefficient) / (maxDeepDrainageCoefficient - minDeepDrainageCoefficient) ;;; deep drainage coefficient is %, but can vary beyond 100%
+    ]
+    set-legend-continuous-range maxDeepDrainageCoefficient minDeepDrainageCoefficient 108 102 6 true
+  ]
+  ;
+  ;
+  ;;; other modes of display can be added here
 
   display-flows
+
+end
+
+to-report get-elevation-color [ elevationValue ]
+
+  let elevationGradient 0
+
+  ifelse (elevationValue < seaLevel)
+  [
+    let normSubElevation (-1) * (seaLevel - elevationValue)
+    let normSubMinElevation (-1) * (seaLevel - minElevation) + 1E-6
+    set elevationGradient 20 + (200 * (1 - normSubElevation / normSubMinElevation))
+    report rgb 0 0 elevationGradient
+  ]
+  [
+    let normSupElevation elevationValue - seaLevel
+    let normSupMaxElevation maxElevation - seaLevel + 1E-6
+    set elevationGradient 100 + (155 * (normSupElevation / normSupMaxElevation))
+    report rgb (elevationGradient - 100) elevationGradient 0
+  ]
+
+end
+
+to-report get-texture-color [ %sandData %siltData %clayData ]
+
+  report rgb
+        (240 * (((item 0 %sandData) - (item 1 %sandData)) / ((item 2 %sandData) - (item 1 %sandData))))
+        (240 * (((item 0 %siltData) - (item 1 %siltData)) / ((item 2 %siltData) - (item 1 %siltData))))
+        (240 * (((item 0 %clayData) - (item 1 %clayData)) / ((item 2 %clayData) - (item 1 %clayData))))
+      ;;; with range fixed at 0-100
+; report rgb
+;        (240 * ((item 0 %sandData) / 100))
+;        (240 * ((item 0 %siltData) / 100))
+;        (240 * ((item 0 %clayData) / 100))
+
+end
+
+to-report get-textureType-color [ textureTypeName ]
+
+  report 15 + 10 * (position textureTypeName soil_textureTypes_display)
+
+end
+
+to set-legend-elevation [ numberOfKeys ]
+
+  set-current-plot "Legend"
+
+  clear-plot
+
+  let step precision ((maxElevation - minElevation) / numberOfKeys) 4
+
+  let value maxElevation
+
+  while [ value > minElevation ]
+  [
+    create-temporary-plot-pen (word "" (precision value 4) "")
+    set-plot-pen-color get-elevation-color value
+    set value value - step
+  ]
+
+end
+
+to set-legend-continuous-range [ maximum minimum maxShade minShade numberOfKeys ascendingOrder? ]
+
+  set-current-plot "Legend"
+
+  clear-plot
+
+  let step precision ((maximum - minimum) / numberOfKeys) 4
+
+  ifelse (ascendingOrder?)
+  [
+    let value precision minimum 4
+
+    while [ value < maximum ]
+    [
+      create-temporary-plot-pen (word "" (precision value 4) "")
+      set-plot-pen-color minShade + (maxShade - minShade) * (value - minimum) / (maximum - minimum)
+      set value value + step
+    ]
+  ]
+  [
+    let value precision maximum 4
+
+    while [ value > minimum ]
+    [
+      create-temporary-plot-pen (word "" (precision value 4) "")
+      set-plot-pen-color maxShade - (maxShade - minShade) * (value - minimum) / (maximum - minimum)
+      set value value - step
+    ]
+  ]
+
+end
+
+to set-legend-soil-texture-type
+
+  set-current-plot "Legend"
+
+  clear-plot
+
+  foreach soil_textureTypes_display
+  [
+    textureTypeName ->
+    create-temporary-plot-pen textureTypeName
+    set-plot-pen-color get-textureType-color textureTypeName
+  ]
+
+end
+
+to set-legend-texture [ %sandRange %siltRange %clayRange ]
+
+  set-current-plot "Legend"
+
+  clear-plot
+
+  ;;; red: sand, green: silt, blue: clay
+  create-temporary-plot-pen (word "max %sand = " round (item 1 %sandRange) )
+  set-plot-pen-color get-texture-color (list (item 1 %sandRange) (item 0 %sandRange) (item 1 %sandRange))
+                                       (list (item 0 %siltRange) (item 0 %siltRange) (item 1 %siltRange))
+                                       (list (item 0 %clayRange) (item 0 %clayRange) (item 1 %clayRange))
+  create-temporary-plot-pen (word "max %silt = " round (item 1 %siltRange) )
+  set-plot-pen-color get-texture-color (list (item 0 %sandRange) (item 0 %sandRange) (item 1 %sandRange))
+                                       (list (item 1 %siltRange) (item 0 %siltRange) (item 1 %siltRange))
+                                       (list (item 0 %clayRange) (item 0 %clayRange) (item 1 %clayRange))
+  create-temporary-plot-pen (word "max %clay = " round (item 1 %clayRange) )
+  set-plot-pen-color get-texture-color (list (item 0 %sandRange) (item 0 %sandRange) (item 1 %sandRange))
+                                       (list (item 0 %siltRange) (item 0 %siltRange) (item 1 %siltRange))
+                                       (list (item 1 %clayRange) (item 0 %clayRange) (item 1 %clayRange))
 
 end
 
@@ -1155,9 +1384,9 @@ to display-flows
   [
     ask patches ;with [ has-flow-direction-code ]
     [
-      let flowDirectionHere flowDirection
-      let nextPatchInFlow get-patch-in-flow-direction flowDirection
-      let flowAccumulationHere flowAccumulation
+      let flow_directionHere flow_direction
+      let nextPatchInFlow get-patch-in-flow-direction flow_direction
+      let flow_accumulationHere flow_accumulation
 
       ask one-of flowHolders-here
       [
@@ -1169,19 +1398,19 @@ to display-flows
           ask link-with one-of [flowHolders-here] of nextPatchInFlow
           [
             set hidden? false
-            let multiplier 1E100 ^ (1 - flowAccumulationHere / (max [flowAccumulation] of patches)) / 1E100
+            let multiplier 1E100 ^ (1 - flow_accumulationHere / (max [flow_accumulation] of patches)) / 1E100
             set color 92 + (5 * multiplier)
             set thickness 0.4 * ( 1 - ((color - 92) / 5))
           ]
         ]
         [
           set hidden? false
-          let multiplier 1E100 ^ (1 - flowAccumulationHere / (max [flowAccumulation] of patches)) / 1E100
+          let multiplier 1E100 ^ (1 - flow_accumulationHere / (max [flow_accumulation] of patches)) / 1E100
           set color 92 + (5 * multiplier)
           if (color <= 97) [ set shape "line half" ]
           if (color < 95) [ set shape "line half 1" ]
           if (color < 93) [ set shape "line half 2" ]
-          set heading get-angle-in-flow-direction flowDirection
+          set heading get-angle-in-flow-direction flow_direction
         ]
       ]
     ]
@@ -1228,6 +1457,8 @@ end
 to refresh-view-after-seaLevel-change
 
   set seaLevel par_seaLevel
+
+  set landRatio count patches with [elevation > seaLevel] / count patches
 
   update-plots
 
@@ -1364,7 +1595,7 @@ to-report get-soilVariable-per-flowAccumulation [ soilVariableName ]
     foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
     [
       i ->
-      set sequence lput (get-soil-depth i) sequence
+      set sequence lput (get-soil-depth (get-soil-formative-erosion i)) sequence
     ]
   ]
   if (soilVariableName = "Sand")
@@ -1372,7 +1603,7 @@ to-report get-soilVariable-per-flowAccumulation [ soilVariableName ]
     foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
     [
       i ->
-      set sequence lput (get-soil-%sand i) sequence
+      set sequence lput (get-soil-%sand (get-soil-formative-erosion i)) sequence
     ]
   ]
   if (soilVariableName = "Silt")
@@ -1380,7 +1611,7 @@ to-report get-soilVariable-per-flowAccumulation [ soilVariableName ]
     foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
     [
       i ->
-      set sequence lput (get-soil-%silt i) sequence
+      set sequence lput (get-soil-%silt (get-soil-formative-erosion i)) sequence
     ]
   ]
   if (soilVariableName = "Clay")
@@ -1388,7 +1619,7 @@ to-report get-soilVariable-per-flowAccumulation [ soilVariableName ]
     foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
     [
       i ->
-      set sequence lput (get-soil-%clay i) sequence
+      set sequence lput (get-soil-%clay (get-soil-formative-erosion i)) sequence
     ]
   ]
 
@@ -1432,12 +1663,12 @@ to export-terrain
   update-transects
 
   ;;; build a file name as unique to this setting as possible
-  let filePath (word "terrains//terrain_" type-of-experiment "_w=" world-width "_h=" world-height "_a=" algorithm-style "_fill-sinks=" do-fill-sinks "_seed=" randomSeed)
+  let filePath (word "terrains//terrain_" type-of-experiment "_w=" world-width "_h=" world-height "_a=" elev_algorithm-style "_fill-sinks=" flow_do-fill-sinks "_seed=" randomSeed)
 
   if (type-of-experiment = "user-defined") [ set filePath (word filePath "_" random 9999) ]
   ;if (type-of-experiment = "defined by expNumber") [set filePath (word filePath "_" expNumber) ]
 
-  print filePath print length filePath ; de-bug print
+  ;print filePath print length filePath ; de-bug print
 
 ;;; check that filePath does not exceed 100 (not common in this context)
   if (length filePath > 100) [ print "WARNING: file path may be too long, depending on your current directory. Decrease length of file name or increase the limit." set filePath substring filePath 0 100 ]
@@ -1459,7 +1690,7 @@ to import-terrain
   ;;; corresponding to the random seed given as a parameter in the interface
 
   ;;; build a unique file name according to the user setting
-  let filePath (word "terrains//terrain_" type-of-experiment "_w=" world-width "_h=" world-height "_a=" algorithm-style "_fill-sinks=" do-fill-sinks "_seed=" randomSeed)
+  let filePath (word "terrains//terrain_" type-of-experiment "_w=" world-width "_h=" world-height "_a=" elev_algorithm-style "_fill-sinks=" flow_do-fill-sinks "_seed=" randomSeed)
 
   if (type-of-experiment = "user-defined") [ set filePath (word filePath "_" date-and-time) ]
   ;if (type-of-experiment = "defined by expNumber") [set filePath (word filePath "_" expNumber) ]
@@ -1492,38 +1723,64 @@ to import-terrain
         [
           globalIndex ->
 
-          if (item globalIndex globalNames = "algorithm-style") [ set algorithm-style read-from-string item globalIndex globalValues ]
           if (item globalIndex globalNames = "display-mode") [ set display-mode read-from-string item globalIndex globalValues ]
-          if (item globalIndex globalNames = "do-fill-sinks") [ set do-fill-sinks item globalIndex globalValues ]
 
-          if (item globalIndex globalNames = "numcontinents") [ set numContinents item globalIndex globalValues ]
-          if (item globalIndex globalNames = "numoceans") [ set numOceans item globalIndex globalValues ]
-
-          if (item globalIndex globalNames = "numranges") [ set numRanges item globalIndex globalValues ]
-          if (item globalIndex globalNames = "rangelength") [ set rangeLength item globalIndex globalValues ]
-          if (item globalIndex globalNames = "rangeelevation") [ set rangeElevation item globalIndex globalValues ]
-          if (item globalIndex globalNames = "rangeaggregation") [ set rangeAggregation item globalIndex globalValues ]
-
-          if (item globalIndex globalNames = "numrifts") [ set numRifts item globalIndex globalValues ]
-          if (item globalIndex globalNames = "riftlength") [ set riftLength item globalIndex globalValues ]
-          if (item globalIndex globalNames = "riftelevation") [ set riftElevation item globalIndex globalValues ]
-          if (item globalIndex globalNames = "riftaggregation") [ set riftAggregation item globalIndex globalValues ]
-
-          if (item globalIndex globalNames = "featureanglerange") [ set featureAngleRange item globalIndex globalValues ]
-          if (item globalIndex globalNames = "continentality") [ set continentality item globalIndex globalValues ]
-          if (item globalIndex globalNames = "elevationnoise") [ set elevationNoise item globalIndex globalValues ]
           if (item globalIndex globalNames = "sealevel") [ set seaLevel item globalIndex globalValues ]
-          if (item globalIndex globalNames = "elevationsmoothstep") [ set elevationSmoothStep item globalIndex globalValues ]
-          if (item globalIndex globalNames = "smoothingneighborhood") [ set smoothingNeighborhood item globalIndex globalValues ]
 
-          if (item globalIndex globalNames = "xslope") [ set xSlope item globalIndex globalValues ]
-          if (item globalIndex globalNames = "yslope") [ set ySlope item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_algorithm-style") [ set elev_algorithm-style read-from-string item globalIndex globalValues ]
 
-          if (item globalIndex globalNames = "valleyaxisinclination") [ set valleyAxisInclination item globalIndex globalValues ]
-          if (item globalIndex globalNames = "valleyslope") [ set valleySlope item globalIndex globalValues ]
+          if (item globalIndex globalNames = "flow_do-fill-sinks") [ set flow_do-fill-sinks item globalIndex globalValues ]
 
-          if (item globalIndex globalNames = "riverflowaccumulationatstart") [ set riverFlowAccumulationAtStart item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_numprotuberances") [ set elev_numProtuberances item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_numdepressions") [ set elev_numDepressions item globalIndex globalValues ]
 
+          if (item globalIndex globalNames = "elev_numranges") [ set elev_numRanges item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_rangelength") [ set elev_rangeLength item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_rangeheight") [ set elev_rangeHeight item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_rangeaggregation") [ set elev_rangeAggregation item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "elev_numrifts") [ set elev_numRifts item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_riftlength") [ set elev_riftLength item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_riftheight") [ set elev_riftHeight item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_riftaggregation") [ set elev_riftAggregation item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "elev_featureanglerange") [ set elev_featureAngleRange item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_inversioniterations") [ set elev_inversionIterations item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_noise") [ set elev_noise item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_smoothstep") [ set elev_smoothStep item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_smoothingradius") [ set elev_smoothingradius item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "elev_xslope") [ set elev_xSlope item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_yslope") [ set elev_ySlope item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "elev_valleyaxisinclination") [ set elev_valleyAxisInclination item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_valleyslope") [ set elev_valleySlope item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "flow_riveraccumulationatstart") [ set flow_riverAccumulationAtStart item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "soil_formativeerosionrate") [ set soil_formativeErosionRate item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "soil_texturetypes") [ set soil_textureTypes read-from-string item globalIndex globalValues ]
+          if (item globalIndex globalNames = "soil_texturetypes_display") [ set soil_textureTypes_display read-from-string item globalIndex globalValues ]
+          if (item globalIndex globalNames = "soil_hydrologicsoilgroups") [ set soil_hydrologicSoilGroups read-from-string item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "soil_fieldcapacity") [ set soil_fieldCapacity item globalIndex globalValues ]
+          if (item globalIndex globalNames = "soil_minWaterholdingcapacity") [ set soil_minWaterHoldingCapacity item globalIndex globalValues ]
+          if (item globalIndex globalNames = "soil_maxwaterholdingcapacity") [ set soil_maxWaterHoldingCapacity item globalIndex globalValues ]
+          if (item globalIndex globalNames = "soil_intakerate") [ set soil_intakeRate read-from-string item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "soil_mindepth") [ set soil_minDepth item globalIndex globalValues ]
+          if (item globalIndex globalNames = "soil_maxdepth") [ set soil_maxDepth item globalIndex globalValues ]
+          if (item globalIndex globalNames = "soil_depthnoise") [ set soil_depthNoise item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "soil_min%sand") [ set soil_min%sand item globalIndex globalValues ]
+          if (item globalIndex globalNames = "soil_max%sand") [ set soil_max%sand item globalIndex globalValues ]
+          if (item globalIndex globalNames = "soil_min%silt") [ set soil_min%silt item globalIndex globalValues ]
+          if (item globalIndex globalNames = "soil_max%silt") [ set soil_max%silt item globalIndex globalValues ]
+          if (item globalIndex globalNames = "soil_min%clay") [ set soil_min%clay item globalIndex globalValues ]
+          if (item globalIndex globalNames = "soil_max%clay") [ set soil_max%clay item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "soil_texturenoise") [ set soil_textureNoise item globalIndex globalValues ]
         ]
       ]
 
@@ -1568,10 +1825,23 @@ to import-terrain
             set pcolor rgb (item 0 colorRGBValues) (item 1 colorRGBValues) (item 2 colorRGBValues)
 
             set elevation item 5 thisLine
-            set flowdirection item 6 thisLine
-            set receivesflow item 7 thisLine
-            set flowaccumulationstate read-from-string item 8 thisLine
-            set flowaccumulation item 9 thisLine
+            set flow_direction item 6 thisLine
+            set flow_receive item 7 thisLine
+            set flow_accumulation item 8 thisLine
+            set flow_accumulationstate read-from-string item 9 thisLine
+            set p_soil_formativeErosion item 10 thisLine
+            set p_soil_depth item 11 thisLine
+            set p_soil_%sand item 12 thisLine
+            set p_soil_%silt item 13 thisLine
+            set p_soil_%clay item 14 thisLine
+            set p_soil_textureType read-from-string item 15 thisLine
+            set p_soil_hydrologicSoilGroup read-from-string item 16 thisLine
+            set p_soil_coverTreatmentAndHydrologicCondition read-from-string item 17 thisLine
+            set p_soil_runOffCurveNumber item 18 thisLine
+            set p_soil_fieldCapacity item 19 thisLine
+            set p_soil_waterHoldingCapacity item 20 thisLine
+            set p_soil_wiltingPoint item 21 thisLine
+            set p_soil_deepDrainageCoefficient item 22 thisLine
           ]
           set thisLine csv:from-row file-read-line
         ]
@@ -1604,6 +1874,8 @@ to import-terrain
     file-close
   ]
 
+  set-output-stats
+
 end
 
 to-report get-flowHolder-who-from-link-data [ linkDataEntry ]
@@ -1625,6 +1897,10 @@ end
 ;;; IMPORT TABLES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 to load-hydrologic-soil-groups-table
+
+  ;;; SOURCE: table in page A-1,
+  ;;; Cronshey R G 1986 Urban Hydrology for Small Watersheds, Technical Release 55 (TR-55).
+  ;;; United States Department of Agriculture, Soil Conservation Service, Engineering Division.
 
   ;;; this procedure loads the values of the hydrologic soil groups table
   ;;; the table contains:
@@ -1664,6 +1940,10 @@ to load-hydrologic-soil-groups-table
 end
 
 to load-runoff-curve-number-table
+
+  ;;; SOURCE: table 2.2,
+  ;;; Cronshey R G 1986 Urban Hydrology for Small Watersheds, Technical Release 55 (TR-55).
+  ;;; United States Department of Agriculture, Soil Conservation Service, Engineering Division.
 
   ;;; this procedure loads the values of the run off curve number table
   ;;; the table contains:
@@ -1718,6 +1998,14 @@ to load-runoff-curve-number-table
 end
 
 to load-soil-water-table
+
+  ;;; SOURCE (TO-DO: FIND BETTER SOURCES!):
+  ;;; 1. Plant & Soil Sciences eLibrary, Lesson: Soils - Part 2: Physical Properties
+  ;;;    of Soil and Soil Water, page 10 (Soil Water), Table 2.6.
+  ;;;    https://passel2.unl.edu/view/lesson/0cff7943f577/10
+  ;;;    Conservation Service, Engineering Division
+  ;;; 2. Rain Machine support documentation, "Zones", "Soil Types", Table.
+  ;;;    https://support.rainmachine.com/hc/en-us/articles/228001248-Soil-Types
 
   ;;; this procedure loads the values of the soil water table
   ;;; the table contains:
@@ -1832,6 +2120,24 @@ GRAPHICS-WINDOW
 ticks
 30.0
 
+PLOT
+1246
+36
+1562
+522
+Legend
+NIL
+NIL
+0.0
+1.0
+0.0
+1.0
+true
+true
+"" ""
+PENS
+"              Patch color legend                " 1.0 0 -1 true "" "plot 1"
+
 BUTTON
 9
 10
@@ -1849,27 +2155,57 @@ NIL
 NIL
 1
 
+TEXTBOX
+167
+93
+238
+118
+ELEVATION
+11
+0.0
+1
+
+TEXTBOX
+10
+367
+315
+543
+---------- used when algorithm-style = C# -------------------------------------------\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|___________________________________________________________|
+9
+0.0
+1
+
+TEXTBOX
+322
+427
+488
+452
+used when algorithm-style = NetLogo
+9
+0.0
+1
+
 MONITOR
-574
-412
-675
-457
-NIL
-landOceanRatio
+559
+368
+660
+413
+land ratio
+landRatio
 4
 1
 11
 
 SLIDER
-448
-166
-643
-199
+494
+229
+689
+262
 par_seaLevel
 par_seaLevel
-round min (list minElevation par_riftElevation)
-round max (list maxElevation par_rangeElevation)
-0.0
+round min (list minElevation par_elev_riftHeight)
+round max (list maxElevation par_elev_rangeHeight)
+-2.0
 1
 1
 m
@@ -1877,13 +2213,13 @@ HORIZONTAL
 
 SLIDER
 15
-169
+175
 187
-202
-par_elevationNoise
-par_elevationNoise
+208
+par_elev_noise
+par_elev_noise
 0
-(par_rangeElevation - par_riftElevation) / 2
+(par_elev_rangeHeight - par_elev_riftHeight) / 2
 1.0
 1
 1
@@ -1891,12 +2227,12 @@ m
 HORIZONTAL
 
 SLIDER
-208
-105
-390
-138
-par_elevationSmoothStep
-par_elevationSmoothStep
+14
+217
+196
+250
+par_elev_smoothStep
+par_elev_smoothStep
 0
 1
 1.0
@@ -1911,27 +2247,27 @@ INPUTBOX
 156
 70
 randomSeed
-3.0
+0.0
 1
 0
 Number
 
 INPUTBOX
-251
-426
-352
-486
-par_continentality
+345
+438
+468
+498
+par_elev_inversionIterations
 5.0
 1
 0
 Number
 
 MONITOR
-410
-458
-508
-503
+564
+457
+662
+502
 sdElevation
 precision sdElevation 4
 4
@@ -1939,10 +2275,10 @@ precision sdElevation 4
 11
 
 MONITOR
-507
-458
-589
-503
+527
+412
+609
+457
 minElevation
 precision minElevation 4
 4
@@ -1950,10 +2286,10 @@ precision minElevation 4
 11
 
 MONITOR
-583
-458
-670
-503
+603
+412
+690
+457
 maxElevation
 precision maxElevation 4
 4
@@ -1961,44 +2297,44 @@ precision maxElevation 4
 11
 
 INPUTBOX
-14
-202
-102
-262
-par_numRanges
+307
+106
+425
+166
+par_elev_numRanges
 1.0
 1
 0
 Number
 
 INPUTBOX
-101
-202
-193
-262
-par_rangeLength
+308
+226
+426
+286
+par_elev_rangeLength
 100.0
 1
 0
 Number
 
 INPUTBOX
-14
-262
-101
-322
-par_numRifts
+308
+165
+425
+225
+par_elev_numRifts
 1.0
 1
 0
 Number
 
 INPUTBOX
-101
-262
-193
-322
-par_riftLength
+308
+286
+412
+346
+par_elev_riftLength
 100.0
 1
 0
@@ -2006,11 +2342,11 @@ Number
 
 SLIDER
 15
-103
+109
 187
-136
-par_riftElevation
-par_riftElevation
+142
+par_elev_riftHeight
+par_elev_riftHeight
 -500
 0
 0.0
@@ -2020,10 +2356,10 @@ m
 HORIZONTAL
 
 BUTTON
-442
-204
-650
-237
+488
+267
+696
+300
 refresh after changing sea level
 refresh-view-after-seaLevel-change
 NIL
@@ -2038,11 +2374,11 @@ NIL
 
 SLIDER
 15
-136
+142
 187
-169
-par_rangeElevation
-par_rangeElevation
+175
+par_elev_rangeHeight
+par_elev_rangeHeight
 0
 500
 15.0
@@ -2052,10 +2388,10 @@ m
 HORIZONTAL
 
 MONITOR
-412
-412
-497
-457
+525
+156
+610
+201
 NIL
 count patches
 0
@@ -2063,12 +2399,12 @@ count patches
 11
 
 SLIDER
-11
-496
-165
-529
-par_rangeAggregation
-par_rangeAggregation
+16
+469
+214
+502
+par_elev_rangeAggregation
+par_elev_rangeAggregation
 0
 1
 0.75
@@ -2078,12 +2414,12 @@ NIL
 HORIZONTAL
 
 SLIDER
-166
-496
-320
-529
-par_riftAggregation
-par_riftAggregation
+17
+502
+211
+535
+par_elev_riftAggregation
+par_elev_riftAggregation
 0
 1
 0.9
@@ -2093,34 +2429,34 @@ NIL
 HORIZONTAL
 
 INPUTBOX
-15
-427
-122
-487
-par_numContinents
+14
+380
+137
+440
+par_elev_numProtuberances
 1.0
 1
 0
 Number
 
 INPUTBOX
-122
-427
-214
-487
-par_numOceans
+154
+380
+270
+440
+par_elev_numDepressions
 1.0
 1
 0
 Number
 
 SLIDER
-208
-138
-389
-171
-par_smoothingNeighborhood
-par_smoothingNeighborhood
+14
+250
+195
+283
+par_elev_smoothingRadius
+par_elev_smoothingRadius
 0
 .1
 0.1
@@ -2130,10 +2466,10 @@ NIL
 HORIZONTAL
 
 MONITOR
-502
-412
-567
-457
+615
+156
+680
+201
 maxDist
 precision maxDist 4
 4
@@ -2141,21 +2477,21 @@ precision maxDist 4
 11
 
 MONITOR
-226
-170
-375
-207
+48
+283
+197
+320
 smoothing neighborhood size
-(word (count patches with [ distance patch 0 0 < smoothingNeighborhood ] - 1) \" patches\")
+(word (count patches with [ distance patch 0 0 < elev_smoothingRadius ] - 1) \" patches\")
 0
 1
 9
 
 PLOT
-708
-639
-1205
-759
+320
+507
+694
+627
 Elevation per patch
 m
 NIL
@@ -2171,42 +2507,22 @@ PENS
 "pen-1" 1.0 1 -2674135 true "" "histogram n-values plot-y-max [j -> seaLevel]"
 
 CHOOSER
-19
-357
-185
-402
-algorithm-style
-algorithm-style
+322
+365
+506
+410
+elev_algorithm-style
+elev_algorithm-style
 "NetLogo" "C#"
 1
 
-TEXTBOX
-41
-416
-191
-434
-used when algorithm-style = C#
-9
-0.0
-1
-
-TEXTBOX
-228
-415
-394
-440
-used when algorithm-style = Netlogo
-9
-0.0
-1
-
 SLIDER
-13
-322
-193
-355
-par_featureAngleRange
-par_featureAngleRange
+17
+323
+197
+356
+par_elev_featureAngleRange
+par_elev_featureAngleRange
 0
 360
 0.0
@@ -2216,12 +2532,12 @@ par_featureAngleRange
 HORIZONTAL
 
 SLIDER
-208
-273
-404
-306
-par_ySlope
-par_ySlope
+15
+588
+211
+621
+par_elev_ySlope
+par_elev_ySlope
 -0.1
 0.1
 0.025
@@ -2230,34 +2546,23 @@ par_ySlope
 NIL
 HORIZONTAL
 
-SWITCH
-442
-122
-562
-155
-show-flows
-show-flows
-0
-1
--1000
-
 CHOOSER
-423
-67
-570
-112
+488
+66
+698
+111
 display-mode
 display-mode
-"terrain" "soil texture" "soil texture group"
-2
+"terrain" "soil formative erosion" "soil depth" "soil texture" "soil texture types" "soil run off curve number" "soil water holding capacity" "soil deep drainage coefficient"
+0
 
 SLIDER
-208
-240
-404
-273
-par_xSlope
-par_xSlope
+15
+555
+211
+588
+par_elev_xSlope
+par_elev_xSlope
 -0.1
 0.1
 0.01
@@ -2267,10 +2572,10 @@ NIL
 HORIZONTAL
 
 BUTTON
-574
-96
-646
-129
+573
+113
+645
+146
 refresh
 refresh-view
 NIL
@@ -2281,16 +2586,6 @@ NIL
 2
 NIL
 NIL
-1
-
-TEXTBOX
-167
-87
-238
-112
-ELEVATION
-11
-0.0
 1
 
 PLOT
@@ -2387,28 +2682,17 @@ SWITCH
 578
 show-transects
 show-transects
-0
 1
--1000
-
-SWITCH
-487
-261
-604
-294
-do-fill-sinks
-do-fill-sinks
-0
 1
 -1000
 
 SLIDER
-208
-308
-403
-341
-par_valleyAxisInclination
-par_valleyAxisInclination
+15
+623
+217
+656
+par_elev_valleyAxisInclination
+par_elev_valleyAxisInclination
 0
 1
 0.1
@@ -2418,12 +2702,12 @@ NIL
 HORIZONTAL
 
 SLIDER
-208
-341
-403
-374
-par_valleySlope
-par_valleySlope
+15
+656
+210
+689
+par_elev_valleySlope
+par_elev_valleySlope
 -0.1
 0.1
 0.02
@@ -2431,17 +2715,6 @@ par_valleySlope
 1
 NIL
 HORIZONTAL
-
-INPUTBOX
-454
-311
-634
-371
-par_riverFlowAccumulationAtStart
-1000000.0
-1
-0
-Number
 
 CHOOSER
 393
@@ -2521,11 +2794,264 @@ NIL
 NIL
 1
 
+MONITOR
+186
+108
+263
+145
+NIL
+elev_riftHeight
+2
+1
+9
+
+MONITOR
+186
+142
+273
+179
+NIL
+elev_rangeHeight
+2
+1
+9
+
+MONITOR
+186
+173
+261
+210
+NIL
+elev_noise
+2
+1
+9
+
+MONITOR
+196
+215
+296
+252
+NIL
+elev_smoothStep
+2
+1
+9
+
+MONITOR
+194
+250
+306
+287
+NIL
+elev_smoothingRadius
+2
+1
+9
+
+MONITOR
+369
+135
+457
+172
+NIL
+elev_numRanges
+0
+1
+9
+
+MONITOR
+370
+195
+457
+232
+NIL
+elev_numRifts
+0
+1
+9
+
+MONITOR
+366
+256
+451
+293
+NIL
+elev_rangeLength
+0
+1
+9
+
+MONITOR
+362
+323
+437
+360
+NIL
+elev_riftLength
+0
+1
+9
+
+MONITOR
+198
+322
+302
+359
+NIL
+elev_featureAngleRange
+0
+1
+9
+
+MONITOR
+215
+552
+281
+589
+NIL
+elev_xSlope
+4
+1
+9
+
+MONITOR
+217
+589
+281
+626
+NIL
+elev_ySlope
+4
+1
+9
+
+MONITOR
+217
+626
+336
+663
+NIL
+elev_valleyAxisInclination
+4
+1
+9
+
+MONITOR
+216
+663
+317
+700
+NIL
+elev_valleySlope
+4
+1
+9
+
+MONITOR
+15
+427
+128
+464
+NIL
+elev_numProtuberances
+0
+1
+9
+
+MONITOR
+154
+425
+258
+462
+NIL
+elev_numDepressions
+0
+1
+9
+
+MONITOR
+209
+465
+306
+502
+NIL
+elev_rangeAggregation
+4
+1
+9
+
+MONITOR
+210
+502
+293
+539
+NIL
+elev_riftAggregation
+4
+1
+9
+
+SWITCH
+471
+312
+572
+345
+flow_do-fill-sinks
+flow_do-fill-sinks
+0
+1
+-1000
+
+SWITCH
+572
+312
+676
+345
+show-flows
+show-flows
+0
+1
+-1000
+
+INPUTBOX
+335
+637
+515
+697
+par_flow_riverAccumulationAtStart
+1000000.0
+1
+0
+Number
+
+MONITOR
+519
+651
+676
+688
+NIL
+flow_riverAccumulationAtStart
+2
+1
+9
+
+MONITOR
+674
+651
+753
+688
+NIL
+landWithRiver
+6
+1
+9
+
 SLIDER
-16
-739
-239
-772
+401
+721
+624
+754
 par_soil_min%sand
 par_soil_min%sand
 0
@@ -2537,10 +3063,10 @@ par_soil_max%sand - 1
 HORIZONTAL
 
 SLIDER
-16
-771
-239
-804
+401
+753
+624
+786
 par_soil_max%sand
 par_soil_max%sand
 par_soil_min%sand + 1
@@ -2552,25 +3078,10 @@ par_soil_min%sand + 1
 HORIZONTAL
 
 SLIDER
-15
-802
-239
-835
-par_soil_erosionRate_%sand
-par_soil_erosionRate_%sand
-0.0
-0.1
-0.04
-0.001
-1
-NIL
-HORIZONTAL
-
-SLIDER
-251
-739
-467
-772
+636
+721
+852
+754
 par_soil_min%silt
 par_soil_min%silt
 0
@@ -2582,10 +3093,10 @@ par_soil_max%silt - 1
 HORIZONTAL
 
 SLIDER
-250
-771
-466
-804
+635
+753
+851
+786
 par_soil_max%silt
 par_soil_max%silt
 par_soil_min%silt + 1
@@ -2597,25 +3108,10 @@ par_soil_min%silt + 1
 HORIZONTAL
 
 SLIDER
-250
-804
-467
-837
-par_soil_erosionRate_%silt
-par_soil_erosionRate_%silt
-0.0
-0.1
-0.02
-0.001
-1
-NIL
-HORIZONTAL
-
-SLIDER
-474
-740
-693
-773
+859
+722
+1078
+755
 par_soil_min%clay
 par_soil_min%clay
 0
@@ -2627,10 +3123,10 @@ par_soil_max%clay - 1
 HORIZONTAL
 
 SLIDER
-474
-772
-694
-805
+859
+754
+1079
+787
 par_soil_max%clay
 par_soil_max%clay
 par_soil_min%clay + 1
@@ -2642,25 +3138,10 @@ par_soil_min%clay + 1
 HORIZONTAL
 
 SLIDER
-474
-805
-695
+548
 838
-par_soil_erosionRate_%clay
-par_soil_erosionRate_%clay
-0.0
-0.1
-0.01
-0.001
-1
-NIL
-HORIZONTAL
-
-SLIDER
-163
-879
-358
-912
+743
+871
 par_soil_textureNoise
 par_soil_textureNoise
 0.0
@@ -2672,20 +3153,20 @@ par_soil_textureNoise
 HORIZONTAL
 
 TEXTBOX
-326
+711
+703
+794
 721
-409
-739
 SOIL TEXTURE
 11
 0.0
 1
 
 PLOT
-704
-763
-1247
-913
+398
+885
+1081
+1035
 Erosion curves of soil formation
 flow accumulation
 % of soil
@@ -2697,69 +3178,36 @@ true
 true
 "" ""
 PENS
-"sand" 1.0 0 -2674135 true "" "plot-table get-soilVariable-per-flowAccumulation \"Sand\""
-"silt" 1.0 0 -10899396 true "" "plot-table get-soilVariable-per-flowAccumulation \"Silt\""
-"clay" 1.0 0 -13345367 true "" "plot-table get-soilVariable-per-flowAccumulation \"Clay\""
+"%sand" 1.0 0 -2674135 true "" "plot-table get-soilVariable-per-flowAccumulation \"Sand\""
+"%silt" 1.0 0 -10899396 true "" "plot-table get-soilVariable-per-flowAccumulation \"Silt\""
+"%clay" 1.0 0 -13345367 true "" "plot-table get-soilVariable-per-flowAccumulation \"Clay\""
 
 MONITOR
-15
+750
 837
-243
+921
 874
-SAND parameters
-(word \"MIN = \" (precision soil_min%sand 2) \", MAX = \" (precision soil_max%sand 2) \", erosion curve = \" (precision soil_erosionRate_%sand 2))
-17
-1
-9
-
-MONITOR
-243
-837
-471
-874
-SILT parameters
-(word \"MIN = \" (precision soil_min%silt 2) \", MAX = \" (precision soil_max%silt 2) \", erosion curve = \" (precision soil_erosionRate_%silt 2))
-17
-1
-9
-
-MONITOR
-470
-837
-697
-874
-CLAY parameters
-(word \"MIN = \" (precision soil_min%clay 2) \", MAX = \" (precision soil_max%clay 2) \", erosion curve = \" (precision soil_erosionRate_%clay 2))
-17
-1
-9
-
-MONITOR
-363
-874
-534
-919
 soil_textureNoise
 precision soil_textureNoise 4
 17
 1
-11
+9
 
 TEXTBOX
-168
-564
-318
-582
+173
+704
+323
+722
 SOIL DEPTH
 11
 0.0
 1
 
 SLIDER
-13
-584
-191
-617
+18
+724
+196
+757
 par_soil_minDepth
 par_soil_minDepth
 0
@@ -2771,10 +3219,10 @@ mm
 HORIZONTAL
 
 SLIDER
-13
-617
-191
-650
+18
+757
+196
+790
 par_soil_maxDepth
 par_soil_maxDepth
 par_soil_minDepth + 1
@@ -2786,51 +3234,51 @@ mm
 HORIZONTAL
 
 SLIDER
-191
-584
-393
-617
-par_soil_erosionRate_depth
-par_soil_erosionRate_depth
+70
+837
+311
+870
+par_soil_formativeErosionRate
+par_soil_formativeErosionRate
 0
-0.1
-2.0
+3
+0.68
 0.01
 1
 NIL
 HORIZONTAL
 
 SLIDER
-191
-617
-393
-650
+197
+742
+399
+775
 par_soil_depthNoise
 par_soil_depthNoise
 0
 100
-0.04
+45.0
 1
 1
 mm
 HORIZONTAL
 
 MONITOR
-63
-658
-347
-695
+89
+792
+319
+829
 depth parameters
-(word \"MIN = \" (precision soil_minDepth 2) \", MAX = \" (precision soil_maxDepth 2) \", erosion curve = \" (precision soil_erosionRate_depth 2) \", depth noise = \" (precision soil_depthNoise 2))
+(word \"MIN = \" (precision soil_minDepth 2) \", MAX = \" (precision soil_maxDepth 2) \", depth noise = \" (precision soil_depthNoise 2))
 17
 1
 9
 
 PLOT
-397
-561
-702
-711
+11
+885
+381
+1035
 Erosion curve of soil formation (soil depth)
 flow accumulation
 mm
@@ -2843,6 +3291,83 @@ false
 "set-plot-y-range (round soil_minDepth - 1) (round soil_maxDepth + 1)" "set-plot-y-range (round soil_minDepth - 1) (round soil_maxDepth + 1)"
 PENS
 "default" 1.0 0 -16777216 true "" "plot-table get-soilVariable-per-flowAccumulation \"Depth\""
+
+MONITOR
+428
+791
+513
+828
+NIL
+soil_min%sand
+2
+1
+9
+
+MONITOR
+516
+791
+603
+828
+NIL
+soil_max%sand
+2
+1
+9
+
+MONITOR
+674
+789
+749
+826
+NIL
+soil_min%silt
+2
+1
+9
+
+MONITOR
+751
+789
+829
+826
+NIL
+soil_max%silt
+2
+1
+9
+
+MONITOR
+888
+789
+973
+826
+NIL
+soil_max%clay
+2
+1
+9
+
+MONITOR
+974
+789
+1059
+826
+NIL
+soil_max%clay
+2
+1
+9
+
+MONITOR
+311
+835
+447
+872
+NIL
+soil_formativeErosionRate
+2
+1
+9
 
 @#$#@#$#@
 ## WHAT IS IT?
