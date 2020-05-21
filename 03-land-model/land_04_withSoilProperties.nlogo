@@ -50,7 +50,7 @@ globals
 
   ;;;;; Field Capacity and Water Holding capacity table
   soil_fieldCapacity                   ; field capacity (fraction of soil volume) per texture type
-  soil_saturation                      ; saturation (fraction of soil volume) per texture type
+  soil_saturation                      ; saturation (fraction of soil volume) per texture type (not currently used)
   soil_intakeRate                      ; intake rate (mm/hour) per texture type
   soil_minWaterHoldingCapacity         ; minimum and maximum water holding capacity (in/ft) per texture type (not currently used)
   soil_maxWaterHoldingCapacity
@@ -107,8 +107,8 @@ globals
                                 ; drawing meanders of a passing river.
 
   ;;;; soil
-  soil_formativeErosionRate              ; rate of increase in soil depth, decrease of % sand,
-                                         ; increase of % silt, and increase of % clay, depending on flow_accumulation.
+  soil_formativeErosionRate              ; rate of increase in soil depth, decrease of percentage of sand,
+                                         ; increase of percentage of silt, and increase of percentage of clay, depending on flow_accumulation.
   soil_minDepth                          ; minimum soil depth
   soil_maxDepth                          ; maximum soil depth
   soil_depthNoise                        ; normal random variation in soil depth (standard deviation)
@@ -235,6 +235,9 @@ to create-terrain
   introduce-river-flow
 
   set-flow-accumulations
+
+  ; set maximum flow accumulation as a reference excluding the flow entering through the river
+  set maxFlowAccumulation max [flow_accumulation] of patches with [flow_accumulation < flow_riverAccumulationAtStart]
 
   ;;; END - flow related procedures ;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -398,14 +401,14 @@ to parameters-check-1
   ;;; check if values were reset to 0 (comment out lines if 0 is a valid value)
   ;;; and set default values
 
-  if (par_elev_rangeHeight = 0)                    [ set par_elev_rangeHeight                   15 ]
-  if (par_elev_riftHeight = 0)                     [ set par_elev_riftHeight                     0 ]
-  if (par_elev_noise = 0)                          [ set par_elev_noise                          1 ]
+  if (par_elev_rangeHeight = 0)                    [ set par_elev_rangeHeight                    15 ]
+  if (par_elev_riftHeight = 0)                     [ set par_elev_riftHeight                      0 ]
+  if (par_elev_noise = 0)                          [ set par_elev_noise                           1 ]
 
-  if (par_elev_numProtuberances = 0)               [ set par_elev_numProtuberances               1 ]
-  if (par_elev_numDepressions = 0)                 [ set par_elev_numDepressions                 1 ]
+  if (par_elev_numProtuberances = 0)               [ set par_elev_numProtuberances                1 ]
+  if (par_elev_numDepressions = 0)                 [ set par_elev_numDepressions                  1 ]
 
-  if (par_elev_inversionIterations = 0)            [ set par_elev_inversionIterations            5 ]
+  if (par_elev_inversionIterations = 0)            [ set par_elev_inversionIterations             5 ]
 
   if (par_elev_numRanges = 0)                      [ set par_elev_numRanges                       1 ]
   if (par_elev_rangeLength = 0)                    [ set par_elev_rangeLength                   100 ]
@@ -423,56 +426,56 @@ to parameters-check-1
   if (par_elev_valleyAxisInclination = 0)           [ set par_elev_valleyAxisInclination          0.1 ]
   if (par_elev_valleySlope = 0)                     [ set par_elev_valleySlope                    0.02 ]
 
-  if (par_flow_riverAccumulationAtStart = 0)     [ set par_flow_riverAccumulationAtStart  1E6 ]
+  if (par_flow_riverAccumulationAtStart = 0)     [ set par_flow_riverAccumulationAtStart        1E6 ]
 
-  if (soil_formativeErosionRate = 0)             [ set soil_formativeErosionRate               2 ]
+  if (soil_formativeErosionRate = 0)             [ set soil_formativeErosionRate                  2 ]
 
-  if (par_soil_minDepth = 0)                    [ set par_soil_minDepth                300 ]
-  if (par_soil_maxDepth = 0)                    [ set par_soil_maxDepth                500 ]
-  if (par_soil_depthNoise = 0)                  [ set par_soil_depthNoise               50 ]
+  if (par_soil_minDepth = 0)                    [ set par_soil_minDepth                         300 ]
+  if (par_soil_maxDepth = 0)                    [ set par_soil_maxDepth                         500 ]
+  if (par_soil_depthNoise = 0)                  [ set par_soil_depthNoise                        50 ]
 
-  if (par_soil_min%sand = 0)                    [ set par_soil_min%sand                 60 ]
-  if (par_soil_max%sand = 0)                    [ set par_soil_max%sand                 90 ]
+  if (par_soil_min%sand = 0)                    [ set par_soil_min%sand                          60 ]
+  if (par_soil_max%sand = 0)                    [ set par_soil_max%sand                          90 ]
 
-  if (par_soil_min%silt = 0)                    [ set par_soil_min%silt                 40 ]
-  if (par_soil_max%silt = 0)                    [ set par_soil_max%silt                 70 ]
+  if (par_soil_min%silt = 0)                    [ set par_soil_min%silt                          40 ]
+  if (par_soil_max%silt = 0)                    [ set par_soil_max%silt                          70 ]
 
-  if (par_soil_min%clay = 0)                    [ set par_soil_min%clay                  0 ]
-  if (par_soil_max%clay = 0)                    [ set par_soil_max%clay                 50 ]
+  if (par_soil_min%clay = 0)                    [ set par_soil_min%clay                           0 ]
+  if (par_soil_max%clay = 0)                    [ set par_soil_max%clay                          50 ]
 
-  if (par_soil_textureNoise = 0)                [ set par_soil_textureNoise              5 ]
+  if (par_soil_textureNoise = 0)                [ set par_soil_textureNoise                       5 ]
 
 end
 
 to parameters-to-default
 
   ;;; set parameters to a default value
-  set par_elev_rangeHeight                   15
+  set par_elev_rangeHeight                  15
   set par_elev_riftHeight                    0
-  set par_elev_noise                     1
+  set par_elev_noise                         1
 
-  set par_elev_numProtuberances                   1
-  set par_elev_numDepressions                       1
+  set par_elev_numProtuberances              1
+  set par_elev_numDepressions                1
 
-  set par_elev_inversionIterations                  5
+  set par_elev_inversionIterations           5
 
-  set par_elev_numRanges                       1
-  set par_elev_rangeLength                   100
-  set par_elev_rangeAggregation                0.75
+  set par_elev_numRanges                     1
+  set par_elev_rangeLength                 100
+  set par_elev_rangeAggregation              0.75
 
-  set par_elev_numRifts                        1
-  set par_elev_riftLength                    100
-  set par_elev_riftAggregation                 0.9
+  set par_elev_numRifts                      1
+  set par_elev_riftLength                  100
+  set par_elev_riftAggregation               0.9
 
-  set par_elev_smoothStep             1
-  set par_elev_smoothingRadius           0.1
+  set par_elev_smoothStep                    1
+  set par_elev_smoothingRadius               0.1
 
-  set par_elev_xSlope                          0.01
-  set par_elev_ySlope                          0.025
-  set par_elev_valleyAxisInclination           0.1
-  set par_elev_valleySlope                     0.02
+  set par_elev_xSlope                        0.01
+  set par_elev_ySlope                        0.025
+  set par_elev_valleyAxisInclination         0.1
+  set par_elev_valleySlope                   0.02
 
-  set par_flow_riverAccumulationAtStart  1E6
+  set par_flow_riverAccumulationAtStart    1E6
 
   set soil_formativeErosionRate              2
   set par_soil_minDepth                    300
@@ -488,7 +491,7 @@ to parameters-to-default
   set par_soil_min%clay                      0
   set par_soil_max%clay                     50
 
-  set par_soil_textureNoise 5
+  set par_soil_textureNoise                  5
 
 end
 
@@ -923,9 +926,6 @@ end
 ;=======================================================================================================
 
 to setup-soil-conditions
-
-  ; set maximum flow accumulation as a reference excluding the flow entering through the river
-  set maxFlowAccumulation max [flow_accumulation] of patches with [flow_accumulation < flow_riverAccumulationAtStart]
 
   ask patches
   [
@@ -1605,13 +1605,13 @@ to plot-sea-level-vertical-transect
 
 end
 
-to-report get-soilVariable-per-flowAccumulation [ soilVariableName ]
+to-report get-variable-per-flowAccumulation [ variableName ]
 
   let stepInSequence 1;maxFlowAccumulation / 100
   let lengthOfSequence maxFlowAccumulation
   let sequence (list)
 
-  if (soilVariableName = "Depth")
+  if (variableName = "Depth")
   [
     foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
     [
@@ -1619,7 +1619,7 @@ to-report get-soilVariable-per-flowAccumulation [ soilVariableName ]
       set sequence lput (get-soil-depth (get-soil-formative-erosion i)) sequence
     ]
   ]
-  if (soilVariableName = "Sand")
+  if (variableName = "Sand")
   [
     foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
     [
@@ -1627,7 +1627,7 @@ to-report get-soilVariable-per-flowAccumulation [ soilVariableName ]
       set sequence lput (get-soil-%sand (get-soil-formative-erosion i)) sequence
     ]
   ]
-  if (soilVariableName = "Silt")
+  if (variableName = "Silt")
   [
     foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
     [
@@ -1635,7 +1635,7 @@ to-report get-soilVariable-per-flowAccumulation [ soilVariableName ]
       set sequence lput (get-soil-%silt (get-soil-formative-erosion i)) sequence
     ]
   ]
-  if (soilVariableName = "Clay")
+  if (variableName = "Clay")
   [
     foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
     [
@@ -1786,8 +1786,9 @@ to import-terrain
           if (item globalIndex globalNames = "soil_hydrologicsoilgroups") [ set soil_hydrologicSoilGroups read-from-string item globalIndex globalValues ]
 
           if (item globalIndex globalNames = "soil_fieldcapacity") [ set soil_fieldCapacity item globalIndex globalValues ]
-          if (item globalIndex globalNames = "soil_minWaterholdingcapacity") [ set soil_minWaterHoldingCapacity item globalIndex globalValues ]
-          if (item globalIndex globalNames = "soil_maxwaterholdingcapacity") [ set soil_maxWaterHoldingCapacity item globalIndex globalValues ]
+          if (item globalIndex globalNames = "soil_saturation") [ set soil_saturation item globalIndex globalValues ]
+          ;if (item globalIndex globalNames = "soil_minWaterholdingcapacity") [ set soil_minWaterHoldingCapacity item globalIndex globalValues ]
+          ;if (item globalIndex globalNames = "soil_maxwaterholdingcapacity") [ set soil_maxWaterHoldingCapacity item globalIndex globalValues ]
           if (item globalIndex globalNames = "soil_intakerate") [ set soil_intakeRate read-from-string item globalIndex globalValues ]
 
           if (item globalIndex globalNames = "soil_mindepth") [ set soil_minDepth item globalIndex globalValues ]
@@ -1859,10 +1860,11 @@ to import-terrain
             set p_soil_hydrologicSoilGroup read-from-string item 16 thisLine
             set p_soil_coverTreatmentAndHydrologicCondition read-from-string item 17 thisLine
             set p_soil_runOffCurveNumber item 18 thisLine
-            set p_soil_fieldCapacity item 19 thisLine
-            set p_soil_waterHoldingCapacity item 20 thisLine
-            set p_soil_wiltingPoint item 21 thisLine
-            set p_soil_deepDrainageCoefficient item 22 thisLine
+            set p_soil_saturation item 19 thisLine
+            set p_soil_fieldCapacity item 20 thisLine
+            set p_soil_waterHoldingCapacity item 21 thisLine
+            set p_soil_wiltingPoint item 22 thisLine
+            set p_soil_deepDrainageCoefficient item 23 thisLine
           ]
           set thisLine csv:from-row file-read-line
         ]
