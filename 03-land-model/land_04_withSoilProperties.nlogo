@@ -49,10 +49,11 @@ globals
   soil_runOffCurveNumberTable                 ; table (list of lists) with run off curve numbers of Hydrologic Soil Group (columns) combination of cover type-treatment-hydrologic condition
 
   ;;;;; Field Capacity and Water Holding capacity table
-  soil_fieldCapacity                   ; field capacity (% soil volume) per texture type
-  soil_minWaterHoldingCapacity         ; minimum and maximum water holding capacity (in/ft) per texture type
-  soil_maxWaterHoldingCapacity
+  soil_fieldCapacity                   ; field capacity (fraction of soil volume) per texture type
+  soil_saturation                      ; saturation (fraction of soil volume) per texture type
   soil_intakeRate                      ; intake rate (mm/hour) per texture type
+  soil_minWaterHoldingCapacity         ; minimum and maximum water holding capacity (in/ft) per texture type (not currently used)
+  soil_maxWaterHoldingCapacity
 
   ;;; parameters (modified copies of interface input) ===============================================================
 
@@ -186,11 +187,12 @@ patches-own
   ;  |  (no drainage)
   ; --- oven dry
 
-  p_soil_fieldCapacity              ; Field Capacity (% soil volume)
-  p_soil_waterHoldingCapacity       ; Water Holding Capacity (% soil volume)
-  p_soil_wiltingPoint               ; Wilting Point (% soil volume)
+  p_soil_saturation                 ; saturation (fraction of soil volume)
+  p_soil_fieldCapacity              ; field capacity (fraction of soil volume)
+  p_soil_waterHoldingCapacity       ; water holding capacity (fraction of soil volume)
+  p_soil_wiltingPoint               ; permanent wilting point (fraction of soil volume)
 
-  p_soil_deepDrainageCoefficient    ; fraction of soil water above field capacity drained per day (%)
+  p_soil_deepDrainageCoefficient    ; saturated hydraulic conductivity or fraction of soil water above field capacity drained per day (mm/day)
 ]
 
 breed [ mapSetters mapSetter ] ; used when elev_algorithm-style = "NetLogo"
@@ -1080,9 +1082,11 @@ to setup-soil-soilWaterProperties
 
   set p_soil_fieldCapacity get-fieldCapacity p_soil_textureType
 
-  set p_soil_WaterHoldingCapacity get-waterHoldingCapacity p_soil_textureType
-
   set p_soil_wiltingPoint get-wiltingPoint
+
+  set p_soil_saturation get-saturation
+
+  set p_soil_waterHoldingCapacity get-waterHoldingCapacity ;p_soil_textureType
 
   set p_soil_deepDrainageCoefficient get-deepDrainageCoefficient p_soil_textureType
 
@@ -1104,15 +1108,6 @@ to-report get-runOffCurveNumber [ coverTreatmentAndHydrologicCondition hydrologi
 
 end
 
-to-report get-waterHoldingCapacity [ textureType ]
-
-  let minWHC (item (position textureType soil_textureTypes) soil_minWaterHoldingCapacity)
-  let maxWHC (item (position textureType soil_textureTypes) soil_maxWaterHoldingCapacity)
-
-  report (minWHC + random-float (maxWHC - minWHC)) * 2.54 / 30.48 ; converted from in/ft to cm/cm
-
-end
-
 to-report get-fieldCapacity [ textureType ]
 
   report item (position textureType soil_textureTypes) soil_fieldCapacity
@@ -1121,7 +1116,33 @@ end
 
 to-report get-wiltingPoint
 
-  report (p_soil_fieldCapacity - p_soil_WaterHoldingCapacity)
+  ; using the estimation formula used by the SWAT model
+  ; See SWAT theoretical documentation 2009, p. 149, Equation 2:3.1.5, https://swat.tamu.edu/media/99192/swat2009-theory.pdf
+  report 0.4 * p_soil_%clay / 100
+
+  ;report (p_soil_fieldCapacity - p_soil_waterHoldingCapacity)
+
+end
+
+to-report get-saturation
+
+  ; using a (rough) estimation formula derived from values in
+  ; SWAT theoretical documentation 2009, p. 148, Table 2:3-1, https://swat.tamu.edu/media/99192/swat2009-theory.pdf
+  report 0.0046 * p_soil_%clay / 100
+
+  ;report (p_soil_fieldCapacity - p_soil_waterHoldingCapacity)
+
+end
+
+to-report get-waterHoldingCapacity ;[ textureType ]
+
+  report (p_soil_fieldCapacity - p_soil_wiltingPoint)
+
+  ; alternative using input data water holding capacity x soil texture type
+  ;let minWHC (item (position textureType soil_textureTypes) soil_minWaterHoldingCapacity)
+  ;let maxWHC (item (position textureType soil_textureTypes) soil_maxWaterHoldingCapacity)
+
+  ;report (minWHC + random-float (maxWHC - minWHC)) * 2.54 / 30.48 ; converted from in/ft to cm/cm
 
 end
 
@@ -1130,7 +1151,7 @@ to-report get-deepDrainageCoefficient [ textureType ]
   ; get intake rate (mm/hour) of the given texture type
   let intakeRate item (position textureType soil_textureTypes) soil_intakeRate
 
-  ; return daily intake rate divided by volume of soil above field capacity (intake/draina rate at saturation) as approximation of deep drainage coefficient
+  ; return daily intake rate divided by the volume of soil above field capacity (intake/drainage rate at saturation) as approximation of deep drainage coefficient
   ; TO-DO: ideally, data on deep drainage coefficient should be used instead.
   report 24 * intakeRate / ((1 - p_soil_fieldCapacity) * p_soil_depth + 1E-6) ; + 1E-6 to avoid error when p_soil_depth = 0
 
@@ -2006,6 +2027,8 @@ to load-soil-water-table
   ;;;    Conservation Service, Engineering Division
   ;;; 2. Rain Machine support documentation, "Zones", "Soil Types", Table.
   ;;;    https://support.rainmachine.com/hc/en-us/articles/228001248-Soil-Types
+  ;;; 3. SWAT theoretical documentation 2009, p. 148, Table 2:3-1,
+  ;;;    https://swat.tamu.edu/media/99192/swat2009-theory.pdf
 
   ;;; this procedure loads the values of the soil water table
   ;;; the table contains:
@@ -2027,15 +2050,18 @@ to load-soil-water-table
   ;;; Types of soil according to % of sand, silt and clay (ternary diagram) established by USDA
   let textureTypeColumn (item 1 (item 3 soilWaterTable)) - 1
 
-  ;;; values of field capacity (%) per texture type
+  ;;; values of field capacity (fraction of soil volume) per texture type
   let fieldCapacityColumn (item 3 (item 3 soilWaterTable)) - 1
 
-  ;;; values of minimum and maximum water holding capacity (in/ft) per texture type
-  let minWaterHoldingCapacityColumn (item 5 (item 3 soilWaterTable)) - 1
-  let maxWaterHoldingCapacityColumn (item 7 (item 3 soilWaterTable)) - 1
+  ;;; values of saturation (fraction of soil volume) per texture type
+  let saturationColumn (item 5 (item 3 soilWaterTable)) - 1
 
   ;;; values of intake rate (mm/hour) per texture type
-  let intakeRateColumn (item 9 (item 3 soilWaterTable)) - 1
+  let intakeRateColumn (item 7 (item 3 soilWaterTable)) - 1
+
+  ;;; values of minimum and maximum water holding capacity (in/ft) per texture type
+  let minWaterHoldingCapacityColumn (item 9 (item 3 soilWaterTable)) - 1
+  let maxWaterHoldingCapacityColumn (item 11 (item 3 soilWaterTable)) - 1
 
   ;;;==================================================================================================================
   ;;; extract data---------------------------------------------------------------------------------------
@@ -2048,12 +2074,15 @@ to load-soil-water-table
   ;;; extract field capacity
   set soil_fieldCapacity map [row -> item fieldCapacityColumn row ] soilWaterData
 
-  ;;; extract water holding capacity
-  set soil_minWaterHoldingCapacity map [row -> item minWaterHoldingCapacityColumn row ] soilWaterData
-  set soil_maxWaterHoldingCapacity map [row -> item maxWaterHoldingCapacityColumn row ] soilWaterData
+  ;;; extract saturation
+  set soil_saturation map [row -> item saturationColumn row ] soilWaterData
 
   ;;; extract intake rate
   set soil_intakeRate map [row -> item intakeRateColumn row ] soilWaterData
+
+  ;;; extract water holding capacity
+  set soil_minWaterHoldingCapacity map [row -> item minWaterHoldingCapacityColumn row ] soilWaterData
+  set soil_maxWaterHoldingCapacity map [row -> item maxWaterHoldingCapacityColumn row ] soilWaterData
 
 end
 
