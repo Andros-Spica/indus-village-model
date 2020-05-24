@@ -1037,7 +1037,9 @@ end
 
 to-report get-soil-texture-type [ %sand %silt %clay ]
 
-  ;;; based on ternary plot classification by the United States Department of Agriculture (USDA)
+  ;;; based on ternary plot textural soil classification by the United States Department of Agriculture (USDA)
+  ;;; See: Unknown-Author, Soil Mechanics Level 1, Module 3, USDA Textural Classification Study Guide,
+  ;;; United States Department of Agriculture, 1987.
 
   if ((%sand > 85) and (%silt <= 15) and (%clay <= 10)) [ report "Sand" ]
 
@@ -1235,7 +1237,7 @@ to paint-patches
     [
       set pcolor get-textureType-color (get-soil-texture-type (p_soil_%sand) (p_soil_%silt) (p_soil_%clay))
     ]
-    set-legend-soil-texture-type
+    set-legend-soil-textureType
   ]
   if (display-mode = "soil run off curve number")
   [
@@ -1357,7 +1359,7 @@ to set-legend-continuous-range [ maximum minimum maxShade minShade numberOfKeys 
 
 end
 
-to set-legend-soil-texture-type
+to set-legend-soil-textureType
 
   set-current-plot "Legend"
 
@@ -3209,9 +3211,9 @@ true
 true
 "" ""
 PENS
-"%sand" 1.0 0 -2674135 true "" "plot-table get-soilVariable-per-flowAccumulation \"Sand\""
-"%silt" 1.0 0 -10899396 true "" "plot-table get-soilVariable-per-flowAccumulation \"Silt\""
-"%clay" 1.0 0 -13345367 true "" "plot-table get-soilVariable-per-flowAccumulation \"Clay\""
+"%sand" 1.0 0 -2674135 true "" "plot-table get-variable-per-flowAccumulation \"Sand\""
+"%silt" 1.0 0 -10899396 true "" "plot-table get-variable-per-flowAccumulation \"Silt\""
+"%clay" 1.0 0 -13345367 true "" "plot-table get-variable-per-flowAccumulation \"Clay\""
 
 MONITOR
 750
@@ -3321,7 +3323,7 @@ true
 false
 "set-plot-y-range (round soil_minDepth - 1) (round soil_maxDepth + 1)" "set-plot-y-range (round soil_minDepth - 1) (round soil_maxDepth + 1)"
 PENS
-"default" 1.0 0 -16777216 true "" "plot-table get-soilVariable-per-flowAccumulation \"Depth\""
+"default" 1.0 0 -16777216 true "" "plot-table get-variable-per-flowAccumulation \"Depth\""
 
 MONITOR
 428
