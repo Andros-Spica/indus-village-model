@@ -256,6 +256,12 @@ to create-terrain
 
   ;;; END - flow related procedures ;;;;;;;;;;;;;;;;;;;;;;;
 
+  ;;; START - ecological communities related procedures ;;;;;;;;;;;;;;;;;;;;;;;
+
+  setup-initial-ecological-communities
+
+  ;;; END - ecological communities related procedures ;;;;;;;;;;;;;;;;;;;;;;;
+
   ;;; START - soil related procedures ;;;;;;;;;;;;;;;;;;;;;;;
 
   load-hydrologic-soil-groups-table
@@ -267,12 +273,6 @@ to create-terrain
   setup-soil-conditions
 
   ;;; END - soil related procedures ;;;;;;;;;;;;;;;;;;;;;;;
-
-  ;;; START - ecological communities related procedures ;;;;;;;;;;;;;;;;;;;;;;;
-
-  setup-initial-ecological-communities
-
-  ;;; END - ecological communities related procedures ;;;;;;;;;;;;;;;;;;;;;;;
 
   set-output-stats
 
@@ -980,6 +980,67 @@ end
 ;;; J. Earth Syst. Sci. 124 1653–65
 ;=======================================================================================================
 
+to setup-initial-ecological-communities
+
+  ;;; set the percentages of grass, brush and wood per each patch, depending on flowAccumulation
+  ;;; future versions could consider adding a parametric noise component (similar to soil_textureNoise)
+  ;;; percentages are also translated into cover type, which can be related to the content of runOffCurveNumberTable
+
+  ask patches
+  [
+    ;;; calculate a temporary % of grass, brush, wood as main components of communities (these will most likely not sum 100%)
+    set p_ecol_%grass get-%grass flow_accumulation
+    set p_ecol_%brush get-%brush flow_accumulation
+    set p_ecol_%wood get-%wood flow_accumulation
+
+    ;;; Assuming these are dominant (locally) at different stages of
+    ;;; a ecological succession, from grassland/meadow to woods.
+
+    ;;; Therefore, %wood has preference over %brush and %brush over %grass.
+    set p_ecol_%brush min (list p_ecol_%brush (100 - p_ecol_%wood) )
+    set p_ecol_%grass min (list p_ecol_%grass (100 - (p_ecol_%wood + p_ecol_%brush) ) )
+
+    set p_ecol_coverType get-cover-type p_ecol_%grass p_ecol_%brush p_ecol_%wood
+  ]
+
+end
+
+to-report get-%grass [ flowAccumulation ]
+
+  report 100 * get-value-in-logistic flowAccumulation ecol_grassFrequencyInflection  ecol_grassFrequencyRate
+
+end
+
+to-report get-%brush [ flowAccumulation ]
+
+  report 100 * get-value-in-logistic flowAccumulation ecol_brushFrequencyInflection ecol_brushFrequencyRate
+
+end
+
+to-report get-%wood [ flowAccumulation ]
+
+  report 100 * get-value-in-logistic flowAccumulation ecol_woodFrequencyInflection ecol_woodFrequencyRate
+
+end
+
+to-report get-cover-type [ %grass %brush %wood ]
+
+  ;;; set cover type according to percentages
+  ;;; The criteria used for separating cover types (to select runoff curve number) attempts to approach the one used in:
+  ;;; Table 2.2 in: Cronshey R G 1986 Urban Hydrology for Small Watersheds, Technical Release 55 (TR-55).
+  ;;; United States Department of Agriculture, Soil Conservation Service, Engineering Division
+  ;;; See also ternary diagram "ternaryPlots/coverTypePerEcologicalCommunity.png", generated in R
+
+  let %empty 100 - %grass - %brush - %wood
+  if (%empty > 50) [ report "desert" ] ;;; if percentages are too low
+
+  if (%grass >= 60) [ report "grassland" ]
+  if (%wood >= 50 and %brush <= 50 and %grass < 40) [ report "woodland" ]
+  if (%brush >= 50 and %wood < 50 and %grass < 40) [ report "shrubland" ]
+  if (%brush < 60 and %wood < 60 and %grass < 60 and %empty <= 50) [ report "wood-grass" ]
+
+end
+
 to setup-soil-conditions
 
   ask patches
@@ -1092,7 +1153,9 @@ end
 
 to-report get-soil-texture-type [ %sand %silt %clay ]
 
-  ;;; based on ternary plot classification by the United States Department of Agriculture (USDA)
+  ;;; based on ternary plot textural soil classification by the United States Department of Agriculture (USDA)
+  ;;; See: Unknown-Author, Soil Mechanics Level 1, Module 3, USDA Textural Classification Study Guide,
+  ;;; United States Department of Agriculture, 1987.
 
   if ((%sand > 85) and (%silt <= 15) and (%clay <= 10)) [ report "Sand" ]
 
@@ -1127,7 +1190,7 @@ to setup-soil-coverAndTreatment
   ;;; set soil cover-treatment-hydrological condition
   ;;; in this version, all land units have the same cover+treatment+condition, "fallow | crop residue | poor", the first one in  "runOffCurveNumberTable.csv".
   ;;; This is temporary, it should be defined by ecological community
-  set p_soil_coverTreatmentAndHydrologicCondition get-coverTreatmentAndHydrologicCondition 1
+  set p_soil_coverTreatmentAndHydrologicCondition get-coverTreatmentAndHydrologicCondition p_ecol_coverType
 
 end
 
@@ -1147,9 +1210,46 @@ to setup-soil-soilWaterProperties
 
 end
 
-to-report get-coverTreatmentAndHydrologicCondition [ index ]
+to-report get-coverTreatmentAndHydrologicCondition [ coverType ]
 
-  report item index (item 0 soil_runOffCurveNumberTable)
+  ;;; correspond cover type with cover/treatment/hydrologic condition as registred in runOffCurveNumberTable
+  ;;; That table, created by the USDA, holds a classification of cover conditions in the US;
+  ;;; future versions should aim to calibrate this data to the cover types within the region of interest.
+
+  let coverTreatmentAndHydrologicCondition ""
+
+  if (coverType = "desert")
+  [
+    set coverTreatmentAndHydrologicCondition (word
+      "desert shrub | major plants include saltbush-greasewood-creosotebush-blackbrush-bursage-palo verde-mesquite-cactus | good"
+    )
+  ]
+  if (coverType = "grassland")
+  [
+    set coverTreatmentAndHydrologicCondition (word
+      "pasture or grassland or range | continuous forage for grazing | good"
+    )
+  ]
+  if (coverType = "shrubland")
+  [
+    set coverTreatmentAndHydrologicCondition (word
+      "brush | brush-weed-grass mixture with brush the major element | good"
+    )
+  ]
+  if (coverType = "woodland")
+  [
+    set coverTreatmentAndHydrologicCondition (word
+      "woods | used and managed but not planted | good"
+    )
+  ]
+  if (coverType = "wood-grass")
+  [
+    set coverTreatmentAndHydrologicCondition (word
+      "woods-grass combination or tree farm | lightly or only occasionally grazed | good"
+    )
+  ]
+
+  report coverTreatmentAndHydrologicCondition
 
 end
 
@@ -1206,47 +1306,9 @@ to-report get-deepDrainageCoefficient [ textureType ]
   ; get intake rate (mm/hour) of the given texture type
   let intakeRate item (position textureType soil_textureTypes) soil_intakeRate
 
-  ; return daily intake rate divided by the volume of soil above field capacity (intake/draina rate at saturation) as approximation of deep drainage coefficient
+  ; return daily intake rate divided by the volume of soil above field capacity (intake/drainage rate at saturation) as approximation of deep drainage coefficient
   ; TO-DO: ideally, data on deep drainage coefficient should be used instead.
   report 24 * intakeRate / ((1 - p_soil_fieldCapacity) * p_soil_depth + 1E-6) ; + 1E-6 to avoid error when p_soil_depth = 0
-
-end
-
-
-to setup-initial-ecological-communities
-
-  ask patches
-  [
-    ;;; calculate a temporary % of grass, brush, wood as main components of communities (these will most likely not sum 100%)
-    set p_ecol_%grass get-%grass flow_accumulation
-    set p_ecol_%brush get-%brush flow_accumulation
-    set p_ecol_%wood get-%wood flow_accumulation
-
-    ;;; Assuming these are dominant (locally) at different stages of
-    ;;; a ecological succession, from grassland/meadow to woods.
-
-    ;;; Therefore, %wood has preference over %brush and %brush over %grass.
-    set p_ecol_%brush min (list p_ecol_%brush (100 - p_ecol_%wood) )
-    set p_ecol_%grass min (list p_ecol_%grass (100 - (p_ecol_%wood + p_ecol_%brush) ) )
-  ]
-
-end
-
-to-report get-%grass [ flowAccumulation ]
-
-  report 100 * get-value-in-logistic flowAccumulation ecol_grassFrequencyInflection  ecol_grassFrequencyRate
-
-end
-
-to-report get-%brush [ flowAccumulation ]
-
-  report 100 * get-value-in-logistic flowAccumulation ecol_brushFrequencyInflection ecol_brushFrequencyRate
-
-end
-
-to-report get-%wood [ flowAccumulation ]
-
-  report 100 * get-value-in-logistic flowAccumulation ecol_woodFrequencyInflection ecol_woodFrequencyRate
 
 end
 
@@ -1328,7 +1390,7 @@ to paint-patches
     [
       set pcolor get-textureType-color (get-soil-texture-type (p_soil_%sand) (p_soil_%silt) (p_soil_%clay))
     ]
-    set-legend-soil-texture-type
+    set-legend-soil-textureType
   ]
   if (display-mode = "soil run off curve number")
   [
@@ -1359,6 +1421,14 @@ to paint-patches
       set pcolor get-ecologicalCommunityComposition-color p_ecol_%grass p_ecol_%brush p_ecol_%wood
     ]
     set-legend-ecologicalCommunityComposition
+  ]
+  if (display-mode = "cover type")
+  [
+    ask patches
+    [
+      set pcolor get-coverType-color p_ecol_coverType
+    ]
+    set-legend-coverType
   ]
   ;
   ;
@@ -1414,6 +1484,21 @@ to-report get-ecologicalCommunityComposition-color [ %grass %brush %wood ]
 
 end
 
+to-report get-coverType-color [ coverTypeName ]
+
+  ;;; orange: grassland, yellow: wood-grass, green: shrubland, green: woodland
+  let col white
+
+  if (coverTypeName = "desert") [ set col grey ]
+  if (coverTypeName = "grassland") [ set col orange ]
+  if (coverTypeName = "wood-grass") [ set col yellow ]
+  if (coverTypeName = "shrubland") [ set col green ]
+  if (coverTypeName = "woodland") [ set col turquoise ]
+
+  report col
+
+end
+
 to set-legend-elevation [ numberOfKeys ]
 
   set-current-plot "Legend"
@@ -1465,7 +1550,7 @@ to set-legend-continuous-range [ maximum minimum maxShade minShade numberOfKeys 
 
 end
 
-to set-legend-soil-texture-type
+to set-legend-soil-textureType
 
   set-current-plot "Legend"
 
@@ -1517,6 +1602,21 @@ to set-legend-ecologicalCommunityComposition
   set-plot-pen-color blue
   create-temporary-plot-pen "bare soil"
   set-plot-pen-color black
+
+end
+
+to set-legend-coverType
+
+  set-current-plot "Legend"
+
+  clear-plot
+
+  foreach (list "desert" "grassland" "wood-grass" "shrubland" "woodland")
+  [
+    coverTypeName ->
+    create-temporary-plot-pen coverTypeName
+    set-plot-pen-color get-coverType-color coverTypeName
+  ]
 
 end
 
@@ -1973,6 +2073,13 @@ to import-terrain
           if (item globalIndex globalNames = "soil_max%clay") [ set soil_max%clay item globalIndex globalValues ]
 
           if (item globalIndex globalNames = "soil_texturenoise") [ set soil_textureNoise item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "ecol_brushfrequencyinflection") [ set ecol_brushFrequencyInflection item globalIndex globalValues ]
+          if (item globalIndex globalNames = "ecol_brushfrequencyrate") [ set ecol_brushFrequencyRate item globalIndex globalValues ]
+          if (item globalIndex globalNames = "ecol_grassfrequencyinflection") [ set ecol_grassFrequencyInflection item globalIndex globalValues ]
+          if (item globalIndex globalNames = "ecol_grassfrequencyrate") [ set ecol_grassFrequencyRate item globalIndex globalValues ]
+          if (item globalIndex globalNames = "ecol_woodfrequencyinflection") [ set ecol_woodFrequencyInflection item globalIndex globalValues ]
+          if (item globalIndex globalNames = "ecol_woodfrequencyrate") [ set ecol_woodFrequencyRate item globalIndex globalValues ]
         ]
       ]
 
@@ -2035,6 +2142,10 @@ to import-terrain
             set p_soil_waterHoldingCapacity item 21 thisLine
             set p_soil_wiltingPoint item 22 thisLine
             set p_soil_deepDrainageCoefficient item 23 thisLine
+            set p_ecol_%grass item 24 thisLine
+            set p_ecol_%brush item 25 thisLine
+            set p_ecol_%wood item 26 thisLine
+            set p_ecol_coverType read-from-string item 27 thisLine
           ]
           set thisLine csv:from-row file-read-line
         ]
@@ -2766,8 +2877,8 @@ CHOOSER
 111
 display-mode
 display-mode
-"terrain" "soil formative erosion" "soil depth" "soil texture" "soil texture types" "soil run off curve number" "soil water holding capacity" "soil deep drainage coefficient" "ecological community composition"
-8
+"terrain" "soil formative erosion" "soil depth" "soil texture" "soil texture types" "soil run off curve number" "soil water holding capacity" "soil deep drainage coefficient" "ecological community composition" "cover type"
+9
 
 SLIDER
 15
