@@ -1952,6 +1952,9 @@ end
 
 to export-terrain
 
+  ;;; make sure that display-mode is "terrain" in order to avoid complications with patch colors (number vs rgb)
+  if (display-mode != "terrain") [ set display-mode "terrain" refresh-view ]
+
   set show-transects false
 
   update-transects
@@ -2532,7 +2535,7 @@ par_seaLevel
 par_seaLevel
 round min (list minElevation par_elev_riftHeight)
 round max (list maxElevation par_elev_rangeHeight)
-36.0
+15.0
 1
 1
 m

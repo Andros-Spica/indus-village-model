@@ -1682,6 +1682,9 @@ end
 
 to export-terrain
 
+  ;;; make sure that display-mode is "terrain" in order to avoid complications with patch colors (number vs rgb)
+  if (display-mode != "terrain") [ set display-mode "terrain" refresh-view ]
+
   set show-transects false
 
   update-transects
@@ -2588,7 +2591,7 @@ CHOOSER
 display-mode
 display-mode
 "terrain" "soil formative erosion" "soil depth" "soil texture" "soil texture types" "soil run off curve number" "soil water holding capacity" "soil deep drainage coefficient"
-4
+0
 
 SLIDER
 15
