@@ -1391,7 +1391,7 @@ to paint-patches
   [
     ask patches
     [
-      set pcolor get-textureType-color (get-soil-texture-type (p_soil_%sand) (p_soil_%silt) (p_soil_%clay))
+      set pcolor get-textureType-color p_soil_textureType
     ]
     set-legend-soil-textureType
   ]
@@ -2881,7 +2881,7 @@ CHOOSER
 display-mode
 display-mode
 "terrain" "soil formative erosion" "soil depth" "soil texture" "soil texture types" "soil run off curve number" "soil water holding capacity" "soil deep drainage coefficient" "ecological community composition" "cover type"
-9
+4
 
 SLIDER
 15
