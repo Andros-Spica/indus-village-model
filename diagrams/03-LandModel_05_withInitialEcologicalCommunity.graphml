@@ -15,7 +15,6 @@
   <graph edgedefault="directed" id="G">
     <data key="d0" xml:space="preserve"/>
     <node id="n0">
-      <data key="d5"/>
       <data key="d6">
         <y:ImageNode>
           <y:Geometry height="399.8000000000002" width="444.0" x="1040.9830279417185" y="2079.1123454023873"/>
@@ -29,10 +28,10 @@
     <node id="n1">
       <data key="d6">
         <y:GenericNode configuration="ShinyPlateNode">
-          <y:Geometry height="124.76535764375876" width="1596.6270256800406" x="-27.96893229345403" y="-611.0827872890825"/>
+          <y:Geometry height="124.76535764375876" width="1615.5688139549354" x="-34.576532854463835" y="-656.8954845120838"/>
           <y:Fill color="#FF9900" transparent="false"/>
           <y:BorderStyle hasColor="false" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="48" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="121.609375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="716.2421875" x="440.1924190900203" xml:space="preserve" y="1.5779913218793808">Land model
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="48" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="121.609375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="716.2421875" x="449.6633132274677" xml:space="preserve" y="1.5779913218793808">Land model
 (with initial ecological community)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
         </y:GenericNode>
       </data>
@@ -771,10 +770,10 @@ remove p_protuberance from elevatedPatches<y:LabelModel><y:SmartNodeLabelModel d
     <node id="n6">
       <data key="d6">
         <y:GenericNode configuration="ShinyPlateNode">
-          <y:Geometry height="50.52289533733881" width="1596.6270256800406" x="-27.96893229345403" y="-486.3174296453238"/>
+          <y:Geometry height="50.52289533733881" width="1615.5688139549354" x="-34.576532854463835" y="-532.1301268683251"/>
           <y:Fill color="#FFCC00" transparent="false"/>
           <y:BorderStyle hasColor="false" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="24" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="33.40234375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="498.9765625" x="548.8252315900203" xml:space="preserve" y="8.560275793669405">by Andreas Angourakis (last update: 05/2020).<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="24" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="33.40234375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="498.9765625" x="558.2961257274677" xml:space="preserve" y="8.560275793669462">by Andreas Angourakis (last update: 05/2020).<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
         </y:GenericNode>
       </data>
     </node>
@@ -804,7 +803,7 @@ remove p_protuberance from elevatedPatches<y:LabelModel><y:SmartNodeLabelModel d
               <y:BorderInsets bottom="5" bottomF="4.6273884992988314" left="0" leftF="0.0" right="22" rightF="22.23906679065294" top="0" topF="0.0"/>
             </y:GroupNode>
             <y:GroupNode>
-              <y:Geometry height="50.0" width="384.35566622516535" x="1065.199822002368" y="343.5356636646368"/>
+              <y:Geometry height="50.0" width="384.35566622516535" x="1065.199822002368" y="361.369461819506"/>
               <y:Fill color="#F5F5F5" transparent="false"/>
               <y:BorderStyle color="#000000" type="dashed" width="1.0"/>
               <y:NodeLabel alignment="right" autoSizePolicy="node_width" backgroundColor="#EBEBEB" borderDistance="0.0" fontFamily="Dialog" fontSize="15" fontStyle="plain" hasLineColor="false" height="22.37646484375" horizontalTextPosition="center" iconTextGap="4" modelName="internal" modelPosition="t" textColor="#000000" verticalTextPosition="bottom" visible="true" width="384.35566622516535" x="0.0" xml:space="preserve" y="0.0">set-landform-Csharp</y:NodeLabel>
@@ -1367,10 +1366,10 @@ elev = rangeHeight<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:Label
     <node id="n9">
       <data key="d6">
         <y:ShapeNode>
-          <y:Geometry height="1402.1282600675443" width="476.88045357005643" x="-16.90612635598393" y="-435.794534307985"/>
+          <y:Geometry height="1414.4624477814293" width="476.88045357005643" x="-16.90612635598393" y="-481.60723153098627"/>
           <y:Fill color="#FFCC00" transparent="false"/>
           <y:BorderStyle color="#000000" raised="false" type="line" width="1.0"/>
-          <y:NodeLabel alignment="left" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="1385.91015625" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="461.58203125" x="7.649211160028216" xml:space="preserve" y="8.109051908772244">Constants:
+          <y:NodeLabel alignment="left" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="1385.91015625" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="461.58203125" x="7.649211160028216" xml:space="preserve" y="14.276145765714773">Constants:
 - maxX, minX, maxY, minY: maximum and minimum X and Y coordinates of 
   land units.
 - maxDist: maximum distance between land units (length of diagonal in a 
@@ -1472,10 +1471,10 @@ hidden in the graph):
     <node id="n10">
       <data key="d6">
         <y:ShapeNode>
-          <y:Geometry height="760.81946711925" width="476.8804535700566" x="1080.2010337033432" y="-435.794534307985"/>
+          <y:Geometry height="829.9480942710877" width="519.1690971605193" x="1052.0086046430347" y="-481.60723153098627"/>
           <y:Fill color="#FFCC00" transparent="false"/>
           <y:BorderStyle color="#000000" raised="false" type="line" width="1.0"/>
-          <y:NodeLabel alignment="left" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="753.759765625" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="439.5625" x="18.658976785028244" xml:space="preserve" y="3.5298507471250105">Land unit variable:
+          <y:NodeLabel alignment="left" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="827.265625" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="516.8359375" x="1.1665798302597068" xml:space="preserve" y="1.3412346355438558">Land unit variable:
 - elevation: average elevation above reference of the land unit (metres). 
   The reference is an arbitrary elevation from which all algorithms will 
   sculpt the terrain.
@@ -1513,6 +1512,11 @@ hidden in the graph):
 - p_soil_wiltingPoint: permanent wilting point (fraction of soil volume)
 - p_soil_deepDrainageCoefficient: saturated hydraulic conductivity or fraction 
   of soil water above field capacity drained per day (mm/day)
+- p_ecol_%grass: percentage of grass vegetation (biomass) in ecological community
+- p_ecol_%brush: percentage of brush/shrub vegetation (biomass) in ecological community
+- p_ecol_%wood: percentage of wood vegetation (biomass) in ecological community
+- p_ecol_coverType: cover type summarising the composition of vegetation types in ecological
+ community. Namely, they are: "desert", "grassland", "wood-grass", "shrubland", and "woodland".
 
 Auxiliary agent: Map setters (used when algorithm-style = "NetLogo")
 
@@ -2103,7 +2107,7 @@ minY, maxY = minimum, maximum y coordinate of land units<y:LabelModel><y:SmartNo
               <y:BorderInsets bottom="5" bottomF="4.6273884992988314" left="0" leftF="0.0" right="22" rightF="22.239066790652714" top="0" topF="0.0"/>
             </y:GroupNode>
             <y:GroupNode>
-              <y:Geometry height="50.0" width="295.0959597350993" x="1231.9190978308154" y="402.65401566204844"/>
+              <y:Geometry height="50.0" width="295.0959597350993" x="1231.9190978308154" y="420.48781381691765"/>
               <y:Fill color="#F5F5F5" transparent="false"/>
               <y:BorderStyle color="#000000" type="dashed" width="1.0"/>
               <y:NodeLabel alignment="right" autoSizePolicy="node_width" backgroundColor="#EBEBEB" borderDistance="0.0" fontFamily="Dialog" fontSize="15" fontStyle="plain" hasLineColor="false" height="22.37646484375" horizontalTextPosition="center" iconTextGap="4" modelName="internal" modelPosition="t" textColor="#000000" verticalTextPosition="bottom" visible="true" width="295.0959597350993" x="0.0" xml:space="preserve" y="0.0">draw-elevation-pattern (p1, len, elev) </y:NodeLabel>
@@ -2422,7 +2426,7 @@ p2 = select neighbor at directionAngle (if any)<y:LabelModel><y:SmartNodeLabelMo
               <y:BorderInsets bottom="41" bottomF="40.836121277880466" left="26" leftF="26.35009308452777" right="0" rightF="0.0" top="0" topF="0.0"/>
             </y:GroupNode>
             <y:GroupNode>
-              <y:Geometry height="50.0" width="196.1148990728476" x="1005.8041987579679" y="440.9689460963523"/>
+              <y:Geometry height="50.0" width="196.1148990728476" x="1005.8041987579679" y="458.8027442512215"/>
               <y:Fill color="#F5F5F5" transparent="false"/>
               <y:BorderStyle color="#000000" type="dashed" width="1.0"/>
               <y:NodeLabel alignment="right" autoSizePolicy="node_width" backgroundColor="#EBEBEB" borderDistance="0.0" fontFamily="Dialog" fontSize="15" fontStyle="plain" hasLineColor="false" height="22.37646484375" horizontalTextPosition="center" iconTextGap="4" modelName="internal" modelPosition="t" textColor="#000000" verticalTextPosition="bottom" visible="true" width="196.1148990728476" x="0.0" xml:space="preserve" y="0.0">fill-sinks </y:NodeLabel>
@@ -2566,7 +2570,7 @@ p2 = select neighbor at directionAngle (if any)<y:LabelModel><y:SmartNodeLabelMo
               <y:BorderInsets bottom="0" bottomF="0.0" left="0" leftF="0.0" right="0" rightF="0.0" top="0" topF="0.0"/>
             </y:GroupNode>
             <y:GroupNode>
-              <y:Geometry height="50.0" width="201.48000000000002" x="1280.2567343613462" y="500.956394880984"/>
+              <y:Geometry height="50.0" width="201.48000000000002" x="1280.2567343613462" y="518.7901930358532"/>
               <y:Fill color="#F5F5F5" transparent="false"/>
               <y:BorderStyle color="#000000" type="dashed" width="1.0"/>
               <y:NodeLabel alignment="right" autoSizePolicy="node_width" backgroundColor="#EBEBEB" borderDistance="0.0" fontFamily="Dialog" fontSize="15" fontStyle="plain" hasLineColor="false" height="22.37646484375" horizontalTextPosition="center" iconTextGap="4" modelName="internal" modelPosition="t" textColor="#000000" verticalTextPosition="bottom" visible="true" width="201.48000000000002" x="0.0" xml:space="preserve" y="0.0">is-sink </y:NodeLabel>
@@ -2650,7 +2654,7 @@ elevation &lt; minimum elevation of neighbours<y:LabelModel><y:SmartNodeLabelMod
               <y:BorderInsets bottom="0" bottomF="0.0" left="0" leftF="0.0" right="0" rightF="0.0" top="0" topF="0.0"/>
             </y:GroupNode>
             <y:GroupNode>
-              <y:Geometry height="50.0" width="201.48000000000002" x="982.9784111567776" y="504.00325281194387"/>
+              <y:Geometry height="50.0" width="201.48000000000002" x="982.9784111567776" y="521.8370509668131"/>
               <y:Fill color="#F5F5F5" transparent="false"/>
               <y:BorderStyle color="#000000" type="dashed" width="1.0"/>
               <y:NodeLabel alignment="right" autoSizePolicy="node_width" backgroundColor="#EBEBEB" borderDistance="0.0" fontFamily="Dialog" fontSize="15" fontStyle="plain" hasLineColor="false" height="22.37646484375" horizontalTextPosition="center" iconTextGap="4" modelName="internal" modelPosition="t" textColor="#000000" verticalTextPosition="bottom" visible="true" width="201.48000000000002" x="0.0" xml:space="preserve" y="0.0">is-at-edge </y:NodeLabel>
@@ -3756,7 +3760,7 @@ flowDirection = get-flow-direction-encoding(xDirection, yDirection)<y:LabelModel
     <node id="n30">
       <data key="d6">
         <y:GenericNode configuration="com.yworks.flowchart.predefinedProcess">
-          <y:Geometry height="40.0" width="138.49999999999994" x="724.9301915213211" y="573.5970294526031"/>
+          <y:Geometry height="40.0" width="138.49999999999994" x="724.9301915213211" y="591.4308276074723"/>
           <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
           <y:BorderStyle color="#000000" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="106.029296875" x="16.2353515625" xml:space="preserve" y="10.6494140625">introduce-river-flow<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
@@ -3766,7 +3770,7 @@ flowDirection = get-flow-direction-encoding(xDirection, yDirection)<y:LabelModel
     <node id="n31">
       <data key="d6">
         <y:GenericNode configuration="com.yworks.flowchart.predefinedProcess">
-          <y:Geometry height="40.0" width="155.2598869340813" x="716.5502480542805" y="649.6817928982398"/>
+          <y:Geometry height="40.0" width="155.2598869340813" x="716.5502480542805" y="667.515591053109"/>
           <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
           <y:BorderStyle color="#000000" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="126.044921875" x="14.607482529540675" xml:space="preserve" y="10.6494140625">set-flow-accumulations<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
@@ -6672,7 +6676,7 @@ min%clay + (max%clay - min%clay) * p_soil_formativeErosion<y:LabelModel><y:Smart
               <y:Geometry height="50.0" width="338.61341323958504" x="39.30935014556462" y="2027.833844723223"/>
               <y:Fill color="#F5F5F5" transparent="false"/>
               <y:BorderStyle color="#000000" type="dashed" width="1.0"/>
-              <y:NodeLabel alignment="right" autoSizePolicy="node_width" backgroundColor="#EBEBEB" borderDistance="0.0" fontFamily="Dialog" fontSize="15" fontStyle="plain" hasLineColor="false" height="22.37646484375" horizontalTextPosition="center" iconTextGap="4" modelName="internal" modelPosition="t" textColor="#000000" verticalTextPosition="bottom" visible="true" width="338.61341323958504" x="0.0" xml:space="preserve" y="0.0">get-soil-formative-erosion (flowAccumulation) </y:NodeLabel>
+              <y:NodeLabel alignment="right" autoSizePolicy="node_width" backgroundColor="#EBEBEB" borderDistance="0.0" fontFamily="Dialog" fontSize="15" fontStyle="plain" hasLineColor="false" height="22.37646484375" horizontalTextPosition="center" iconTextGap="4" modelName="internal" modelPosition="t" textColor="#000000" verticalTextPosition="bottom" visible="true" width="338.61341323958504" x="0.0" xml:space="preserve" y="-2.2737367544323206E-13">get-soil-formative-erosion (flowAccumulation) </y:NodeLabel>
               <y:Shape type="roundrectangle"/>
               <y:State closed="true" closedHeight="50.0" closedWidth="338.61341323958504" innerGraphDisplayEnabled="false"/>
               <y:Insets bottom="5" bottomF="5.0" left="5" leftF="5.0" right="5" rightF="5.0" top="5" topF="5.0"/>
@@ -7506,7 +7510,6 @@ p_soil_saturation = 0.0046 * p_soil_%clay / 100<y:LabelModel><y:SmartNodeLabelMo
     </node>
     <node id="n65" yfiles.foldertype="group">
       <data key="d4" xml:space="preserve"/>
-      <data key="d5"/>
       <data key="d6">
         <y:ProxyAutoBoundsNode>
           <y:Realizers active="0">
@@ -7629,7 +7632,7 @@ p_ecol_%grass = MIN(p_ecol_%grass, 100 - (p_ecol_%wood + p_ecol_%brush))
               <y:Geometry height="29.929599999999937" width="348.8100233676978" x="1057.952561075213" y="1007.1861224631701"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="334.5390625" x="7.1354804338488975" xml:space="preserve" y="5.614214062499968">%empty = p_ecol_%grass + p_ecol_%wood + p_ecol_%brush
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="334.5390625" x="7.1354804338488975" xml:space="preserve" y="5.614214062499855">%empty = p_ecol_%grass + p_ecol_%wood + p_ecol_%brush
 <y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
@@ -7729,7 +7732,6 @@ p_ecol_%grass = MIN(p_ecol_%grass, 100 - (p_ecol_%wood + p_ecol_%brush))
       </graph>
     </node>
     <node id="n67">
-      <data key="d5"/>
       <data key="d6">
         <y:ShapeNode>
           <y:Geometry height="388.2405595721775" width="400.7765513736947" x="1053.2394257504488" y="2079.1123454023873"/>
@@ -7936,7 +7938,6 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       </graph>
     </node>
     <node id="n71">
-      <data key="d5"/>
       <data key="d6">
         <y:ImageNode>
           <y:Geometry height="212.7614038905176" width="819.78125" x="785.5007134112186" y="2484.5010103883315"/>
@@ -7962,7 +7963,7 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="-132.7711677219745" ty="-21.788325113368728">
             <y:Point x="1032.4274907590843" y="-73.621582416671"/>
-            <y:Point x="1032.4274907590843" y="346.74733855126806"/>
+            <y:Point x="1032.4274907590843" y="364.5811367061373"/>
           </y:Path>
           <y:LineStyle color="#000000" type="dashed_dotted" width="2.0"/>
           <y:Arrows source="none" target="standard"/>
@@ -8057,7 +8058,7 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="-9.318782238724907" sy="20.79289775442146" tx="-0.9131286687104695" ty="-12.941788615325322">
-            <y:Point x="561.1750575659148" y="389.32856141905825"/>
+            <y:Point x="561.1750575659148" y="407.16235957392746"/>
             <y:Point x="561.1750575659148" y="1077.521255591032"/>
           </y:Path>
           <y:LineStyle color="#000000" type="dashed_dotted" width="2.0"/>
@@ -8070,7 +8071,7 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="-9.318782238724907" sy="14.11835199741165" tx="7.979985862927619" ty="-12.941788615325322">
-            <y:Point x="561.1750575659148" y="382.65401566204844"/>
+            <y:Point x="561.1750575659148" y="400.48781381691765"/>
             <y:Point x="561.1750575659148" y="1077.521255591032"/>
           </y:Path>
           <y:LineStyle color="#000000" type="dashed_dotted" width="2.0"/>
@@ -8125,7 +8126,7 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="-80.2686357558348" sy="10.435448005410194" tx="-121.00586127848396" ty="-10.972206894507735">
-            <y:Point x="1177.1090193591158" y="416.6818087675407"/>
+            <y:Point x="1177.1090193591158" y="434.5156069224099"/>
           </y:Path>
           <y:LineStyle color="#000000" type="dashed_dotted" width="2.0"/>
           <y:Arrows source="none" target="standard"/>
@@ -8191,7 +8192,7 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="5.780800388358102" sy="-3.1433909234466455" tx="-4.1033492330452646" ty="-13.00386506448524">
-            <y:Point x="1376.893385128301" y="462.82555517290564"/>
+            <y:Point x="1376.893385128301" y="480.65935332777485"/>
           </y:Path>
           <y:LineStyle color="#000000" type="dashed_dotted" width="2.0"/>
           <y:Arrows source="none" target="standard"/>
@@ -8227,7 +8228,7 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
         <y:PolyLineEdge>
           <y:Path sx="-2.810256707978965" sy="-5.284973834712787" tx="-51.950405174856996" ty="5.257486528532468">
             <y:Point x="593.2626915345015" y="1220.2525844310446"/>
-            <y:Point x="593.2626915345015" y="532.9523020166346"/>
+            <y:Point x="593.2626915345015" y="550.7861001715038"/>
           </y:Path>
           <y:LineStyle color="#000000" type="dashed_dotted" width="2.0"/>
           <y:Arrows source="none" target="standard"/>
@@ -8302,7 +8303,7 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="10.246778716672225" tx="-93.2617375074185" ty="20.36835825632909">
             <y:Point x="626.0359644208646" y="1392.7517900126843"/>
-            <y:Point x="626.0359644208646" y="548.0631737444312"/>
+            <y:Point x="626.0359644208646" y="565.8969718993004"/>
           </y:Path>
           <y:LineStyle color="#000000" type="dashed_dotted" width="2.0"/>
           <y:Arrows source="none" target="standard"/>
@@ -8327,7 +8328,7 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="-73.9334002232647" ty="-21.14658826730897">
-            <y:Point x="638.4944134238048" y="669.6817928982398"/>
+            <y:Point x="638.4944134238048" y="687.515591053109"/>
             <y:Point x="638.4944134238048" y="1325.2879324641267"/>
           </y:Path>
           <y:LineStyle color="#000000" type="dashed_dotted" width="2.0"/>
@@ -8340,7 +8341,7 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="50.89473529748071" ty="-20.967837136981416">
-            <y:Point x="609.1630705516955" y="593.5970294526031"/>
+            <y:Point x="609.1630705516955" y="611.4308276074723"/>
             <y:Point x="609.1630705516958" y="1361.5371741590307"/>
           </y:Path>
           <y:LineStyle color="#000000" type="dashed_dotted" width="2.0"/>
@@ -8353,7 +8354,7 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="40.14632898093544" sy="9.432507038727522" tx="0.0" ty="0.0">
-            <y:Point x="966.7486136082792" y="465.9689460963523"/>
+            <y:Point x="966.7486136082792" y="483.8027442512215"/>
           </y:Path>
           <y:LineStyle color="#000000" type="dashed_dotted" width="2.0"/>
           <y:Arrows source="none" target="standard"/>
@@ -8832,7 +8833,6 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       </data>
     </edge>
     <edge id="n65::e8" source="n65::n9" target="n65::n10">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
@@ -8843,7 +8843,6 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       </data>
     </edge>
     <edge id="n65::e9" source="n65::n9" target="n65::n11">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="-86.52800000000002" ty="-11.075913205410416"/>
@@ -8854,7 +8853,6 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       </data>
     </edge>
     <edge id="n65::e10" source="n65::n10" target="n65::n4">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
@@ -8869,7 +8867,6 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       </data>
     </edge>
     <edge id="n65::e11" source="n65::n11" target="n65::n4">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
@@ -8880,7 +8877,6 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       </data>
     </edge>
     <edge id="e69" source="n64" target="n65">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="73.24720927332942" sy="0.0" tx="-228.0556271470682" ty="-326.7990580273321">
@@ -8914,7 +8910,6 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       </data>
     </edge>
     <edge id="e70" source="n65::n11" target="n67">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
@@ -8928,7 +8923,6 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       </data>
     </edge>
     <edge id="e71" source="n65::n2" target="n66">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="251.58755879653108" ty="-69.39504001176533">
@@ -8961,7 +8955,6 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       </data>
     </edge>
     <edge id="e72" source="n65::n6" target="n68">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
@@ -8995,7 +8988,6 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       </data>
     </edge>
     <edge id="e73" source="n65::n7" target="n69">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
@@ -9029,7 +9021,6 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       </data>
     </edge>
     <edge id="e74" source="n66::n2" target="n70">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
@@ -9043,7 +9034,6 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       </data>
     </edge>
     <edge id="e75" source="n68::n2" target="n70">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="152.29294217935558" ty="-67.20000000000005">
@@ -9057,7 +9047,6 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       </data>
     </edge>
     <edge id="e76" source="n69::n2" target="n70">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="115.306253222549" sy="-8.973700384679887" tx="0.0" ty="0.0"/>
@@ -9068,7 +9057,6 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       </data>
     </edge>
     <edge id="n56::e0" source="n56::n0" target="n56::n2">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
@@ -9079,7 +9067,6 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       </data>
     </edge>
     <edge id="n56::e1" source="n56::n2" target="n56::n1">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
@@ -9090,7 +9077,6 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
       </data>
     </edge>
     <edge id="e77" source="n56::n2" target="n71">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="-345.8437944396783" ty="41.23897509387007"/>
