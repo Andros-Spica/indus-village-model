@@ -173,7 +173,8 @@ patches-own
   p_soil_%sand          ; percentage of sand fraction in soil
   p_soil_%silt          ; percentage of silt fraction in soil
   p_soil_%clay          ; percentage of clay fraction in soil
-  p_soil_textureType          ; soil texture type according to sand-silt-clay proportions, under USDA convention
+  p_soil_textureType          ; soil texture type according to sand-silt-clay proportions, under USDA convention.
+                              ; see "03-land-model/ternaryPlots/USDA-texturalSoilClassification.png"
   p_soil_hydrologicSoilGroup  ; USDA simplification of soil texture types into four categories
 
   p_soil_coverTreatmentAndHydrologicCondition  ; the type of combination of cover, treatment and hydrologic condition used to estimate runoff curve number (see "runOffCurveNumberTable.csv")
@@ -203,11 +204,13 @@ patches-own
   p_soil_deepDrainageCoefficient    ; saturated hydraulic conductivity or fraction of soil water above field capacity drained per day (mm/day)
 
   ;;; initial ecological communities
-  p_ecol_%grass                     ; percentage
-  p_ecol_%brush
-  p_ecol_%wood
+  p_ecol_%grass                     ; percentage of grass vegetation (biomass) in ecological community
+  p_ecol_%brush                     ; percentage of brush/shrub vegetation (biomass) in ecological community
+  p_ecol_%wood                      ; percentage of wood vegetation (biomass) in ecological community
 
-  p_ecol_coverType
+  p_ecol_coverType                  ; cover type summarising the composition of vegetation types in ecological community.
+                                    ; Namely, they are: "desert", "grassland", "wood-grass", "shrubland", and "woodland"
+                                    ; see "03-land-model/ternaryPlots/coverTypePerEcologicalCommunity.png"
 ]
 
 breed [ mapSetters mapSetter ] ; used when elev_algorithm-style = "NetLogo"
@@ -2529,7 +2532,7 @@ par_seaLevel
 par_seaLevel
 round min (list minElevation par_elev_riftHeight)
 round max (list maxElevation par_elev_rangeHeight)
-6.0
+36.0
 1
 1
 m
@@ -2571,7 +2574,7 @@ INPUTBOX
 156
 70
 randomSeed
-1.0
+200.0
 1
 0
 Number

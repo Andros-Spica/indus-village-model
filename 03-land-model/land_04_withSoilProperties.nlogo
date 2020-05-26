@@ -5,7 +5,7 @@
 ;;  Land model - v04 with soil properties
 ;;  Copyright (C) Andreas Angourakis (andros.spica@gmail.com)
 ;;  available at https://www.github.com/Andros-Spica/indus-village-model
-;;  This model is a cleaner version of the Terrain Generator model v.2 (https://github.com/Andros-Spica/ProceduralMap-NetLogo)
+;;  This model includes a cleaner version of the Terrain Generator model v.2 (https://github.com/Andros-Spica/ProceduralMap-NetLogo)
 ;;
 ;;  This program is free software: you can redistribute it and/or modify
 ;;  it under the terms of the GNU General Public License as published by
@@ -165,7 +165,8 @@ patches-own
   p_soil_%sand          ; percentage of sand fraction in soil
   p_soil_%silt          ; percentage of silt fraction in soil
   p_soil_%clay          ; percentage of clay fraction in soil
-  p_soil_textureType          ; soil texture type according to sand-silt-clay proportions, under USDA convention
+  p_soil_textureType          ; soil texture type according to sand-silt-clay proportions, under USDA convention.
+                              ; see "03-land-model/ternaryPlots/USDA-texturalSoilClassification.png"
   p_soil_hydrologicSoilGroup  ; USDA simplification of soil texture types into four categories
 
   p_soil_coverTreatmentAndHydrologicCondition  ; the type of combination of cover, treatment and hydrologic condition used to estimate runoff curve number (see "runOffCurveNumberTable.csv")
