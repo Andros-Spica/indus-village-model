@@ -2920,7 +2920,7 @@ CHOOSER
 display-mode
 display-mode
 "terrain" "soil formative erosion" "soil depth" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type"
-7
+9
 
 SLIDER
 15
