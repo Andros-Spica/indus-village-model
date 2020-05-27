@@ -1274,21 +1274,19 @@ end
 
 to-report get-wiltingPoint
 
-  ; using the estimation formula used by the SWAT model
-  ; See SWAT theoretical documentation 2009, p. 149, Equation 2:3.1.5, https://swat.tamu.edu/media/99192/swat2009-theory.pdf
-  report 0.4 * p_soil_%clay / 100
+  ; using linear estimation
+  ; See "SecondaryDocs/linearEstimationOfSoilWaterHorizons.Rmd"
 
-  ;report (p_soil_fieldCapacity - p_soil_waterHoldingCapacity)
+  report max (list (-0.0105 + 0.0042 * p_soil_%clay) 0)
 
 end
 
 to-report get-saturation
 
-  ; using a (rough) estimation formula derived from values in
-  ; SWAT theoretical documentation 2009, p. 148, Table 2:3-1, https://swat.tamu.edu/media/99192/swat2009-theory.pdf
-  report 0.0046 * p_soil_%clay / 100
+  ; using linear estimation
+  ; See "SecondaryDocs/linearEstimationOfSoilWaterHorizons.Rmd"
 
-  ;report (p_soil_fieldCapacity - p_soil_waterHoldingCapacity)
+  report 0.3916 + 0.0045 * p_soil_%clay
 
 end
 
@@ -1347,18 +1345,6 @@ to paint-patches
 
   ;;; several soil properties must be rescaled to enhance visualisation
   ;;; (the parametric max and min values of some of these are never realised for various reasons)
-  let mindepth min [p_soil_depth] of patches
-  let maxdepth max [p_soil_depth] of patches
-  let min%sand min [p_soil_%sand] of patches
-  let max%sand max [p_soil_%sand] of patches
-  let min%silt min [p_soil_%silt] of patches
-  let max%silt max [p_soil_%silt] of patches
-  let min%clay min [p_soil_%clay] of patches
-  let max%clay max [p_soil_%clay] of patches
-  let minWaterHoldingCapacity min [p_soil_waterHoldingCapacity] of patches
-  let maxWaterHoldingCapacity max [p_soil_waterHoldingCapacity] of patches
-  let minDeepDrainageCoefficient min [p_soil_deepDrainageCoefficient] of patches
-  let maxDeepDrainageCoefficient max [p_soil_deepDrainageCoefficient] of patches
 
   if (display-mode = "terrain")
   [
@@ -1375,11 +1361,21 @@ to paint-patches
   ]
   if (display-mode = "soil depth")
   [
+    let mindepth min [p_soil_depth] of patches
+    let maxdepth max [p_soil_depth] of patches
+
     ask patches [ set pcolor 38 - 6 * (p_soil_depth - mindepth) / (maxdepth - mindepth) ]
     set-legend-continuous-range 100 0 38 32 6 false
   ]
   if (display-mode = "soil texture")
   [
+    let min%sand min [p_soil_%sand] of patches
+    let max%sand max [p_soil_%sand] of patches
+    let min%silt min [p_soil_%silt] of patches
+    let max%silt max [p_soil_%silt] of patches
+    let min%clay min [p_soil_%clay] of patches
+    let max%clay max [p_soil_%clay] of patches
+
     ask patches
     [
       ;;; red: sand, green: silt, blue: clay
@@ -1400,19 +1396,59 @@ to paint-patches
     ask patches [ set pcolor 18 - 6 * p_soil_runOffCurveNumber / 100 ] ;;; runoff curve number is limited between 0-100
     set-legend-continuous-range 100 0 18 12 6 false
   ]
-  if (display-mode = "soil water holding capacity")
+  if (display-mode = "soil water wilting point")
   [
+    let minWiltingPoint min [p_soil_wiltingPoint] of patches
+    let maxWiltingPoint max [p_soil_wiltingPoint] of patches
+
     ask patches
     [
-      set pcolor 98 - 6 * (p_soil_waterHoldingCapacity - minWaterHoldingCapacity) / (maxWaterHoldingCapacity - minWaterHoldingCapacity) ;;; water holding capacity is %, but often small
+      set pcolor 98 - 6 * (p_soil_wiltingPoint - minWiltingPoint) / (maxWiltingPoint - minWiltingPoint)
+    ]
+    set-legend-continuous-range maxWiltingPoint minWiltingPoint 98 92 6 false
+  ]
+  if (display-mode = "soil water holding capacity")
+  [
+    let minWaterHoldingCapacity min [p_soil_waterHoldingCapacity] of patches
+    let maxWaterHoldingCapacity max [p_soil_waterHoldingCapacity] of patches
+
+    ask patches
+    [
+      set pcolor 98 - 6 * (p_soil_waterHoldingCapacity - minWaterHoldingCapacity) / (maxWaterHoldingCapacity - minWaterHoldingCapacity)
     ]
     set-legend-continuous-range maxWaterHoldingCapacity minWaterHoldingCapacity 98 92 6 false
   ]
-  if (display-mode = "soil deep drainage coefficient")
+  if (display-mode = "soil water field capacity")
   [
+    let minFieldCapacity min [p_soil_fieldCapacity] of patches
+    let maxFieldCapacity max [p_soil_fieldCapacity] of patches
+
     ask patches
     [
-      set pcolor 102 + 6 * (p_soil_deepDrainageCoefficient - minDeepDrainageCoefficient) / (maxDeepDrainageCoefficient - minDeepDrainageCoefficient) ;;; deep drainage coefficient is %, but can vary beyond 100%
+      set pcolor 98 - 6 * (p_soil_fieldCapacity - minFieldCapacity) / (maxFieldCapacity - minFieldCapacity)
+    ]
+    set-legend-continuous-range maxFieldCapacity minFieldCapacity 98 92 6 false
+  ]
+  if (display-mode = "soil water saturation")
+  [
+    let minSaturation min [p_soil_saturation] of patches
+    let maxSaturation max [p_soil_saturation] of patches
+
+    ask patches
+    [
+      set pcolor 98 - 6 * (p_soil_saturation - minSaturation) / (maxSaturation - minSaturation)
+    ]
+    set-legend-continuous-range maxSaturation minSaturation 98 92 6 false
+  ]
+  if (display-mode = "soil deep drainage coefficient")
+  [
+    let minDeepDrainageCoefficient min [p_soil_deepDrainageCoefficient] of patches
+    let maxDeepDrainageCoefficient max [p_soil_deepDrainageCoefficient] of patches
+
+    ask patches
+    [
+      set pcolor 102 + 6 * (p_soil_deepDrainageCoefficient - minDeepDrainageCoefficient) / (maxDeepDrainageCoefficient - minDeepDrainageCoefficient)
+      ;;; deep drainage coefficient is %, but depends on time and can vary beyond 100%
     ]
     set-legend-continuous-range maxDeepDrainageCoefficient minDeepDrainageCoefficient 108 102 6 true
   ]
@@ -2535,7 +2571,7 @@ par_seaLevel
 par_seaLevel
 round min (list minElevation par_elev_riftHeight)
 round max (list maxElevation par_elev_rangeHeight)
-15.0
+36.0
 1
 1
 m
@@ -2883,8 +2919,8 @@ CHOOSER
 111
 display-mode
 display-mode
-"terrain" "soil formative erosion" "soil depth" "soil texture" "soil texture types" "soil run off curve number" "soil water holding capacity" "soil deep drainage coefficient" "ecological community composition" "cover type"
-4
+"terrain" "soil formative erosion" "soil depth" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type"
+7
 
 SLIDER
 15
