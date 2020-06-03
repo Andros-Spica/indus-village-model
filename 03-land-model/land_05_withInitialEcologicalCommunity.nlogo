@@ -105,6 +105,10 @@ globals
   flow_riverAccumulationAtStart ; the amount of flow units added to a land unit at the edge of the map.
                                 ; These units may be transmitted following flow directions,
                                 ; drawing meanders of a passing river.
+                                ; To better scale this parameter, consider that the catchment area today of
+                                ; the entire Indus River Basin is 116,500,000 ha or 1,165,000 km^2,
+                                ; the Chenab River Basin in Pakistani Punjab is 2,615,500 ha or 26,155 km^2,
+                                ; and the Ghaggar River Basin in Haryana is 4,997,800 ha or 49,978 km^2.
 
   ;;;; soil
   soil_formativeErosionRate              ; rate of increase in soil depth, decrease of percentage of sand,
@@ -403,7 +407,7 @@ to set-parameters
     set elev_valleyAxisInclination random-float 1
     set elev_valleySlope random-float 0.02 ; only valley (no ridges)
 
-    set flow_riverAccumulationAtStart random 1E6
+    set flow_riverAccumulationAtStart random 2E6
 
     set soil_formativeErosionRate random-float 3
 
@@ -1346,7 +1350,7 @@ to paint-patches
   ;;; several soil properties must be rescaled to enhance visualisation
   ;;; (the parametric max and min values of some of these are never realised for various reasons)
 
-  if (display-mode = "terrain")
+  if (display-mode = "elevation (m)")
   [
     ask patches
     [
@@ -1359,7 +1363,7 @@ to paint-patches
     ask patches [ set pcolor 8 - 6 * p_soil_formativeErosion ]
     set-legend-continuous-range 1 0 8 2 6 false
   ]
-  if (display-mode = "soil depth")
+  if (display-mode = "soil depth (mm)")
   [
     let mindepth min [p_soil_depth] of patches
     let maxdepth max [p_soil_depth] of patches
@@ -1988,8 +1992,8 @@ end
 
 to export-terrain
 
-  ;;; make sure that display-mode is "terrain" in order to avoid complications with patch colors (number vs rgb)
-  if (display-mode != "terrain") [ set display-mode "terrain" refresh-view ]
+  ;;; make sure that display-mode is "elevation (m)" in order to avoid complications with patch colors (number vs rgb)
+  if (display-mode != "elevation (m)") [ set display-mode "elevation (m)" refresh-view ]
 
   set show-transects false
 
@@ -2096,6 +2100,7 @@ to import-terrain
           if (item globalIndex globalNames = "soil_texturetypes") [ set soil_textureTypes read-from-string item globalIndex globalValues ]
           if (item globalIndex globalNames = "soil_texturetypes_display") [ set soil_textureTypes_display read-from-string item globalIndex globalValues ]
           if (item globalIndex globalNames = "soil_hydrologicsoilgroups") [ set soil_hydrologicSoilGroups read-from-string item globalIndex globalValues ]
+          if (item globalIndex globalNames = "soil_runoffcurvenumbertable") [ set soil_runOffCurveNumberTable read-from-string item globalIndex globalValues ]
 
           if (item globalIndex globalNames = "soil_fieldcapacity") [ set soil_fieldCapacity item globalIndex globalValues ]
           if (item globalIndex globalNames = "soil_saturation") [ set soil_saturation item globalIndex globalValues ]
@@ -2919,7 +2924,7 @@ CHOOSER
 111
 display-mode
 display-mode
-"terrain" "soil formative erosion" "soil depth" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type"
+"elevation (m)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type"
 9
 
 SLIDER
