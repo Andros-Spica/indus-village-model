@@ -940,7 +940,7 @@ ppm
 10.0
 true
 false
-"set-plot-y-range (floor CO2_annualMin - CO2_meanDailyFluctuation - 1) (ceiling CO2_annualMax + CO2_meanDailyFluctuation + 1)" "set-plot-y-range (floor CO2_annualMin - CO2_meanDailyFluctuation - 1) (ceiling CO2_annualMax + CO2_meanDailyFluctuation + 1)"
+"set-plot-y-range (precision (CO2_annualMin - CO2_meanDailyFluctuation - 1) 2) (precision (CO2_annualMax + CO2_meanDailyFluctuation + 1) 2)" "set-plot-y-range (precision (CO2_annualMin - CO2_meanDailyFluctuation - 1) 2) (precision (CO2_annualMax + CO2_meanDailyFluctuation + 1) 2)"
 PENS
 "default" 1.0 0 -16777216 true "" "plot CO2"
 
@@ -1035,7 +1035,7 @@ KWh/m2
 10.0
 true
 false
-"set-plot-y-range (floor solar_annualMin - solar_meanDailyFluctuation - 1) (ceiling solar_annualMax + solar_meanDailyFluctuation + 1)" "set-plot-y-range (floor solar_annualMin - solar_meanDailyFluctuation - 1) (ceiling solar_annualMax + solar_meanDailyFluctuation + 1)"
+"set-plot-y-range (precision (solar_annualMin - solar_meanDailyFluctuation - 1) 2) (precision (solar_annualMax + solar_meanDailyFluctuation + 1) 2)" "set-plot-y-range (precision (solar_annualMin - solar_meanDailyFluctuation - 1) 2) (precision (solar_annualMax + solar_meanDailyFluctuation + 1) 2)"
 PENS
 "default" 1.0 0 -16777216 true "" "plot solarRadiation / 3.6"
 
