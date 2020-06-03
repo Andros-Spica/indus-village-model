@@ -1313,7 +1313,11 @@ to-report get-deepDrainageCoefficient [ textureType ]
 
   ; return daily intake rate divided by the volume of soil above field capacity (intake/drainage rate at saturation) as approximation of deep drainage coefficient
   ; TO-DO: ideally, data on deep drainage coefficient should be used instead.
-  report 24 * intakeRate / ((1 - p_soil_fieldCapacity) * p_soil_depth + 1E-6) ; + 1E-6 to avoid error when p_soil_depth = 0
+  let soilAboveFieldCapacity (1 - p_soil_fieldCapacity) * p_soil_depth
+
+  ifelse (soilAboveFieldCapacity < 1E-17)
+  [ report 1 ] ; to avoid error when p_soil_depth = 0
+  [ report min (list 1 (24 * intakeRate / soilAboveFieldCapacity)) ] ; deep drainage cannot be greater than one
 
 end
 
@@ -2576,7 +2580,7 @@ par_seaLevel
 par_seaLevel
 round min (list minElevation par_elev_riftHeight)
 round max (list maxElevation par_elev_rangeHeight)
-36.0
+0.0
 1
 1
 m
@@ -2618,7 +2622,7 @@ INPUTBOX
 156
 70
 randomSeed
-200.0
+67.0
 1
 0
 Number
@@ -2925,7 +2929,7 @@ CHOOSER
 display-mode
 display-mode
 "elevation (m)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type"
-9
+10
 
 SLIDER
 15
