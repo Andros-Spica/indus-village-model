@@ -483,7 +483,7 @@ end
 
 to paint-patches
 
-  if (display-mode = "terrain")
+  if (display-mode = "elevation (m)")
   [
     ask patches
     [
@@ -1274,7 +1274,7 @@ CHOOSER
 111
 display-mode
 display-mode
-"terrain"
+"elevation (m)"
 0
 
 SLIDER

@@ -87,8 +87,12 @@ globals
 
   ;;;; water flow accumulation
   flow_riverAccumulationAtStart ; the amount of flow units added to a land unit at the edge of the map.
-                               ; These units may be transmitted following flow directions,
-                               ; drawing meanders of a passing river.
+                                ; These units may be transmitted following flow directions,
+                                ; drawing meanders of a passing river.
+                                ; To better scale this parameter, consider that the catchment area today of
+                                ; the entire Indus River Basin is 116,500,000 ha or 1,165,000 km^2,
+                                ; the Chenab River Basin in Pakistani Punjab is 2,615,500 ha or 26,155 km^2,
+                                ; and the Ghaggar River Basin in Haryana is 4,997,800 ha or 49,978 km^2.
 
   ;;; variables ===============================================================
   seaLevel                    ; elevation considered as sea level for display purposes.
@@ -257,7 +261,7 @@ to set-parameters
     set elev_valleyAxisInclination random-float 1
     set elev_valleySlope random-float 0.02 ; only valley (no ridges)
 
-    set flow_riverAccumulationAtStart random 1E6
+    set flow_riverAccumulationAtStart random 2E6
   ]
   if (type-of-experiment = "defined by experiment-number")
   [
@@ -792,7 +796,7 @@ end
 
 to paint-patches
 
-  if (display-mode = "terrain")
+  if (display-mode = "elevation (m)")
   [
     ask patches
     [
@@ -1734,7 +1738,7 @@ CHOOSER
 111
 display-mode
 display-mode
-"terrain"
+"elevation (m)"
 0
 
 SLIDER
