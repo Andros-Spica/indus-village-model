@@ -170,7 +170,7 @@ patches-own
   p_soil_%silt          ; percentage of silt fraction in soil
   p_soil_%clay          ; percentage of clay fraction in soil
   p_soil_textureType          ; soil texture type according to sand-silt-clay proportions, under USDA convention.
-                              ; see "03-land-model/ternaryPlots/USDA-texturalSoilClassification.png"
+                              ; see "03-land-model/documentation/USDA-texturalSoilClassification.png"
   p_soil_hydrologicSoilGroup  ; USDA simplification of soil texture types into four categories
 
   p_soil_coverTreatmentAndHydrologicCondition  ; the type of combination of cover, treatment and hydrologic condition used to estimate runoff curve number (see "runOffCurveNumberTable.csv")
@@ -1124,7 +1124,7 @@ end
 to-report get-wiltingPoint
 
   ; using linear estimation
-  ; See "SecondaryDocs/linearEstimationOfSoilWaterHorizons.Rmd"
+  ; See "documentation/linearEstimationOfSoilWaterHorizons.Rmd"
 
   report max (list (-0.0105 + 0.0042 * p_soil_%clay) 0)
 
@@ -1133,7 +1133,7 @@ end
 to-report get-saturation
 
   ; using linear estimation
-  ; See "SecondaryDocs/linearEstimationOfSoilWaterHorizons.Rmd"
+  ; See "documentation/linearEstimationOfSoilWaterHorizons.Rmd"
 
   report 0.3916 + 0.0045 * p_soil_%clay
 
