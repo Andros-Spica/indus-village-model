@@ -1,0 +1,34 @@
+---
+title: "Landform algorithm animation"
+author: "Andreas Angourakis"
+date: "09/06/2020"
+output: html_document
+---
+
+Requires the following R packages and the installation of Image Magick software (https://imagemagick.org/index.php).
+
+```{r}
+require(purrr)
+require(magick)
+```
+
+Set up directory and new file names:
+
+```{r}
+filePath = "animation/"
+fileName = "set-landform-animation"
+```
+
+Assuming all images are inside "animation" folder, get file names:
+
+```{r}
+files <- paste0(filePath, dir(path = filePath, 
+                              pattern = paste0("^", fileName, ".*\\.png$")))
+```
+
+```{r}
+images <- map(files, image_read)
+images <- image_join(images)
+animation <- image_animate(images, fps = 10)
+image_write(animation, paste0(filePath, fileName, ".gif"))
+```
