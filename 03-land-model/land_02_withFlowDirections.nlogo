@@ -732,6 +732,7 @@ to display-flows
         [
           set hidden? false
           set color 95
+          set shape "line half"
           set heading get-angle-in-flow-direction flow_direction
         ]
       ]
@@ -1192,10 +1193,10 @@ ELEVATION
 
 TEXTBOX
 10
-367
+332
 315
-543
----------- used when algorithm-style = C# -------------------------------------------\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|___________________________________________________________|
+565
+---------- used when algorithm-style = C# -------------------------------------------\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|___________________________________________________________|
 9
 0.0
 1
@@ -1222,10 +1223,10 @@ landRatio
 11
 
 SLIDER
-494
-229
-689
-262
+491
+152
+686
+185
 par_seaLevel
 par_seaLevel
 round min (list minElevation par_elev_riftHeight)
@@ -1237,10 +1238,10 @@ m
 HORIZONTAL
 
 SLIDER
-15
-175
-187
-208
+13
+345
+185
+378
 par_elev_noise
 par_elev_noise
 0
@@ -1252,10 +1253,10 @@ m
 HORIZONTAL
 
 SLIDER
-14
-217
-196
-250
+9
+181
+191
+214
 par_elev_smoothStep
 par_elev_smoothStep
 0
@@ -1332,16 +1333,20 @@ par_elev_numRanges
 0
 Number
 
-INPUTBOX
-308
-226
-427
-286
+SLIDER
+309
+229
+516
+262
 par_elev_rangeLength
-0.0
-1
+par_elev_rangeLength
 0
-Number
+100
+100.0
+1
+1
+% patches
+HORIZONTAL
 
 INPUTBOX
 308
@@ -1354,16 +1359,20 @@ par_elev_numRifts
 0
 Number
 
-INPUTBOX
-308
-286
-417
-346
+SLIDER
+310
+262
+517
+295
 par_elev_riftLength
-0.0
-1
+par_elev_riftLength
 0
-Number
+100
+100.0
+1
+1
+% patches
+HORIZONTAL
 
 SLIDER
 15
@@ -1381,10 +1390,10 @@ m
 HORIZONTAL
 
 BUTTON
-488
-267
-696
-300
+485
+190
+693
+223
 refresh after changing sea level
 refresh-view-after-seaLevel-change
 NIL
@@ -1413,10 +1422,10 @@ m
 HORIZONTAL
 
 MONITOR
-525
-156
-610
-201
+527
+304
+612
+349
 NIL
 count patches
 0
@@ -1476,10 +1485,10 @@ par_elev_numDepressions
 Number
 
 SLIDER
-14
-250
-195
-283
+9
+214
+190
+247
 par_elev_smoothingRadius
 par_elev_smoothingRadius
 0
@@ -1491,10 +1500,10 @@ NIL
 HORIZONTAL
 
 MONITOR
-615
-156
-680
-201
+617
+304
+682
+349
 maxDist
 precision maxDist 4
 4
@@ -1502,10 +1511,10 @@ precision maxDist 4
 11
 
 MONITOR
-48
-283
-197
-320
+43
+247
+192
+284
 smoothing neighborhood size
 (word (count patches with [ distance patch 0 0 < elev_smoothingRadius ] - 1) \" patches\")
 0
@@ -1542,10 +1551,10 @@ elev_algorithm-style
 1
 
 SLIDER
-17
-323
-197
-356
+12
+287
+192
+320
 par_elev_featureAngleRange
 par_elev_featureAngleRange
 0
@@ -1842,10 +1851,10 @@ elev_rangeHeight
 9
 
 MONITOR
-186
-173
-261
-210
+184
+343
+259
+380
 NIL
 elev_noise
 2
@@ -1853,10 +1862,10 @@ elev_noise
 9
 
 MONITOR
-196
-215
-296
-252
+191
+179
+291
+216
 NIL
 elev_smoothStep
 2
@@ -1864,10 +1873,10 @@ elev_smoothStep
 9
 
 MONITOR
-194
-250
-306
-287
+189
+214
+301
+251
 NIL
 elev_smoothingRadius
 2
@@ -1897,10 +1906,10 @@ elev_numRifts
 9
 
 MONITOR
-363
-256
-448
-293
+328
+294
+413
+331
 NIL
 elev_rangeLength
 0
@@ -1908,10 +1917,10 @@ elev_rangeLength
 9
 
 MONITOR
-364
-317
-439
-354
+412
+294
+487
+331
 NIL
 elev_riftLength
 0
@@ -1919,10 +1928,10 @@ elev_riftLength
 9
 
 MONITOR
-198
-322
-302
-359
+193
+286
+297
+323
 NIL
 elev_featureAngleRange
 0
@@ -2018,10 +2027,10 @@ elev_riftAggregation
 9
 
 SWITCH
-471
-312
-572
-345
+553
+232
+654
+265
 flow_do-fill-sinks
 flow_do-fill-sinks
 0
@@ -2029,10 +2038,10 @@ flow_do-fill-sinks
 -1000
 
 SWITCH
-572
-312
-676
-345
+552
+265
+656
+298
 show-flows
 show-flows
 0

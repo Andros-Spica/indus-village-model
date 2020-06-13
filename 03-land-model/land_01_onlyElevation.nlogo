@@ -255,29 +255,29 @@ to parameters-to-default
 
   ;;; set parameters to a default value
   set par_elev_rangeHeight                   15
-  set par_elev_riftHeight                    0
-  set par_elev_noise                     1
+  set par_elev_riftHeight                     0
+  set par_elev_noise                          1
 
-  set par_elev_numProtuberances                   1
-  set par_elev_numDepressions                       1
+  set par_elev_numProtuberances               1
+  set par_elev_numDepressions                 1
 
-  set par_elev_inversionIterations                  5
+  set par_elev_inversionIterations            5
 
-  set par_elev_numRanges                       1
-  set par_elev_rangeLength                   100
-  set par_elev_rangeAggregation                0.75
+  set par_elev_numRanges                      1
+  set par_elev_rangeLength                  100
+  set par_elev_rangeAggregation               0.75
 
-  set par_elev_numRifts                        1
-  set par_elev_riftLength                    100
-  set par_elev_riftAggregation                 0.9
+  set par_elev_numRifts                       1
+  set par_elev_riftLength                   100
+  set par_elev_riftAggregation                0.9
 
-  set par_elev_smoothStep             1
-  set par_elev_smoothingRadius           0.1
+  set par_elev_smoothStep                     1
+  set par_elev_smoothingRadius                0.1
 
-  set par_elev_xSlope                          0.01
-  set par_elev_ySlope                          0.025
-  set par_elev_valleyAxisInclination           0.1
-  set par_elev_valleySlope                     0.02
+  set par_elev_xSlope                         0.01
+  set par_elev_ySlope                         0.025
+  set par_elev_valleyAxisInclination          0.1
+  set par_elev_valleySlope                    0.02
 
 end
 
@@ -341,7 +341,7 @@ to set-landform-Csharp ;[ elev_noise elev_numProtuberances elev_numRanges elev_r
 
   let maxDistBetweenRanges (1.1 - elev_rangeAggregation) * maxDist
   let maxDistBetweenRifts (1.1 - elev_riftAggregation) * maxDist
-
+;let j 0
   repeat (elev_numRanges + elev_numRifts)
   [
     set sign -1 + 2 * (random 2)
@@ -349,21 +349,22 @@ to set-landform-Csharp ;[ elev_noise elev_numProtuberances elev_numRanges elev_r
     if (elev_numRiftsToDo = 0) [ set sign 1 ]
 
     ifelse (sign = -1)
-    [
+    [;print "rift"
       set elev_numRiftsToDo elev_numRiftsToDo - 1
       set len elev_riftLength - 2
       set elev elev_riftHeight
       ;ifelse (any? patches with [elevation < 0]) [set p0 one-of patches with [elevation < 0]] [set p0 one-of patches]
       set p1 one-of patches with [ distance one-of depressions < maxDistBetweenRifts ]
     ]
-    [
+    [;print "range"
       set elev_numRangesToDo elev_numRangesToDo - 1
       set len elev_rangeLength - 2
       set elev elev_rangeHeight
       set p1 one-of patches with [ distance one-of protuberances < maxDistBetweenRanges ]
     ]
-
-    draw-elevation-pattern p1 len elev
+;print p1
+    draw-elevation-pattern p1 len elev ;j
+;set j j + 1
   ]
 
   smooth-elevation-all
@@ -377,7 +378,7 @@ to set-landform-Csharp ;[ elev_noise elev_numProtuberances elev_numRanges elev_r
 
 end
 
-to draw-elevation-pattern [ p1 len elev ]
+to draw-elevation-pattern [ p1 len elev ];j ]
 
   let p2 0
   let xDirection 0
@@ -401,7 +402,7 @@ to draw-elevation-pattern [ p1 len elev ]
       ]
     ]
   ]
-
+;let i 0
   repeat len
   [
     set directionAngle directionAngle + (random-exponential elev_featureAngleRange) * (1 - random 2)
@@ -413,6 +414,7 @@ to draw-elevation-pattern [ p1 len elev ]
       set elevation elev
       if (patch-at-heading-and-distance directionAngle 1 != nobody) [ set p2 patch-at-heading-and-distance directionAngle 1 ]
     ]
+;refresh-view set i i + 1 let iPrint (word "" i) if (i < 999) [set iPrint (word "0" iPrint) ] if (i < 99) [set iPrint (word "0" iPrint) ] if (i < 9) [set iPrint (word "0" iPrint) ] if (i < 500) [ export-view (word "animation//set-landform-animation_step_" j "_" iPrint ".png") ]
   ]
 
 end
@@ -888,10 +890,10 @@ ELEVATION
 
 TEXTBOX
 10
-367
+333
 315
-543
----------- used when algorithm-style = C# -------------------------------------------\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|___________________________________________________________|
+576
+---------- used when algorithm-style = C# -------------------------------------------\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|___________________________________________________________|
 9
 0.0
 1
@@ -918,10 +920,10 @@ landRatio
 11
 
 SLIDER
-494
-229
-689
-262
+544
+151
+691
+184
 par_seaLevel
 par_seaLevel
 round min (list minElevation par_elev_riftHeight)
@@ -933,10 +935,10 @@ m
 HORIZONTAL
 
 SLIDER
-15
-175
-187
-208
+16
+345
+188
+378
 par_elev_noise
 par_elev_noise
 0
@@ -948,15 +950,15 @@ m
 HORIZONTAL
 
 SLIDER
-14
-217
-196
-250
+10
+185
+192
+218
 par_elev_smoothStep
 par_elev_smoothStep
 0
 1
-0.0
+1.0
 0.01
 1
 NIL
@@ -979,7 +981,7 @@ INPUTBOX
 468
 498
 par_elev_inversionIterations
-0.0
+5.0
 1
 0
 Number
@@ -1023,21 +1025,25 @@ INPUTBOX
 395
 166
 par_elev_numRanges
-0.0
+1.0
 1
 0
 Number
 
-INPUTBOX
-308
-226
-400
-286
+SLIDER
+309
+229
+516
+262
 par_elev_rangeLength
-0.0
-1
+par_elev_rangeLength
 0
-Number
+100
+100.0
+1
+1
+% patches
+HORIZONTAL
 
 INPUTBOX
 308
@@ -1045,21 +1051,25 @@ INPUTBOX
 395
 225
 par_elev_numRifts
-0.0
+1.0
 1
 0
 Number
 
-INPUTBOX
-308
-286
-400
-346
+SLIDER
+310
+262
+517
+295
 par_elev_riftLength
-0.0
-1
+par_elev_riftLength
 0
-Number
+100
+100.0
+1
+1
+% patches
+HORIZONTAL
 
 SLIDER
 15
@@ -1077,10 +1087,10 @@ m
 HORIZONTAL
 
 BUTTON
-488
-267
-696
-300
+491
+190
+699
+223
 refresh after changing sea level
 refresh-view-after-seaLevel-change
 NIL
@@ -1102,17 +1112,17 @@ par_elev_rangeHeight
 par_elev_rangeHeight
 0
 500
-0.0
+15.0
 1
 1
 m
 HORIZONTAL
 
 MONITOR
-525
-156
-610
-201
+533
+252
+618
+297
 NIL
 count patches
 0
@@ -1128,7 +1138,7 @@ par_elev_rangeAggregation
 par_elev_rangeAggregation
 0
 1
-0.0
+0.75
 0.01
 1
 NIL
@@ -1143,7 +1153,7 @@ par_elev_riftAggregation
 par_elev_riftAggregation
 0
 1
-0.0
+0.9
 .01
 1
 NIL
@@ -1155,7 +1165,7 @@ INPUTBOX
 137
 440
 par_elev_numProtuberances
-0.0
+1.0
 1
 0
 Number
@@ -1166,31 +1176,31 @@ INPUTBOX
 270
 440
 par_elev_numDepressions
-0.0
+1.0
 1
 0
 Number
 
 SLIDER
-14
-250
-195
-283
+10
+218
+191
+251
 par_elev_smoothingRadius
 par_elev_smoothingRadius
 0
 .1
-0.0
+0.1
 .01
 1
 NIL
 HORIZONTAL
 
 MONITOR
-615
-156
-680
-201
+623
+252
+688
+297
 maxDist
 precision maxDist 4
 4
@@ -1198,10 +1208,10 @@ precision maxDist 4
 11
 
 MONITOR
-48
-283
-197
-320
+44
+251
+193
+288
 smoothing neighborhood size
 (word (count patches with [ distance patch 0 0 < elev_smoothingRadius ] - 1) \" patches\")
 0
@@ -1238,15 +1248,15 @@ elev_algorithm-style
 1
 
 SLIDER
-17
-323
-197
-356
+13
+291
+193
+324
 par_elev_featureAngleRange
 par_elev_featureAngleRange
 0
 360
-0.0
+5.0
 1
 1
 º
@@ -1261,7 +1271,7 @@ par_elev_ySlope
 par_elev_ySlope
 -0.1
 0.1
-0.0
+0.025
 0.001
 1
 NIL
@@ -1286,7 +1296,7 @@ par_elev_xSlope
 par_elev_xSlope
 -0.1
 0.1
-0.0
+0.01
 0.001
 1
 NIL
@@ -1416,7 +1426,7 @@ par_elev_valleyAxisInclination
 par_elev_valleyAxisInclination
 0
 1
-0.0
+0.1
 0.01
 1
 NIL
@@ -1431,7 +1441,7 @@ par_elev_valleySlope
 par_elev_valleySlope
 -0.1
 0.1
-0.0
+0.02
 0.001
 1
 NIL
@@ -1538,10 +1548,10 @@ elev_rangeHeight
 9
 
 MONITOR
-186
-173
-261
-210
+187
+343
+262
+380
 NIL
 elev_noise
 2
@@ -1549,10 +1559,10 @@ elev_noise
 9
 
 MONITOR
-196
-215
-296
-252
+192
+183
+292
+220
 NIL
 elev_smoothStep
 2
@@ -1560,10 +1570,10 @@ elev_smoothStep
 9
 
 MONITOR
-194
-250
-306
-287
+190
+218
+302
+255
 NIL
 elev_smoothingRadius
 2
@@ -1593,10 +1603,10 @@ elev_numRifts
 9
 
 MONITOR
-401
-237
-486
-274
+315
+300
+400
+337
 NIL
 elev_rangeLength
 0
@@ -1615,10 +1625,10 @@ elev_riftLength
 9
 
 MONITOR
-198
-322
-302
-359
+194
+290
+298
+327
 NIL
 elev_featureAngleRange
 0

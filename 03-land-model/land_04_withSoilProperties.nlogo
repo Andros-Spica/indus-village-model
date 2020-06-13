@@ -859,9 +859,7 @@ to set-flow-accumulations
   ; where each cell is assigned a value equal to the number of cells that flow to it (O’Callaghan and Mark, 1984).
   ; Cells having a flow accumulation value of zero (to which no other cells flow) generally correspond to the pattern of ridges.
   ; Because all cells in a depressionless DEM have a path to the data set edge, the pattern formed by highlighting cells
-  ; with values higher than some threshold delineates a fully connected drainage network. As the threshold value is increased,
-  ; the density of the drainage network decreases. The flow accumulation data set that was calculated for the numeric example
-  ; is shown in Table 2d, and the visual example is shown in Plate 1c."
+  ; with values higher than some threshold delineates a fully connected drainage network."
 
   ; identify patches that receive flow and those that do not (this makes the next step much easier)
   ask patches
@@ -2245,10 +2243,10 @@ ELEVATION
 
 TEXTBOX
 10
-367
+332
 315
-543
----------- used when algorithm-style = C# -------------------------------------------\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|___________________________________________________________|
+576
+---------- used when algorithm-style = C# -------------------------------------------\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|___________________________________________________________|
 9
 0.0
 1
@@ -2275,10 +2273,10 @@ landRatio
 11
 
 SLIDER
-494
-229
-689
-262
+492
+150
+687
+183
 par_seaLevel
 par_seaLevel
 round min (list minElevation par_elev_riftHeight)
@@ -2290,10 +2288,10 @@ m
 HORIZONTAL
 
 SLIDER
-15
-175
-187
-208
+14
+348
+186
+381
 par_elev_noise
 par_elev_noise
 0
@@ -2305,10 +2303,10 @@ m
 HORIZONTAL
 
 SLIDER
-14
-217
-196
-250
+6
+181
+188
+214
 par_elev_smoothStep
 par_elev_smoothStep
 0
@@ -2385,16 +2383,20 @@ par_elev_numRanges
 0
 Number
 
-INPUTBOX
-308
-226
-426
-286
+SLIDER
+309
+229
+516
+262
 par_elev_rangeLength
+par_elev_rangeLength
+0
+100
 100.0
 1
-0
-Number
+1
+% patches
+HORIZONTAL
 
 INPUTBOX
 308
@@ -2407,16 +2409,20 @@ par_elev_numRifts
 0
 Number
 
-INPUTBOX
-308
-286
-412
-346
+SLIDER
+310
+262
+517
+295
 par_elev_riftLength
+par_elev_riftLength
+0
+100
 100.0
 1
-0
-Number
+1
+% patches
+HORIZONTAL
 
 SLIDER
 15
@@ -2434,10 +2440,10 @@ m
 HORIZONTAL
 
 BUTTON
-488
-267
-696
-300
+486
+188
+694
+221
 refresh after changing sea level
 refresh-view-after-seaLevel-change
 NIL
@@ -2466,10 +2472,10 @@ m
 HORIZONTAL
 
 MONITOR
-525
-156
-610
-201
+523
+312
+608
+357
 NIL
 count patches
 0
@@ -2529,10 +2535,10 @@ par_elev_numDepressions
 Number
 
 SLIDER
-14
-250
-195
-283
+6
+214
+187
+247
 par_elev_smoothingRadius
 par_elev_smoothingRadius
 0
@@ -2544,10 +2550,10 @@ NIL
 HORIZONTAL
 
 MONITOR
-615
-156
-680
-201
+613
+312
+678
+357
 maxDist
 precision maxDist 4
 4
@@ -2555,10 +2561,10 @@ precision maxDist 4
 11
 
 MONITOR
-48
-283
-197
-320
+40
+247
+189
+284
 smoothing neighborhood size
 (word (count patches with [ distance patch 0 0 < elev_smoothingRadius ] - 1) \" patches\")
 0
@@ -2595,10 +2601,10 @@ elev_algorithm-style
 1
 
 SLIDER
-17
-323
-197
-356
+9
+287
+189
+320
 par_elev_featureAngleRange
 par_elev_featureAngleRange
 0
@@ -2895,10 +2901,10 @@ elev_rangeHeight
 9
 
 MONITOR
-186
-173
-261
-210
+185
+346
+260
+383
 NIL
 elev_noise
 2
@@ -2906,10 +2912,10 @@ elev_noise
 9
 
 MONITOR
-196
-215
-296
-252
+188
+179
+288
+216
 NIL
 elev_smoothStep
 2
@@ -2917,10 +2923,10 @@ elev_smoothStep
 9
 
 MONITOR
-194
-250
-306
-287
+186
+214
+298
+251
 NIL
 elev_smoothingRadius
 2
@@ -2950,10 +2956,10 @@ elev_numRifts
 9
 
 MONITOR
-366
-256
-451
-293
+335
+295
+420
+332
 NIL
 elev_rangeLength
 0
@@ -2961,10 +2967,10 @@ elev_rangeLength
 9
 
 MONITOR
-362
-323
-437
-360
+420
+295
+495
+332
 NIL
 elev_riftLength
 0
@@ -2972,10 +2978,10 @@ elev_riftLength
 9
 
 MONITOR
-198
-322
-302
-359
+190
+286
+294
+323
 NIL
 elev_featureAngleRange
 0
@@ -3071,10 +3077,10 @@ elev_riftAggregation
 9
 
 SWITCH
-471
-312
-572
-345
+560
+237
+661
+270
 flow_do-fill-sinks
 flow_do-fill-sinks
 0
@@ -3082,10 +3088,10 @@ flow_do-fill-sinks
 -1000
 
 SWITCH
-572
-312
-676
-345
+558
+270
+662
+303
 show-flows
 show-flows
 0

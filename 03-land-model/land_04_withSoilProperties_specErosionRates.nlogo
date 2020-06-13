@@ -2158,16 +2158,20 @@ par_elev_numRanges
 0
 Number
 
-INPUTBOX
-308
-226
-426
-286
+SLIDER
+309
+229
+516
+262
 par_elev_rangeLength
-0.0
-1
+par_elev_rangeLength
 0
-Number
+100
+100.0
+1
+1
+% patches
+HORIZONTAL
 
 INPUTBOX
 308
@@ -2180,16 +2184,20 @@ par_elev_numRifts
 0
 Number
 
-INPUTBOX
-308
-286
-412
-346
+SLIDER
+310
+262
+517
+295
 par_elev_riftLength
-0.0
-1
+par_elev_riftLength
 0
-Number
+100
+100.0
+1
+1
+% patches
+HORIZONTAL
 
 SLIDER
 15
