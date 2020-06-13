@@ -1384,8 +1384,8 @@ Parameters:
       agents and more parameters.
     - elev_numRanges, numRifts: number of landforming features ("ranges",
       "rifts").
-    - elev_rangeLength, riftLength: maximum length, in land units, of
-      landforming features.
+    - elev_rangeLength, riftLength: maximum length, in percentage of total 
+      land units, of landforming features.
     - elev_rangeHeight, riftHeight: the starting elevation of landforming
       features. These are also used as maximum and minimum elevation for 
       x,y, and valley slopes.
