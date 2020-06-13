@@ -139,12 +139,12 @@ globals
   ;****************************************************************************
 
   ;;;; soil water balance constants (?)
-  soil_rootWaterUptakeCoefficient ; (root) Water Uptake coefficient (mm^3.mm^-3) (MUF)
+  soil_rootWaterUptakeCoefficient        ; (root) Water Uptake coefficient (mm^3.mm^-3) (MUF)
 
   ;;; parameters ===============================================================
 
   ;;; LAND ---------------------------------------------------------------------
-  elev_seaLevelReferenceShift           ; the shift applied to re-centre elevations, pointing to the new 0 reference as the sea level (m)
+  elev_seaLevelReferenceShift            ; the shift applied to re-centre elevations, pointing to the new 0 reference as the sea level (m)
 
   ;;; WEATHER ------------------------------------------------------------------
   ;;;; temperature (ºC)
@@ -902,8 +902,7 @@ end
 
 to solve-runoff-exchange
 
-  ; Uses the same logic that was used to calculate flow_accumulation in the Land model,
-  ; but instead modifies the value of p_soil_waterContent
+  ; The runoff exchange algorithm uses the same logic that was used to calculate flow_accumulation in the Land model.
   ;
   ; From Jenson, S. K., & Domingue, J. O. (1988), p. 1594
   ; "FLOW ACCUMULATION DATA SET
