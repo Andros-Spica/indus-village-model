@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/246004693.svg)](https://zenodo.org/badge/latestdoi/246004693)
+
 # Indus Village model
 
 Collection of files associated with the Indus Village model, including separate modules implementations, demonstrations, tests, and pseudo-code diagrams.
