@@ -1446,10 +1446,10 @@ Used when algorithm-style = "NetLogo":
     <node id="n9">
       <data key="d6">
         <y:ShapeNode>
-          <y:Geometry height="760.81946711925" width="476.8804535700566" x="1065.1998220023681" y="-181.22410748914587"/>
+          <y:Geometry height="811.3423624565888" width="513.6543094618149" x="1055.0037839247716" y="-231.74700282648467"/>
           <y:Fill color="#FFCC00" transparent="false"/>
           <y:BorderStyle color="#000000" raised="false" type="line" width="1.0"/>
-          <y:NodeLabel alignment="left" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="753.759765625" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="439.5625" x="18.658976785028244" xml:space="preserve" y="3.5298507471250105">Land unit variable:
+          <y:NodeLabel alignment="left" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="797.86328125" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="487.556640625" x="13.048834418407523" xml:space="preserve" y="6.739540603294472">Land unit variable:
 - elevation: average elevation above reference of the land unit (metres). 
   The reference is an arbitrary elevation from which all algorithms will 
   sculpt the terrain.
@@ -1488,7 +1488,7 @@ Used when algorithm-style = "NetLogo":
 - p_soil_deepDrainageCoefficient: saturated hydraulic conductivity or fraction 
   of soil water above field capacity drained per day (mm/day)
 
-Auxiliary agent: Map setters (used when algorithm-style = "NetLogo")
+Auxiliary agent: Map setters (used when algorithm-style = "NetLogo").
 
 Map setters variable:
 - numPoints: the number of land units to be chained together as a "rift" or "range".
@@ -1496,10 +1496,13 @@ Map setters variable:
 Global variables (output):
 - seaLevel: elevation considered as sea level for display purposes.
 - landRatio: the ratio of land units above seaLevel. 
-- elevationDistribution: the set or list containing the elevation of all land units 
+- elevationDistribution: the set or list containing the elevation of all land units.
 - minElevation, maxElevation, sdElevation: statistics on the elevation of land units.
 - landWithRiver: count of land units with passing river 
-  (flow_accumulation &gt;= flow_riverAccumulationAtStart).<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+  (flow_accumulation &gt;= flow_riverAccumulationAtStart).
+- mostCommonTextureType: the most common of texture type, see soil_textureTypes.
+- meanRunOffCurveNumber, meanWaterHoldingCapacity, meanDeepDrainageCoefficient: 
+  mean soil hydrological properties.<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
           <y:Shape type="rectangle3d"/>
         </y:ShapeNode>
       </data>
@@ -6530,7 +6533,7 @@ MAX(0, (-0.0105 + 0.0042 * p_soil_%clay))<y:LabelModel><y:SmartNodeLabelModel di
               <y:Geometry height="40.0" width="377.9664948453608" x="746.9253989026456" y="4092.980553279304"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="33.40234375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="363.5546875" x="7.2059036726803924" xml:space="preserve" y="3.2988281250004547">return:
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="33.40234375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="363.5546875" x="7.2059036726803924" xml:space="preserve" y="3.2988281249995453">return:
 intakeRate * 24 (daily intake rate as approx. to deep drainage coef.)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
@@ -6543,7 +6546,7 @@ intakeRate * 24 (daily intake rate as approx. to deep drainage coef.)<y:LabelMod
           <y:Geometry height="66.25" width="391.2738346943988" x="336.65729804480736" y="3182.915459409867"/>
           <y:Fill color="#FFCC00" transparent="false"/>
           <y:BorderStyle color="#000000" raised="false" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="18" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="48.103515625" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="353.1982421875" x="19.037796253449386" xml:space="preserve" y="9.0732421875">To be modified in next Land model version, 
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="18" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="48.103515625" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="353.1982421875" x="19.037796253449415" xml:space="preserve" y="9.0732421875">To be modified in next Land model version, 
 i.e. with initial ecological communities<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
           <y:Shape type="roundrectangle"/>
         </y:ShapeNode>
@@ -6555,7 +6558,7 @@ i.e. with initial ecological communities<y:LabelModel><y:SmartNodeLabelModel dis
           <y:Geometry height="52.578125" width="305.9933904289744" x="1156.457473327249" y="4189.544943850213"/>
           <y:Fill color="#FFCC00" transparent="false"/>
           <y:BorderStyle color="#000000" raised="false" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="18" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="48.103515625" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="290.171875" x="7.910757714487204" xml:space="preserve" y="2.2373046875">Pending finding data on deep 
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="18" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="48.103515625" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="290.171875" x="7.91075771448709" xml:space="preserve" y="2.2373046875">Pending finding data on deep 
 drainage coefficient per texture type<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
           <y:Shape type="roundrectangle"/>
         </y:ShapeNode>
@@ -6629,7 +6632,7 @@ p_soil_WaterHoldingCapacity = p_soil_fieldCapacity - p_soil_wiltingPoint<y:Label
           <y:Geometry height="121.94737590480918" width="238.51911987399188" x="-22.29066178530593" y="4018.2566070350304"/>
           <y:Fill color="#FFCC00" transparent="false"/>
           <y:BorderStyle color="#000000" raised="false" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="18" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="92.20703125" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="217.134765625" x="10.69217712449597" xml:space="preserve" y="14.870172327404362">Pending finding data on 
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="18" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="92.20703125" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="217.134765625" x="10.692177124495942" xml:space="preserve" y="14.870172327404362">Pending finding data on 
 wilting point and saturation
 per texture type
 (using linear estimation)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
@@ -6692,7 +6695,7 @@ per texture type
               <y:Geometry height="40.0" width="199.44811318466367" x="328.0722091488749" y="3868.2017748189787"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="33.40234375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="172.45703125" x="13.495540967331834" xml:space="preserve" y="3.298828125">return:
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="33.40234375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="172.45703125" x="13.495540967331863" xml:space="preserve" y="3.298828125">return:
 0.3916 + 0.0045 * p_soil_%clay<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
@@ -6758,7 +6761,6 @@ per texture type
       </data>
     </node>
     <node id="n68">
-      <data key="d5"/>
       <data key="d6">
         <y:ImageNode>
           <y:Geometry height="173.0" width="565.0" x="42.81500701031234" y="3295.9310564805564"/>
@@ -6788,7 +6790,6 @@ per texture type
       </data>
     </node>
     <node id="n70">
-      <data key="d5"/>
       <data key="d6">
         <y:ImageNode>
           <y:Geometry height="247.0" width="215.0" x="-5.596441393366774" y="3499.449021315435"/>
@@ -6818,7 +6819,6 @@ per texture type
       </data>
     </node>
     <node id="n72">
-      <data key="d5"/>
       <data key="d6">
         <y:ImageNode>
           <y:Geometry height="247.0" width="196.0" x="1249.6727653640776" y="3928.1323780524963"/>
@@ -8356,7 +8356,6 @@ per texture type
       </data>
     </edge>
     <edge id="e73" source="n56::n2" target="n69">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="231.658968391063" ty="51.294504337726266">
@@ -8369,7 +8368,6 @@ per texture type
       </data>
     </edge>
     <edge id="e74" source="n58::n2" target="n73">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="-76.69019400930051" ty="6.874834376292256"/>

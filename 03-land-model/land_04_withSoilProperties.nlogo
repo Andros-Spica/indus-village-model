@@ -136,6 +136,11 @@ globals
 
   landWithRiver               ; count of land units with passing river
   maxFlowAccumulation
+
+  mostCommonTextureType       ; the most common of texture type, see soil_textureTypes
+  meanRunOffCurveNumber       ; mean runoff curve number of land units
+  meanWaterHoldingCapacity    ; mean water holding capacity of land units (fraction of soil volume)
+  meanDeepDrainageCoefficient ; mean deep drainage coefficient (1/day)
 ]
 
 patches-own
@@ -197,7 +202,7 @@ patches-own
   p_soil_waterHoldingCapacity       ; water holding capacity (fraction of soil volume)
   p_soil_wiltingPoint               ; permanent wilting point (fraction of soil volume)
 
-  p_soil_deepDrainageCoefficient    ; saturated hydraulic conductivity or soil water above field capacity drained per day (mm/day)
+  p_soil_deepDrainageCoefficient    ; saturated hydraulic conductivity or fraction of soil water above field capacity drained per day (1/day)
 ]
 
 breed [ mapSetters mapSetter ] ; used when elev_algorithm-style = "NetLogo"
@@ -1181,6 +1186,11 @@ to set-output-stats
   set landRatio count patches with [elevation > seaLevel] / count patches
 
   set landWithRiver count patches with [flow_accumulation >= flow_riverAccumulationAtStart]
+
+  set mostCommonTextureType modes [p_soil_textureType] of patches
+  set meanRunOffCurveNumber mean [p_soil_runOffCurveNumber] of patches
+  set meanWaterHoldingCapacity mean [p_soil_waterHoldingCapacity] of patches
+  set meanDeepDrainageCoefficient mean [p_soil_deepDrainageCoefficient] of patches
 
 end
 
@@ -3110,7 +3120,7 @@ par_flow_riverAccumulationAtStart
 Number
 
 MONITOR
-519
+536
 651
 676
 688
@@ -3450,6 +3460,50 @@ MONITOR
 NIL
 soil_formativeErosionRate
 2
+1
+9
+
+MONITOR
+768
+652
+893
+689
+NIL
+mostCommonTextureType
+0
+1
+9
+
+MONITOR
+894
+652
+1019
+689
+NIL
+meanRunOffCurveNumber
+2
+1
+9
+
+MONITOR
+1020
+651
+1146
+688
+NIL
+meanWaterHoldingCapacity
+4
+1
+9
+
+MONITOR
+1146
+651
+1283
+688
+NIL
+meanDeepDrainageCoefficient
+4
 1
 9
 

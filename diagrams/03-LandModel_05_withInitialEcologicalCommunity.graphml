@@ -1471,10 +1471,10 @@ hidden in the graph):
     <node id="n10">
       <data key="d6">
         <y:ShapeNode>
-          <y:Geometry height="829.9480942710877" width="519.1690971605193" x="1052.0086046430347" y="-481.60723153098627"/>
+          <y:Geometry height="888.8137473912774" width="535.4635459551499" x="1045.5287351453217" y="-532.1301268683251"/>
           <y:Fill color="#FFCC00" transparent="false"/>
           <y:BorderStyle color="#000000" raised="false" type="line" width="1.0"/>
-          <y:NodeLabel alignment="left" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="827.265625" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="516.8359375" x="1.1665798302597068" xml:space="preserve" y="1.3412346355438558">Land unit variable:
+          <y:NodeLabel alignment="left" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="886.0703125" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="516.8359375" x="9.31380422757502" xml:space="preserve" y="1.371717445638751">Land unit variable:
 - elevation: average elevation above reference of the land unit (metres). 
   The reference is an arbitrary elevation from which all algorithms will 
   sculpt the terrain.
@@ -1511,14 +1511,14 @@ hidden in the graph):
 - p_soil_waterHoldingCapacity: water holding capacity (fraction of soil volume)
 - p_soil_wiltingPoint: permanent wilting point (fraction of soil volume)
 - p_soil_deepDrainageCoefficient: saturated hydraulic conductivity or fraction 
-  of soil water above field capacity drained per day (mm/day)
+  of soil water above field capacity drained per day (1/day)
 - p_ecol_%grass: percentage of grass vegetation (biomass) in ecological community
 - p_ecol_%brush: percentage of brush/shrub vegetation (biomass) in ecological community
 - p_ecol_%wood: percentage of wood vegetation (biomass) in ecological community
 - p_ecol_coverType: cover type summarising the composition of vegetation types in ecological
  community. Namely, they are: "desert", "grassland", "wood-grass", "shrubland", and "woodland".
 
-Auxiliary agent: Map setters (used when algorithm-style = "NetLogo")
+Auxiliary agent: Map setters (used when algorithm-style = "NetLogo").
 
 Map setters variable:
 - numPoints: the number of land units to be chained together as a "rift" or "range".
@@ -1526,10 +1526,14 @@ Map setters variable:
 Global variables (output):
 - seaLevel: elevation considered as sea level for display purposes.
 - landRatio: the ratio of land units above seaLevel. 
-- elevationDistribution: the set or list containing the elevation of all land units 
+- elevationDistribution: the set or list containing the elevation of all land units.
 - minElevation, maxElevation, sdElevation: statistics on the elevation of land units.
 - landWithRiver: count of land units with passing river 
-  (flow_accumulation &gt;= flow_riverAccumulationAtStart).<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+  (flow_accumulation &gt;= flow_riverAccumulationAtStart).
+- mostCommonTextureType: the most common of texture type, see soil_textureTypes
+- meanRunOffCurveNumber, meanWaterHoldingCapacity, meanDeepDrainageCoefficient: 
+  mean soil hydrological properties.
+- mostCommonCoverType: the most common of cover type, see p_ecol_coverType.<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
           <y:Shape type="rectangle3d"/>
         </y:ShapeNode>
       </data>
@@ -7119,7 +7123,7 @@ element matching coverTreatmentAndHydrologicCondition hydrologicSoilGroup in run
               <y:Geometry height="40.0" width="291.924692507637" x="401.56814159664987" y="1706.6782951522334"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="33.40234375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="250.123046875" x="20.900822816318396" xml:space="preserve" y="3.298828125">return:
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="33.40234375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="250.123046875" x="20.90082281631851" xml:space="preserve" y="3.298828125">return:
 element matching textureType in fieldCapacity<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
@@ -7839,7 +7843,7 @@ NOTE: if denominator is too big to compute, return 0<y:LabelModel><y:SmartNodeLa
               <y:Geometry height="40.0" width="245.68640284615034" x="-591.2933410846831" y="1792.927600480919"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="33.40234375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="231.783203125" x="6.951599860575186" xml:space="preserve" y="3.298828125">return:
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="33.40234375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="231.783203125" x="6.951599860575243" xml:space="preserve" y="3.298828125">return:
 MAX(0, (-0.0105 + 0.0042 * p_soil_%clay))<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
