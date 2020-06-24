@@ -1525,7 +1525,7 @@ Map setters variable:
 
 Global variables (output):
 - seaLevel: elevation considered as sea level for display purposes.
-- landRatio: the ratio of land units above seaLevel. 
+- landRatio: the ratio of land units above or equal to seaLevel. 
 - elevationDistribution: the set or list containing the elevation of all land units.
 - minElevation, maxElevation, sdElevation: statistics on the elevation of land units.
 - landWithRiver: count of land units with passing river 

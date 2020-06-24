@@ -128,7 +128,7 @@ globals
   ;;; variables ===============================================================
   seaLevel                    ; elevation considered as sea level for display purposes.
 
-  landRatio                   ; the ratio of land units above seaLevel.
+  landRatio                   ; the ratio of land units above or equal to seaLevel.
   elevationDistribution       ; the set or list containing the elevation of all land units
   minElevation                ; statistics on the elevation of land units.
   sdElevation
@@ -1183,7 +1183,7 @@ to set-output-stats
   set par_seaLevel (floor minElevation) - 1
   set seaLevel par_seaLevel
 
-  set landRatio count patches with [elevation > seaLevel] / count patches
+  set landRatio count patches with [elevation >= seaLevel] / count patches
 
   set landWithRiver count patches with [flow_accumulation >= flow_riverAccumulationAtStart]
 
@@ -1222,7 +1222,7 @@ to paint-patches
     let maxdepth max [p_soil_depth] of patches
 
     ask patches [ set pcolor 38 - 6 * (p_soil_depth - mindepth) / (maxdepth - mindepth) ]
-    set-legend-continuous-range 100 0 38 32 6 false
+    set-legend-continuous-range maxdepth mindepth 38 32 6 false
   ]
   if (display-mode = "soil texture")
   [
@@ -1530,7 +1530,7 @@ to refresh-view-after-seaLevel-change
 
   set seaLevel par_seaLevel
 
-  set landRatio count patches with [elevation > seaLevel] / count patches
+  set landRatio count patches with [elevation >= seaLevel] / count patches
 
   update-plots
 

@@ -1385,7 +1385,7 @@ to paint-patches
     let maxdepth max [p_soil_depth] of patches
 
     ask patches [ set pcolor 38 - 6 * (p_soil_depth - mindepth) / (maxdepth - mindepth) ]
-    set-legend-continuous-range maxdepth mindepth 38 32 6 false
+    set-legend-continuous-range 100  38 32 6 false
   ]
   if (display-mode = "soil texture")
   [

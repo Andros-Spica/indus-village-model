@@ -664,6 +664,8 @@ end
 
 to plot-precipitation-table
 
+  clear-plot
+
   ;;; precipitation (mm/day) is summed by month
   foreach n-values yearLengthInDays [j -> j]
   [
