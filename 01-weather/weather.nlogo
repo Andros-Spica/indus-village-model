@@ -1478,7 +1478,7 @@ PLOT
 647
 precipitation
 days
-ppm
+mm
 0.0
 10.0
 0.0
