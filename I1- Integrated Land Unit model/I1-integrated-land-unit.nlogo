@@ -5,6 +5,7 @@
 ;;  Integrated Land Unit model
 ;;  Copyright (C) Andreas Angourakis (andros.spica@gmail.com)
 ;;  available at https://www.github.com/Andros-Spica/indus-village-model
+;;  This model includes a cleaner version of the Terrain Generator model v.2 (https://github.com/Andros-Spica/ProceduralMap-NetLogo)
 ;;
 ;;  This program is free software: you can redistribute it and/or modify
 ;;  it under the terms of the GNU General Public License as published by
@@ -32,8 +33,14 @@ globals
 
   yearLengthInDays
 
+  ; randomSeed (GUI): seed of random number generator used for setting parameters and general stocahstic processes.
+
   ;************************************************************************
-  ;*** LAND model fixed parameters (imported terrain):
+  ;*** LAND model
+
+  ;***** non-fixed parameters (to select terrain to import):
+
+  ; terrainRandomSeed (GUI): seed of the random number generator corresponding to the pre-processed terrain to import.
 
   ; elev_algorithm-style (GUI): style of algorithm to create land features "ranges" and "rifts".
   ; The algorithms styles available are: "NetLogo", using auxiliary agents and
@@ -43,6 +50,10 @@ globals
   ; flow_do-fill-sinks (GUI): whether to apply algorithm to fill all drainage "sinks" (land units
   ;                      not on the edge of the map where there is no flow towards a neighbour).
   ;                      Those sinks are likely to have been created by land forming algorithms.
+
+  ;;; NOTE: terrainRandomSeed, elev_algorithm-style and flow_do-fill-sinks are used to select the file containing the terrain to import.
+
+  ;***** fixed parameters (imported terrain):
 
   ;;; table inputs
   ;;;;; hydrologic Soil Groups table
@@ -136,12 +147,29 @@ globals
   ecol_woodFrequencyInflection           ; flow accumulation required for having 50% of wood coverage (inflection point of the logistic curve)
   ecol_woodFrequencyRate                 ; rate of increase in percentage of wood coverage, depending on flow_accumulation (rate or slope parameter of the logistic curve)
 
+  ;;;; derived measures
+  landRatio                            ; the ratio of land units above seaLevel.
+  elevationDistribution                ; the set or list containing the elevation of all land units
+  minElevation                         ; statistics on the elevation of land units.
+  sdElevation
+  maxElevation
+
+  landWithRiver                        ; count of land units with passing river
+  maxFlowAccumulation
+
+  mostCommonTextureType       ; the most common of texture type, see soil_textureTypes
+  meanRunOffCurveNumber       ; mean runoff curve number of land units
+  meanWaterHoldingCapacity    ; mean water holding capacity of land units (fraction of soil volume)
+  meanDeepDrainageCoefficient ; mean deep drainage coefficient (1/day)
+
+  mostCommonCoverType        ; the most common of cover type, see p_ecol_coverType
+
   ;****************************************************************************
 
   ;;;; soil water balance constants (?)
   soil_rootWaterUptakeCoefficient        ; (root) Water Uptake coefficient (mm^3.mm^-3) (MUF)
 
-  ;;; parameters ===============================================================
+  ;;; parameters (modified copies of interface input) ===============================================================
 
   ;;; LAND ---------------------------------------------------------------------
   elev_seaLevelReferenceShift            ; the shift applied to re-centre elevations, pointing to the new 0 reference as the sea level (m)
@@ -218,23 +246,12 @@ globals
 
   ;;;; counters and final measures
 
-  ;;;; terrain
-  seaLevel                             ; elevation considered as sea level (defaults to 0, after elevation is re-centred)
-
-  landRatio                            ; the ratio of land units above seaLevel.
-  elevationDistribution                ; the set or list containing the elevation of all land units
-  minElevation                         ; statistics on the elevation of land units.
-  sdElevation
-  maxElevation
-
-  landWithRiver                        ; count of land units with passing river
-  maxFlowAccumulation
 ]
 
 patches-own
 [
   ;========= LAND model ======================================================================
-  ;;; keep all LAND model variables in place and in order or remeber to update "import-terrain" procedure
+  ;;; keep all LAND model variables in place and in order or remember to update "import-terrain" procedure
   ;;; topography
   elevation             ; average elevation above reference of the land unit (metres).
                         ; The reference is an arbitrary elevation from which all
@@ -293,7 +310,7 @@ patches-own
   p_soil_waterHoldingCapacity       ; water holding capacity (fraction of soil volume)
   p_soil_wiltingPoint               ; permanent wilting point (fraction of soil volume)
 
-  p_soil_deepDrainageCoefficient    ; saturated hydraulic conductivity or soil water above field capacity drained per day (mm/day)
+  p_soil_deepDrainageCoefficient    ; saturated hydraulic conductivity or fraction of soil water above field capacity drained per day (mm/day)
 
   ;;; initial ecological communities
   p_ecol_%grass                     ; percentage of grass vegetation (biomass) in ecological community
@@ -384,6 +401,17 @@ to set-parameters
   ; set random seed
   random-seed randomSeed
 
+  set maxDist (sqrt (( (max-pxcor - min-pxcor) ^ 2) + ((max-pycor - min-pycor) ^ 2)) / 2)
+
+  ;;; Ordered list of soil texture types used for visualisation
+  ;;; this order corresponds to an approximation to the soil texture palette (red: sand, green: silt, blue: clay)
+  set soil_textureTypes_display (list
+    "Sand"             "Loamy sand"        "Sandy loam"     ; red         orange  brown
+    "Loam"             "Silt loam"         "Silt"           ; yellow      green   lime
+    "Silty clay loam"  "Silty clay"        "Clay"           ; turquoise   cyan    sky
+    "Clay loam"        "Sandy clay"        "Sandy clay loam"; blue        violet  magenta
+  )
+
   ; check parameters values
   parameters-check
 
@@ -473,7 +501,7 @@ to set-parameters
     set ecol_maxRootZoneDepth ecol_minRootZoneDepth + random-float 1000
 
     ;;; River water (effect on p_water depends on flow_riverAccumulationAtStart, which is set by the Land model)
-    set riverWaterPerFlowAccumulation 1E-5 + random-float 0.00099 ; range between 1E-3 and 1E-5
+    set riverWaterPerFlowAccumulation 1E-4 + random-float 0.00099 ; range between 1E-3 and 1E-5
   ]
 
 end
@@ -584,8 +612,6 @@ to setup-patches
     ; WAT0 : Initial Water content (mm)
     set p_soil_waterContent  p_ecol_rootZoneDepth * p_soil_fieldCapacity
   ]
-
-  set seaLevel 0
 
 end
 
@@ -871,7 +897,7 @@ end
 
 to update-water
 
-  ;add-river-water
+  add-river-water
 
   add-precipitation-water
 
@@ -883,9 +909,9 @@ end
 
 to add-river-water
 
-  ask patches with [flow_accumulation = flow_riverAccumulationAtStart + 1];> flow_riverAccumulationAtStart] ; patches containing the river
+  ask patches with [flow_accumulation > flow_riverAccumulationAtStart] ; patches containing the river or only startin point: = flow_riverAccumulationAtStart + 1]
   [
-    set p_water p_water + flow_accumulation * riverWaterPerFlowAccumulation
+    set p_water flow_riverAccumulationAtStart * riverWaterPerFlowAccumulation ; no accumulation in river between one day to the other
   ]
 
 end
@@ -952,7 +978,7 @@ to solve-runoff-exchange
 
       if (downstreamPatch != nobody)
       [
-        if (p_runoff > 0) [ try-send-runoff-to downstreamPatch ]
+        try-send-runoff-to downstreamPatch
 
         ask downstreamPatch
         [
@@ -1128,23 +1154,26 @@ to drain-soil-water
     ; Calculating the amount of deep drainage
     let deepDrainage 0
     if (p_soil_waterContent > WATfc)
-    [ set deepDrainage (p_soil_deepDrainageCoefficient / p_ecol_rootZoneDepth) * (p_soil_waterContent - WATfc) ]
-  ;if (deepDrainage > p_soil_waterContent) [ print self print (word deepDrainage " = (" p_soil_deepDrainageCoefficient " / " p_ecol_rootZoneDepth ") * (" p_soil_waterContent " - " WATfc ")" ) ]
-    ; Calculate rate of change of state variable p_soil_waterContent
+    [ set deepDrainage p_soil_deepDrainageCoefficient * (p_soil_waterContent - WATfc) ]
+;if (deepDrainage > p_soil_waterContent) [ print self print (word deepDrainage " = (" p_soil_deepDrainageCoefficient " / " p_ecol_rootZoneDepth ") * (" p_soil_waterContent " - " WATfc ")" ) ]
+
     ; Compute maximum water uptake by plant roots on a day, RWUM
-    let maxWaterUptakePlantRoot soil_rootWaterUptakeCoefficient * (p_soil_waterContent - deepDrainage - WATwp)
+    let maxWaterUptakePlantRoot soil_rootWaterUptakeCoefficient * (p_soil_waterContent - WATwp)
+
     ; Calculate the amount of water lost through transpiration (TR)
     let transpiration min (list maxWaterUptakePlantRoot p_ETr)
 
+    ; Calculate rate of change of state variable p_soil_waterContent
     set p_soil_waterContent p_soil_waterContent - deepDrainage - transpiration
     if (p_soil_waterContent < 0) [ print self print p_soil_waterContent ]
     set p_soil_waterContentRatio p_soil_waterContent / p_ecol_rootZoneDepth
 
+    ; Calculate ARID coefficient or drought index
     set p_soil_ARID 0
     if (transpiration < p_ETr)
     [ set p_soil_ARID 1 - transpiration / p_ETr ]
   ]
-;print "================================================"
+
 end
 
 to-report get-drop-from [ aPatch ] ; ego = patch
@@ -1266,9 +1295,16 @@ to set-output-stats
 
   set sdElevation standard-deviation [elevation] of patches
 
-  set landRatio count patches with [elevation > seaLevel] / count patches
+  set landRatio count patches with [elevation >= 0] / count patches
 
   set landWithRiver count patches with [flow_accumulation >= flow_riverAccumulationAtStart]
+
+  set mostCommonTextureType modes [p_soil_textureType] of patches
+  set meanRunOffCurveNumber mean [p_soil_runOffCurveNumber] of patches
+  set meanWaterHoldingCapacity mean [p_soil_waterHoldingCapacity] of patches
+  set meanDeepDrainageCoefficient mean [p_soil_deepDrainageCoefficient] of patches
+
+  set mostCommonCoverType modes [p_ecol_coverType] of patches
 
 end
 
@@ -1278,9 +1314,16 @@ end
 
 to refresh-view-after-seaLevel-change
 
-  set seaLevel par_seaLevel
+  ;;; this procedure will recentre patch elevations according to elev_seaLevelReferenceShift
+  ;;; and update landRatio and display
 
-  set landRatio count patches with [elevation > seaLevel] / count patches
+  ask patches
+  [
+    ;;; recentre elevation so negative values are only below sea level
+    set elevation get-recentred-elevation
+  ]
+
+  set landRatio count patches with [elevation >= 0] / count patches
 
   refresh-to-display-mode
 
@@ -1291,6 +1334,31 @@ to refresh-to-display-mode
   ;;; several soil properties must be rescaled to enhance visualisation
   ;;; (the parametric max and min values of some of these are never realised for various reasons)
 
+  set-current-plot "Legend"
+
+  clear-plot
+
+  if (display-mode = "elevation and surface water depth (m)")
+  [
+    let minWater min [p_water] of patches with [p_water > 0]
+    let maxWater max [p_water] of patches with [p_water > 0]
+
+    let rangeWater maxWater - minWater
+    if (rangeWater = 0) [ set rangeWater 1 ]
+
+
+    ask patches
+    [
+      ; paint elevation
+      set pcolor get-elevation-color elevation
+
+      ; paint water depth
+      if (p_water > 0)
+      [ set pcolor 98 - 4 * (p_water - minWater) / rangeWater ]
+    ]
+
+    set-legend-elevation-and-water (maxWater / 1000) (minWater / 1000) 94 98 6 true ; in metres
+  ]
   if (display-mode = "elevation (m)")
   [
     ask patches
@@ -1299,6 +1367,22 @@ to refresh-to-display-mode
     ]
     set-legend-elevation 10
   ]
+  if (display-mode = "surface water depth (mm)")
+  [
+    let minWater min [p_water] of patches with [p_water > 0]
+    let maxWater max [p_water] of patches with [p_water > 0]
+
+    let rangeWater maxWater - minWater
+    if (rangeWater = 0) [ set rangeWater 1 ]
+
+    ask patches
+    [
+      ifelse (p_water > 0)
+      [ set pcolor 94 - 4 * (p_water - minWater) / rangeWater ]
+      [ set pcolor 99 ]
+    ]
+    set-legend-continuous-range maxWater minWater 98 94 6 false
+  ]
   if (display-mode = "soil formative erosion")
   [
     ask patches [ set pcolor 8 - 6 * p_soil_formativeErosion ]
@@ -1306,10 +1390,13 @@ to refresh-to-display-mode
   ]
   if (display-mode = "soil depth (mm)")
   [
-    let mindepth min [p_soil_depth] of patches
-    let maxdepth max [p_soil_depth] of patches
+    let minDepth min [p_soil_depth] of patches
+    let maxDepth max [p_soil_depth] of patches
 
-    ask patches [ set pcolor 38 - 6 * (p_soil_depth - mindepth) / (maxdepth - mindepth) ]
+    let rangeDepth maxDepth - minDepth
+    if (rangeDepth = 0) [ set rangeDepth 1 ]
+
+    ask patches [ set pcolor 38 - 6 * (p_soil_depth - mindepth) / rangeDepth ]
     set-legend-continuous-range 100 0 38 32 6 false
   ]
   if (display-mode = "soil texture")
@@ -1346,9 +1433,12 @@ to refresh-to-display-mode
     let minWiltingPoint min [p_soil_wiltingPoint] of patches
     let maxWiltingPoint max [p_soil_wiltingPoint] of patches
 
+    let rangeWiltingPoint maxWiltingPoint - minWiltingPoint
+    if (rangeWiltingPoint = 0) [ set rangeWiltingPoint 1 ]
+
     ask patches
     [
-      set pcolor 98 - 6 * (p_soil_wiltingPoint - minWiltingPoint) / (maxWiltingPoint - minWiltingPoint)
+      set pcolor 98 - 6 * (p_soil_wiltingPoint - minWiltingPoint) / rangeWiltingPoint
     ]
     set-legend-continuous-range maxWiltingPoint minWiltingPoint 98 92 6 false
   ]
@@ -1357,9 +1447,12 @@ to refresh-to-display-mode
     let minWaterHoldingCapacity min [p_soil_waterHoldingCapacity] of patches
     let maxWaterHoldingCapacity max [p_soil_waterHoldingCapacity] of patches
 
+    let rangeWaterHoldingCapacity maxWaterHoldingCapacity - minWaterHoldingCapacity
+    if (rangeWaterHoldingCapacity = 0) [ set rangeWaterHoldingCapacity 1 ]
+
     ask patches
     [
-      set pcolor 98 - 6 * (p_soil_waterHoldingCapacity - minWaterHoldingCapacity) / (maxWaterHoldingCapacity - minWaterHoldingCapacity)
+      set pcolor 98 - 6 * (p_soil_waterHoldingCapacity - minWaterHoldingCapacity) / rangeWaterHoldingCapacity
     ]
     set-legend-continuous-range maxWaterHoldingCapacity minWaterHoldingCapacity 98 92 6 false
   ]
@@ -1368,9 +1461,12 @@ to refresh-to-display-mode
     let minFieldCapacity min [p_soil_fieldCapacity] of patches
     let maxFieldCapacity max [p_soil_fieldCapacity] of patches
 
+    let rangeFieldCapacity maxFieldCapacity - minFieldCapacity
+    if (rangeFieldCapacity = 0) [ set rangeFieldCapacity 1 ]
+
     ask patches
     [
-      set pcolor 98 - 6 * (p_soil_fieldCapacity - minFieldCapacity) / (maxFieldCapacity - minFieldCapacity)
+      set pcolor 98 - 6 * (p_soil_fieldCapacity - minFieldCapacity) / rangeFieldCapacity
     ]
     set-legend-continuous-range maxFieldCapacity minFieldCapacity 98 92 6 false
   ]
@@ -1379,9 +1475,12 @@ to refresh-to-display-mode
     let minSaturation min [p_soil_saturation] of patches
     let maxSaturation max [p_soil_saturation] of patches
 
+    let rangeSaturation maxSaturation - minSaturation
+    if (rangeSaturation = 0) [ set rangeSaturation 1 ]
+
     ask patches
     [
-      set pcolor 98 - 6 * (p_soil_saturation - minSaturation) / (maxSaturation - minSaturation)
+      set pcolor 98 - 6 * (p_soil_saturation - minSaturation) / rangeSaturation
     ]
     set-legend-continuous-range maxSaturation minSaturation 98 92 6 false
   ]
@@ -1390,9 +1489,12 @@ to refresh-to-display-mode
     let minDeepDrainageCoefficient min [p_soil_deepDrainageCoefficient] of patches
     let maxDeepDrainageCoefficient max [p_soil_deepDrainageCoefficient] of patches
 
+    let rangeDeepDrainageCoefficient maxDeepDrainageCoefficient - minDeepDrainageCoefficient
+    if (rangeDeepDrainageCoefficient = 0) [ set rangeDeepDrainageCoefficient 1 ]
+
     ask patches
     [
-      set pcolor 102 + 6 * (p_soil_deepDrainageCoefficient - minDeepDrainageCoefficient) / (maxDeepDrainageCoefficient - minDeepDrainageCoefficient)
+      set pcolor 102 + 6 * (p_soil_deepDrainageCoefficient - minDeepDrainageCoefficient) / rangeDeepDrainageCoefficient
       ;;; deep drainage coefficient is %, but depends on time and can vary beyond 100%
     ]
     set-legend-continuous-range maxDeepDrainageCoefficient minDeepDrainageCoefficient 108 102 6 true
@@ -1419,9 +1521,12 @@ to refresh-to-display-mode
     let minAlbedo min [p_ecol_albedo] of patches
     let maxAlbedo max [p_ecol_albedo] of patches
 
+    let rangeAlbedo maxAlbedo - minAlbedo
+    if (rangeAlbedo = 0) [ set rangeAlbedo 1 ]
+
     ask patches
     [
-      set pcolor 2 + 6 * (p_ecol_albedo - minAlbedo) / (maxAlbedo - minAlbedo)
+      set pcolor 2 + 6 * (p_ecol_albedo - minAlbedo) / rangeAlbedo
     ]
     set-legend-continuous-range maxAlbedo minAlbedo 8 2 6 true
   ]
@@ -1436,27 +1541,17 @@ to refresh-to-display-mode
     ]
     set-legend-continuous-range maxETr minETr 18 12 6 true
   ]
-  if (display-mode = "surface water (mm)")
-  [
-    let minWater min [p_water] of patches with [p_water > 0]
-    let maxWater max [p_water] of patches with [p_water > 0]
-
-    ask patches
-    [
-      ifelse (p_water > 0)
-      [ set pcolor 92 + 6 * (p_water - minWater) / (maxWater - minWater) ]
-      [ set pcolor 90 ]
-    ]
-    set-legend-continuous-range maxWater minWater 98 92 6 true
-  ]
   if (display-mode = "runoff (mm)")
   [
     let minRunoff min [p_runoff] of patches
     let maxRunoff max [p_runoff] of patches
 
+    let rangeRunoff maxRunoff - minRunoff
+    if (rangeRunoff = 0) [ set rangeRunoff 1 ]
+
     ask patches
     [
-      set pcolor 112 + 6 * (p_runoff - minRunoff) / (maxRunoff - minRunoff)
+      set pcolor 112 + 6 * (p_runoff - minRunoff) / rangeRunoff
     ]
     set-legend-continuous-range maxRunoff minRunoff 118 112 6 true
   ]
@@ -1476,9 +1571,12 @@ to refresh-to-display-mode
     let minWaterContentRatio min [p_soil_waterContentRatio] of patches
     let maxWaterContentRatio max [p_soil_waterContentRatio] of patches
 
+    let rangeWaterContentRatio maxWaterContentRatio - minWaterContentRatio
+    if (rangeWaterContentRatio = 0) [ set rangeWaterContentRatio 1 ]
+
     ask patches
     [
-      set pcolor 102 + 6 * (p_soil_waterContentRatio - minWaterContentRatio) / (maxWaterContentRatio - minWaterContentRatio)
+      set pcolor 102 + 6 * (p_soil_waterContentRatio - minWaterContentRatio) / rangeWaterContentRatio
     ]
     set-legend-continuous-range maxWaterContentRatio minWaterContentRatio 108 102 6 true
   ]
@@ -1487,9 +1585,12 @@ to refresh-to-display-mode
     let minARID min [p_soil_ARID] of patches
     let maxARID max [p_soil_ARID] of patches
 
+    let rangeARID maxARID - minARID
+    if (rangeARID = 0) [ set rangeARID 1 ]
+
     ask patches
     [
-      set pcolor 12 + 6 * (p_soil_ARID - minARID) / (1E-6 + maxARID - minARID)
+      set pcolor 12 + 6 * (p_soil_ARID - minARID) / rangeARID
     ]
     set-legend-continuous-range maxARID minARID 18 12 6 true
   ]
@@ -1504,10 +1605,10 @@ to-report get-elevation-color [ elevationValue ]
 
   let elevationGradient 0
 
-  ifelse (elevationValue < seaLevel)
+  ifelse (elevationValue < 0)
   [
-    let normSubElevation (-1) * (seaLevel - elevationValue)
-    let normSubMinElevation (-1) * (seaLevel - minElevation) + 1E-6
+    let normSubElevation (-1) * (elevationValue)
+    let normSubMinElevation (-1) * (minElevation) + 1E-6
     set elevationGradient 20 + (200 * (1 - normSubElevation / normSubMinElevation))
     report rgb 0 0 elevationGradient
   ]
@@ -1562,11 +1663,20 @@ to-report get-coverType-color [ coverTypeName ]
 
 end
 
+to set-legend-elevation-and-water [ maximum minimum maxShade minShade numberOfKeys ascendingOrder? ]
+
+  ; numberOfKeys is doubled (applies to elevation and then water)
+  ; all other arguments refer to water
+
+  set-legend-elevation numberOfKeys
+
+  set-legend-continuous-range maximum minimum maxShade minShade numberOfKeys ascendingOrder?
+
+end
+
 to set-legend-elevation [ numberOfKeys ]
 
   set-current-plot "Legend"
-
-  clear-plot
 
   let step precision ((maxElevation - minElevation) / numberOfKeys) 4
 
@@ -1585,9 +1695,15 @@ to set-legend-continuous-range [ maximum minimum maxShade minShade numberOfKeys 
 
   set-current-plot "Legend"
 
-  clear-plot
+  set maximum precision maximum 4
+  set minimum precision minimum 4
 
   let step precision ((maximum - minimum) / numberOfKeys) 4
+
+  if (maximum = minimum) [ set maximum maximum + 1 set step 2 ] ; this makes that at least one legend key is drawn when maximum = minimum
+
+  let rangeValues maximum - minimum
+  if (rangeValues = 0) [ set rangeValues 1 ]
 
   ifelse (ascendingOrder?)
   [
@@ -1596,7 +1712,7 @@ to set-legend-continuous-range [ maximum minimum maxShade minShade numberOfKeys 
     while [ value < maximum ]
     [
       create-temporary-plot-pen (word "" (precision value 4) "")
-      set-plot-pen-color minShade + (maxShade - minShade) * (value - minimum) / (maximum - minimum)
+      set-plot-pen-color minShade + (maxShade - minShade) * (value - minimum) / rangeValues
       set value value + step
     ]
   ]
@@ -1606,7 +1722,7 @@ to set-legend-continuous-range [ maximum minimum maxShade minShade numberOfKeys 
     while [ value > minimum ]
     [
       create-temporary-plot-pen (word "" (precision value 4) "")
-      set-plot-pen-color maxShade - (maxShade - minShade) * (value - minimum) / (maximum - minimum)
+      set-plot-pen-color maxShade - (maxShade - minShade) * (value - minimum) / rangeValues
       set value value - step
     ]
   ]
@@ -1616,8 +1732,6 @@ end
 to set-legend-soil-textureType
 
   set-current-plot "Legend"
-
-  clear-plot
 
   foreach soil_textureTypes_display
   [
@@ -1631,8 +1745,6 @@ end
 to set-legend-texture [ %sandRange %siltRange %clayRange ]
 
   set-current-plot "Legend"
-
-  clear-plot
 
   ;;; red: sand, green: silt, blue: clay
   create-temporary-plot-pen (word "max %sand = " round (item 1 %sandRange) )
@@ -1654,8 +1766,6 @@ to set-legend-ecologicalCommunityComposition
 
   set-current-plot "Legend"
 
-  clear-plot
-
   ;;; red: grass, green: brush, blue: wood
   create-temporary-plot-pen "100% grass"
   set-plot-pen-color red
@@ -1671,8 +1781,6 @@ end
 to set-legend-coverType
 
   set-current-plot "Legend"
-
-  clear-plot
 
   foreach (list "desert" "grassland" "wood-grass" "shrubland" "woodland")
   [
@@ -1848,7 +1956,7 @@ to plot-sea-level-horizontal-transect
     foreach (n-values world-width [ j -> min-pxcor + j ])
     [
       x ->
-      plotxy x seaLevel
+      plotxy x 0
     ]
     plot-pen-up
   ]
@@ -1873,7 +1981,7 @@ to plot-sea-level-vertical-transect
     foreach (n-values world-height [ j -> min-pycor + j ])
     [
       y ->
-      plotxy seaLevel y
+      plotxy 0 y
     ]
     plot-pen-up
   ]
@@ -1881,6 +1989,8 @@ to plot-sea-level-vertical-transect
 end
 
 to plot-precipitation-table
+
+  clear-plot
 
   ;;; precipitation (mm/day) is summed by month
   foreach n-values yearLengthInDays [j -> j]
@@ -1967,8 +2077,6 @@ to import-terrain
           globalIndex ->
 
           if (item globalIndex globalNames = "display-mode") [ set display-mode read-from-string item globalIndex globalValues ]
-
-          if (item globalIndex globalNames = "sealevel") [ set seaLevel item globalIndex globalValues ]
 
           if (item globalIndex globalNames = "elev_algorithm-style") [ set elev_algorithm-style read-from-string item globalIndex globalValues ]
 
@@ -2185,9 +2293,9 @@ end
 @#$#@#$#@
 GRAPHICS-WINDOW
 711
-43
+90
 1187
-520
+567
 -1
 -1
 9.36
@@ -2212,9 +2320,9 @@ ticks
 
 PLOT
 1229
-36
-1593
-522
+83
+1596
+569
 Legend
 NIL
 NIL
@@ -2234,16 +2342,16 @@ INPUTBOX
 164
 312
 terrainRandomSeed
-67.0
+32.0
 1
 0
 Number
 
 MONITOR
-387
-131
-488
-176
+496
+25
+597
+70
 NIL
 landRatio
 4
@@ -2252,9 +2360,9 @@ landRatio
 
 SLIDER
 222
-351
+228
 500
-384
+261
 par_elev_seaLevelReferenceShift
 par_elev_seaLevelReferenceShift
 -1000
@@ -2266,10 +2374,10 @@ m
 HORIZONTAL
 
 MONITOR
-223
-177
-321
-222
+332
+71
+430
+116
 sdElevation
 precision sdElevation 4
 4
@@ -2277,10 +2385,10 @@ precision sdElevation 4
 11
 
 MONITOR
-320
-177
-402
-222
+429
+71
+511
+116
 minElevation
 precision minElevation 4
 4
@@ -2288,10 +2396,10 @@ precision minElevation 4
 11
 
 MONITOR
-396
-177
-483
-222
+505
+71
+592
+116
 maxElevation
 precision maxElevation 4
 4
@@ -2299,10 +2407,10 @@ precision maxElevation 4
 11
 
 BUTTON
-339
-283
-547
-316
+344
+263
+552
+296
 refresh after changing sea level
 refresh-view-after-seaLevel-change
 NIL
@@ -2316,10 +2424,10 @@ NIL
 1
 
 MONITOR
-225
-131
-310
-176
+334
+25
+426
+70
 NIL
 count patches
 0
@@ -2327,10 +2435,10 @@ count patches
 11
 
 MONITOR
-315
-131
-380
-176
+424
+25
+489
+70
 maxDist
 precision maxDist 4
 4
@@ -2339,9 +2447,9 @@ precision maxDist 4
 
 PLOT
 769
-633
+680
 1125
-753
+800
 Elevation per patch
 m
 NIL
@@ -2354,7 +2462,7 @@ false
 "set-histogram-num-bars 100\nset-plot-x-range (round min [elevation] of patches - 1) (round max [elevation] of patches + 1)" "set-histogram-num-bars 100\nset-plot-x-range (round min [elevation] of patches - 1) (round max [elevation] of patches + 1)"
 PENS
 "default" 1.0 1 -16777216 true "" "histogram [elevation] of patches"
-"pen-1" 1.0 1 -2674135 true "" "histogram n-values plot-y-max [j -> seaLevel]"
+"pen-1" 1.0 1 -2674135 true "" "histogram n-values plot-y-max [j -> 0]"
 
 CHOOSER
 33
@@ -2367,10 +2475,10 @@ elev_algorithm-style
 1
 
 SWITCH
-287
-20
-407
-53
+969
+19
+1089
+52
 show-flows
 show-flows
 0
@@ -2379,9 +2487,9 @@ show-flows
 
 PLOT
 691
-514
+561
 1187
-634
+681
 Horizontal transect
 pxcor
 m
@@ -2399,9 +2507,9 @@ PENS
 
 SLIDER
 681
-39
+86
 714
-517
+564
 yTransect
 yTransect
 min-pycor
@@ -2414,9 +2522,9 @@ VERTICAL
 
 SLIDER
 708
-12
+59
 1194
-45
+92
 xTransect
 xTransect
 min-pxcor
@@ -2429,9 +2537,9 @@ HORIZONTAL
 
 PLOT
 1186
-36
+83
 1346
-521
+568
 vertical transect
 m
 pycor
@@ -2448,10 +2556,10 @@ PENS
 "pen-2" 1.0 0 -2674135 true "" "plotxy  plot-x-max yTransect plotxy plot-x-min yTransect"
 
 BUTTON
-1213
-579
-1329
-612
+1435
+595
+1551
+628
 update transects
 update-transects
 NIL
@@ -2465,13 +2573,13 @@ NIL
 1
 
 SWITCH
-1203
-545
-1354
-578
+1225
+623
+1376
+656
 show-transects
 show-transects
-0
+1
 1
 -1000
 
@@ -2487,10 +2595,10 @@ flow_do-fill-sinks
 -1000
 
 INPUTBOX
-1200
-664
-1385
-724
+209
+339
+394
+399
 par_riverWaterPerFlowAccumulation
 20.0
 1
@@ -2557,7 +2665,7 @@ INPUTBOX
 99
 118
 randomSeed
-2.0
+1.0
 1
 0
 Number
@@ -2740,7 +2848,7 @@ temperature_dailyUpperDeviation
 PLOT
 1597
 185
-2232
+2147
 369
 Temperature
 days
@@ -2805,7 +2913,7 @@ HORIZONTAL
 PLOT
 1598
 372
-2190
+2096
 514
 Solar radiation
 days
@@ -2854,10 +2962,10 @@ solar_dailyMeanFluctuation
 9
 
 MONITOR
-526
-131
-605
-176
+679
+10
+758
+55
 NIL
 currentYear
 0
@@ -2865,10 +2973,10 @@ currentYear
 11
 
 MONITOR
-508
-176
-622
-221
+771
+10
+885
+55
 NIL
 currentDayOfYear
 0
@@ -2876,20 +2984,20 @@ currentDayOfYear
 11
 
 CHOOSER
-267
-62
-540
-107
+1249
+20
+1522
+65
 display-mode
 display-mode
-"elevation (m)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type" "albedo" "reference evapotranspiration (ETr) (mm)" "surface water (mm)" "runoff (mm)" "root zone depth (mm)" "soil water content (ratio)" "ARID coefficient"
+"elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type" "albedo" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "soil water content (ratio)" "ARID coefficient"
 0
 
 BUTTON
-435
-21
-559
-54
+1117
+20
+1241
+53
 refresh display
 refresh-to-display-mode
 NIL
@@ -2920,10 +3028,10 @@ NIL
 1
 
 SLIDER
-1075
-819
-1476
-852
+632
+815
+1033
+848
 precipitation_yearly-mean
 precipitation_yearly-mean
 0
@@ -2935,10 +3043,10 @@ mm/year (default: 400)
 HORIZONTAL
 
 SLIDER
-1074
-851
-1476
-884
+631
+847
+1033
+880
 precipitation_yearly-sd
 precipitation_yearly-sd
 0
@@ -3130,10 +3238,10 @@ precipitation_daily-cum_rate2_yearly-sd
 HORIZONTAL
 
 MONITOR
-1475
-818
-1603
-855
+1032
+814
+1160
+851
 NIL
 precipitation_yearlyMean
 2
@@ -3141,10 +3249,10 @@ precipitation_yearlyMean
 9
 
 MONITOR
-1476
-853
-1614
-890
+1033
+849
+1171
+886
 NIL
 precipitation_yearlySd
 2
@@ -3286,11 +3394,11 @@ precipitation_dailyCum_rate2_yearlySd
 PLOT
 1594
 514
-2255
+2185
 672
 precipitation
 days
-ppm
+mm
 0.0
 10.0
 0.0
@@ -3460,20 +3568,20 @@ TEXTBOX
 1
 
 TEXTBOX
-1276
-633
-1563
-665
+285
+308
+572
+340
 ========= RIVER =========
 14
 0.0
 1
 
 MONITOR
-1393
-674
-1546
-711
+402
+349
+555
+386
 NIL
 riverWaterPerFlowAccumulation
 7
@@ -3481,36 +3589,10 @@ riverWaterPerFlowAccumulation
 9
 
 MONITOR
-542
-244
-599
-281
-NIL
-seaLevel
-2
-1
-9
-
-SLIDER
-275
-246
-544
-279
-par_seaLevel
-par_seaLevel
-0
-1000
-0.0
-1
-1
-m above 0 reference
-HORIZONTAL
-
-MONITOR
-510
-352
-660
-389
+501
+227
+651
+264
 NIL
 elev_seaLevelReferenceShift
 2
@@ -3518,10 +3600,10 @@ elev_seaLevelReferenceShift
 9
 
 SWITCH
-1360
-545
-1566
-578
+1205
+591
+1411
+624
 show-seaLevel-in-transects
 show-seaLevel-in-transects
 1
@@ -3529,15 +3611,80 @@ show-seaLevel-in-transects
 -1000
 
 MONITOR
-1325
-729
-1446
-774
+549
+345
+670
+390
 land units with river
 landWithRiver
 0
 1
 11
+
+MONITOR
+224
+124
+364
+169
+NIL
+mostCommonTextureType
+0
+1
+11
+
+MONITOR
+365
+124
+515
+169
+NIL
+meanRunOffCurveNumber
+2
+1
+11
+
+MONITOR
+224
+169
+364
+214
+NIL
+meanWaterHoldingCapacity
+4
+1
+11
+
+MONITOR
+363
+169
+520
+214
+NIL
+meanDeepDrainageCoefficient
+4
+1
+11
+
+MONITOR
+532
+146
+668
+191
+NIL
+mostCommonCoverType
+0
+1
+11
+
+TEXTBOX
+1433
+631
+1566
+653
+(transects plots will be updated in the following tick)
+9
+0.0
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
