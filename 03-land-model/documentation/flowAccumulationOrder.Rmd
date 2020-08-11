@@ -1,5 +1,5 @@
 ---
-title: "Runoff exchange algorithm"
+title: "Flow accumulation algorithm"
 author: "Andreas Angourakis"
 date: "04/06/2020"
 output: html_document
@@ -13,9 +13,8 @@ library(gridExtra)
 library(png)
 ```
 
-The runoff exchange algorithm combines the Soil Water Balance model with the design of two algorithms: (a) one that handles the order of the pairwise exchange between land units and (b) another for calculating the runoff exchanged at every instance.
 
-The algorithm handling the order of runoff exchange (a) follows the same logic that is used to calculate flow_accumulation in the Land model, based on: 
+The algorithm used to calculate flow_accumulation in the Land model, based on: 
 
 >Jenson, S. K., & Domingue, J. O. (1988). Extracting topographic structure from digital elevation data for geographic information system analysis. Photogrammetric engineering and remote sensing, 54(11), 1593-1600.
 
@@ -23,25 +22,6 @@ The specific fragment explaining the algorithm is the following:
 
 >"FLOW ACCUMULATION DATA SET
 >The third procedure of the conditioning phase makes use of the flow direction data set to create the flow accumulation data set, where each cell is assigned a value equal to the number of cells that flow to it (O’Callaghan and Mark, 1984). Cells having a flow accumulation value of zero (to which no other cells flow) generally correspond to the pattern of ridges. Because all cells in a depressionless DEM have a path to the data set edge, the pattern formed by highlighting cells with values higher than some threshold delineates a fully connected drainage network. As the threshold value is increased, the density of the drainage network decreases. The flow accumulation data set that was calculated for the numeric example is shown in Table 2d, and the visual example is shown in Plate 1c." (p. 1594)
-
-The algorithm calculating the runoff effectively moving from one land unit to another (b) is a simplification of the one found on:
-
->Yang L. E., Scheffran J., Süsser D., Dawson R. and Chen Y. D. (2018) Assessment of Flood Losses with Household Responses: Agent-Based Simulation in an Urban Catchment Area Environ. Model. Assess. 23 369–88. http://link.springer.com/10.1007/s10666-018-9597-3
-
-Their model is already a simplified model compared to other within the field. Their model approximate the amount of water in raster cell $i$ as 'water depth' ($WD_{i}$) which flow to a neighbouring cell $j$ according to the relative difference between water surface elevations:
-
-$\text{if }E_i>(E_j+WD_{j,t}+WD_{i,t})$
-$$WD_{i,t+1}=\frac{1}{2}(E_i+WD_{i,t}+E_j+WD_{j,t})-E_i$$
-$$WD_{j,t+1}=\frac{1}{2}(E_i+WD_{i,t}+E_j+WD_{j,t})-E_j$$
-
-$\text{else }$
-
-$$WD_{i,t+1}=0$$
-$$WD_{j,t+1}=WD_{j,t}+WD_{i,t}$$
-
-
-
-![Figure 4 of Yang et al. 2018, summarising the calculation of flow transmission between two neighbouring raster cells](https://media.springernature.com/lw685/springer-static/image/art%3A10.1007%2Fs10666-018-9597-3/MediaObjects/10666_2018_9597_Fig4_HTML.gif?as=webp)
 
 ## Setting up an example in R
 
@@ -454,14 +434,3 @@ snapshot3d("flowAccumulationOrder_plot5.png")
 ```{r}
 knitr::include_graphics("flowAccumulationOrder_plot5.png")
 ```
-
-### Runoff exchange
-
-precipitation
-
-
-iteration: runoff, infiltration, try to send runoff
-
-
-
-
