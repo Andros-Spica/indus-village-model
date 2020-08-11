@@ -2592,7 +2592,7 @@ par_seaLevel
 par_seaLevel
 round min (list minElevation par_elev_riftHeight)
 round max (list maxElevation par_elev_rangeHeight)
--27.0
+10.0
 1
 1
 m
@@ -2634,7 +2634,7 @@ INPUTBOX
 156
 70
 randomSeed
-32.0
+8.0
 1
 0
 Number
@@ -2935,7 +2935,7 @@ par_elev_ySlope
 par_elev_ySlope
 -0.1
 0.1
-0.025
+0.033
 0.001
 1
 NIL
@@ -2949,7 +2949,7 @@ CHOOSER
 display-mode
 display-mode
 "elevation (m)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type"
-2
+12
 
 SLIDER
 15
