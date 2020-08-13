@@ -1,0 +1,448 @@
+---
+title: "Demostration of the Weather model"
+author: "Andreas Angourakis"
+date: "12 August 2020"
+output:
+  html_document:
+    number_sections: yes
+  pdf_document: default
+---
+
+## Defining base generic functions
+
+Declare generic function for geting points in sinusoid curves depending on minValue, maxValue, length of year in days, and a normal stochastic fluctuation. See extended explanation at [HTML with R walkthrough](https://htmlpreview.github.io/?https://github.com/Andros-Spica/indus-village-model/blob/master/01-weather/documentation/annualSinusoidCurve.html)
+
+```{r}
+getDayValueInAnnualSinusoidWithFluctuation <- function(minValue, maxValue, fluctuation, dayOfYear, yearLengthInDays)
+{
+  return(
+    max(0, 
+        rnorm(1, getDayValueInAnnualSinusoid(minValue, maxValue, dayOfYear, yearLengthInDays), fluctuation))
+  )
+}
+
+getDayValueInAnnualSinusoid <- function(minValue, maxValue, dayOfYear, yearLengthInDays)
+{
+  amplitude = (maxValue - minValue) / 2
+  
+  return(
+    minValue + amplitude * (1 + sin(3*pi/2 + 2*pi * dayOfYear / yearLengthInDays))
+  )
+}
+
+```
+
+Declare generic function for geting an year of daily precipitation. First, it generates a double logistic curve of range 0-1 depending on start and end days of year, a plateau value (intermediate value), and two sets of point of inflection and growth rate. See extended explanation at [HTML with R walkthrough](https://htmlpreview.github.io/?https://github.com/Andros-Spica/indus-village-model/blob/master/01-weather/documentation/doubleLogisticCurve.html). Then, the curve is broken down stochastically into steps, controlled by `nSample` and `maxSampleSize`, which better represents the discretionality of precipitation events. Finally, the cumulative daily value is transformed into daily increments, which is multiplied by the annualSum, returning daily precipitation values. 
+
+```{r}
+getPrecipitationOfYear <- function(
+  plateauValue, inflection1, rate1, inflection2, rate2, 
+  yearLengthInDays, nSamples, maxSampleSize, annualSum)
+{
+  precipitationOfYear <- c()
+  
+  precipitationOfYear <- doubleLogisticCurve(
+    start.x = 1, end.x = yearLengthInDays,
+    plateauValue = plateauValue,
+    inflection1 = inflection1,
+    rate1 = rate1,
+    inflection2 = inflection2,
+    rate2 = rate2
+  )
+  
+  precipitationOfYear <- escalonateCurve(
+    x = 1:length(precipitationOfYear), 
+    y = precipitationOfYear,
+    nSamples = nSamples, maxSampleSize = maxSampleSize)
+  
+  precipitationOfYear <- getIncrementsFromCumulativeCurve(precipitationOfYear) * annualSum
+  
+  return(precipitationOfYear)
+}
+
+doubleLogisticCurve <- function(start.x, end.x, 
+                                plateauValue, inflection1, rate1, inflection2, rate2)
+{
+  curve <- c()
+  for (i in start.x:end.x)
+  {
+    curve <- c(curve, doubleLogistic(i, plateauValue, inflection1, rate1, inflection2, rate2))
+  }
+  return(curve)
+}
+
+doubleLogistic <- function(dayOfYear, 
+                           plateauValue, inflection1, rate1, inflection2, rate2
+                           )
+{
+  return(
+    (plateauValue / (1 + exp((inflection1 - dayOfYear) * rate1))) + 
+      ((1 - plateauValue) / (1 + exp((inflection2 - dayOfYear) * rate2)))
+  )
+}
+
+escalonateCurve <- function(x, y, nSamples, maxSampleSize)
+{
+  for (i in 1:nSamples)
+  {
+    # get a decreasing sample size proportionally to sample i
+    thisSampleSize = ceiling(maxSampleSize * i / nSamples)
+    # get random x coord point
+    plateauPoint = round(runif(1, min = 1, max = length(x)))
+    # set sample limits
+    earliestNeighbour = max(1, plateauPoint - thisSampleSize)
+    latestNeighbour = min(366, plateauPoint + thisSampleSize)
+    # get mean of neighbourhood
+    meanNeighbourhood = mean(y[x >= earliestNeighbour & x <= latestNeighbour])
+    # assign mean to all days in neighbourhood
+    for (j in earliestNeighbour:latestNeighbour)
+    {
+      y[x == j] <- meanNeighbourhood
+    }
+  }
+  return(y)
+}
+
+getIncrementsFromCumulativeCurve <- function(x)
+{
+  incrementsX <- c()
+  
+  # incrementsX = x, if it is the first point
+  incrementsX[1] = x[1]
+  
+  for (i in 2:length(x))
+  {
+    incrementsX[i] <- x[i] - x[i - 1]
+  }
+  
+  return(incrementsX)
+}
+
+```
+
+Load function to estimate reference evapotranspiration:
+
+```{r}
+source("source/estimateETr.R")
+```
+
+An auxiliar function to simplify the code:
+
+```{r}
+
+getLastItemInVector <- function(x)
+{
+  return(x[length(x)])
+}
+
+```
+
+Load function for marking the end of each year:
+
+```{r}
+markEndYears <- function(lengthOfData, offset = 1){
+  for (i in 1:lengthOfData)
+  {
+    if (i %% (365 * offset) == 0)
+    {
+      abline(v = i, lty = 3)
+    }
+  }
+}
+```
+
+## Defining the model main procedures
+
+```{r}
+
+weatherModel.init <- function(
+  yearLengthInDays = 365,
+  albedo = 0.4,
+  seed = 0,
+  temperature_annualMaxAt2m = 40,
+  temperature_annualMinAt2m = 15,
+  temperature_meanDailyFluctuation = 5,
+  temperature_dailyLowerDeviation = 5,
+  temperature_dailyUpperDeviation = 5,
+  solar_annualMax = 7,
+  solar_annualMin = 3,
+  solar_meanDailyFluctuation = 1,
+  precip_yearlyMean = 400,
+  precip_yearlySd = 130,
+  precip_nSamples = 200,
+  precip_maxSampleSize = 10,
+  precip_plateauValue_yearlyMean = 0.1,
+  precip_plateauValue_yearlySd = 0.05,
+  precip_inflection1_yearlyMean = 40,
+  precip_inflection1_yearlySd = 20,
+  precip_rate1_yearlyMean = 0.15,
+  precip_rate1_yearlySd = 0.02,
+  precip_inflection2_yearlyMean = 200, 
+  precip_inflection2_yearlySd = 20,
+  precip_rate2_yearlyMean = 0.05,
+  precip_rate2_yearlySd = 0.01
+)
+{
+  set.seed(seed)
+  
+  weatherModel <- list()
+  
+  weatherModel$PARS <- list(
+    yearLengthInDays = yearLengthInDays,
+    albedo = albedo,
+    
+    temperature = list(
+      annualMaxAt2m = temperature_annualMaxAt2m,
+      annualMinAt2m = temperature_annualMinAt2m,
+      meanDailyFluctuation = temperature_meanDailyFluctuation,
+      dailyLowerDeviation = temperature_dailyLowerDeviation,
+      dailyUpperDeviation = temperature_dailyUpperDeviation
+    ),
+    
+    solar = list(
+      annualMax = solar_annualMax,
+      annualMin = solar_annualMin,
+      meanDailyFluctuation = solar_meanDailyFluctuation
+    ),
+    
+    precipitation = list(
+      yearlyMean = precip_yearlyMean,
+      yearlySd = precip_yearlySd,
+      nSamples = precip_nSamples,
+      maxSampleSize = precip_maxSampleSize,
+      plateauValue_yearlyMean = precip_plateauValue_yearlyMean,
+      plateauValue_yearlySd = precip_plateauValue_yearlySd,
+      inflection1_yearlyMean = precip_inflection1_yearlyMean,
+      inflection1_yearlySd = precip_inflection1_yearlySd,
+      rate1_yearlyMean = precip_rate1_yearlyMean,
+      rate1_yearlySd = precip_rate1_yearlySd,
+      inflection2_yearlyMean = precip_inflection2_yearlyMean, 
+      inflection2_yearlySd = precip_inflection2_yearlySd,
+      rate2_yearlyMean = precip_rate2_yearlyMean,
+      rate2_yearlySd = precip_rate2_yearlySd
+    )
+  )
+  
+  weatherModel$annualPrecipitationPars <- list(
+    annualSum = c(),
+    plateauValue = c(),
+    inflection1 = c(),
+    rate1 = c(),
+    inflection2 = c(),
+    rate2 = c()
+  )
+  
+  weatherModel$daily <- list(
+    currentYear = c(),
+    currentDayOfYear = c(),
+    temperature = c(),
+    temperature_max = c(),
+    temperature_min = c(),
+    solarRadiation = c(),
+    ETr = c(),
+    precipitation = c()
+  )
+  
+  return(weatherModel)
+}
+
+weatherModel.run <- function(weatherModel, numberOfYears)
+{
+  for (i in 1:numberOfYears)
+  {
+    weatherModel$annualPrecipitationPars$annualSum <- c(
+      weatherModel$annualPrecipitationPars$annualSum,
+      max(0, rnorm(1, weatherModel$PARS$precipitation$yearlyMean, weatherModel$PARS$precipitation$yearlySd))
+    )
+    weatherModel$annualPrecipitationPars$plateauValue <- c(
+      weatherModel$annualPrecipitationPars$plateauValue,
+      min(1, max(0, rnorm(1, weatherModel$PARS$precipitation$plateauValue_yearlyMean, weatherModel$PARS$precipitation$plateauValue_yearlySd)))
+    )
+    weatherModel$annualPrecipitationPars$inflection1 <- c(
+      weatherModel$annualPrecipitationPars$inflection1,
+      min(weatherModel$PARS$yearLengthInDays, max(1, rnorm(1, weatherModel$PARS$precipitation$inflection1_yearlyMean, weatherModel$PARS$precipitation$inflection1_yearlySd)))
+    )
+    weatherModel$annualPrecipitationPars$rate1 <- c(
+      weatherModel$annualPrecipitationPars$rate1,
+      max(0, rnorm(1, weatherModel$PARS$precipitation$rate1_yearlyMean, weatherModel$PARS$precipitation$rate1_yearlySd))
+    )
+    weatherModel$annualPrecipitationPars$inflection2 <- c(
+      weatherModel$annualPrecipitationPars$inflection2,
+      min(weatherModel$PARS$yearLengthInDays, max(1, rnorm(1, weatherModel$PARS$precipitation$inflection2_yearlyMean, weatherModel$PARS$precipitation$inflection2_yearlySd)))
+    )
+    weatherModel$annualPrecipitationPars$rate2 <- c(
+      weatherModel$annualPrecipitationPars$rate2,
+      max(0, rnorm(1, weatherModel$PARS$precipitation$rate2_yearlyMean, weatherModel$PARS$precipitation$rate2_yearlySd))
+    )
+    
+    weatherModel$daily$precipitation <- c(
+      weatherModel$daily$precipitation,
+      getPrecipitationOfYear(
+        plateauValue = getLastItemInVector(weatherModel$annualPrecipitationPars$plateauValue),
+        inflection1 = getLastItemInVector(weatherModel$annualPrecipitationPars$inflection1),
+        rate1 = getLastItemInVector(weatherModel$annualPrecipitationPars$rate1),
+        inflection2 = getLastItemInVector(weatherModel$annualPrecipitationPars$inflection2),
+        rate2 = getLastItemInVector(weatherModel$annualPrecipitationPars$rate2), 
+        yearLengthInDays = weatherModel$PARS$yearLengthInDays,
+        nSamples = weatherModel$PARS$precipitation$nSamples,
+        maxSampleSize = weatherModel$PARS$precipitation$maxSampleSize,
+        annualSum = getLastItemInVector(weatherModel$annualPrecipitationPars$annualSum)
+      )
+    )
+    
+    for (day in 1:weatherModel$PARS$yearLengthInDays)
+    {
+      weatherModel$daily$currentYear <- c(weatherModel$daily$currentYear, i)
+      
+      weatherModel$daily$currentDayOfYear <- c(weatherModel$daily$currentDayOfYear, day)
+      
+      weatherModel$daily$temperature <- c(
+        weatherModel$daily$temperature,
+        getDayValueInAnnualSinusoidWithFluctuation(
+          minValue = weatherModel$PARS$temperature$annualMinAt2m, 
+          maxValue = weatherModel$PARS$temperature$annualMaxAt2m, 
+          fluctuation = weatherModel$PARS$temperature$meanDailyFluctuation, 
+          dayOfYear = day, yearLengthInDays = weatherModel$PARS$yearLengthInDays
+        )
+      )
+      
+      weatherModel$daily$temperature_min <- c(
+        weatherModel$daily$temperature_min,
+        getLastItemInVector(weatherModel$daily$temperature) - weatherModel$PARS$temperature$dailyLowerDeviation
+      )
+      
+      weatherModel$daily$temperature_max <- c(
+        weatherModel$daily$temperature_max,
+        getLastItemInVector(weatherModel$daily$temperature) + weatherModel$PARS$temperature$dailyUpperDeviation
+      )
+      
+      weatherModel$daily$solarRadiation <- c(
+        weatherModel$daily$solarRadiation,
+        getDayValueInAnnualSinusoidWithFluctuation(
+          minValue = weatherModel$PARS$solar$annualMin, 
+          maxValue = weatherModel$PARS$solar$annualMax, 
+          fluctuation = weatherModel$PARS$solar$meanDailyFluctuation, 
+          dayOfYear = day, yearLengthInDays = weatherModel$PARS$yearLengthInDays
+        )
+      )
+      
+      weatherModel$daily$ETr <- c(
+        weatherModel$daily$ETr,
+        estimateETr(
+          R_s = getLastItemInVector(weatherModel$daily$solarRadiation), 
+          Temp = getLastItemInVector(weatherModel$daily$temperature), 
+          maxTemp = getLastItemInVector(weatherModel$daily$temperature_max), 
+          minTemp = getLastItemInVector(weatherModel$daily$temperature_min)
+        )
+      )
+    }
+  }
+  
+  return(weatherModel)
+}
+
+```
+
+## Running the model
+
+```{r}
+weatherModel <- weatherModel.init()
+
+weatherModel <- weatherModel.run(weatherModel, 5)
+```
+
+Show table with parameter values:
+
+```{r}
+parvalues <- c(
+  weatherModel$PARS[[1]],
+  weatherModel$PARS[[2]]
+)
+parNames <- c("yearLengthInDays", "albedo")
+
+for (j in 3:length(weatherModel$PARS))
+{
+  parGroupName <- names(weatherModel$PARS)[j]
+  for (i in 1:length(weatherModel$PARS[[j]]))
+  {
+    parvalues <- c(
+      parvalues,
+      weatherModel$PARS[[j]][[i]]
+    )
+    parName <- paste(parGroupName, names(weatherModel$PARS[[j]])[i], sep = " - ")
+    parNames <- c(parNames, parName)
+  }
+}
+
+parvalues <- cbind(parNames, parvalues)
+knitr::kable(parvalues, 
+             format = "html",
+             col.names = c("parameter", "values"),
+             align = c("l", "r"))
+```
+
+Plot time-series:
+
+```{r}
+lengthOfSimulation = length(weatherModel$daily$currentYear)
+
+#--------
+# To create a png file:
+plotName = "weatherModelExample.png"
+
+fontScale = c(2, 2, 1.2, # c(cex.lab, legend, cex.axis)
+              3, 2) # side annotation name and "model"
+
+png(plotName, width = 1000, height = 800)
+
+layout(matrix(c(1:4), nrow = 4))
+
+yLabs <- c(expression(paste("    Solar\nRadiation (", MJ/m^-2, ")")), 
+           "Temperature (ºC)", 
+           "Precipitation (mm)", 
+           "ETr (mm)")
+leftMargin <- 7
+
+
+# 1. Solar radiation
+par(mar = c(0.1, leftMargin, 1.1, 0.2), 
+    cex.lab = fontScale[1],
+    cex.axis = fontScale[3])
+
+plot(1:lengthOfSimulation, weatherModel$daily$solarRadiation, type = "l",
+     xlab = "", xaxt = 'n',
+     ylab = yLabs[1])
+markEndYears(lengthOfSimulation)
+
+# 2. Temperature
+plot(1:lengthOfSimulation, weatherModel$daily$temperature, type = "l",
+     xlab = "", xaxt = 'n',
+     ylab = yLabs[2])
+lines(1:lengthOfSimulation, weatherModel$daily$temperature_max, col = "red")
+lines(1:lengthOfSimulation, weatherModel$daily$temperature_min, col = "blue")
+
+markEndYears(lengthOfSimulation)
+
+# 3. Precipitation
+par(mar = c(1.1, leftMargin, 2.1, 0.2))
+
+barplot(weatherModel$daily$precipitation, 
+        ylab = yLabs[3])
+markEndYears(lengthOfSimulation, offset = 1.2) ; abline(v = 2190 * 1.2, lty = 3)
+# not sure why, but barplot() x coordinates do not behave as in plot()
+
+# 4. Reference evapotranspiration
+par(mar = c(0.1, leftMargin, 1.1, 0.2))
+
+plot(1:lengthOfSimulation, weatherModel$daily$ETr, type = "l",
+        ylab = yLabs[4])
+markEndYears(lengthOfSimulation, offset = 1.2) ; abline(v = 2190 * 1.2, lty = 3)
+# not sure why, but barplot() x coordinates do not behave as in plot()
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
