@@ -95,7 +95,7 @@ weather$ETr_PT <- estimateETr(weather$I,
                               weather$T2MDEW, weather$WS2M, 
                               method = "PT")
 
-# this ñast version uses FAO recommedations when dealing with even less input data:
+# this last version uses FAO recommedations when dealing with even less input data:
 weather$ETr_fewData <- estimateETr(weather$I, 
                                    weather$T2M, weather$Tmax, weather$Tmin)
 ```
