@@ -51,7 +51,7 @@ globals
   ;;;; precipitation (mm)
   precipitation_yearlyMean
   precipitation_yearlySd
-  precipitation_dailyCum_nSample
+  precipitation_dailyCum_nSamples
   precipitation_dailyCum_maxSampleSize
   precipitation_dailyCum_plateauValue_yearlyMean
   precipitation_dailyCum_plateauValue_yearlySd
@@ -164,7 +164,7 @@ to set-parameters
 
     set precipitation_yearlyMean precipitation_yearly-mean
     set precipitation_yearlySd precipitation_yearly-sd
-    set precipitation_dailyCum_nSample precipitation_daily-cum_n-sample
+    set precipitation_dailyCum_nSamples precipitation_daily-cum_n-samples
     set precipitation_dailyCum_maxSampleSize precipitation_daily-cum_max-sample-size
     set precipitation_dailyCum_plateauValue_yearlyMean precipitation_daily-cum_plateau-value_yearly-mean
     set precipitation_dailyCum_plateauValue_yearlySd precipitation_daily-cum_plateau-value_yearly-sd
@@ -196,7 +196,7 @@ to set-parameters
 
     set precipitation_yearlyMean 200 + random-float 800
     set precipitation_yearlySd random-float 200
-    set precipitation_dailyCum_nSample 100 + random 200
+    set precipitation_dailyCum_nSamples 100 + random 200
     set precipitation_dailyCum_maxSampleSize 5 + random 20
     set precipitation_dailyCum_plateauValue_yearlyMean random-float 1
     set precipitation_dailyCum_plateauValue_yearlySd random-float 0.2
@@ -239,7 +239,7 @@ to parameters-check
 
   if (precipitation_yearly-mean = 0)                             [ set precipitation_yearly-mean                     400 ]
   if (precipitation_yearly-sd = 0)                               [ set precipitation_yearly-sd                       130 ]
-  if (precipitation_daily-cum_n-sample = 0)                      [ set precipitation_daily-cum_n-sample              200 ]
+  if (precipitation_daily-cum_n-samples = 0)                      [ set precipitation_daily-cum_n-samples              200 ]
   if (precipitation_daily-cum_max-sample-size = 0)               [ set precipitation_daily-cum_max-sample-size       10 ]
   if (precipitation_daily-cum_plateau-value_yearly-mean = 0)     [ set precipitation_daily-cum_plateau-value_yearly-mean         0.1 ]
   if (precipitation_daily-cum_plateau-value_yearly-sd = 0)       [ set precipitation_daily-cum_plateau-value_yearly-sd           0.05 ]
@@ -275,7 +275,7 @@ to parameters-to-default
 
   set precipitation_yearly-mean                               400
   set precipitation_yearly-sd                                 130
-  set precipitation_daily-cum_n-sample                        200
+  set precipitation_daily-cum_n-samples                        200
   set precipitation_daily-cum_max-sample-size                  10
   set precipitation_daily-cum_plateau-value_yearly-mean         0.1
   set precipitation_daily-cum_plateau-value_yearly-sd           0.05
@@ -420,11 +420,11 @@ to set-daily-cumulative-precipitation
   ;;;===============================================================================
   ;;; modify the curve breaking the continuous pattern by randomly aggregating values
 
-  foreach n-values precipitation_dailyCum_nSample [j -> j + 1] ; do not iterate for the first (0) element
+  foreach n-values precipitation_dailyCum_nSamples [j -> j + 1] ; do not iterate for the first (0) element
   [
     sampleIndex ->
     ; get a decreasing sample size proportionally to sample index
-    let thisSampleSize ceiling (precipitation_dailyCum_maxSampleSize * sampleIndex / precipitation_dailyCum_nSample)
+    let thisSampleSize ceiling (precipitation_dailyCum_maxSampleSize * sampleIndex / precipitation_dailyCum_nSamples)
     ; get random day of year to have rain (we exclude 0, which is the extra day or the last day of previous year)
     let rainDOY 1 + random yearLengthInDays
     ; set sample limits
@@ -1142,8 +1142,8 @@ SLIDER
 509
 1349
 542
-precipitation_daily-cum_n-sample
-precipitation_daily-cum_n-sample
+precipitation_daily-cum_n-samples
+precipitation_daily-cum_n-samples
 0
 300
 200.0
@@ -1345,7 +1345,7 @@ MONITOR
 1504
 544
 NIL
-precipitation_dailyCum_nSample
+precipitation_dailyCum_nSamples
 2
 1
 9
