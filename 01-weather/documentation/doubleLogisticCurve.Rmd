@@ -10,7 +10,7 @@ output:
 
 ## Preparation
 
-Declare generic function for generating double logistic curves depending on start and end days of year, a plateau value (intermediate y value), and two sets of point of inflection and growth rate.
+Declare generic function for generating double logistic curves depending on start and end days of year, a plateau value (intermediate value), and two sets of point of inflection and growth rate.
 
 ```{r}
 doubleLogistic <- function(dayOfYear, 
