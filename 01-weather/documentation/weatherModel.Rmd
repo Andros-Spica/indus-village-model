@@ -13,20 +13,37 @@ output:
 Declare generic function for geting points in sinusoid curves depending on minValue, maxValue, length of year in days, and a normal stochastic fluctuation. See extended explanation at [HTML with R walkthrough](https://htmlpreview.github.io/?https://github.com/Andros-Spica/indus-village-model/blob/master/01-weather/documentation/annualSinusoidCurve.html)
 
 ```{r}
-getDayValueInAnnualSinusoidWithFluctuation <- function(minValue, maxValue, fluctuation, dayOfYear, yearLengthInDays)
+getDayValueInAnnualSinusoidWithFluctuation <- function(minValue, maxValue, fluctuation, dayOfYear, yearLengthInDays, southHemisphere = FALSE)
 {
+  angleAtLowestValue = (360 * (31+28+31+30+31+30+31+31+30+31+30+21) / yearLengthInDays) - 90 
+  # assuming north hemisphere, winter solstice in 21st December
+  if (southHemisphere)
+  {
+    angleAtLowestValue = (360 * (31+28+31+30+31+21) / yearLengthInDays) - 90
+  }
+  # assuming south hemisphere, winter solstice in 21st June
+  
   return(
     max(0, 
-        rnorm(1, getDayValueInAnnualSinusoid(minValue, maxValue, dayOfYear, yearLengthInDays), fluctuation))
+        rnorm(1, 
+              getDayValueInAnnualSinusoid(
+                minValue, maxValue, 
+                dayOfYear, yearLengthInDays, angleAtLowestValue), 
+              fluctuation))
   )
 }
 
-getDayValueInAnnualSinusoid <- function(minValue, maxValue, dayOfYear, yearLengthInDays)
+getDayValueInAnnualSinusoid <- function(minValue, 
+                                        maxValue, 
+                                        dayOfYear, 
+                                        yearLengthInDays, 
+                                        angleAtLowestValue)
 {
   amplitude = (maxValue - minValue) / 2
+  angleAtLowestValueInRadians = angleAtLowestValue * pi / 180
   
   return(
-    minValue + amplitude * (1 + sin(3*pi/2 + 2*pi * dayOfYear / yearLengthInDays))
+    minValue + amplitude * (1 + sin(angleAtLowestValueInRadians + 2*pi * dayOfYear / yearLengthInDays))
   )
 }
 
@@ -436,8 +453,7 @@ par(mar = c(0.1, leftMargin, 1.1, 0.2))
 
 plot(1:lengthOfSimulation, weatherModel$daily$ETr, type = "l",
         ylab = yLabs[4])
-markEndYears(lengthOfSimulation, offset = 1.2) ; abline(v = 2190 * 1.2, lty = 3)
-# not sure why, but barplot() x coordinates do not behave as in plot()
+markEndYears(lengthOfSimulation)
 
 dev.off()
 ```

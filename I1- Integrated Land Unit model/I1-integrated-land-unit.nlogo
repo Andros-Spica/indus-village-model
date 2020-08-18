@@ -178,14 +178,14 @@ globals
   ;;;; temperature (ºC)
   temperature_annualMaxAt2m
   temperature_annualMinAt2m
-  temperature_dailyMeanFluctuation
+  temperature_meanDailyFluctuation
   temperature_dailyLowerDeviation
   temperature_dailyUpperDeviation
 
   ;;;; precipitation (mm)
   precipitation_yearlyMean
   precipitation_yearlySd
-  precipitation_dailyCum_nSample
+  precipitation_dailyCum_nSamples
   precipitation_dailyCum_maxSampleSize
   precipitation_dailyCum_plateauValue_yearlyMean
   precipitation_dailyCum_plateauValue_yearlySd
@@ -201,7 +201,7 @@ globals
   ;;;; Solar radiation (kWh/m2)
   solar_annualMax
   solar_annualMin
-  solar_dailyMeanFluctuation
+  solar_meanDailyFluctuation
 
   ;;;; ETr
   ecol_minAlbedo
@@ -426,17 +426,17 @@ to set-parameters
     ;;; weather generation
     set temperature_annualMaxAt2m temperature_annual-max-at-2m
     set temperature_annualMinAt2m temperature_annual-min-at-2m
-    set temperature_dailyMeanFluctuation temperature_daily-mean-fluctuation
+    set temperature_meanDailyFluctuation temperature_mean-daily-fluctuation
     set temperature_dailyLowerDeviation temperature_daily-lower-deviation
     set temperature_dailyUpperDeviation temperature_daily-upper-deviation
 
     set solar_annualMax solar_annual-max
     set solar_annualMin solar_annual-min
-    set solar_dailyMeanFluctuation solar_daily-mean-fluctuation
+    set solar_meanDailyFluctuation solar_mean-daily-fluctuation
 
     set precipitation_yearlyMean precipitation_yearly-mean
     set precipitation_yearlySd precipitation_yearly-sd
-    set precipitation_dailyCum_nSample precipitation_daily-cum_n-sample
+    set precipitation_dailyCum_nSamples precipitation_daily-cum_n-samples
     set precipitation_dailyCum_maxSampleSize precipitation_daily-cum_max-sample-size
     set precipitation_dailyCum_plateauValue_yearlyMean precipitation_daily-cum_plateau-value_yearly-mean
     set precipitation_dailyCum_plateauValue_yearlySd precipitation_daily-cum_plateau-value_yearly-sd
@@ -469,17 +469,17 @@ to set-parameters
     ;;; weather generation
     set temperature_annualMaxAt2m 15 + random-float 35
     set temperature_annualMinAt2m -15 + random-float 30
-    set temperature_dailyMeanFluctuation random-float temperature_daily-mean-fluctuation
+    set temperature_meanDailyFluctuation random-float temperature_mean-daily-fluctuation
     set temperature_dailyLowerDeviation random-float temperature_daily-lower-deviation
     set temperature_dailyUpperDeviation random-float temperature_daily-upper-deviation
 
     set solar_annualMin random-normal 4 0.1
     set solar_annualMax solar_annualMin + random-float 2
-    set solar_dailyMeanFluctuation 0.01
+    set solar_meanDailyFluctuation 0.01
 
     set precipitation_yearlyMean 200 + random-float 800
     set precipitation_yearlySd random-float 200
-    set precipitation_dailyCum_nSample 100 + random 200
+    set precipitation_dailyCum_nSamples 100 + random 200
     set precipitation_dailyCum_maxSampleSize 5 + random 20
     set precipitation_dailyCum_plateauValue_yearlyMean random-float 1
     set precipitation_dailyCum_plateauValue_yearlySd random-float 0.2
@@ -519,7 +519,7 @@ to parameters-check
 
   if (temperature_annual-max-at-2m = 0)                          [ set temperature_annual-max-at-2m                             40 ]
   if (temperature_annual-min-at-2m = 0)                          [ set temperature_annual-min-at-2m                             15 ]
-  if (temperature_daily-mean-fluctuation = 0)                    [ set temperature_daily-mean-fluctuation                        5 ]
+  if (temperature_mean-daily-fluctuation = 0)                    [ set temperature_mean-daily-fluctuation                        5 ]
   if (temperature_daily-lower-deviation = 0)                     [ set temperature_daily-lower-deviation                         5 ]
   if (temperature_daily-upper-deviation = 0)                     [ set temperature_daily-upper-deviation                         5 ]
 
@@ -529,11 +529,11 @@ to parameters-check
   ;;; see general info in http://www.physicalgeography.net/fundamentals/6i.html
   if (solar_annual-max = 0)                                      [ set solar_annual-max                                          7 ]
   if (solar_annual-min = 0)                                      [ set solar_annual-min                                          3 ]
-  if (solar_daily-mean-fluctuation = 0)                          [ set solar_daily-mean-fluctuation                              1 ]
+  if (solar_mean-daily-fluctuation = 0)                          [ set solar_mean-daily-fluctuation                              1 ]
 
   if (precipitation_yearly-mean = 0)                             [ set precipitation_yearly-mean                               400 ]
   if (precipitation_yearly-sd = 0)                               [ set precipitation_yearly-sd                                 130 ]
-  if (precipitation_daily-cum_n-sample = 0)                      [ set precipitation_daily-cum_n-sample                        200 ]
+  if (precipitation_daily-cum_n-samples = 0)                      [ set precipitation_daily-cum_n-samples                      200 ]
   if (precipitation_daily-cum_max-sample-size = 0)               [ set precipitation_daily-cum_max-sample-size                  10 ]
   if (precipitation_daily-cum_plateau-value_yearly-mean = 0)     [ set precipitation_daily-cum_plateau-value_yearly-mean         0.1 ]
   if (precipitation_daily-cum_plateau-value_yearly-sd = 0)       [ set precipitation_daily-cum_plateau-value_yearly-sd           0.05 ]
@@ -563,17 +563,17 @@ to parameters-to-default
 
   set temperature_annual-max-at-2m                             40
   set temperature_annual-min-at-2m                             15
-  set temperature_daily-mean-fluctuation                        5
+  set temperature_mean-daily-fluctuation                        5
   set temperature_daily-lower-deviation                         5
   set temperature_daily-upper-deviation                         5
 
   set solar_annual-max                                          7
   set solar_annual-min                                          3
-  set solar_daily-mean-fluctuation                              1
+  set solar_mean-daily-fluctuation                              1
 
   set precipitation_yearly-mean                               400
   set precipitation_yearly-sd                                 130
-  set precipitation_daily-cum_n-sample                        200
+  set precipitation_daily-cum_n-samples                       200
   set precipitation_daily-cum_max-sample-size                  10
   set precipitation_daily-cum_plateau-value_yearly-mean         0.1
   set precipitation_daily-cum_plateau-value_yearly-sd           0.05
@@ -691,20 +691,19 @@ end
 
 to update-temperature [ dayOfYear ]
 
-  set temperature random-normal (get-temperature dayOfYear) temperature_dailyMeanFluctuation
+  set temperature get-temperature dayOfYear
 
-  set minTemperature  temperature - temperature_dailyLowerDeviation
+  set minTemperature temperature - temperature_dailyLowerDeviation
 
-  set maxTemperature  temperature + temperature_dailyUpperDeviation
+  set maxTemperature temperature + temperature_dailyUpperDeviation
 
 end
 
 to-report get-temperature [ dayOfYear ]
 
-  ; get temperature base level for the current day (ºC at lowest elevation)
+  ;;; get temperature base level for the current day (ºC at lowest elevation)
 
-  let amplitude (temperature_annualMaxAt2m - temperature_annualMinAt2m) / 2
-  report temperature_annualMinAt2m + amplitude * (1 + sin (270 + 360 * dayOfYear / yearLengthInDays)) ; sin function in NetLogo needs angle in degrees. 270º equivalent to 3 * pi / 2 and 360º equivalent to 2 * pi
+  report (get-annual-sinusoid-with-fluctuation temperature_annualMinAt2m temperature_annualMaxAt2m temperature_meanDailyFluctuation dayOfYear)
 
 end
 
@@ -719,46 +718,8 @@ end
 to set-precipitation-of-year
 
   ;;;===============================================================================
-  ;;; get double logistic curve as a proxy of the year series of daily cumulative precipitation
-
-  ;;; get randomised values of parameters for double logistic curve
-  let plateauValue clamp01 (random-normal precipitation_dailyCum_plateauValue_yearlyMean precipitation_dailyCum_plateauValue_yearlySd)
-  let inflection1 clampMinMax (random-normal precipitation_dailyCum_inflection1_yearlyMean precipitation_dailyCum_inflection1_yearlySd) 1 yearLengthInDays
-  let rate1 clampMin0 (random-normal precipitation_dailyCum_rate1_yearlyMean precipitation_dailyCum_rate1_yearlySd)
-  let inflection2 clampMinMax (random-normal precipitation_dailyCum_inflection2_yearlyMean precipitation_dailyCum_inflection2_yearlySd) 1 yearLengthInDays
-  let rate2 clampMin0 (random-normal precipitation_dailyCum_rate2_yearlyMean precipitation_dailyCum_rate2_yearlySd)
-  ;print (word "plateauValue = " plateauValue ", inflection1 = " inflection1 ", rate1 = " rate1 ", inflection2 = " inflection2 ", rate2 = " rate2)
-
-  ;;; get curve (we want one more point besides yearLengthInDays to account for the initial difference or daily precipitation
-  set precipitation_cumYearSeries get-double-logistic-curve (yearLengthInDays + 1) plateauValue inflection1 rate1 inflection2 rate2
-
-  ;;;===============================================================================
-  ;;; modify the curve breaking the continuous pattern by randomly aggregating values
-
-  let nSample round precipitation_dailyCum_nSample
-  let maxSampleSize round clampMinMax precipitation_dailyCum_maxSampleSize 1 yearLengthInDays
-
-  foreach n-values nSample [j -> j + 1] ; do not iterate for the first (0) element
-  [
-    sampleIndex ->
-    ; get a decreasing sample size proportionally to sample index
-    let thisSampleSize ceiling (maxSampleSize * sampleIndex / nSample)
-    ; get random day of year to have rain (we exclude 0, which is the extra day or the last day of previous year)
-    let rainDOY 1 + random yearLengthInDays
-    ; set sample limits
-    let earliestNeighbour max (list 1 (rainDOY - thisSampleSize))
-    let latestNeighbour min (list yearLengthInDays (rainDOY + thisSampleSize))
-    ; get mean of neighbourhood
-    let meanNeighbourhood mean (sublist precipitation_cumYearSeries earliestNeighbour latestNeighbour)
-    ;print (word "thisSampleSize = " thisSampleSize ", rainDOY = " rainDOY ", earliestNeighbour = " earliestNeighbour ", latestNeighbour = " latestNeighbour)
-    ;print meanNeighbourhood
-    ; assign mean to all days in neighbourhood
-    foreach n-values (latestNeighbour - earliestNeighbour) [k -> earliestNeighbour + k]
-    [
-      dayOfYearIndex ->
-      set precipitation_cumYearSeries replace-item dayOfYearIndex precipitation_cumYearSeries meanNeighbourhood
-    ]
-  ]
+  ;;; Simulate *cumulative proportion of year precipitation*.
+  set-daily-cumulative-precipitation
 
   ;;;===============================================================================
   ;;; Derivate *daily proportion of year precipitation* from simulated *cumulative proportion of year precipitation*.
@@ -786,35 +747,55 @@ to set-precipitation-of-year
 
 end
 
-to-report get-double-logistic-curve [ nPoints plateauValue inflection1 rate1 inflection2 rate2 ]
+to set-daily-cumulative-precipitation
 
-  let curve (list)
+  ;;;===============================================================================
+  ;;; get double logistic curve as a proxy of the year series of daily cumulative precipitation
 
-  foreach n-values nPoints [j -> j]
+  ;;; get randomised values for parameters of the double logistic curve
+  let plateauValue clamp01 (random-normal precipitation_dailyCum_plateauValue_yearlyMean precipitation_dailyCum_plateauValue_yearlySd)
+  let inflection1 clampMinMax (random-normal precipitation_dailyCum_inflection1_yearlyMean precipitation_dailyCum_inflection1_yearlySd) 1 yearLengthInDays
+  let rate1 clampMin0 (random-normal precipitation_dailyCum_rate1_yearlyMean precipitation_dailyCum_rate1_yearlySd)
+  let inflection2 clampMinMax (random-normal precipitation_dailyCum_inflection2_yearlyMean precipitation_dailyCum_inflection2_yearlySd) 1 yearLengthInDays
+  let rate2 clampMin0 (random-normal precipitation_dailyCum_rate2_yearlyMean precipitation_dailyCum_rate2_yearlySd)
+  ;print (word "plateauValue = " plateauValue ", inflection1 = " inflection1 ", rate1 = " rate1 ", inflection2 = " inflection2 ", rate2 = " rate2)
+
+  ;;; get curve (we want one more point besides yearLengthInDays to account for the initial difference or daily precipitation
+  set precipitation_cumYearSeries get-double-logistic-curve (yearLengthInDays + 1) plateauValue inflection1 rate1 inflection2 rate2
+
+  ;;;===============================================================================
+  ;;; modify the curve breaking the continuous pattern by randomly aggregating values
+
+  foreach n-values precipitation_dailyCum_nSamples [j -> j + 1] ; do not iterate for the first (0) element
   [
-    pointIndex ->
-    set curve lput (get-point-in-double-logistic pointIndex plateauValue inflection1 rate1 inflection2 rate2) curve
+    sampleIndex ->
+    ; get a decreasing sample size proportionally to sample index
+    let thisSampleSize ceiling (precipitation_dailyCum_maxSampleSize * sampleIndex / precipitation_dailyCum_nSamples)
+    ; get random day of year to have rain (we exclude 0, which is the extra day or the last day of previous year)
+    let rainDOY 1 + random yearLengthInDays
+    ; set sample limits
+    let earliestNeighbour max (list 1 (rainDOY - thisSampleSize))
+    let latestNeighbour min (list yearLengthInDays (rainDOY + thisSampleSize))
+    ; get mean of neighbourhood
+    let meanNeighbourhood mean (sublist precipitation_cumYearSeries earliestNeighbour latestNeighbour)
+    ;print (word "thisSampleSize = " thisSampleSize ", rainDOY = " rainDOY ", earliestNeighbour = " earliestNeighbour ", latestNeighbour = " latestNeighbour)
+    ;print meanNeighbourhood
+    ; assign mean to all days in neighbourhood
+    foreach n-values (latestNeighbour - earliestNeighbour) [k -> earliestNeighbour + k]
+    [
+      dayOfYearIndex ->
+      set precipitation_cumYearSeries replace-item dayOfYearIndex precipitation_cumYearSeries meanNeighbourhood
+    ]
   ]
-
-  report curve
-
-end
-
-to-report get-point-in-double-logistic [ pointIndex plateauValue inflection1 rate1 inflection2 rate2 ]
-
-  report (plateauValue / (1 + exp((inflection1 - pointIndex) * rate1))) + ((1 - plateauValue) / (1 + exp((inflection2 - pointIndex) * rate2)))
 
 end
 
 to-report get-solar-radiation [ dayOfYear ]
 
-  let amplitude (solar_annualMax - solar_annualMin) / 2
-  let modelBase solar_annualMin + amplitude * (1 + sin (270 + 360 * dayOfYear / yearLengthInDays)) ; sin function in NetLogo needs angle in degrees. 270º equivalent to 3 * pi / 2 and 360º equivalent to 2 * pi
-  let withFluctuation max (list 0 random-normal modelBase solar_dailyMeanFluctuation)
-
+  ;;; get solar radiation for the current day (MJ/m2)
   ;;; return value converted from kWh/m2 to MJ/m2 (1 : 3.6)
-  report withFluctuation * 3.6
 
+  report (get-annual-sinusoid-with-fluctuation solar_annualMin solar_annualMax solar_meanDailyFluctuation dayOfYear) * 3.6
   ;;; NOTE: it might be possible to decrease solar radiation depending on the current day precipitation. Further info on precipitation effect on solar radiation is needed.
 
 end
@@ -2279,6 +2260,48 @@ end
 ;;;;;;;;;;;; numeric generic functions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+to-report get-annual-sinusoid-with-fluctuation [ minValue maxValue meanFluctuation dayOfYear ]
+
+  ;;; assuming north hemisphere, winter solstice in 21st December
+  let angleAtLowestValue (360 * (31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 21) / yearLengthInDays) - 90
+  ;;; assuming south hemisphere, winter solstice in 21st June
+  if (southHemisphere?)
+  [ set angleAtLowestValue (360 * (31 + 28 + 31 + 30 + 31 + 21) / yearLengthInDays) - 90 ]
+
+  report max (list 0 random-normal (get-annual-sinusoid minValue maxValue dayOfYear angleAtLowestValue) meanFluctuation)
+
+end
+
+to-report get-annual-sinusoid [ minValue maxValue dayOfYear angleAtLowestValue ]
+
+  let amplitude (maxValue - minValue) / 2
+
+  report minValue + amplitude * (1 + sin (angleAtLowestValue + 360 * dayOfYear / yearLengthInDays))
+
+  ; NOTE: sin function in NetLogo needs angle in degrees. 270º equivalent to 3 * pi / 2 and 360º equivalent to 2 * pi
+
+end
+
+to-report get-double-logistic-curve [ nPoints plateauValue inflection1 rate1 inflection2 rate2 ]
+
+  let curve (list)
+
+  foreach n-values nPoints [j -> j]
+  [
+    pointIndex ->
+    set curve lput (get-point-in-double-logistic pointIndex plateauValue inflection1 rate1 inflection2 rate2) curve
+  ]
+
+  report curve
+
+end
+
+to-report get-point-in-double-logistic [ pointIndex plateauValue inflection1 rate1 inflection2 rate2 ]
+
+  report (plateauValue / (1 + exp((inflection1 - pointIndex) * rate1))) + ((1 - plateauValue) / (1 + exp((inflection2 - pointIndex) * rate2)))
+
+end
+
 to-report clamp01 [ value ]
   report min (list 1 (max (list 0 value)))
 end
@@ -2342,7 +2365,7 @@ INPUTBOX
 164
 312
 terrainRandomSeed
-32.0
+0.0
 1
 0
 Number
@@ -2367,7 +2390,7 @@ par_elev_seaLevelReferenceShift
 par_elev_seaLevelReferenceShift
 -1000
 round max (list maxElevation elev_rangeHeight)
--1000.0
+0.0
 1
 1
 m
@@ -2600,7 +2623,7 @@ INPUTBOX
 394
 399
 par_riverWaterPerFlowAccumulation
-20.0
+0.0
 1
 0
 Number
@@ -2665,7 +2688,7 @@ INPUTBOX
 99
 118
 randomSeed
-1.0
+0.0
 1
 0
 Number
@@ -2688,10 +2711,10 @@ NIL
 1
 
 MONITOR
-390
-568
-572
-605
+391
+594
+573
+631
 NIL
 temperature_annualMinAt2m
 2
@@ -2716,10 +2739,10 @@ NIL
 1
 
 MONITOR
-390
-534
-575
-571
+391
+560
+576
+597
 NIL
 temperature_annualMaxAt2m
 2
@@ -2738,30 +2761,15 @@ end-simulation-in-tick
 Number
 
 SLIDER
-21
-610
-392
-643
-temperature_daily-mean-fluctuation
-temperature_daily-mean-fluctuation
+22
+636
+393
+669
+temperature_mean-daily-fluctuation
+temperature_mean-daily-fluctuation
 0
 20
-5.0
-0.1
-1
-ºC  (default: 5)
-HORIZONTAL
-
-SLIDER
-21
-645
-388
-678
-temperature_daily-lower-deviation
-temperature_daily-lower-deviation
-0
-20
-5.0
+0.0
 0.1
 1
 ºC  (default: 5)
@@ -2769,39 +2777,54 @@ HORIZONTAL
 
 SLIDER
 22
-678
+671
 389
-711
-temperature_daily-upper-deviation
-temperature_daily-upper-deviation
+704
+temperature_daily-lower-deviation
+temperature_daily-lower-deviation
 0
 20
-5.0
+0.0
 0.1
 1
 ºC  (default: 5)
 HORIZONTAL
 
 SLIDER
-19
-536
+23
+704
 390
-569
+737
+temperature_daily-upper-deviation
+temperature_daily-upper-deviation
+0
+20
+0.0
+0.1
+1
+ºC  (default: 5)
+HORIZONTAL
+
+SLIDER
+20
+562
+391
+595
 temperature_annual-max-at-2m
 temperature_annual-max-at-2m
 temperature_annual-min-at-2m
 50
-40.0
+0.0
 0.1
 1
 ºC  (default: 40)
 HORIZONTAL
 
 SLIDER
-21
-573
-385
-606
+22
+599
+386
+632
 temperature_annual-min-at-2m
 temperature_annual-min-at-2m
 -10
@@ -2813,21 +2836,21 @@ temperature_annual-max-at-2m
 HORIZONTAL
 
 MONITOR
-393
-608
-571
-645
+394
+634
+574
+671
 NIL
-temperature_dailyMeanFluctuation
+temperature_meanDailyFluctuation
 2
 1
 9
 
 MONITOR
-389
-644
-563
-681
+390
+670
+564
+707
 NIL
 temperature_dailyLowerDeviation
 2
@@ -2835,10 +2858,10 @@ temperature_dailyLowerDeviation
 9
 
 MONITOR
-391
-680
-565
-717
+392
+706
+566
+743
 NIL
 temperature_dailyUpperDeviation
 2
@@ -2866,25 +2889,25 @@ PENS
 "max" 1.0 0 -2674135 true "" "plot maxTemperature"
 
 SLIDER
-22
-789
-417
-822
+24
+798
+419
+831
 solar_annual-max
 solar_annual-max
 solar_annual-min
 7
-7.0
+0.0
 0.001
 1
 kWh/m2 (default: 7)
 HORIZONTAL
 
 SLIDER
-22
-750
-419
-783
+24
+759
+421
+792
 solar_annual-min
 solar_annual-min
 2
@@ -2896,15 +2919,15 @@ kWh/m2 (default: 3)
 HORIZONTAL
 
 SLIDER
-23
-827
-416
-860
-solar_daily-mean-fluctuation
-solar_daily-mean-fluctuation
+25
+836
+418
+869
+solar_mean-daily-fluctuation
+solar_mean-daily-fluctuation
 0
 4
-1.0
+0.0
 0.001
 1
 kWh/m2 (default: 1)
@@ -2924,15 +2947,15 @@ KWh/m2
 10.0
 true
 false
-"set-plot-y-range (precision (solar_annualMin - solar_dailyMeanFluctuation - 0.1) 2) (precision (solar_annualMax + solar_dailyMeanFluctuation + 0.1) 2)" "set-plot-y-range (precision (solar_annualMin - solar_dailyMeanFluctuation - 0.1) 2) (precision (solar_annualMax + solar_dailyMeanFluctuation + 0.1) 2)"
+"set-plot-y-range (precision (solar_annualMin - solar_meanDailyFluctuation - 0.1) 2) (precision (solar_annualMax + solar_meanDailyFluctuation + 0.1) 2)" "set-plot-y-range (precision (solar_annualMin - solar_meanDailyFluctuation - 0.1) 2) (precision (solar_annualMax + solar_meanDailyFluctuation + 0.1) 2)"
 PENS
 "default" 1.0 0 -16777216 true "" "plot solarRadiation / 3.6"
 
 MONITOR
-422
-746
-534
-783
+424
+755
+536
+792
 NIL
 solar_annualMin
 3
@@ -2940,10 +2963,10 @@ solar_annualMin
 9
 
 MONITOR
-420
-784
-534
-821
+422
+793
+536
+830
 NIL
 solar_annualMax
 3
@@ -2951,12 +2974,12 @@ solar_annualMax
 9
 
 MONITOR
-419
-824
-577
-861
+421
+833
+579
+870
 NIL
-solar_dailyMeanFluctuation
+solar_meanDailyFluctuation
 3
 1
 9
@@ -3036,7 +3059,7 @@ precipitation_yearly-mean
 precipitation_yearly-mean
 0
 1000
-400.0
+0.0
 1.0
 1
 mm/year (default: 400)
@@ -3051,7 +3074,7 @@ precipitation_yearly-sd
 precipitation_yearly-sd
 0
 250
-130.0
+0.0
 1.0
 1
 mm/year (default: 130)
@@ -3062,11 +3085,11 @@ SLIDER
 889
 430
 922
-precipitation_daily-cum_n-sample
-precipitation_daily-cum_n-sample
+precipitation_daily-cum_n-samples
+precipitation_daily-cum_n-samples
 0
 300
-200.0
+0.0
 1.0
 1
 (default: 200)
@@ -3081,7 +3104,7 @@ precipitation_daily-cum_max-sample-size
 precipitation_daily-cum_max-sample-size
 1
 20
-10.0
+0.0
 1.0
 1
 (default: 10)
@@ -3096,7 +3119,7 @@ precipitation_daily-cum_plateau-value_yearly-mean
 precipitation_daily-cum_plateau-value_yearly-mean
 0
 0.9
-0.1
+0.0
 0.01
 1
 winter (mm)/summer (mm) (default: 0.1)
@@ -3111,7 +3134,7 @@ precipitation_daily-cum_plateau-value_yearly-sd
 precipitation_daily-cum_plateau-value_yearly-sd
 0
 0.2
-0.05
+0.0
 0.001
 1
 (default: 0.05)
@@ -3126,7 +3149,7 @@ precipitation_daily-cum_inflection1_yearly-mean
 precipitation_daily-cum_inflection1_yearly-mean
 1
 150
-40.0
+0.0
 1.0
 1
 day of year (default: 40)
@@ -3141,7 +3164,7 @@ precipitation_daily-cum_inflection1_yearly-sd
 precipitation_daily-cum_inflection1_yearly-sd
 0
 50
-20.0
+0.0
 1.0
 1
 days (default: 20)
@@ -3156,7 +3179,7 @@ precipitation_daily-cum_rate1_yearly-mean
 precipitation_daily-cum_rate1_yearly-mean
 0
 0.5
-0.15
+0.0
 0.01
 1
 (default: 0.15)
@@ -3171,7 +3194,7 @@ precipitation_daily-cum_rate1_yearly-sd
 precipitation_daily-cum_rate1_yearly-sd
 0
 0.1
-0.02
+0.0
 0.01
 1
 (default: 0.02)
@@ -3186,7 +3209,7 @@ precipitation_daily-cum_inflection2_yearly-mean
 precipitation_daily-cum_inflection2_yearly-mean
 150
 366
-200.0
+0.0
 1.0
 1
 day of year (default: 200)
@@ -3201,7 +3224,7 @@ precipitation_daily-cum_inflection2_yearly-sd
 precipitation_daily-cum_inflection2_yearly-sd
 0
 40
-20.0
+0.0
 1
 1
 days (default: 20)
@@ -3216,7 +3239,7 @@ precipitation_daily-cum_rate2_yearly-mean
 precipitation_daily-cum_rate2_yearly-mean
 0
 0.5
-0.05
+0.0
 0.01
 1
 (default: 0.05)
@@ -3231,7 +3254,7 @@ precipitation_daily-cum_rate2_yearly-sd
 precipitation_daily-cum_rate2_yearly-sd
 0
 0.1
-0.01
+0.0
 0.01
 1
 (default: 0.01)
@@ -3262,10 +3285,10 @@ precipitation_yearlySd
 MONITOR
 429
 887
-585
+602
 924
 NIL
-precipitation_dailyCum_nSample
+precipitation_dailyCum_nSamples
 2
 1
 9
@@ -3526,7 +3549,7 @@ par_ecol_maxAlbedo
 par_ecol_maxAlbedo
 par_ecol_minAlbedo
 1
-0.5
+0.0
 0.01
 1
 NIL
@@ -3541,7 +3564,7 @@ par_ecol_maxRootZoneDepth
 par_ecol_maxRootZoneDepth
 par_ecol_minRootZoneDepth
 3000
-2000.0
+0.0
 1
 1
 mm3/mm3
@@ -3685,6 +3708,17 @@ TEXTBOX
 9
 0.0
 1
+
+SWITCH
+22
+531
+161
+564
+southHemisphere?
+southHemisphere?
+1
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?

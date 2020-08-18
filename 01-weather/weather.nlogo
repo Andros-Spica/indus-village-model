@@ -523,15 +523,21 @@ end
 
 to-report get-annual-sinusoid-with-fluctuation [ minValue maxValue meanFluctuation dayOfYear ]
 
-  report max (list 0 random-normal (get-annual-sinusoid minValue maxValue dayOfYear) meanFluctuation)
+  ;;; assuming north hemisphere, winter solstice in 21st December
+  let angleAtLowestValue (360 * (31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 21) / yearLengthInDays) - 90
+  ;;; assuming south hemisphere, winter solstice in 21st June
+  if (southHemisphere?)
+  [ set angleAtLowestValue (360 * (31 + 28 + 31 + 30 + 31 + 21) / yearLengthInDays) - 90 ]
+
+  report max (list 0 random-normal (get-annual-sinusoid minValue maxValue dayOfYear angleAtLowestValue) meanFluctuation)
 
 end
 
-to-report get-annual-sinusoid [ minValue maxValue dayOfYear ]
+to-report get-annual-sinusoid [ minValue maxValue dayOfYear angleAtLowestValue ]
 
   let amplitude (maxValue - minValue) / 2
 
-  report minValue + amplitude * (1 + sin (270 + 360 * dayOfYear / yearLengthInDays))
+  report minValue + amplitude * (1 + sin (angleAtLowestValue + 360 * dayOfYear / yearLengthInDays))
 
   ; NOTE: sin function in NetLogo needs angle in degrees. 270º equivalent to 3 * pi / 2 and 360º equivalent to 2 * pi
 
@@ -617,10 +623,10 @@ to plot-precipitation-table-by-month
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-69
-300
-184
-416
+28
+298
+143
+414
 -1
 -1
 5.632
@@ -689,10 +695,10 @@ seed
 Number
 
 CHOOSER
-59
-183
-197
-228
+2
+182
+140
+227
 type-of-experiment
 type-of-experiment
 "user-defined" "random"
@@ -743,7 +749,7 @@ INPUTBOX
 237
 128
 end-simulation-in-tick
-1825.0
+0.0
 1
 0
 Number
@@ -757,7 +763,7 @@ temperature_mean-daily-fluctuation
 temperature_mean-daily-fluctuation
 0
 20
-5.0
+0.1
 0.1
 1
 ºC  (default: 5)
@@ -1542,6 +1548,17 @@ NIL
 NIL
 NIL
 1
+
+SWITCH
+139
+187
+278
+220
+southHemisphere?
+southHemisphere?
+1
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
