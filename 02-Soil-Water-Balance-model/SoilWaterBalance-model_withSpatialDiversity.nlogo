@@ -469,7 +469,13 @@ to-report get-temperature [ dayOfYear ]
 
   ;;; get temperature base level for the current day (ºC at lowest elevation)
 
-  report (get-annual-sinusoid-with-fluctuation temperature_annualMinAt2m temperature_annualMaxAt2m temperature_meanDailyFluctuation dayOfYear)
+  report (get-annual-sinusoid-with-fluctuation
+    temperature_annualMinAt2m
+    temperature_annualMaxAt2m
+    temperature_meanDailyFluctuation
+    dayOfYear
+    southHemisphere?
+  )
 
 end
 
@@ -561,7 +567,13 @@ to-report get-solar-radiation [ dayOfYear ]
   ;;; get solar radiation for the current day (MJ/m2)
   ;;; return value converted from kWh/m2 to MJ/m2 (1 : 3.6)
 
-  report (get-annual-sinusoid-with-fluctuation solar_annualMin solar_annualMax solar_meanDailyFluctuation dayOfYear) * 3.6
+  report max (list 0 (get-annual-sinusoid-with-fluctuation
+    solar_annualMin
+    solar_annualMax
+    solar_meanDailyFluctuation
+    dayOfYear
+    southHemisphere?
+  )) * 3.6
   ;;; NOTE: it might be possible to decrease solar radiation depending on the current day precipitation. Further info on precipitation effect on solar radiation is needed.
 
 end
@@ -864,19 +876,19 @@ end
 ;;;;;;;;;;;; numeric generic functions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-to-report get-annual-sinusoid-with-fluctuation [ minValue maxValue meanFluctuation dayOfYear ]
+to-report get-annual-sinusoid-with-fluctuation [ minValue maxValue meanFluctuation dayOfYear southHemisphere ]
 
-  ;;; assuming north hemisphere, winter solstice in 21st December
-  let angleAtLowestValue (360 * (31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 21) / yearLengthInDays) - 90
-  ;;; assuming south hemisphere, winter solstice in 21st June
-  if (southHemisphere?)
-  [ set angleAtLowestValue (360 * (31 + 28 + 31 + 30 + 31 + 21) / yearLengthInDays) - 90 ]
-
-  report max (list 0 random-normal (get-annual-sinusoid minValue maxValue dayOfYear angleAtLowestValue) meanFluctuation)
+  report random-normal (get-annual-sinusoid minValue maxValue dayOfYear southHemisphere) meanFluctuation
 
 end
 
-to-report get-annual-sinusoid [ minValue maxValue dayOfYear angleAtLowestValue ]
+to-report get-annual-sinusoid [ minValue maxValue dayOfYear southHemisphere ]
+
+  ;;; assuming northern hemisphere, winter solstice in 21st December
+  let angleAtLowestValue (360 * (31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 21) / yearLengthInDays) - 90
+  ;;; assuming southern hemisphere, winter solstice in 21st June
+  if (southHemisphere)
+  [ set angleAtLowestValue (360 * (31 + 28 + 31 + 30 + 31 + 21) / yearLengthInDays) - 90 ]
 
   let amplitude (maxValue - minValue) / 2
 

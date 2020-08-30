@@ -458,7 +458,13 @@ to-report get-temperature [ dayOfYear ]
 
   ;;; get temperature base level for the current day (ºC at lowest elevation)
 
-  report (get-annual-sinusoid-with-fluctuation temperature_annualMinAt2m temperature_annualMaxAt2m temperature_meanDailyFluctuation dayOfYear)
+  report (get-annual-sinusoid-with-fluctuation
+    temperature_annualMinAt2m
+    temperature_annualMaxAt2m
+    temperature_meanDailyFluctuation
+    dayOfYear
+    southHemisphere?
+  )
 
 end
 
@@ -550,7 +556,13 @@ to-report get-solar-radiation [ dayOfYear ]
   ;;; get solar radiation for the current day (MJ/m2)
   ;;; return value converted from kWh/m2 to MJ/m2 (1 : 3.6)
 
-  report (get-annual-sinusoid-with-fluctuation solar_annualMin solar_annualMax solar_meanDailyFluctuation dayOfYear) * 3.6
+  report max (list 0 (get-annual-sinusoid-with-fluctuation
+    solar_annualMin
+    solar_annualMax
+    solar_meanDailyFluctuation
+    dayOfYear
+    southHemisphere?
+  )) * 3.6
   ;;; NOTE: it might be possible to decrease solar radiation depending on the current day precipitation. Further info on precipitation effect on solar radiation is needed.
 
 end
@@ -1082,19 +1094,19 @@ end
 ;;;;;;;;;;;; numeric generic functions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-to-report get-annual-sinusoid-with-fluctuation [ minValue maxValue meanFluctuation dayOfYear ]
+to-report get-annual-sinusoid-with-fluctuation [ minValue maxValue meanFluctuation dayOfYear southHemisphere ]
 
-  ;;; assuming north hemisphere, winter solstice in 21st December
-  let angleAtLowestValue (360 * (31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 21) / yearLengthInDays) - 90
-  ;;; assuming south hemisphere, winter solstice in 21st June
-  if (southHemisphere?)
-  [ set angleAtLowestValue (360 * (31 + 28 + 31 + 30 + 31 + 21) / yearLengthInDays) - 90 ]
-
-  report max (list 0 random-normal (get-annual-sinusoid minValue maxValue dayOfYear angleAtLowestValue) meanFluctuation)
+  report random-normal (get-annual-sinusoid minValue maxValue dayOfYear southHemisphere) meanFluctuation
 
 end
 
-to-report get-annual-sinusoid [ minValue maxValue dayOfYear angleAtLowestValue ]
+to-report get-annual-sinusoid [ minValue maxValue dayOfYear southHemisphere ]
+
+  ;;; assuming northern hemisphere, winter solstice in 21st December
+  let angleAtLowestValue (360 * (31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 21) / yearLengthInDays) - 90
+  ;;; assuming southern hemisphere, winter solstice in 21st June
+  if (southHemisphere)
+  [ set angleAtLowestValue (360 * (31 + 28 + 31 + 30 + 31 + 21) / yearLengthInDays) - 90 ]
 
   let amplitude (maxValue - minValue) / 2
 
@@ -1299,7 +1311,7 @@ temperature_mean-daily-fluctuation
 temperature_mean-daily-fluctuation
 0
 20
-0.0
+5.0
 0.1
 1
 ºC  (default: 5)
@@ -1314,7 +1326,7 @@ temperature_daily-lower-deviation
 temperature_daily-lower-deviation
 0
 20
-0.0
+5.0
 0.1
 1
 ºC  (default: 5)
@@ -1329,7 +1341,7 @@ temperature_daily-upper-deviation
 temperature_daily-upper-deviation
 0
 20
-0.0
+5.0
 0.1
 1
 ºC  (default: 5)
@@ -1344,7 +1356,7 @@ temperature_annual-max-at-2m
 temperature_annual-max-at-2m
 temperature_annual-min-at-2m
 50
-0.0
+40.0
 0.1
 1
 ºC  (default: 40)
@@ -1449,7 +1461,7 @@ CO2-mean
 CO2-mean
 250
 800
-0.0
+250.0
 0.01
 1
 ppm (default: 250)
@@ -1464,7 +1476,7 @@ CO2-annual-deviation
 CO2-annual-deviation
 0
 5
-0.0
+2.0
 0.01
 1
 ppm (default: 2)
@@ -1497,7 +1509,7 @@ CO2-daily-fluctuation
 CO2-daily-fluctuation
 0
 5
-0.0
+1.0
 0.01
 1
 ppm (default:1)
@@ -1577,7 +1589,7 @@ solar_annual-max
 solar_annual-max
 solar_annual-min
 7
-0.0
+7.0
 0.001
 1
 kWh/m2 (default: 7)
@@ -1607,7 +1619,7 @@ solar_mean-daily-fluctuation
 solar_mean-daily-fluctuation
 0
 4
-0.0
+1.0
 0.001
 1
 kWh/m2 (default: 1)
@@ -1706,7 +1718,7 @@ precipitation_yearly-mean
 precipitation_yearly-mean
 0
 1000
-0.0
+400.0
 1.0
 1
 mm/year (default: 400)
@@ -1721,7 +1733,7 @@ precipitation_yearly-sd
 precipitation_yearly-sd
 0
 250
-0.0
+130.0
 1.0
 1
 mm/year (default: 130)
@@ -1736,7 +1748,7 @@ precipitation_daily-cum_n-samples
 precipitation_daily-cum_n-samples
 0
 300
-0.0
+200.0
 1.0
 1
 (default: 200)
@@ -1751,7 +1763,7 @@ precipitation_daily-cum_max-sample-size
 precipitation_daily-cum_max-sample-size
 1
 20
-0.0
+10.0
 1.0
 1
 (default: 10)
@@ -1766,7 +1778,7 @@ precipitation_daily-cum_plateau-value_yearly-mean
 precipitation_daily-cum_plateau-value_yearly-mean
 0
 0.9
-0.0
+0.1
 0.01
 1
 winter (mm)/summer (mm) (default: 0.1)
@@ -1781,7 +1793,7 @@ precipitation_daily-cum_plateau-value_yearly-sd
 precipitation_daily-cum_plateau-value_yearly-sd
 0
 0.2
-0.0
+0.05
 0.001
 1
 (default: 0.05)
@@ -1796,7 +1808,7 @@ precipitation_daily-cum_inflection1_yearly-mean
 precipitation_daily-cum_inflection1_yearly-mean
 1
 150
-0.0
+40.0
 1.0
 1
 day of year (default: 40)
@@ -1811,7 +1823,7 @@ precipitation_daily-cum_inflection1_yearly-sd
 precipitation_daily-cum_inflection1_yearly-sd
 0
 50
-0.0
+20.0
 1.0
 1
 days (default: 20)
@@ -1826,7 +1838,7 @@ precipitation_daily-cum_rate1_yearly-mean
 precipitation_daily-cum_rate1_yearly-mean
 0
 0.5
-0.0
+0.15
 0.01
 1
 (default: 0.15)
@@ -1841,7 +1853,7 @@ precipitation_daily-cum_rate1_yearly-sd
 precipitation_daily-cum_rate1_yearly-sd
 0
 0.1
-0.0
+0.02
 0.01
 1
 (default: 0.02)
@@ -1856,7 +1868,7 @@ precipitation_daily-cum_inflection2_yearly-mean
 precipitation_daily-cum_inflection2_yearly-mean
 150
 366
-0.0
+200.0
 1.0
 1
 day of year (default: 200)
@@ -1871,7 +1883,7 @@ precipitation_daily-cum_inflection2_yearly-sd
 precipitation_daily-cum_inflection2_yearly-sd
 0
 40
-0.0
+20.0
 1
 1
 days (default: 20)
@@ -1886,7 +1898,7 @@ precipitation_daily-cum_rate2_yearly-mean
 precipitation_daily-cum_rate2_yearly-mean
 0
 0.5
-0.0
+0.05
 0.01
 1
 (default: 0.05)
@@ -1901,7 +1913,7 @@ precipitation_daily-cum_rate2_yearly-sd
 precipitation_daily-cum_rate2_yearly-sd
 0
 0.1
-0.0
+0.01
 0.01
 1
 (default: 0.01)
@@ -2136,10 +2148,10 @@ PENS
 "mean WTp" 1.0 0 -13345367 true "" "plot mean [WATp] of patches"
 
 SWITCH
-139
-187
-278
-220
+1058
+57
+1197
+90
 southHemisphere?
 southHemisphere?
 1
