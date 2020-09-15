@@ -14,8 +14,12 @@ Declare generic function for generating double logistic curves depending on star
 
 ```{r}
 doubleLogistic <- function(dayOfYear, 
-                           plateauValue, inflection1, rate1, inflection2, rate2
-                           )
+                           plateauValue, 
+                           inflection1, 
+                           rate1, 
+                           inflection2, 
+                           rate2
+)
 {
   return(
     (plateauValue / (1 + exp((inflection1 - dayOfYear) * rate1))) + 
@@ -23,11 +27,16 @@ doubleLogistic <- function(dayOfYear,
   )
 }
 
-doubleLogisticCurve <- function(start.x, end.x, 
-                                plateauValue, inflection1, rate1, inflection2, rate2)
+doubleLogisticCurve <- function(plateauValue, 
+                                inflection1, 
+                                rate1, 
+                                inflection2, 
+                                rate2,
+                                yearLengthInDays
+)
 {
   curve <- c()
-  for (i in start.x:end.x)
+  for (i in 1:yearLengthInDays)
   {
     curve <- c(curve, doubleLogistic(i, plateauValue, inflection1, rate1, inflection2, rate2))
   }
@@ -40,8 +49,7 @@ doubleLogisticCurve <- function(start.x, end.x,
 Set up six variations of parameter settings (e.g. c(plateauValue, inflection1, rate1, inflection2, rate2)), assuming start.x = 1 and end.x = 365:
 
 ```{r}
-start.x = 1
-end.x = 365
+lengthOfYearInDays = 365
 
 parValues <- rbind(
   c(0.01, 125, 0.3,  245, 0.22),
@@ -74,12 +82,12 @@ plot(c(start.x, end.x * 1.45), # leave some space on the right side to display l
 
 for (i in 1:nrow(parValues))
 {
-  curve <- doubleLogisticCurve(start.x = start.x, end.x = end.x, 
-                               plateauValue = parValues[i, 1], 
+  curve <- doubleLogisticCurve(plateauValue = parValues[i, 1], 
                                inflection1 = parValues[i, 2], 
                                rate1 = parValues[i, 3], 
                                inflection2 = parValues[i, 4],
-                               rate2 = parValues[i, 5])
+                               rate2 = parValues[i, 5],
+                               lengthOfYearInDays = lengthOfYearInDays)
   
   lines((1:length(curve)) - 1, curve, 
         col = i, lwd = grScale * 3)

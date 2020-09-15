@@ -3,9 +3,9 @@ title: "Demostration of annual sinusoid curve of the Weather model"
 author: "Andreas Angourakis"
 date: "27 January 2020"
 output:
-  pdf_document: default
   html_document:
     number_sections: yes
+  pdf_document: default
 ---
 
 ## Preparation
@@ -15,14 +15,26 @@ Declare generic function for generating sinusoid curves depending on minValue, m
 ```{r}
 generateSinusoidCurve <- function(minValue = 0, 
                                   maxValue = 1, 
-                                  yearLengthInDays = 365)
+                                  yearLengthInDays = 365,
+                                  southHemisphere = FALSE)
 {
+  angleAtLowestValue = (360 * (31+28+31+30+31+30+31+31+30+31+30+21) / yearLengthInDays) - 90 
+  # assuming northern hemisphere, winter solstice in 21st December
+  if (southHemisphere)
+  {
+    angleAtLowestValue = (360 * (31+28+31+30+31+21) / yearLengthInDays) - 90
+  }
+  # assuming southern hemisphere, winter solstice in 21st June
+  # convert it to radians
+  angleAtLowestValueInRadians = angleAtLowestValue * pi / 180
+  
   curve <- c()
   for (dayOfYear in 1:yearLengthInDays)
   {
     amplitude = (maxValue - minValue) / 2
+    
     curve <- c(curve, minValue + amplitude * 
-                 (1 + sin(3*pi/2 + 2*pi * dayOfYear / yearLengthInDays)))
+                 (1 + sin(angleAtLowestValueInRadians + 2*pi * dayOfYear / yearLengthInDays)))
   }
   
   return(curve)
@@ -67,31 +79,53 @@ plot(c(0, yearLengthInDays * 1.4), # leave some space on the right side to displ
      cex.main = grScale
 )
 
+colorPalette <- c(rainbow(nrow(parValues)), rainbow(nrow(parValues), s = 0.5))
+
 for (i in 1:nrow(parValues))
 {
   curve <- generateSinusoidCurve(minValue = parValues[i, 1], maxValue = parValues[i, 2])
   
   lines((1:length(curve)) - 1, curve, 
-        col = i, lwd = grScale * 3)
+        col = colorPalette[i], lwd = grScale * 3)
   
   legend(x = yearLengthInDays, 
-         y = maxMaxValue * (1 - 0.1 * (i - 1)), 
+         y = maxMaxValue * (1.1 - 0.1 * (i - 1)), 
          legend = substitute(paste("minValue = ", minValue, 
                                  ", maxValue = ", maxValue), 
                            list(minValue = parValues[i, 1], maxValue = parValues[i, 2])), 
-         col = i,
+         col = colorPalette[i],
+         lwd = grScale * 3, cex = 0.8,
+         title = NULL, bty = "n")
+  
+  # add example with southHemisphere = TRUE
+  curve <- generateSinusoidCurve(minValue = parValues[i, 1], maxValue = parValues[i, 2], southHemisphere = TRUE)
+  
+  lines((1:length(curve)), curve, 
+        col = colorPalette[i+nrow(parValues)], lwd = grScale * 3)
+  
+  legend(x = yearLengthInDays, 
+         y = maxMaxValue * (0.5 - 0.1 * (i - 1)), 
+         legend = substitute(paste("minValue = ", minValue, 
+                                 ", maxValue = ", maxValue), 
+                           list(minValue = parValues[i, 1], maxValue = parValues[i, 2])), 
+         col = colorPalette[i+nrow(parValues)],
          lwd = grScale * 3, cex = 0.8,
          title = NULL, bty = "n")
 }
 
+text(x = yearLengthInDays * 1.2, 
+     y = maxMaxValue * c(1.12, 0.52),
+     labels = c("southHemisphere = FALSE", "southHemisphere = TRUE"),
+     cex = 0.8)
+
 text(x = yearLengthInDays * 0.7, y = maxMaxValue * 1.3,
      expression(paste(
-       "output = minValue + ", bgroup("(",frac((maxValue - minValue), 2),")") * 
-         bgroup("(", 1 - "sin" * 
-                  bgroup("(", 270 + 360 * frac(dayOfYear, yearLengthInDays), ")"), 
+       "output = minValue + ", frac(maxValue - minValue, 2) * 
+         bgroup("(", 1 + "sin" * 
+                  bgroup("(", angleAtLowestValue + 360 * frac(dayOfYear, yearLengthInDays), ")"), 
                 ")") 
      ))
-     , cex = grScale * 0.6)
+     , cex = grScale * 0.5)
 
 dev.off()
 ```
