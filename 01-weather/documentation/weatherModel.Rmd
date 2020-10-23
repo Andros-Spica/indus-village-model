@@ -8,56 +8,43 @@ output:
   pdf_document: default
 ---
 
-# Load source file
+## Load source file {-}
 
 ```{r}
 source("source/weatherModel.R")
 ```
 
-## Base generic functions
+## Base generic functions {-}
 
-### Sinusoidal curve with fluctuations
+### Sinusoidal curve with fluctuations {-}
 
 Generic function for geting points in sinusoidal curves depending on minValue, maxValue, length of year in days, and a normal stochastic fluctuation. See extended explanation at [HTML with R walkthrough](https://htmlpreview.github.io/?https://github.com/Andros-Spica/indus-village-model/blob/master/01-weather/documentation/annualSinusoidCurve.html).
 
-```{r}
-getDayValueInAnnualSinusoidWithFluctuation
-```
-```{r}
-getDayValueInAnnualSinusoid
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics("annualSinusoidCurve.png")
 ```
 
-### Annual cumulative daily precipitation using escalonated double logistic curve
+### Annual cumulative daily precipitation using escalonated double logistic curve {-}
 
-Declare generic function for geting an year of daily precipitation. First, it generates a double logistic curve of range 0-1 depending on start and end days of year, a plateau value (intermediate value), and two sets of point of inflection and growth rate. See extended explanation at [HTML with R walkthrough](https://htmlpreview.github.io/?https://github.com/Andros-Spica/indus-village-model/blob/master/01-weather/documentation/doubleLogisticCurve.html). Then, the curve is broken down stochastically into steps, controlled by `nSample` and `maxSampleSize`, which better represents the discretionality of precipitation events. Finally, the cumulative daily value is transformed into daily increments, which is multiplied by the annualSum, returning daily precipitation values. 
+Generic function for geting an year of daily precipitation. First, it generates a double logistic curve of range 0-1 depending on start and end days of year, a plateau value (intermediate value), and two sets of point of inflection and growth rate. See extended explanation at [HTML with R walkthrough](https://htmlpreview.github.io/?https://github.com/Andros-Spica/indus-village-model/blob/master/01-weather/documentation/doubleLogisticCurve.html). Then, the curve is broken down stochastically into steps, controlled by `nSample` and `maxSampleSize`, which better represents the discretionality of precipitation events. Finally, the cumulative daily value is transformed into daily increments, which is multiplied by the annualSum, returning daily precipitation values. 
 
-```{r}
-getPrecipitationOfYear
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics("annualDoubleLogisticCurve_full.png")
 ```
 
-```{r}
-doubleLogisticCurve
-```
+### Reference evapotranspiration {-}
 
-```{r}
-doubleLogistic
-```
-
-```{r}
-escalonateCurve
-```
-
-```{r}
-getIncrementsFromCumulativeCurve
-```
-
-### Reference evapotranspiration
+TO-DO
 
 ```{r}
 estimateETr
 ```
 
-## Auxiliar functions
+```{r, out.width = "\\textwidth"}
+#knitr::include_graphics("XXXXXX.png")
+```
+
+## Auxiliar functions {-}
 
 An auxiliar function to simplify code with long variable names:
 
@@ -71,7 +58,7 @@ Function for marking the end of each year:
 markEndYears
 ```
 
-## The model main procedures
+## The model main procedures {-}
 
 ```{r}
 weatherModel.init
@@ -81,9 +68,9 @@ weatherModel.init
 weatherModel.run
 ```
 
-# Running the model
+# Running the model {-}
 
-## Initialise
+## Initialise {-}
 
 ```{r}
 weatherModel <- weatherModel.init()
@@ -94,11 +81,13 @@ Show table with parameter values:
 ```{r}
 parvalues <- c(
   weatherModel$PARS[[1]],
-  weatherModel$PARS[[2]]
+  weatherModel$PARS[[2]],
+  weatherModel$PARS[[3]],
+  weatherModel$PARS[[4]]
 )
-parNames <- c("yearLengthInDays", "albedo")
+parNames <- c("seed", "yearLengthInDays", "albedo", "southHemisphere")
 
-for (j in 3:length(weatherModel$PARS))
+for (j in 5:length(weatherModel$PARS))
 {
   parGroupName <- names(weatherModel$PARS)[j]
   for (i in 1:length(weatherModel$PARS[[j]]))
@@ -119,12 +108,23 @@ knitr::kable(parvalues,
              align = c("l", "r"))
 ```
 
-## Run
+## Run {-}
 
 Run for 5 years:
 
 ```{r}
-weatherModel <- weatherModel.run(weatherModel, 5)
+set.seed(0)
+weatherModel <- weatherModel.run(weatherModel, numberOfYears = 5)
+```
+
+## Plot results
+
+Set colours for maximum and minimum temperature:
+
+```{r}
+maxTemperatureColour = hsv(7.3/360, 74.6/100, 70/100)
+
+minTemperatureColour = hsv(232/360, 64.6/100, 73/100)
 ```
 
 Plot time-series:
@@ -133,59 +133,126 @@ Plot time-series:
 lengthOfSimulation = length(weatherModel$daily$currentYear)
 
 #--------
-# To create a png file:
 plotName = "weatherModelExample.png"
 
-fontScale = c(2, 2, 1.2, # c(cex.lab, legend, cex.axis)
-              3, 2) # side annotation name and "model"
+grScale = 2
+fontRescale = 0
+fontRescaleDay = 0
 
-png(plotName, width = 1000, height = 800)
+png(plotName, width = grScale * 600, height = grScale * 700)
+#---------
+# alternatively, to create eps file:
+#---------
+# plotName = "FigX-weatherModelExample.eps"
+# 
+# grScale = 1.2
+# fontRescale = 0.1
+# fontRescaleDay = -0.5 # to adjust unexpected scale behaviour in mtext
+# 
+# extrafont::loadfonts(device = "postscript")
+# grDevices::cairo_ps(file = plotName,
+#                       pointsize = 12,
+#                       width = grScale * 6,
+#                       height = grScale * 7,
+#                       onefile = FALSE,
+#                       family = "sans")
+#---------
 
-layout(matrix(c(1:4), nrow = 4), heights = c(10, 10, 10, 12))
+layout(matrix(c(1:10), 
+              nrow = 5, ncol = 2, byrow = FALSE), 
+       widths = c(1, 10),
+       heights = c(10, 10, 10, 12, 2))
 
 yLabs <- c(expression(paste("    Solar\nRadiation (", MJ/m^-2, ")")), 
-           "Temperature (ºC)", 
-           "Precipitation (mm)", 
-           "ETr (mm)")
-leftMargin <- 7
+           "Temperature (C)", 
+           "ETr (mm)",
+           "Precipitation (mm)")
 
+par(cex = grScale)
 
-# 1. Solar radiation
-par(mar = c(0.1, leftMargin, 1.1, 0.2), 
-    cex.lab = fontScale[1],
-    cex.axis = fontScale[3])
+# First column
 
+par(mar = c(0, 0, 0, 0))
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, font = 4, 
+     cex = grScale * (0.6 + fontRescale), 
+     srt = 90,
+     labels = yLabs[1])
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, font = 4, 
+     cex = grScale * (0.7 + fontRescale), 
+     srt = 90,
+     labels = yLabs[2])
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.6, font = 4, 
+     cex = grScale * (0.7 + fontRescale), 
+     srt = 90,
+     labels = yLabs[3])
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.6, font = 4, 
+     cex = grScale * (0.7 + fontRescale), 
+     srt = 90,
+     labels = yLabs[4])
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+# Second column
+
+par(mar = c(0.2, 1, 0.5, 0.1), 
+    cex.axis = grScale * (0.6 + fontRescale))
+
+# 1: Solar radiation
 plot(1:lengthOfSimulation, weatherModel$daily$solarRadiation, type = "l",
      xlab = "", xaxt = 'n',
-     ylab = yLabs[1])
+     ylab = "")
 markEndYears(lengthOfSimulation)
 
-# 2. Temperature
+# 2: Temperature
 plot(1:lengthOfSimulation, weatherModel$daily$temperature, type = "l",
      xlab = "", xaxt = 'n',
-     ylab = yLabs[2])
-lines(1:lengthOfSimulation, weatherModel$daily$temperature_max, col = "red")
-lines(1:lengthOfSimulation, weatherModel$daily$temperature_min, col = "blue")
+     ylab = "")
+lines(1:lengthOfSimulation, weatherModel$daily$temperature_max, 
+      col = adjustcolor(maxTemperatureColour, alpha.f = 0.8))
+lines(1:lengthOfSimulation, weatherModel$daily$temperature_min, 
+      col = adjustcolor(minTemperatureColour, alpha.f = 0.8))
 
 markEndYears(lengthOfSimulation)
 
-# 3. Reference evapotranspiration
+# 3: Reference evapotranspiration
 
 plot(1:lengthOfSimulation, weatherModel$daily$ETr, type = "l",
-     ylab = yLabs[4],
+     ylab = "",
      xlab = "", xaxt = 'n')
 markEndYears(lengthOfSimulation)
 
-# 4. Precipitation
-par(mar = c(5, leftMargin, 1.1, 0.2))
+# 4: Precipitation
+par(mar = c(2, 1, 0.1, 0.1))
 
 barplot(weatherModel$daily$precipitation, 
-        ylab = yLabs[3],
-        names.arg = 1:lengthOfSimulation,
-        xlab = "day")
-markEndYears(lengthOfSimulation, offset = 1.2) ; abline(v = 2190 * 1.2, lty = 3)
+        ylab = "",
+        #names.arg = 1:lengthOfSimulation,
+        xlab = "", xaxt = 'n')
+markEndYears(lengthOfSimulation
+             , offset = 1.2)
+abline(v = lengthOfSimulation * 1.2, lty = 3)
 # not sure why, but barplot() x coordinates do not behave as in plot()
 
+# 5:  x-axis title
+
+par(mar = c(1, 1, 0, 0.1))
+
+plot(c(1, lengthOfSimulation), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+axis(3, 
+     at = 1:lengthOfSimulation,
+     tck = 0, lwd = 0)
+
+mtext("day", side = 1, line = -1,
+      font = 4, cex = grScale * (1.7 + fontRescale + fontRescaleDay))
 dev.off()
 ```
 

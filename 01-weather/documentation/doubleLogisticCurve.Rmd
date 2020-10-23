@@ -1,125 +1,480 @@
 ---
 title: "Demostration of double logistic curve of the Weather model"
 author: "Andreas Angourakis"
-date: "27 January 2020"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
+  html_document: default
   pdf_document: default
-  html_document:
-    number_sections: yes
 ---
 
-## Preparation
-
-Declare generic function for generating double logistic curves depending on start and end days of year, a plateau value (intermediate value), and two sets of point of inflection and growth rate.
+## Load source file {-}
 
 ```{r}
-doubleLogistic <- function(dayOfYear, 
-                           plateauValue, 
-                           inflection1, 
-                           rate1, 
-                           inflection2, 
-                           rate2
-)
-{
-  return(
-    (plateauValue / (1 + exp((inflection1 - dayOfYear) * rate1))) + 
-      ((1 - plateauValue) / (1 + exp((inflection2 - dayOfYear) * rate2)))
-  )
-}
+source("source/weatherModel.R")
+```
 
-doubleLogisticCurve <- function(plateauValue, 
-                                inflection1, 
-                                rate1, 
-                                inflection2, 
-                                rate2,
-                                yearLengthInDays
+## Functions
+
+Generic functions for generating double logistic curves to emulate cumulative annual precipitation curves, depending on start and end days of year, a plateau value (intermediate value), and two sets of point of inflection and growth rate.
+
+```{r}
+getPrecipitationOfYear
+```
+
+```{r}
+getAnnualDoubleLogisticCurve
+```
+
+```{r}
+getDayValueInAnnualDoubleLogistic
+```
+
+```{r}
+escalonateCurve
+```
+
+```{r}
+rescaleCurve
+```
+
+```{r}
+getIncrementsFromCumulativeCurve
+```
+
+## Demonstration {-}
+
+Set up six variations of parameter settings of the annual double logistic curve (i.e. plateauValue, inflection1, rate1, inflection2, rate2), the escalonation producing the annual cumulative precipitation curve (i.e. nSamples, maxSampleSize) and annualPrecipitation, assuming length of year of 365 days. Random generator seed used in escalonation is fixed:
+
+```{r}
+seed = 0
+
+yearLengthInDays_sim = 365
+
+parValuesDoubleLogistic <- rbind(
+  # plateauValue, inflection1, rate1, inflection2, rate2
+  c(0.01,         125,         0.3,   245,         0.22),
+  c(0.15,         63,          0.55,  195,         0.6),
+  c(0.5,          64,          0.05,  261,         0.12),
+  c(0.45,         215,         0.01,  276,         0.39),
+  c(0.6,          20,          0.38,  254,         0.04),
+  c(0.85,         97,          0.24,  219,         0.17)
 )
+
+parValuesEscalonation <- rbind(
+  # nSamples, maxSampleSize
+  c(152, 22),
+  c(220, 10),
+  c(240, 6),
+  c(168, 13),
+  c(191, 9),
+  c(205, 17)
+)
+
+annualSumValues <- c(410, 1050, 636, 320, 1280, 745)
+
+```
+
+Initialise data frames for holding curves:
+
+```{r}
+doubleLogisticCurves <- data.frame(
+  matrix(1:(yearLengthInDays_sim * nrow(parValuesDoubleLogistic)),
+         nrow = yearLengthInDays_sim, 
+         ncol = nrow(parValuesDoubleLogistic))
+)
+
+escalonatedDoubleLogisticCurves <- data.frame(
+  matrix(1:(yearLengthInDays_sim * nrow(parValuesDoubleLogistic)),
+         nrow = yearLengthInDays_sim, 
+         ncol = nrow(parValuesDoubleLogistic))
+)
+
+dailyPrecipitation <- data.frame(
+  matrix(1:(yearLengthInDays_sim * nrow(parValuesDoubleLogistic)),
+         nrow = yearLengthInDays_sim, 
+         ncol = nrow(parValuesDoubleLogistic))
+)
+```
+
+Create a colour palette for plotting:
+
+```{r}
+numColdColours = floor(nrow(parValuesDoubleLogistic) / 2)
+numWarmColours = ceiling(nrow(parValuesDoubleLogistic) / 2)
+colorPaletteValues <- cbind(
+  # hue
+  h = c(
+    seq(198.6, 299.4, length.out = numColdColours),
+    seq(5.15, 67.5, length.out = numWarmColours)
+  ) / 360,
+  # saturation
+  s = c(
+    seq(61.6, 75.3, length.out = numColdColours),
+    seq(67, 77.8, length.out = numWarmColours)
+  ) / 100,
+  # value
+  v = c(
+    seq(95.2, 76.4, length.out = numColdColours),
+    seq(73.7, 86.4, length.out = numWarmColours)
+  ) / 100
+)
+
+# format the values a HSV readable for plotting
+colorPalette <- c()
+
+for (i in 1:nrow(parValuesDoubleLogistic))
 {
-  curve <- c()
-  for (i in 1:yearLengthInDays)
-  {
-    curve <- c(curve, doubleLogistic(i, plateauValue, inflection1, rate1, inflection2, rate2))
-  }
-  return(curve)
+  colorPalette <- c(colorPalette,
+                    hsv(colorPaletteValues[i, "h"],
+                        colorPaletteValues[i, "s"],
+                        colorPaletteValues[i, "v"])
+                    )
 }
 ```
 
-## Plot parameter exploration
-
-Set up six variations of parameter settings (e.g. c(plateauValue, inflection1, rate1, inflection2, rate2)), assuming start.x = 1 and end.x = 365:
-
-```{r}
-lengthOfYearInDays = 365
-
-parValues <- rbind(
-  c(0.01, 125, 0.3,  245, 0.22),
-  c(0.15,  63, 0.55, 195, 0.6),
-  c(0.45, 215, 0.1,  276, 0.39),
-  c(0.6,   20, 0.38, 254, 0.04),
-  c(0.85,  97, 0.24, 219, 0.17)
-)
-```
-
-Plot curves:
+Plot only sinusoidal curves with mathmatical annotation:
 
 ```{r}
 grScale = 2
-
-plotName = "DoubleLogisticCurve.png"
+plotName = "annualDoubleLogisticCurve.png"
   
-png(plotName, width = grScale * 800, height = grScale * 480)
-
+png(plotName, width = grScale * 800, height = grScale * 520)
 par(cex = grScale * 1.2)
-
-plot(c(start.x, end.x * 1.45), # leave some space on the right side to display legend
-     c(0, 1.5), # leave some space on top to display equation 
+plot(c(0, yearLengthInDays_sim * 1.8), # leave some space on the right side to display legend
+     c(0, 1.35), # leave some space on top to display equation 
      type = "n", 
      main = "Double logistic curve",
      xlab = "day of year",
      ylab = "output",
      cex.main = grScale
 )
-
-for (i in 1:nrow(parValues))
+for (i in 1:nrow(parValuesDoubleLogistic))
 {
-  curve <- doubleLogisticCurve(plateauValue = parValues[i, 1], 
-                               inflection1 = parValues[i, 2], 
-                               rate1 = parValues[i, 3], 
-                               inflection2 = parValues[i, 4],
-                               rate2 = parValues[i, 5],
-                               lengthOfYearInDays = lengthOfYearInDays)
+  curve <- getAnnualDoubleLogisticCurve(
+    plateauValue = parValuesDoubleLogistic[i, 1], 
+    inflection1 = parValuesDoubleLogistic[i, 2], 
+    rate1 = parValuesDoubleLogistic[i, 3], 
+    inflection2 = parValuesDoubleLogistic[i, 4],
+    rate2 = parValuesDoubleLogistic[i, 5],
+    yearLengthInDays = yearLengthInDays_sim)
   
   lines((1:length(curve)) - 1, curve, 
-        col = i, lwd = grScale * 3)
+        col = colorPalette[i], lwd = grScale * 3)
   
-  legend(x = end.x * 0.8, 
-         y = 0.8 * (1 - 0.2 * (i - 1)), 
-         legend = substitute(paste("plateauValue = ", plateauValue, 
-                                   ", inflection1 = ", inflection1,
-                                   ", rate1 = ", rate1, ","), 
-                           list(plateauValue = parValues[i, 1], 
-                                inflection1 = parValues[i, 2],
-                                rate1 = parValues[i, 3])),
-         col = i,
+  legend(x = yearLengthInDays_sim * 1, 
+         y = 1.05 * (1 - 0.18 * (i - 1)), 
+         legend = substitute(
+           paste("plateauValue = ", plateauValue, 
+                 ", inflection1 = ", inflection1,
+                 ", rate1 = ", rate1, ","), 
+           list(plateauValue = parValuesDoubleLogistic[i, 1], 
+                inflection1 = parValuesDoubleLogistic[i, 2],
+                rate1 = parValuesDoubleLogistic[i, 3])),
+         col = colorPalette[i],
          lwd = grScale * 3, cex = 0.8,
          title = NULL, bty = "n")
   
-  text(x = end.x * 0.9, 
-       y = 0.8 * (0.83 - 0.2 * (i - 1)),
-       labels = substitute(paste("inflection2 = ", inflection2,
-                                 ", rate2 = ", rate2), 
-                           list(inflection2 = parValues[i, 4],
-                                rate2 = parValues[i, 5])),
+  text(x = yearLengthInDays_sim * 1.1, 
+       y = 1.05 * (0.88 - 0.18 * (i - 1)),
+       labels = substitute(
+         paste("inflection2 = ", inflection2,
+               ", rate2 = ", rate2), 
+         list(inflection2 = parValuesDoubleLogistic[i, 4],
+              rate2 = parValuesDoubleLogistic[i, 5])),
        adj = 0, cex = 0.8
        )
 }
-
-text(x = end.x * 0.7, y = 1.3,
+text(x = yearLengthInDays_sim * 0.9, y = 1.2,
      expression(paste(
        "output =  ", frac(plateauValue, (1 + "e"^(rate1 * (inflection1 - dayOfYear)))) + 
          frac(1 - plateauValue, (1 + "e"^(rate2 * (inflection2 - dayOfYear))))
      ))
      , cex = grScale * 0.7)
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+
+Plot all curves:
+
+```{r}
+grScale = 2
+fontRescale = 0
+
+plotName = "annualDoubleLogisticCurve_full.png"
+
+png(plotName, width = grScale * 1000, height = grScale * 1000)
+
+# this layout is assuming 6 cases
+layout(matrix(c(20, 20, 20, 20, 20, 23, 23,
+                1,   5,  5,  5,  5, 23, 23,
+                21, 21, 21, 21, 21, 23, 23,
+                2,   6,  6,  6,  6, 23, 23,
+                22, 22, 22, 22, 22, 23, 23,
+                3,   7,  8,  9, 10, 11, 12,
+                3,  13, 14, 15, 16, 17, 18,
+                4,  19, 19, 19, 19, 19, 19), 
+              nrow = 8, ncol = 7, byrow = TRUE), 
+       widths = c(2, rep(10, 6)),
+       heights = c(3, 12, 3, 12, 3, 12, 0.01, 1))
+
+par(cex = grScale * 1.2)
+
+# 1st column: y-axes titles
+
+# 1: y-axis title - double logistic curves
+
+par(mar = c(0, 0, 0, 0))
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, font = 4, 
+     cex = grScale * (0.7 + fontRescale), 
+     srt = 90,
+     labels = "daily cumulative value")
+
+# 2: y-axis title - escalonated curves
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, font = 4, 
+     cex = grScale * (0.7 + fontRescale), 
+     srt = 90,
+     labels = "daily cumulative value")
+
+# 3: y-axis title - year daily precipitation
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, font = 4, 
+     cex = grScale * (0.7 + fontRescale), 
+     srt = 90,
+     labels = "daily increment")
+
+# 4: empty
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+# top plots
+
+# 5: double logistic curves plot
+
+par(mar = c(1, 2, 0.1, 1), 
+    cex.axis = grScale * (0.7 + fontRescale))
+
+plot(c(1, yearLengthInDays_sim),
+     c(0, 1),
+     type = "n", 
+     xlab = "",
+     ylab = ""
+)
+
+for (i in 1:nrow(parValuesDoubleLogistic))
+{
+  curve <- getAnnualDoubleLogisticCurve(
+    plateauValue = parValuesDoubleLogistic[i, 1], 
+    inflection1 = parValuesDoubleLogistic[i, 2], 
+    rate1 = parValuesDoubleLogistic[i, 3], 
+    inflection2 = parValuesDoubleLogistic[i, 4],
+    rate2 = parValuesDoubleLogistic[i, 5],
+    yearLengthInDays = yearLengthInDays_sim)
+  
+  lines((1:length(curve)), curve, 
+        col = colorPalette[i], lwd = grScale * 3)
+  
+  points(c(parValuesDoubleLogistic[i, 2], 
+           parValuesDoubleLogistic[i, 4]), 
+         c(curve[parValuesDoubleLogistic[i, 2]], 
+           curve[parValuesDoubleLogistic[i, 4]]),
+         col = colorPalette[i], 
+         pch = 19)
+  
+  doubleLogisticCurves[,i] <- curve
+}
+
+# 6: escalonated double logistic or annual cumulative precipitation
+
+plot(c(1, yearLengthInDays_sim),
+     c(0, 1),
+     type = "n", 
+     xlab = "",
+     ylab = ""
+)
+
+for (i in 1:nrow(parValuesDoubleLogistic))
+{
+  curve <- escalonateCurve(
+    curve = doubleLogisticCurves[,i],
+    nSamples = parValuesEscalonation[i, 1],
+    maxSampleSize = parValuesEscalonation[i, 2],
+    seed = seed)
+  
+  lines((1:length(curve)), curve, 
+        col = adjustcolor(colorPalette[i], alpha.f = 0.5), 
+        lwd = grScale * 3)
+  
+  points(c(parValuesDoubleLogistic[i, 2], 
+           parValuesDoubleLogistic[i, 4]), 
+         c(curve[parValuesDoubleLogistic[i, 2]], 
+           curve[parValuesDoubleLogistic[i, 4]]),
+         col = adjustcolor(colorPalette[i], alpha.f = 0.5), 
+         pch = 19)
+  
+  curve <- rescaleCurve(curve)
+  
+  lines((1:length(curve)), curve, 
+        col = colorPalette[i], lwd = grScale * 3)
+  
+  points(c(parValuesDoubleLogistic[i, 2], 
+           parValuesDoubleLogistic[i, 4]), 
+         c(curve[parValuesDoubleLogistic[i, 2]], 
+           curve[parValuesDoubleLogistic[i, 4]]),
+         col = colorPalette[i], 
+         pch = 19)
+  
+  escalonatedDoubleLogisticCurves[,i] <- curve
+}
+
+# 8-13: daily precipitation plots
+
+par(mar = c(2, 2, 1, 1), 
+    cex.axis = grScale * (0.6 + fontRescale))
+
+for (i in 1:nrow(parValuesDoubleLogistic))
+{
+  dailyPrecipitation[,i] <- getIncrementsFromCumulativeCurve(
+    cumulativeCurve = escalonatedDoubleLogisticCurves[,i]
+  ) * annualSumValues[i]
+}
+
+# get overall maximum
+maxDailyPrecipitation = max(dailyPrecipitation)
+
+# plot in inverted order (plays nicer with legend)
+for (i in nrow(parValuesDoubleLogistic):1)
+{
+  barplot(dailyPrecipitation[,i], 
+        ylab = "",
+        ylim = c(0, maxDailyPrecipitation),
+        xlab = "", xaxt = 'n',
+        col = colorPalette[i],
+        border = colorPalette[i])
+  
+  points(c(parValuesDoubleLogistic[i, 2], 
+           parValuesDoubleLogistic[i, 4]), 
+         rep(maxDailyPrecipitation * 0.9, 2),
+         col = colorPalette[i], 
+         pch = 19)
+}
+
+# 14-19: x-axes of barplots 
+# (built-in axes in barplot position is somehow affected by cex)
+
+par(mar = c(0, 2, 0, 0.1))
+
+for (i in 1:nrow(parValuesDoubleLogistic))
+{
+  plot(c(1, yearLengthInDays_sim), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  
+  axis(3, 
+       at = 1:yearLengthInDays_sim,
+       tck = 0, lwd = 0)
+}
+
+# 20: x-axis title
+
+par(mar = c(0, 0, 0, 0))
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.4, font = 4, cex = grScale * (0.7 + fontRescale),
+     labels = "day of year")
+
+# 21-23: infographic bits between plots
+
+arrowPointsX = c(1/3, 2/3, 2/3, 1, 0.5, 0, 1/3, 1/3)
+arrowPointsY = c(1, 1, 0.5, 0.5, 0, 0.5, 0.5, 1)
+arrowPosX = c(0.9, 1)
+textPos = c(0.88, 0.4)
+
+par(mar = c(0, 0, 0, 0))
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+polygon(x = arrowPosX[1] + (arrowPosX[2] - arrowPosX[1]) * arrowPointsX,
+        y = arrowPointsY,
+        col = rgb(0,0,0, alpha = 0.3),
+        border = NA)
+text(x = textPos[1], y = textPos[2], 
+     font = 4, cex = grScale * (0.65 + fontRescale), adj = c(1, 0.5),
+     labels = "getAnnualDoubleLogisticCurve(plateauValue, inflection1,\nrate1, inflection2, rate2)")
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+polygon(x = arrowPosX[1] + (arrowPosX[2] - arrowPosX[1]) * arrowPointsX,
+        y = arrowPointsY,
+        col = rgb(0,0,0, alpha = 0.3),
+        border = NA)
+text(x = textPos[1], y = textPos[2], 
+     font = 4, cex = grScale * (0.65 + fontRescale), adj = c(1, 0.5),
+     labels = "escalonateCurve(curve, nSamples, maxSampleSize)\nrescaleCurve(curve)")
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+polygon(x = arrowPosX[1] + (arrowPosX[2] - arrowPosX[1]) * arrowPointsX,
+        y = arrowPointsY,
+        col = rgb(0,0,0, alpha = 0.3),
+        border = NA)
+text(x = textPos[1], y = textPos[2], 
+     font = 4, cex = grScale * (0.65 + fontRescale), adj = c(1, 0.5),
+     labels = "getIncrementsFromCumulativeCurve(curve) x annualSum")
+
+# 24: legend
+
+par(mar = c(0, 0, 0, 0))
+
+plot(c(0, 1), c(0, nrow(parValuesDoubleLogistic) + 1), 
+     ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+# set y positions for each line in the first case (bottom)
+yPos <- c(0.5, seq(0.1, -0.3, length.out = 3))
+xPos = 0.55
+jump = 1
+
+for (i in 1:nrow(parValuesDoubleLogistic))
+{
+  legend(x = 0, 
+         y = (yPos[1] + jump * i), 
+         legend = substitute(
+           paste("plateauValue = ", plateauValue, ", ",
+                 "inflection1 = ", inflection1, ", "), 
+           list(plateauValue = parValuesDoubleLogistic[i, 1], 
+                inflection1 = parValuesDoubleLogistic[i, 2])), 
+         col = colorPalette[i],
+         lwd = grScale * 6, cex = grScale * (0.5 + fontRescale),
+         title = NULL, 
+         bty = "n")
+  text(x = xPos, 
+       y = (yPos[2] + jump * i),
+       labels = substitute(
+         paste("rate1 = ", rate1, ", ",
+               "inflection2 = ", inflection2, ", ",
+               "rate2 = ", rate2, ","), 
+         list(rate1 = parValuesDoubleLogistic[i, 3],
+              inflection2 = parValuesDoubleLogistic[i, 4],
+              rate2 = parValuesDoubleLogistic[i, 5])),
+       cex = grScale * (0.5 + fontRescale))
+  text(x = xPos, 
+       y = (yPos[3] + jump * i),
+       labels = substitute(
+         paste("nSamples = ", nSamples, ", ",
+               "maxSampleSize = ", maxSampleSize), 
+         list(nSamples = parValuesEscalonation[i, 1],
+              maxSampleSize = parValuesEscalonation[i, 2])),
+       cex = grScale * (0.5 + fontRescale))
+  text(x = xPos, 
+       y = (yPos[4] + jump * i),
+       labels = substitute(
+         paste("annualSum = ", annualSum), 
+         list(annualSum = annualSumValues[i])),
+       cex = grScale * (0.5 + fontRescale))
+}
 
 dev.off()
 ```

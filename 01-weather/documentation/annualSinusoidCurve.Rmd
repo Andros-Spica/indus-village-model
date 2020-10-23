@@ -1,0 +1,243 @@
+---
+title: "Demostration of annual sinusoid curve with fluctuations of the Weather model"
+author: "Andreas Angourakis"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+## Load source file {-}
+
+```{r}
+source("source/weatherModel.R")
+```
+
+## Functions {-}
+
+Generic functions for generating sinusoid curves with fluctuations depending on minValue, maxValue, length of year in days, and hemisphere (north/south) and fluctuation.
+
+```{r}
+getAnnualSinusoidWithFluctuation
+```
+```{r}
+getDayValueInAnnualSinusoidWithFluctuation
+```
+```{r}
+getDayValueInAnnualSinusoid
+```
+
+## Demonstration {-}
+
+Set up six variations of parameter settings (i.e. minValue, maxValue, southHemisphere), assuming length of year of 365 days:
+
+```{r}
+yearLengthInDays_sim = 365
+
+southHemisphereValues <- c(FALSE, TRUE)
+
+parValuesAnnualSinusoid <- rbind(
+  c(0.1, 1.5, 0.31),
+  c(-0.5, 3.3, 0.73),
+  c(1.5, 2.7, 0.06),
+  c(2.1, 4.2, 0.25),
+  c(-1.6, 5, 1),
+  c(4, 4.5, 0.02)
+)
+
+minMinValue = min(parValuesAnnualSinusoid[,1] - parValuesAnnualSinusoid[,3])
+maxMaxValue = max(parValuesAnnualSinusoid[,2] + parValuesAnnualSinusoid[,3])
+```
+
+Create a colour palette for plotting:
+
+```{r}
+numColdColours = floor(nrow(parValuesAnnualSinusoid) / 2)
+numWarmColours = ceiling(nrow(parValuesAnnualSinusoid) / 2)
+colorPaletteValues <- cbind(
+  # hue
+  h = c(
+    seq(198.6, 299.4, length.out = numColdColours),
+    seq(5.15, 67.5, length.out = numWarmColours)
+  ) / 360,
+  # saturation
+  s = c(
+    seq(61.6, 75.3, length.out = numColdColours),
+    seq(67, 77.8, length.out = numWarmColours)
+  ) / 100,
+  # value
+  v = c(
+    seq(95.2, 76.4, length.out = numColdColours),
+    seq(73.7, 86.4, length.out = numWarmColours)
+  ) / 100
+)
+
+# format the values a HSV readable for plotting
+colorPalette <- c()
+
+for (i in 1:nrow(parValuesAnnualSinusoid))
+{
+  colorPalette <- c(colorPalette,
+                    hsv(colorPaletteValues[i, "h"],
+                        colorPaletteValues[i, "s"],
+                        colorPaletteValues[i, "v"])
+                    )
+}
+```
+
+Plot curves:
+
+```{r}
+#---------
+grScale = 2
+fontRescale = 0
+
+plotName = "annualSinusoidCurve.png"
+
+png(plotName, width = grScale * 1000, height = grScale * 600)
+
+layout(matrix(c(1,  2,  3, 12, # titles
+                4,  5,  6, 12, # annual sinusoids
+                7,  8,  9, 12, # annual sinusoids with fluctuations
+                10,11, 11, 12), # x-axis title 
+              nrow = 4, ncol = 4, byrow = TRUE),
+       widths = c(1, 10, 10, 6),
+       heights = c(2, 10, 10, 2)
+       )
+
+par(cex = grScale * 1.2)
+
+# 1-3: titles (southHemisphere)
+
+par(mar = c(0, 0, 0, 0))
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.55, y = 0.5, font = 4, 
+     cex = grScale * (0.6 + fontRescale),
+     labels = "southHemisphere = FALSE")
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.55, y = 0.5, font = 4, 
+     cex = grScale * (0.6 + fontRescale),
+     labels = "southHemisphere = FALSE")
+
+# 4-6: annual sinusoid y-axis title and plots
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, font = 4, 
+     cex = grScale * (0.6 + fontRescale), 
+     srt = 90,
+     labels = "annual sinusoidal curve")
+
+par(mar = c(2,2,0.1,0.1))
+
+for (southHemisphere in southHemisphereValues)
+{
+  plot(c(1, yearLengthInDays_sim),
+       c(minMinValue, maxMaxValue),
+       type = "n", 
+       xlab = "", ylab = ""
+  )
+  
+  for (i in 1:nrow(parValuesAnnualSinusoid))
+  {
+    curve <- getAnnualSinusoid(minValue = parValuesAnnualSinusoid[i, 1], 
+                               maxValue = parValuesAnnualSinusoid[i, 2],
+                               yearLengthInDays = yearLengthInDays_sim,
+                               southHemisphere = southHemisphere
+    )
+    
+    lines((1:length(curve)), curve, 
+          col = colorPalette[i], lwd = grScale * 3)
+  }
+}
+
+# 7-9: annual sinusoid with fluctuations y-axis title and plots
+
+par(mar = c(0, 0, 0, 0))
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, font = 4,
+     cex = grScale * (0.5 + fontRescale),
+     srt = 90,
+     labels = "annual sinusoidal curve\nwith fluctuations")
+
+par(mar = c(2,2,0.1,0.1))
+
+for (southHemisphere in southHemisphereValues)
+{
+  plot(c(1, yearLengthInDays_sim),
+       c(minMinValue, maxMaxValue),
+       type = "n",
+       xlab = "", ylab = ""
+  )
+
+  for (i in 1:nrow(parValuesAnnualSinusoid))
+  {
+    curve <- getAnnualSinusoidWithFluctuation(
+      minValue = parValuesAnnualSinusoid[i, 1],
+      maxValue = parValuesAnnualSinusoid[i, 2],
+      yearLengthInDays = yearLengthInDays_sim,
+      southHemisphere = southHemisphere,
+      fluctuation = parValuesAnnualSinusoid[i, 3]
+    )
+
+    lines((1:length(curve)), curve,
+          col = colorPalette[i], lwd = grScale * 1)
+  }
+}
+
+# 10-11: empty & x-axis title
+
+par(mar = c(0, 0, 0, 0))
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.4, font = 4, cex = grScale * (0.6 + fontRescale),
+     labels = "day of year")
+
+# 12: legend
+
+par(mar = c(0, 0, 0, 0))
+
+plot(c(0, 1), c(0, nrow(parValuesAnnualSinusoid) + 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+xPos = 0.25
+yPos = c(0.5, 0.1, -0.1)
+jump = 1
+
+for (i in 1:nrow(parValuesAnnualSinusoid))
+{
+  legend(x = 0,
+         y = (yPos[1] + jump * i),
+         legend = substitute(
+           paste("minValue = ", minValue, ","),
+           list(minValue = parValuesAnnualSinusoid[i, 1])),
+         col = colorPalette[i],
+         lwd = grScale * 6, cex = grScale * (0.5 + fontRescale),
+         title = NULL,
+         bty = "n")
+  text(x = xPos, 
+       y = (yPos[2] + jump * i),
+       labels = substitute(
+         paste("maxValue = ", maxValue, ","), 
+         list(maxValue = parValuesAnnualSinusoid[i, 2])),
+       cex = grScale * (0.5 + fontRescale), adj = 0)
+  text(x = xPos, 
+       y = (yPos[3] + jump * i),
+       labels = substitute(
+         paste("fluctuation = ", fluctuation), 
+         list(fluctuation = parValuesAnnualSinusoid[i, 3])),
+       cex = grScale * (0.5 + fontRescale), adj = 0)
+}
+
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
