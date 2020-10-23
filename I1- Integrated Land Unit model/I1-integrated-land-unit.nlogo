@@ -35,7 +35,7 @@ globals
 
   ; randomSeed (GUI): seed of random number generator used for setting parameters and general stocahstic processes.
 
-  ;************************************************************************
+  ;*****************************************************************************************************************
   ;*** LAND model
 
   ;***** non-fixed parameters (to select terrain to import):
@@ -164,7 +164,7 @@ globals
 
   mostCommonCoverType        ; the most common of cover type, see p_ecol_coverType
 
-  ;****************************************************************************
+  ;*****************************************************************************************************************
 
   ;;;; soil water balance constants (?)
   soil_rootWaterUptakeCoefficient        ; (root) Water Uptake coefficient (mm^3.mm^-3) (MUF)
@@ -225,6 +225,14 @@ globals
                                 ; https://cfpub.epa.gov/watertrain/moduleFrame.cfm?parent_object_id=1262#:~:text=The%20width%2Fdepth%20(W%2F,the%20channel%20to%20move%20sediment
                                 ; and about stream types:
                                 ; https://cfpub.epa.gov/watertrain/moduleFrame.cfm?parent_object_id=1199
+
+  ;;; ECOLOGICAL COMMUNITIES --------------------------------------------------------------
+  ecol_%wood_r                         ; intrinsic or maximum reproductive/recovery rate of ecological communities
+  ecol_%brush_r
+  ecol_%grass_r
+  ecol_%wood_waterStressSensitivity   ; sensitivity of the ecological components (vegetation) to water stress (ARID coefficient)
+  ecol_%brush_waterStressSensitivity
+  ecol_%grass_waterStressSensitivity
 
   ;;; variables ===============================================================
 
@@ -312,10 +320,13 @@ patches-own
 
   p_soil_deepDrainageCoefficient    ; saturated hydraulic conductivity or fraction of soil water above field capacity drained per day (mm/day)
 
-  ;;; initial ecological communities
+  ;;; initial and current ecological communities
   p_ecol_%grass                     ; percentage of grass vegetation (biomass) in ecological community
+  p_initEcol_%grass
   p_ecol_%brush                     ; percentage of brush/shrub vegetation (biomass) in ecological community
+  p_initEcol_%brush
   p_ecol_%wood                      ; percentage of wood vegetation (biomass) in ecological community
+  p_initEcol_%wood
 
   p_ecol_coverType                  ; cover type summarising the composition of vegetation types in ecological community.
                                     ; Namely, they are: "desert", "grassland", "wood-grass", "shrubland", and "woodland"
@@ -366,6 +377,8 @@ to setup
   update-weather
 
   update-water
+
+  update-ecological-communities
 
   ; ------------------------------------------
 
@@ -458,6 +471,14 @@ to set-parameters
 
     ;;; River water (dependent on flow_riverAccumulationAtStart, which is set by Land model)
     set riverWaterPerFlowAccumulation par_riverWaterPerFlowAccumulation
+
+    ;;; ecological communities
+    set ecol_%wood_r par_ecol_%wood_r
+    set ecol_%brush_r par_ecol_%brush_r
+    set ecol_%grass_r par_ecol_%grass_r
+    set ecol_%wood_waterStressSensitivity par_ecol_%wood_waterStressSensitivity
+    set ecol_%brush_waterStressSensitivity par_ecol_%brush_waterStressSensitivity
+    set ecol_%grass_waterStressSensitivity par_ecol_%grass_waterStressSensitivity
   ]
   if (type-of-experiment = "random")
   [
@@ -501,7 +522,15 @@ to set-parameters
     set ecol_maxRootZoneDepth ecol_minRootZoneDepth + random-float 1000
 
     ;;; River water (effect on p_water depends on flow_riverAccumulationAtStart, which is set by the Land model)
-    set riverWaterPerFlowAccumulation 1E-4 + random-float 0.00099 ; range between 1E-3 and 1E-5
+    set riverWaterPerFlowAccumulation 1E-4 + random-float 0.00099 ; range between 1E-4 and 1E-5
+
+    ;;; ecological communities
+    set ecol_%wood_r 0.001 + random-float 0.049
+    set ecol_%brush_r 0.005 + random-float 0.095
+    set ecol_%grass_r 0.01 + random-float 0.09
+    set ecol_%wood_waterStressSensitivity 0.001 + random-float 0.009
+    set ecol_%brush_waterStressSensitivity 0.001 + random-float 0.009
+    set ecol_%grass_waterStressSensitivity 0.001 + random-float 0.009
   ]
 
 end
@@ -642,6 +671,10 @@ to go
   update-weather
 
   update-water
+
+  update-ecological-communities
+
+  update-cover-type
 
   ; --------------------------------------------
 
@@ -793,6 +826,23 @@ to set-daily-cumulative-precipitation
       set precipitation_cumYearSeries replace-item dayOfYearIndex precipitation_cumYearSeries meanNeighbourhood
     ]
   ]
+
+  ;;;===============================================================================
+  ;;; re-scale the curve so it fits within 0 and 1
+  ;;; (in some cases, the curve at this point might be too horizontal and fail to reach 1)
+  ;;; NOTE: This means that reaching the annual sum at the end of the year takes preference over the shape parameters
+
+  if ((last precipitation_cumYearSeries) < 1) [ print (word "Warning: failed to generate a precipitation of the year that fulfills 'annualSum' without re-scaling: " (last precipitation_cumYearSeries) " < 1" )]
+
+  let precipitation_cumYearSeries_temp precipitation_cumYearSeries
+  foreach n-values (length precipitation_cumYearSeries) [j -> j]
+  [
+    dayOfYearIndex ->
+    set precipitation_cumYearSeries_temp replace-item dayOfYearIndex precipitation_cumYearSeries_temp (
+      ((item dayOfYearIndex precipitation_cumYearSeries) - (item 0 precipitation_cumYearSeries)) / ((last precipitation_cumYearSeries) - (item 0 precipitation_cumYearSeries))
+    )
+  ]
+  set precipitation_cumYearSeries precipitation_cumYearSeries_temp
 
 end
 
@@ -1272,7 +1322,67 @@ end
 ;;; See also: "02-Soil-Water-Balance-model" and "03-land-model" directory within "indus-village-model".
 ;=======================================================================================================
 
+to update-ecological-communities
 
+  ;;; advance the ecological succession in patches according to the landscape mean frequency of vegetation components
+
+  ;;; get mean frequency of vegetation components
+  let mean_ecol_%grass mean [p_ecol_%grass] of patches
+  let mean_ecol_%brush mean [p_ecol_%brush] of patches
+  let mean_ecol_%wood mean [p_ecol_%wood] of patches
+
+  ask patches
+  [
+    advance-ecological-succession mean_ecol_%grass mean_ecol_%brush mean_ecol_%wood
+  ]
+
+end
+
+to advance-ecological-succession [ mean_ecol_%grass mean_ecol_%brush mean_ecol_%wood ]
+
+  ;;; all ecological components (based on vegetation) are assumed to grow towards the initial ecological community configuration, minus the influence of water stress.
+  ;;; The logistic growth model is used, where the reproductive rate (growth slope) is regulated by the mean frequencies of all patches
+  ;;; TODO: distance-dependent reproduction could also be included as a factor here
+;print (word "wood: " p_ecol_%wood " | delta: " (get-logistic-growth-delta p_ecol_%wood (p_initEcol_%wood - p_soil_ARID * 100) par_ecol_%wood_r))
+
+  let waterStress_%wood p_ecol_%wood * p_soil_ARID * ecol_%wood_waterStressSensitivity
+  let waterStress_%brush p_ecol_%brush * p_soil_ARID * ecol_%brush_waterStressSensitivity
+  let waterStress_%grass p_ecol_%grass * p_soil_ARID * ecol_%grass_waterStressSensitivity
+
+  set p_ecol_%wood clampMin0 (p_ecol_%wood + (get-logistic-growth-delta p_ecol_%wood p_initEcol_%wood par_ecol_%wood_r) - waterStress_%wood)
+
+  set p_ecol_%brush clampMin0 (p_ecol_%brush + (get-logistic-growth-delta p_ecol_%brush p_initEcol_%brush par_ecol_%brush_r) - waterStress_%brush + waterStress_%wood)
+
+  set p_ecol_%grass clampMin0 (p_ecol_%grass + (get-logistic-growth-delta p_ecol_%grass p_initEcol_%grass par_ecol_%grass_r) - waterStress_%grass + waterStress_%brush)
+
+end
+
+to update-cover-type
+
+  ask patches
+  [
+    set p_ecol_coverType get-cover-type p_ecol_%grass p_ecol_%brush p_ecol_%wood
+  ]
+
+end
+
+to-report get-cover-type [ %grass %brush %wood ]
+
+  ;;; set cover type according to percentages
+  ;;; The criteria used for separating cover types (to select runoff curve number) attempts to approach the one used in:
+  ;;; Table 2.2 in: Cronshey R G 1986 Urban Hydrology for Small Watersheds, Technical Release 55 (TR-55).
+  ;;; United States Department of Agriculture, Soil Conservation Service, Engineering Division
+  ;;; See also ternary diagram "ternaryPlots/coverTypePerEcologicalCommunity.png", generated in R
+
+  let %empty 100 - %grass - %brush - %wood
+  if (%empty > 50) [ report "desert" ] ;;; if percentages are too low
+
+  if (%grass >= 60) [ report "grassland" ]
+  if (%wood >= 50 and %brush <= 50 and %grass < 40) [ report "woodland" ]
+  if (%brush >= 50 and %wood < 50 and %grass < 40) [ report "shrubland" ]
+  if (%brush < 60 and %wood < 60 and %grass < 60 and %empty <= 50) [ report "wood-grass" ]
+
+end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; OUTPUT STATS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1766,7 +1876,7 @@ to set-legend-ecologicalCommunityComposition
   set-plot-pen-color green
   create-temporary-plot-pen "100% wood"
   set-plot-pen-color blue
-  create-temporary-plot-pen "bare soil"
+  create-temporary-plot-pen "100% bare soil"
   set-plot-pen-color black
 
 end
@@ -2198,8 +2308,11 @@ to import-terrain
             set p_soil_wiltingPoint item 22 thisLine
             set p_soil_deepDrainageCoefficient item 23 thisLine
             set p_ecol_%grass item 24 thisLine
+            set p_initEcol_%grass item 24 thisLine
             set p_ecol_%brush item 25 thisLine
+            set p_initEcol_%brush item 25 thisLine
             set p_ecol_%wood item 26 thisLine
+            set p_initEcol_%wood item 26 thisLine
             set p_ecol_coverType read-from-string item 27 thisLine
             ;;; add new patch variables here
           ]
@@ -2325,6 +2438,15 @@ end
 to-report clampMinMax [ value minValue maxValue ]
   report min (list maxValue (max (list minValue value)))
 end
+
+to-report get-logistic-growth-delta [ X maxX r ]
+
+  ;;; because maxX is dynamic, do preliminary check to avoid division by zero
+  if (maxX = 0) [ report r * X * (1 - X / 1E-6) ] ;;; this sets a very high maximum decrease rate
+
+  report r * X * (1 - X / maxX)
+
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 711
@@ -2402,7 +2524,7 @@ par_elev_seaLevelReferenceShift
 par_elev_seaLevelReferenceShift
 -1000
 round max (list maxElevation elev_rangeHeight)
-0.0
+-1000.0
 1
 1
 m
@@ -2516,7 +2638,7 @@ SWITCH
 52
 show-flows
 show-flows
-0
+1
 1
 -1000
 
@@ -2635,7 +2757,7 @@ INPUTBOX
 394
 399
 par_riverWaterPerFlowAccumulation
-0.0
+1.0E-4
 1
 0
 Number
@@ -2700,7 +2822,7 @@ INPUTBOX
 99
 118
 randomSeed
-0.0
+2.0
 1
 0
 Number
@@ -2723,10 +2845,10 @@ NIL
 1
 
 MONITOR
-391
-594
-573
-631
+389
+692
+571
+729
 NIL
 temperature_annualMinAt2m
 2
@@ -2751,10 +2873,10 @@ NIL
 1
 
 MONITOR
-391
-560
-576
-597
+389
+658
+574
+695
 NIL
 temperature_annualMaxAt2m
 2
@@ -2773,70 +2895,70 @@ end-simulation-in-tick
 Number
 
 SLIDER
-22
-636
-393
-669
-temperature_mean-daily-fluctuation
-temperature_mean-daily-fluctuation
-0
 20
-0.0
-0.1
-1
-ºC  (default: 5)
-HORIZONTAL
-
-SLIDER
-22
-671
-389
-704
-temperature_daily-lower-deviation
-temperature_daily-lower-deviation
-0
-20
-0.0
-0.1
-1
-ºC  (default: 5)
-HORIZONTAL
-
-SLIDER
-23
-704
-390
-737
-temperature_daily-upper-deviation
-temperature_daily-upper-deviation
-0
-20
-0.0
-0.1
-1
-ºC  (default: 5)
-HORIZONTAL
-
-SLIDER
-20
-562
+734
 391
-595
+767
+temperature_mean-daily-fluctuation
+temperature_mean-daily-fluctuation
+0
+20
+5.0
+0.1
+1
+ºC  (default: 5)
+HORIZONTAL
+
+SLIDER
+20
+769
+387
+802
+temperature_daily-lower-deviation
+temperature_daily-lower-deviation
+0
+20
+5.0
+0.1
+1
+ºC  (default: 5)
+HORIZONTAL
+
+SLIDER
+21
+802
+388
+835
+temperature_daily-upper-deviation
+temperature_daily-upper-deviation
+0
+20
+5.0
+0.1
+1
+ºC  (default: 5)
+HORIZONTAL
+
+SLIDER
+18
+660
+389
+693
 temperature_annual-max-at-2m
 temperature_annual-max-at-2m
 temperature_annual-min-at-2m
 50
-0.0
+40.0
 0.1
 1
 ºC  (default: 40)
 HORIZONTAL
 
 SLIDER
-22
-599
-386
-632
+20
+697
+384
+730
 temperature_annual-min-at-2m
 temperature_annual-min-at-2m
 -10
@@ -2848,10 +2970,10 @@ temperature_annual-max-at-2m
 HORIZONTAL
 
 MONITOR
-394
-634
-574
-671
+392
+732
+572
+769
 NIL
 temperature_meanDailyFluctuation
 2
@@ -2859,10 +2981,10 @@ temperature_meanDailyFluctuation
 9
 
 MONITOR
-390
-670
-564
-707
+388
+768
+562
+805
 NIL
 temperature_dailyLowerDeviation
 2
@@ -2870,10 +2992,10 @@ temperature_dailyLowerDeviation
 9
 
 MONITOR
-392
-706
-566
-743
+390
+804
+564
+841
 NIL
 temperature_dailyUpperDeviation
 2
@@ -2881,10 +3003,10 @@ temperature_dailyUpperDeviation
 9
 
 PLOT
-1597
-185
-2147
-369
+1596
+365
+2146
+549
 Temperature
 days
 ºC
@@ -2901,25 +3023,25 @@ PENS
 "max" 1.0 0 -2674135 true "" "plot maxTemperature"
 
 SLIDER
-24
-798
-419
-831
+22
+907
+417
+940
 solar_annual-max
 solar_annual-max
 solar_annual-min
 7
-0.0
+7.0
 0.001
 1
 kWh/m2 (default: 7)
 HORIZONTAL
 
 SLIDER
-24
-759
-421
-792
+22
+868
+419
+901
 solar_annual-min
 solar_annual-min
 2
@@ -2931,25 +3053,25 @@ kWh/m2 (default: 3)
 HORIZONTAL
 
 SLIDER
-25
-836
-418
-869
+23
+945
+416
+978
 solar_mean-daily-fluctuation
 solar_mean-daily-fluctuation
 0
 4
-0.0
+1.0
 0.001
 1
 kWh/m2 (default: 1)
 HORIZONTAL
 
 PLOT
-1598
-372
-2096
-514
+1597
+552
+2095
+694
 Solar radiation
 days
 KWh/m2
@@ -2964,10 +3086,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot solarRadiation / 3.6"
 
 MONITOR
-424
-755
-536
-792
+422
+864
+534
+901
 NIL
 solar_annualMin
 3
@@ -2975,10 +3097,10 @@ solar_annualMin
 9
 
 MONITOR
-422
-793
-536
-830
+420
+902
+534
+939
 NIL
 solar_annualMax
 3
@@ -2986,10 +3108,10 @@ solar_annualMax
 9
 
 MONITOR
-421
-833
-579
-870
+419
+942
+577
+979
 NIL
 solar_meanDailyFluctuation
 3
@@ -3026,7 +3148,7 @@ CHOOSER
 display-mode
 display-mode
 "elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type" "albedo" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "soil water content (ratio)" "ARID coefficient"
-0
+14
 
 BUTTON
 1117
@@ -3063,220 +3185,220 @@ NIL
 1
 
 SLIDER
-632
-815
-1033
-848
+630
+924
+1031
+957
 precipitation_yearly-mean
 precipitation_yearly-mean
 0
 1000
-0.0
+400.0
 1.0
 1
 mm/year (default: 400)
 HORIZONTAL
 
 SLIDER
-631
-847
-1033
-880
+629
+956
+1031
+989
 precipitation_yearly-sd
 precipitation_yearly-sd
 0
 250
-0.0
+130.0
 1.0
 1
 mm/year (default: 130)
 HORIZONTAL
 
 SLIDER
-22
-889
-430
-922
+20
+998
+428
+1031
 precipitation_daily-cum_n-samples
 precipitation_daily-cum_n-samples
 0
 300
-0.0
+200.0
 1.0
 1
 (default: 200)
 HORIZONTAL
 
 SLIDER
-22
-926
-430
-959
+20
+1035
+428
+1068
 precipitation_daily-cum_max-sample-size
 precipitation_daily-cum_max-sample-size
 1
 20
-0.0
+10.0
 1.0
 1
 (default: 10)
 HORIZONTAL
 
 SLIDER
-22
-966
-572
-999
+20
+1075
+570
+1108
 precipitation_daily-cum_plateau-value_yearly-mean
 precipitation_daily-cum_plateau-value_yearly-mean
 0
 0.9
-0.0
+0.1
 0.01
 1
 winter (mm)/summer (mm) (default: 0.1)
 HORIZONTAL
 
 SLIDER
-22
-998
-572
-1031
+20
+1107
+570
+1140
 precipitation_daily-cum_plateau-value_yearly-sd
 precipitation_daily-cum_plateau-value_yearly-sd
 0
 0.2
-0.0
+0.05
 0.001
 1
 (default: 0.05)
 HORIZONTAL
 
 SLIDER
-633
-892
-1112
-925
+631
+1001
+1110
+1034
 precipitation_daily-cum_inflection1_yearly-mean
 precipitation_daily-cum_inflection1_yearly-mean
 1
 150
-0.0
+40.0
 1.0
 1
 day of year (default: 40)
 HORIZONTAL
 
 SLIDER
-711
-928
-1114
-961
+709
+1037
+1112
+1070
 precipitation_daily-cum_inflection1_yearly-sd
 precipitation_daily-cum_inflection1_yearly-sd
 0
 50
-0.0
+20.0
 1.0
 1
 days (default: 20)
 HORIZONTAL
 
 SLIDER
-711
-966
-1116
-999
+709
+1075
+1114
+1108
 precipitation_daily-cum_rate1_yearly-mean
 precipitation_daily-cum_rate1_yearly-mean
 0
 0.5
-0.0
+0.15
 0.01
 1
 (default: 0.15)
 HORIZONTAL
 
 SLIDER
-711
-1003
-1114
-1036
+709
+1112
+1112
+1145
 precipitation_daily-cum_rate1_yearly-sd
 precipitation_daily-cum_rate1_yearly-sd
 0
 0.1
-0.0
+0.02
 0.01
 1
 (default: 0.02)
 HORIZONTAL
 
 SLIDER
-1273
-895
-1691
-928
+1271
+1004
+1689
+1037
 precipitation_daily-cum_inflection2_yearly-mean
 precipitation_daily-cum_inflection2_yearly-mean
 150
 366
-0.0
+200.0
 1.0
 1
 day of year (default: 200)
 HORIZONTAL
 
 SLIDER
-1274
-933
-1677
-966
+1272
+1042
+1675
+1075
 precipitation_daily-cum_inflection2_yearly-sd
 precipitation_daily-cum_inflection2_yearly-sd
 0
 40
-0.0
+20.0
 1
 1
 days (default: 20)
 HORIZONTAL
 
 SLIDER
-1275
-970
-1680
-1003
+1273
+1079
+1678
+1112
 precipitation_daily-cum_rate2_yearly-mean
 precipitation_daily-cum_rate2_yearly-mean
 0
 0.5
-0.0
+0.05
 0.01
 1
 (default: 0.05)
 HORIZONTAL
 
 SLIDER
-1275
-1007
-1678
-1040
+1273
+1116
+1676
+1149
 precipitation_daily-cum_rate2_yearly-sd
 precipitation_daily-cum_rate2_yearly-sd
 0
 0.1
-0.0
+0.01
 0.01
 1
 (default: 0.01)
 HORIZONTAL
 
 MONITOR
-1032
-814
-1160
-851
+1030
+923
+1158
+960
 NIL
 precipitation_yearlyMean
 2
@@ -3284,10 +3406,10 @@ precipitation_yearlyMean
 9
 
 MONITOR
-1033
-849
-1171
-886
+1031
+958
+1169
+995
 NIL
 precipitation_yearlySd
 2
@@ -3295,10 +3417,10 @@ precipitation_yearlySd
 9
 
 MONITOR
-429
-887
-602
-924
+427
+996
+600
+1033
 NIL
 precipitation_dailyCum_nSamples
 2
@@ -3306,10 +3428,10 @@ precipitation_dailyCum_nSamples
 9
 
 MONITOR
-428
-924
-582
-961
+426
+1033
+580
+1070
 NIL
 precipitation_dailyCum_maxSampleSize
 2
@@ -3317,10 +3439,10 @@ precipitation_dailyCum_maxSampleSize
 9
 
 MONITOR
-571
-965
-699
-1002
+569
+1074
+697
+1111
 NIL
 precipitation_dailyCum_plateauValue_yearlyMean
 2
@@ -3328,10 +3450,10 @@ precipitation_dailyCum_plateauValue_yearlyMean
 9
 
 MONITOR
-572
-1000
-710
-1037
+570
+1109
+708
+1146
 NIL
 precipitation_dailyCum_plateauValue_yearlySd
 2
@@ -3339,10 +3461,10 @@ precipitation_dailyCum_plateauValue_yearlySd
 9
 
 MONITOR
-1113
-892
-1269
-929
+1111
+1001
+1267
+1038
 NIL
 precipitation_dailyCum_inflection1_yearlyMean
 2
@@ -3350,10 +3472,10 @@ precipitation_dailyCum_inflection1_yearlyMean
 9
 
 MONITOR
-1116
-931
-1270
-968
+1114
+1040
+1268
+1077
 NIL
 precipitation_dailyCum_inflection1_yearlySd
 2
@@ -3361,10 +3483,10 @@ precipitation_dailyCum_inflection1_yearlySd
 9
 
 MONITOR
+1111
+1076
+1267
 1113
-967
-1269
-1004
 NIL
 precipitation_dailyCum_rate1_yearlyMean
 2
@@ -3372,10 +3494,10 @@ precipitation_dailyCum_rate1_yearlyMean
 9
 
 MONITOR
-1116
-1006
-1270
-1043
+1114
+1115
+1268
+1152
 NIL
 precipitation_dailyCum_rate1_yearlySd
 2
@@ -3383,10 +3505,10 @@ precipitation_dailyCum_rate1_yearlySd
 9
 
 MONITOR
-1691
-895
-1847
-932
+1689
+1004
+1845
+1041
 NIL
 precipitation_dailyCum_inflection2_yearlyMean
 2
@@ -3394,10 +3516,10 @@ precipitation_dailyCum_inflection2_yearlyMean
 9
 
 MONITOR
-1679
-936
-1833
-973
+1677
+1045
+1831
+1082
 NIL
 precipitation_dailyCum_inflection2_yearlySd
 2
@@ -3405,10 +3527,10 @@ precipitation_dailyCum_inflection2_yearlySd
 9
 
 MONITOR
-1677
-971
-1833
-1008
+1675
+1080
+1831
+1117
 NIL
 precipitation_dailyCum_rate2_yearlyMean
 2
@@ -3416,10 +3538,10 @@ precipitation_dailyCum_rate2_yearlyMean
 9
 
 MONITOR
-1680
-1010
-1834
-1047
+1678
+1119
+1832
+1156
 NIL
 precipitation_dailyCum_rate2_yearlySd
 2
@@ -3427,10 +3549,10 @@ precipitation_dailyCum_rate2_yearlySd
 9
 
 PLOT
-1594
-514
-2185
-672
+1593
+694
+2184
+852
 precipitation
 days
 mm
@@ -3446,10 +3568,10 @@ PENS
 "mean ETr" 1.0 0 -2674135 true "" "plot mean[p_ETr] of patches"
 
 PLOT
-1827
-673
-2084
-793
+1826
+853
+2083
+973
 cumulative year precipitation
 NIL
 NIL
@@ -3464,10 +3586,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot-cumPrecipitation-table"
 
 PLOT
-1594
-673
-1827
-793
+1593
+853
+1826
+973
 year preciptation
 NIL
 NIL
@@ -3482,10 +3604,31 @@ PENS
 "default" 1.0 1 -16777216 true "" "plot-precipitation-table"
 
 PLOT
-1597
-10
-2260
-185
+1596
+14
+2217
+189
+Ecological communities
+days
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+true
+"set-plot-y-range -1 101" ""
+PENS
+"mean wood (%)" 1.0 1 -14835848 true "" "plot 100"
+"mean brush (%)" 1.0 1 -6459832 true "" "plot 100 - mean [p_ecol_%wood] of patches"
+"mean grass (%)" 1.0 1 -13840069 true "" "plot (100 - (mean [p_ecol_%brush] of patches + mean [p_ecol_%wood] of patches))"
+"mean bare soil (%)" 1.0 1 -16777216 true "" "plot 100 - (mean [p_ecol_%grass] of patches + mean [p_ecol_%brush] of patches + mean [p_ecol_%wood] of patches)"
+
+PLOT
+1596
+190
+2259
+365
 Soil water content & ARID
 days
 NIL
@@ -3501,10 +3644,10 @@ PENS
 "mean water content ratio" 1.0 0 -13345367 true "" "plot mean [p_soil_waterContentRatio] of patches"
 
 SLIDER
-22
-438
-264
-471
+16
+429
+258
+462
 par_ecol_minRootZoneDepth
 par_ecol_minRootZoneDepth
 0
@@ -3516,10 +3659,10 @@ mm3/mm3
 HORIZONTAL
 
 MONITOR
-514
-436
-679
-473
+508
+427
+673
+464
 root zone depth range
 (word \"min = \" (precision ecol_minRootZoneDepth 4) \", max = \" (precision ecol_maxRootZoneDepth 4))
 2
@@ -3527,10 +3670,10 @@ root zone depth range
 9
 
 SLIDER
-23
-471
-264
-504
+17
+462
+258
+495
 par_ecol_minAlbedo
 par_ecol_minAlbedo
 0
@@ -3542,10 +3685,10 @@ NIL
 HORIZONTAL
 
 MONITOR
-513
-474
-678
-511
+507
+465
+672
+502
 albedo range
 (word \"min = \" (precision ecol_minAlbedo 4) \", max = \" (precision ecol_maxAlbedo 4))
 2
@@ -3553,50 +3696,50 @@ albedo range
 9
 
 SLIDER
-263
-471
-513
-504
+257
+462
+507
+495
 par_ecol_maxAlbedo
 par_ecol_maxAlbedo
 par_ecol_minAlbedo
 1
-0.0
+0.5
 0.01
 1
 NIL
 HORIZONTAL
 
 SLIDER
-266
-438
-513
-471
+260
+429
+507
+462
 par_ecol_maxRootZoneDepth
 par_ecol_maxRootZoneDepth
 par_ecol_minRootZoneDepth
 3000
-0.0
+2000.0
 1
 1
 mm3/mm3
 HORIZONTAL
 
 TEXTBOX
-29
-511
-681
-529
+27
+609
+679
+627
 =============================WEATHER=============================
 14
 0.0
 1
 
 TEXTBOX
-27
-412
-670
-430
+21
+403
+664
+421
 ========================ECOLOGICAL COMMUNITY========================
 14
 0.0
@@ -3722,15 +3865,171 @@ TEXTBOX
 1
 
 SWITCH
-22
-531
-161
-564
+20
+629
+185
+662
 southHemisphere?
 southHemisphere?
 1
 1
 -1000
+
+SLIDER
+8
+509
+180
+542
+par_ecol_%wood_r
+par_ecol_%wood_r
+0
+0.01
+0.003
+0.001
+1
+NIL
+HORIZONTAL
+
+SLIDER
+8
+543
+180
+576
+par_ecol_%brush_r
+par_ecol_%brush_r
+0
+0.01
+0.006
+0.001
+1
+NIL
+HORIZONTAL
+
+SLIDER
+8
+576
+180
+609
+par_ecol_%grass_r
+par_ecol_%grass_r
+0
+0.1
+0.05
+0.01
+1
+NIL
+HORIZONTAL
+
+MONITOR
+179
+506
+264
+543
+NIL
+ecol_%wood_r
+3
+1
+9
+
+MONITOR
+180
+542
+263
+579
+NIL
+ecol_%brush_r
+4
+1
+9
+
+MONITOR
+179
+576
+261
+613
+NIL
+ecol_%grass_r
+4
+1
+9
+
+SLIDER
+264
+510
+584
+543
+par_ecol_%wood_waterStressSensitivity
+par_ecol_%wood_waterStressSensitivity
+0
+0.01
+0.01
+0.001
+1
+NIL
+HORIZONTAL
+
+SLIDER
+263
+542
+585
+575
+par_ecol_%brush_waterStressSensitivity
+par_ecol_%brush_waterStressSensitivity
+0
+0.01
+0.005
+0.001
+1
+NIL
+HORIZONTAL
+
+SLIDER
+265
+575
+585
+608
+par_ecol_%grass_waterStressSensitivity
+par_ecol_%grass_waterStressSensitivity
+0
+0.01
+0.005
+0.001
+1
+NIL
+HORIZONTAL
+
+MONITOR
+583
+511
+673
+548
+NIL
+ecol_%wood_waterStressSensitivity
+3
+1
+9
+
+MONITOR
+584
+540
+673
+577
+NIL
+ecol_%brush_waterStressSensitivity
+3
+1
+9
+
+MONITOR
+584
+576
+673
+613
+NIL
+ecol_%grass_waterStressSensitivity
+3
+1
+9
 
 @#$#@#$#@
 ## WHAT IS IT?
