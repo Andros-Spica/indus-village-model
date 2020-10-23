@@ -448,6 +448,23 @@ to set-daily-cumulative-precipitation
     ]
   ]
 
+  ;;;===============================================================================
+  ;;; re-scale the curve so it fits within 0 and 1
+  ;;; (in some cases, the curve at this point might be too horizontal and fail to reach 1)
+  ;;; NOTE: This means that reaching the annual sum at the end of the year takes preference over the shape parameters
+
+  if ((last precipitation_cumYearSeries) < 1) [ print (word "Warning: failed to generate a precipitation of the year that fulfills 'annualSum' without re-scaling: " (last precipitation_cumYearSeries) " < 1" )]
+
+  let precipitation_cumYearSeries_temp precipitation_cumYearSeries
+  foreach n-values (length precipitation_cumYearSeries) [j -> j]
+  [
+    dayOfYearIndex ->
+    set precipitation_cumYearSeries_temp replace-item dayOfYearIndex precipitation_cumYearSeries_temp (
+      ((item dayOfYearIndex precipitation_cumYearSeries) - (item 0 precipitation_cumYearSeries)) / ((last precipitation_cumYearSeries) - (item 0 precipitation_cumYearSeries))
+    )
+  ]
+  set precipitation_cumYearSeries precipitation_cumYearSeries_temp
+
 end
 
 to-report get-CO2 [ dayOfYear ]

@@ -191,7 +191,7 @@ to setup
 
   setup-patches
 
-  update-inputs
+  update-weather
 
   ; --- output handling ------------------------
 
@@ -386,7 +386,7 @@ to go
 
   ; --- core procedures -------------------------
 
-  update-inputs
+  update-weather
 
   update-crops
 
@@ -421,7 +421,7 @@ to advance-time
 
 end
 
-to update-inputs
+to update-weather
 
   ;;; values are assigned using simple parametric models
   ;;; alternatively, a specific time series could be used
@@ -548,6 +548,23 @@ to set-daily-cumulative-precipitation
       set precipitation_cumYearSeries replace-item dayOfYearIndex precipitation_cumYearSeries meanNeighbourhood
     ]
   ]
+
+  ;;;===============================================================================
+  ;;; re-scale the curve so it fits within 0 and 1
+  ;;; (in some cases, the curve at this point might be too horizontal and fail to reach 1)
+  ;;; NOTE: This means that reaching the annual sum at the end of the year takes preference over the shape parameters
+
+  if ((last precipitation_cumYearSeries) < 1) [ print (word "Warning: failed to generate a precipitation of the year that fulfills 'annualSum' without re-scaling: " (last precipitation_cumYearSeries) " < 1" )]
+
+  let precipitation_cumYearSeries_temp precipitation_cumYearSeries
+  foreach n-values (length precipitation_cumYearSeries) [j -> j]
+  [
+    dayOfYearIndex ->
+    set precipitation_cumYearSeries_temp replace-item dayOfYearIndex precipitation_cumYearSeries_temp (
+      ((item dayOfYearIndex precipitation_cumYearSeries) - (item 0 precipitation_cumYearSeries)) / ((last precipitation_cumYearSeries) - (item 0 precipitation_cumYearSeries))
+    )
+  ]
+  set precipitation_cumYearSeries precipitation_cumYearSeries_temp
 
 end
 
@@ -937,6 +954,8 @@ to display-meanYield
 end
 
 to plot-precipitation-table
+
+  clear-plot
 
   ;;; precipitation (mm/day) is summed by month
   foreach n-values yearLengthInDays [j -> j]
