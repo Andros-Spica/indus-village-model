@@ -1373,8 +1373,8 @@ Parameters:
       agents and more parameters.
     - elev_numRanges, numRifts: number of landforming features ("ranges",
       "rifts").
-    - elev_rangeLength, riftLength: maximum length, in land units, of
-      landforming features.
+    - elev_rangeLength, riftLength: maximum length, in percentage of total 
+      land units, of landforming features.
     - elev_rangeHeight, riftHeight: the starting elevation of landforming
       features. These are also used as maximum and minimum elevation for 
       x,y, and valley slopes.
@@ -1436,7 +1436,7 @@ Map setters variable:
 
 Global variables (output):
 - seaLevel: elevation considered as sea level for display purposes.
-- landRatio: the ratio of land units above seaLevel. 
+- landRatio: the ratio of land units above or equal to seaLevel. 
 - elevationDistribution: the set or list containing the elevation of all land units 
 - minElevation, maxElevation, sdElevation: statistics on the elevation of land units.<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
           <y:Shape type="rectangle3d"/>

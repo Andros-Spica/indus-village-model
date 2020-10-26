@@ -5,7 +5,7 @@
 ;;  Land model - v04 with soil properties
 ;;  Copyright (C) Andreas Angourakis (andros.spica@gmail.com)
 ;;  available at https://www.github.com/Andros-Spica/indus-village-model
-;;  This model is a cleaner version of the Terrain Generator model v.2 (https://github.com/Andros-Spica/ProceduralMap-NetLogo)
+;;  This model includes a cleaner version of the Terrain Generator model v.2 (https://github.com/Andros-Spica/ProceduralMap-NetLogo)
 ;;
 ;;  This program is free software: you can redistribute it and/or modify
 ;;  it under the terms of the GNU General Public License as published by
@@ -49,10 +49,11 @@ globals
   soil_runOffCurveNumberTable                 ; table (list of lists) with run off curve numbers of Hydrologic Soil Group (columns) combination of cover type-treatment-hydrologic condition
 
   ;;;;; Field Capacity and Water Holding capacity table
-  soil_fieldCapacity                   ; field capacity (% soil volume) per texture type
-  soil_minWaterHoldingCapacity         ; minimum and maximum water holding capacity (in/ft) per texture type
-  soil_maxWaterHoldingCapacity
+  soil_fieldCapacity                   ; field capacity (fraction of soil volume) per texture type
+  soil_saturation                      ; saturation (fraction of soil volume) per texture type (not currently used)
   soil_intakeRate                      ; intake rate (mm/hour) per texture type
+  soil_minWaterHoldingCapacity         ; minimum and maximum water holding capacity (in/ft) per texture type (not currently used)
+  soil_maxWaterHoldingCapacity
 
   ;;; parameters (modified copies of interface input) ===============================================================
 
@@ -104,10 +105,14 @@ globals
   flow_riverAccumulationAtStart ; the amount of flow units added to a land unit at the edge of the map.
                                 ; These units may be transmitted following flow directions,
                                 ; drawing meanders of a passing river.
+                                ; To better scale this parameter, consider that the catchment area today of
+                                ; the entire Indus River Basin is 116,500,000 ha or 1,165,000 km^2,
+                                ; the Chenab River Basin in Pakistani Punjab is 2,615,500 ha or 26,155 km^2,
+                                ; and the Ghaggar River Basin in Haryana is 4,997,800 ha or 49,978 km^2.
 
   ;;;; soil
-  soil_formativeErosionRate              ; rate of increase in soil depth, decrease of % sand,
-                                         ; increase of % silt, and increase of % clay, depending on flow_accumulation.
+  soil_formativeErosionRate              ; rate of increase in soil depth, decrease of percentage of sand,
+                                         ; increase of percentage of silt, and increase of percentage of clay, depending on flow_accumulation.
   soil_minDepth                          ; minimum soil depth
   soil_maxDepth                          ; maximum soil depth
   soil_depthNoise                        ; normal random variation in soil depth (standard deviation)
@@ -123,7 +128,7 @@ globals
   ;;; variables ===============================================================
   seaLevel                    ; elevation considered as sea level for display purposes.
 
-  landRatio                   ; the ratio of land units above seaLevel.
+  landRatio                   ; the ratio of land units above or equal to seaLevel.
   elevationDistribution       ; the set or list containing the elevation of all land units
   minElevation                ; statistics on the elevation of land units.
   sdElevation
@@ -131,6 +136,11 @@ globals
 
   landWithRiver               ; count of land units with passing river
   maxFlowAccumulation
+
+  mostCommonTextureType       ; the most common of texture type, see soil_textureTypes
+  meanRunOffCurveNumber       ; mean runoff curve number of land units
+  meanWaterHoldingCapacity    ; mean water holding capacity of land units (fraction of soil volume)
+  meanDeepDrainageCoefficient ; mean deep drainage coefficient (1/day)
 ]
 
 patches-own
@@ -164,7 +174,8 @@ patches-own
   p_soil_%sand          ; percentage of sand fraction in soil
   p_soil_%silt          ; percentage of silt fraction in soil
   p_soil_%clay          ; percentage of clay fraction in soil
-  p_soil_textureType          ; soil texture type according to sand-silt-clay proportions, under USDA convention
+  p_soil_textureType          ; soil texture type according to sand-silt-clay proportions, under USDA convention.
+                              ; see "03-land-model/documentation/USDA-texturalSoilClassification.png"
   p_soil_hydrologicSoilGroup  ; USDA simplification of soil texture types into four categories
 
   p_soil_coverTreatmentAndHydrologicCondition  ; the type of combination of cover, treatment and hydrologic condition used to estimate runoff curve number (see "runOffCurveNumberTable.csv")
@@ -186,11 +197,12 @@ patches-own
   ;  |  (no drainage)
   ; --- oven dry
 
-  p_soil_fieldCapacity              ; Field Capacity (% soil volume)
-  p_soil_waterHoldingCapacity       ; Water Holding Capacity (% soil volume)
-  p_soil_wiltingPoint               ; Wilting Point (% soil volume)
+  p_soil_saturation                 ; saturation (fraction of soil volume)
+  p_soil_fieldCapacity              ; field capacity (fraction of soil volume)
+  p_soil_waterHoldingCapacity       ; water holding capacity (fraction of soil volume)
+  p_soil_wiltingPoint               ; permanent wilting point (fraction of soil volume)
 
-  p_soil_deepDrainageCoefficient    ; fraction of soil water above field capacity drained per day (%)
+  p_soil_deepDrainageCoefficient    ; saturated hydraulic conductivity or fraction of soil water above field capacity drained per day (1/day)
 ]
 
 breed [ mapSetters mapSetter ] ; used when elev_algorithm-style = "NetLogo"
@@ -233,6 +245,9 @@ to create-terrain
   introduce-river-flow
 
   set-flow-accumulations
+
+  ; set maximum flow accumulation as a reference excluding the flow entering through the river
+  set maxFlowAccumulation max [flow_accumulation] of patches with [flow_accumulation < flow_riverAccumulationAtStart]
 
   ;;; END - flow related procedures ;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -364,7 +379,7 @@ to set-parameters
     set elev_valleyAxisInclination random-float 1
     set elev_valleySlope random-float 0.02 ; only valley (no ridges)
 
-    set flow_riverAccumulationAtStart random 1E6
+    set flow_riverAccumulationAtStart random 2E6
 
     set soil_formativeErosionRate random-float 3
 
@@ -396,14 +411,14 @@ to parameters-check-1
   ;;; check if values were reset to 0 (comment out lines if 0 is a valid value)
   ;;; and set default values
 
-  if (par_elev_rangeHeight = 0)                    [ set par_elev_rangeHeight                   15 ]
-  if (par_elev_riftHeight = 0)                     [ set par_elev_riftHeight                     0 ]
-  if (par_elev_noise = 0)                          [ set par_elev_noise                          1 ]
+  if (par_elev_rangeHeight = 0)                    [ set par_elev_rangeHeight                    15 ]
+  if (par_elev_riftHeight = 0)                     [ set par_elev_riftHeight                      0 ]
+  if (par_elev_noise = 0)                          [ set par_elev_noise                           1 ]
 
-  if (par_elev_numProtuberances = 0)               [ set par_elev_numProtuberances               1 ]
-  if (par_elev_numDepressions = 0)                 [ set par_elev_numDepressions                 1 ]
+  if (par_elev_numProtuberances = 0)               [ set par_elev_numProtuberances                1 ]
+  if (par_elev_numDepressions = 0)                 [ set par_elev_numDepressions                  1 ]
 
-  if (par_elev_inversionIterations = 0)            [ set par_elev_inversionIterations            5 ]
+  if (par_elev_inversionIterations = 0)            [ set par_elev_inversionIterations             5 ]
 
   if (par_elev_numRanges = 0)                      [ set par_elev_numRanges                       1 ]
   if (par_elev_rangeLength = 0)                    [ set par_elev_rangeLength                   100 ]
@@ -421,56 +436,56 @@ to parameters-check-1
   if (par_elev_valleyAxisInclination = 0)           [ set par_elev_valleyAxisInclination          0.1 ]
   if (par_elev_valleySlope = 0)                     [ set par_elev_valleySlope                    0.02 ]
 
-  if (par_flow_riverAccumulationAtStart = 0)     [ set par_flow_riverAccumulationAtStart  1E6 ]
+  if (par_flow_riverAccumulationAtStart = 0)     [ set par_flow_riverAccumulationAtStart        1E6 ]
 
-  if (soil_formativeErosionRate = 0)             [ set soil_formativeErosionRate               2 ]
+  if (soil_formativeErosionRate = 0)             [ set soil_formativeErosionRate                  2 ]
 
-  if (par_soil_minDepth = 0)                    [ set par_soil_minDepth                300 ]
-  if (par_soil_maxDepth = 0)                    [ set par_soil_maxDepth                500 ]
-  if (par_soil_depthNoise = 0)                  [ set par_soil_depthNoise               50 ]
+  if (par_soil_minDepth = 0)                    [ set par_soil_minDepth                         300 ]
+  if (par_soil_maxDepth = 0)                    [ set par_soil_maxDepth                         500 ]
+  if (par_soil_depthNoise = 0)                  [ set par_soil_depthNoise                        50 ]
 
-  if (par_soil_min%sand = 0)                    [ set par_soil_min%sand                 60 ]
-  if (par_soil_max%sand = 0)                    [ set par_soil_max%sand                 90 ]
+  if (par_soil_min%sand = 0)                    [ set par_soil_min%sand                          60 ]
+  if (par_soil_max%sand = 0)                    [ set par_soil_max%sand                          90 ]
 
-  if (par_soil_min%silt = 0)                    [ set par_soil_min%silt                 40 ]
-  if (par_soil_max%silt = 0)                    [ set par_soil_max%silt                 70 ]
+  if (par_soil_min%silt = 0)                    [ set par_soil_min%silt                          40 ]
+  if (par_soil_max%silt = 0)                    [ set par_soil_max%silt                          70 ]
 
-  if (par_soil_min%clay = 0)                    [ set par_soil_min%clay                  0 ]
-  if (par_soil_max%clay = 0)                    [ set par_soil_max%clay                 50 ]
+  if (par_soil_min%clay = 0)                    [ set par_soil_min%clay                           0 ]
+  if (par_soil_max%clay = 0)                    [ set par_soil_max%clay                          50 ]
 
-  if (par_soil_textureNoise = 0)                [ set par_soil_textureNoise              5 ]
+  if (par_soil_textureNoise = 0)                [ set par_soil_textureNoise                       5 ]
 
 end
 
 to parameters-to-default
 
   ;;; set parameters to a default value
-  set par_elev_rangeHeight                   15
+  set par_elev_rangeHeight                  15
   set par_elev_riftHeight                    0
-  set par_elev_noise                     1
+  set par_elev_noise                         1
 
-  set par_elev_numProtuberances                   1
-  set par_elev_numDepressions                       1
+  set par_elev_numProtuberances              1
+  set par_elev_numDepressions                1
 
-  set par_elev_inversionIterations                  5
+  set par_elev_inversionIterations           5
 
-  set par_elev_numRanges                       1
-  set par_elev_rangeLength                   100
-  set par_elev_rangeAggregation                0.75
+  set par_elev_numRanges                     1
+  set par_elev_rangeLength                 100
+  set par_elev_rangeAggregation              0.75
 
-  set par_elev_numRifts                        1
-  set par_elev_riftLength                    100
-  set par_elev_riftAggregation                 0.9
+  set par_elev_numRifts                      1
+  set par_elev_riftLength                  100
+  set par_elev_riftAggregation               0.9
 
-  set par_elev_smoothStep             1
-  set par_elev_smoothingRadius           0.1
+  set par_elev_smoothStep                    1
+  set par_elev_smoothingRadius               0.1
 
-  set par_elev_xSlope                          0.01
-  set par_elev_ySlope                          0.025
-  set par_elev_valleyAxisInclination           0.1
-  set par_elev_valleySlope                     0.02
+  set par_elev_xSlope                        0.01
+  set par_elev_ySlope                        0.025
+  set par_elev_valleyAxisInclination         0.1
+  set par_elev_valleySlope                   0.02
 
-  set par_flow_riverAccumulationAtStart  1E6
+  set par_flow_riverAccumulationAtStart    1E6
 
   set soil_formativeErosionRate              2
   set par_soil_minDepth                    300
@@ -486,7 +501,7 @@ to parameters-to-default
   set par_soil_min%clay                      0
   set par_soil_max%clay                     50
 
-  set par_soil_textureNoise 5
+  set par_soil_textureNoise                  5
 
 end
 
@@ -849,9 +864,7 @@ to set-flow-accumulations
   ; where each cell is assigned a value equal to the number of cells that flow to it (O’Callaghan and Mark, 1984).
   ; Cells having a flow accumulation value of zero (to which no other cells flow) generally correspond to the pattern of ridges.
   ; Because all cells in a depressionless DEM have a path to the data set edge, the pattern formed by highlighting cells
-  ; with values higher than some threshold delineates a fully connected drainage network. As the threshold value is increased,
-  ; the density of the drainage network decreases. The flow accumulation data set that was calculated for the numeric example
-  ; is shown in Table 2d, and the visual example is shown in Plate 1c."
+  ; with values higher than some threshold delineates a fully connected drainage network."
 
   ; identify patches that receive flow and those that do not (this makes the next step much easier)
   ask patches
@@ -921,9 +934,6 @@ end
 ;=======================================================================================================
 
 to setup-soil-conditions
-
-  ; set maximum flow accumulation as a reference excluding the flow entering through the river
-  set maxFlowAccumulation max [flow_accumulation] of patches with [flow_accumulation < flow_riverAccumulationAtStart]
 
   ask patches
   [
@@ -1035,7 +1045,9 @@ end
 
 to-report get-soil-texture-type [ %sand %silt %clay ]
 
-  ;;; based on ternary plot classification by the United States Department of Agriculture (USDA)
+  ;;; based on ternary plot textural soil classification by the United States Department of Agriculture (USDA)
+  ;;; See: Unknown-Author, Soil Mechanics Level 1, Module 3, USDA Textural Classification Study Guide,
+  ;;; United States Department of Agriculture, 1987.
 
   if ((%sand > 85) and (%silt <= 15) and (%clay <= 10)) [ report "Sand" ]
 
@@ -1080,9 +1092,11 @@ to setup-soil-soilWaterProperties
 
   set p_soil_fieldCapacity get-fieldCapacity p_soil_textureType
 
-  set p_soil_WaterHoldingCapacity get-waterHoldingCapacity p_soil_textureType
-
   set p_soil_wiltingPoint get-wiltingPoint
+
+  set p_soil_saturation get-saturation
+
+  set p_soil_waterHoldingCapacity get-waterHoldingCapacity ;p_soil_textureType
 
   set p_soil_deepDrainageCoefficient get-deepDrainageCoefficient p_soil_textureType
 
@@ -1104,15 +1118,6 @@ to-report get-runOffCurveNumber [ coverTreatmentAndHydrologicCondition hydrologi
 
 end
 
-to-report get-waterHoldingCapacity [ textureType ]
-
-  let minWHC (item (position textureType soil_textureTypes) soil_minWaterHoldingCapacity)
-  let maxWHC (item (position textureType soil_textureTypes) soil_maxWaterHoldingCapacity)
-
-  report (minWHC + random-float (maxWHC - minWHC)) * 2.54 / 30.48 ; converted from in/ft to cm/cm
-
-end
-
 to-report get-fieldCapacity [ textureType ]
 
   report item (position textureType soil_textureTypes) soil_fieldCapacity
@@ -1121,7 +1126,31 @@ end
 
 to-report get-wiltingPoint
 
-  report (p_soil_fieldCapacity - p_soil_WaterHoldingCapacity)
+  ; using linear estimation
+  ; See "documentation/linearEstimationOfSoilWaterHorizons.Rmd"
+
+  report max (list (-0.0105 + 0.0042 * p_soil_%clay) 0)
+
+end
+
+to-report get-saturation
+
+  ; using linear estimation
+  ; See "documentation/linearEstimationOfSoilWaterHorizons.Rmd"
+
+  report 0.3916 + 0.0045 * p_soil_%clay
+
+end
+
+to-report get-waterHoldingCapacity ;[ textureType ]
+
+  report (p_soil_fieldCapacity - p_soil_wiltingPoint)
+
+  ; alternative using input data water holding capacity x soil texture type
+  ;let minWHC (item (position textureType soil_textureTypes) soil_minWaterHoldingCapacity)
+  ;let maxWHC (item (position textureType soil_textureTypes) soil_maxWaterHoldingCapacity)
+
+  ;report (minWHC + random-float (maxWHC - minWHC)) * 2.54 / 30.48 ; converted from in/ft to cm/cm
 
 end
 
@@ -1130,7 +1159,7 @@ to-report get-deepDrainageCoefficient [ textureType ]
   ; get intake rate (mm/hour) of the given texture type
   let intakeRate item (position textureType soil_textureTypes) soil_intakeRate
 
-  ; return daily intake rate divided by volume of soil above field capacity (intake/draina rate at saturation) as approximation of deep drainage coefficient
+  ; return daily intake rate divided by the volume of soil above field capacity (intake/drainage rate at saturation) as approximation of deep drainage coefficient
   ; TO-DO: ideally, data on deep drainage coefficient should be used instead.
   report 24 * intakeRate / ((1 - p_soil_fieldCapacity) * p_soil_depth + 1E-6) ; + 1E-6 to avoid error when p_soil_depth = 0
 
@@ -1154,9 +1183,14 @@ to set-output-stats
   set par_seaLevel (floor minElevation) - 1
   set seaLevel par_seaLevel
 
-  set landRatio count patches with [elevation > seaLevel] / count patches
+  set landRatio count patches with [elevation >= seaLevel] / count patches
 
   set landWithRiver count patches with [flow_accumulation >= flow_riverAccumulationAtStart]
+
+  set mostCommonTextureType modes [p_soil_textureType] of patches
+  set meanRunOffCurveNumber mean [p_soil_runOffCurveNumber] of patches
+  set meanWaterHoldingCapacity mean [p_soil_waterHoldingCapacity] of patches
+  set meanDeepDrainageCoefficient mean [p_soil_deepDrainageCoefficient] of patches
 
 end
 
@@ -1168,20 +1202,8 @@ to paint-patches
 
   ;;; several soil properties must be rescaled to enhance visualisation
   ;;; (the parametric max and min values of some of these are never realised for various reasons)
-  let mindepth min [p_soil_depth] of patches
-  let maxdepth max [p_soil_depth] of patches
-  let min%sand min [p_soil_%sand] of patches
-  let max%sand max [p_soil_%sand] of patches
-  let min%silt min [p_soil_%silt] of patches
-  let max%silt max [p_soil_%silt] of patches
-  let min%clay min [p_soil_%clay] of patches
-  let max%clay max [p_soil_%clay] of patches
-  let minWaterHoldingCapacity min [p_soil_waterHoldingCapacity] of patches
-  let maxWaterHoldingCapacity max [p_soil_waterHoldingCapacity] of patches
-  let minDeepDrainageCoefficient min [p_soil_deepDrainageCoefficient] of patches
-  let maxDeepDrainageCoefficient max [p_soil_deepDrainageCoefficient] of patches
 
-  if (display-mode = "terrain")
+  if (display-mode = "elevation (m)")
   [
     ask patches
     [
@@ -1194,13 +1216,23 @@ to paint-patches
     ask patches [ set pcolor 8 - 6 * p_soil_formativeErosion ]
     set-legend-continuous-range 1 0 8 2 6 false
   ]
-  if (display-mode = "soil depth")
+  if (display-mode = "soil depth (mm)")
   [
+    let mindepth min [p_soil_depth] of patches
+    let maxdepth max [p_soil_depth] of patches
+
     ask patches [ set pcolor 38 - 6 * (p_soil_depth - mindepth) / (maxdepth - mindepth) ]
-    set-legend-continuous-range 100 0 38 32 6 false
+    set-legend-continuous-range maxdepth mindepth 38 32 6 false
   ]
   if (display-mode = "soil texture")
   [
+    let min%sand min [p_soil_%sand] of patches
+    let max%sand max [p_soil_%sand] of patches
+    let min%silt min [p_soil_%silt] of patches
+    let max%silt max [p_soil_%silt] of patches
+    let min%clay min [p_soil_%clay] of patches
+    let max%clay max [p_soil_%clay] of patches
+
     ask patches
     [
       ;;; red: sand, green: silt, blue: clay
@@ -1212,28 +1244,68 @@ to paint-patches
   [
     ask patches
     [
-      set pcolor get-textureType-color (get-soil-texture-type (p_soil_%sand) (p_soil_%silt) (p_soil_%clay))
+      set pcolor get-textureType-color p_soil_textureType
     ]
-    set-legend-soil-texture-type
+    set-legend-soil-textureType
   ]
   if (display-mode = "soil run off curve number")
   [
     ask patches [ set pcolor 18 - 6 * p_soil_runOffCurveNumber / 100 ] ;;; runoff curve number is limited between 0-100
     set-legend-continuous-range 100 0 18 12 6 false
   ]
-  if (display-mode = "soil water holding capacity")
+  if (display-mode = "soil water wilting point")
   [
+    let minWiltingPoint min [p_soil_wiltingPoint] of patches
+    let maxWiltingPoint max [p_soil_wiltingPoint] of patches
+
     ask patches
     [
-      set pcolor 98 - 6 * (p_soil_waterHoldingCapacity - minWaterHoldingCapacity) / (maxWaterHoldingCapacity - minWaterHoldingCapacity) ;;; water holding capacity is %, but often small
+      set pcolor 98 - 6 * (p_soil_wiltingPoint - minWiltingPoint) / (maxWiltingPoint - minWiltingPoint)
+    ]
+    set-legend-continuous-range maxWiltingPoint minWiltingPoint 98 92 6 false
+  ]
+  if (display-mode = "soil water holding capacity")
+  [
+    let minWaterHoldingCapacity min [p_soil_waterHoldingCapacity] of patches
+    let maxWaterHoldingCapacity max [p_soil_waterHoldingCapacity] of patches
+
+    ask patches
+    [
+      set pcolor 98 - 6 * (p_soil_waterHoldingCapacity - minWaterHoldingCapacity) / (maxWaterHoldingCapacity - minWaterHoldingCapacity)
     ]
     set-legend-continuous-range maxWaterHoldingCapacity minWaterHoldingCapacity 98 92 6 false
   ]
-  if (display-mode = "soil deep drainage coefficient")
+  if (display-mode = "soil water field capacity")
   [
+    let minFieldCapacity min [p_soil_fieldCapacity] of patches
+    let maxFieldCapacity max [p_soil_fieldCapacity] of patches
+
     ask patches
     [
-      set pcolor 102 + 6 * (p_soil_deepDrainageCoefficient - minDeepDrainageCoefficient) / (maxDeepDrainageCoefficient - minDeepDrainageCoefficient) ;;; deep drainage coefficient is %, but can vary beyond 100%
+      set pcolor 98 - 6 * (p_soil_fieldCapacity - minFieldCapacity) / (maxFieldCapacity - minFieldCapacity)
+    ]
+    set-legend-continuous-range maxFieldCapacity minFieldCapacity 98 92 6 false
+  ]
+  if (display-mode = "soil water saturation")
+  [
+    let minSaturation min [p_soil_saturation] of patches
+    let maxSaturation max [p_soil_saturation] of patches
+
+    ask patches
+    [
+      set pcolor 98 - 6 * (p_soil_saturation - minSaturation) / (maxSaturation - minSaturation)
+    ]
+    set-legend-continuous-range maxSaturation minSaturation 98 92 6 false
+  ]
+  if (display-mode = "soil deep drainage coefficient")
+  [
+    let minDeepDrainageCoefficient min [p_soil_deepDrainageCoefficient] of patches
+    let maxDeepDrainageCoefficient max [p_soil_deepDrainageCoefficient] of patches
+
+    ask patches
+    [
+      set pcolor 102 + 6 * (p_soil_deepDrainageCoefficient - minDeepDrainageCoefficient) / (maxDeepDrainageCoefficient - minDeepDrainageCoefficient)
+      ;;; deep drainage coefficient is %, but depends on time and can vary beyond 100%
     ]
     set-legend-continuous-range maxDeepDrainageCoefficient minDeepDrainageCoefficient 108 102 6 true
   ]
@@ -1336,7 +1408,7 @@ to set-legend-continuous-range [ maximum minimum maxShade minShade numberOfKeys 
 
 end
 
-to set-legend-soil-texture-type
+to set-legend-soil-textureType
 
   set-current-plot "Legend"
 
@@ -1458,7 +1530,7 @@ to refresh-view-after-seaLevel-change
 
   set seaLevel par_seaLevel
 
-  set landRatio count patches with [elevation > seaLevel] / count patches
+  set landRatio count patches with [elevation >= seaLevel] / count patches
 
   update-plots
 
@@ -1584,13 +1656,13 @@ to plot-sea-level-vertical-transect
 
 end
 
-to-report get-soilVariable-per-flowAccumulation [ soilVariableName ]
+to-report get-variable-per-flowAccumulation [ variableName ]
 
   let stepInSequence 1;maxFlowAccumulation / 100
   let lengthOfSequence maxFlowAccumulation
   let sequence (list)
 
-  if (soilVariableName = "Depth")
+  if (variableName = "Depth")
   [
     foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
     [
@@ -1598,7 +1670,7 @@ to-report get-soilVariable-per-flowAccumulation [ soilVariableName ]
       set sequence lput (get-soil-depth (get-soil-formative-erosion i)) sequence
     ]
   ]
-  if (soilVariableName = "Sand")
+  if (variableName = "Sand")
   [
     foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
     [
@@ -1606,7 +1678,7 @@ to-report get-soilVariable-per-flowAccumulation [ soilVariableName ]
       set sequence lput (get-soil-%sand (get-soil-formative-erosion i)) sequence
     ]
   ]
-  if (soilVariableName = "Silt")
+  if (variableName = "Silt")
   [
     foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
     [
@@ -1614,7 +1686,7 @@ to-report get-soilVariable-per-flowAccumulation [ soilVariableName ]
       set sequence lput (get-soil-%silt (get-soil-formative-erosion i)) sequence
     ]
   ]
-  if (soilVariableName = "Clay")
+  if (variableName = "Clay")
   [
     foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
     [
@@ -1657,6 +1729,9 @@ to export-random-terrain
 end
 
 to export-terrain
+
+  ;;; make sure that display-mode is "elevation (m)" in order to avoid complications with patch colors (number vs rgb)
+  if (display-mode != "elevation (m)") [ set display-mode "elevation (m)" refresh-view ]
 
   set show-transects false
 
@@ -1763,10 +1838,12 @@ to import-terrain
           if (item globalIndex globalNames = "soil_texturetypes") [ set soil_textureTypes read-from-string item globalIndex globalValues ]
           if (item globalIndex globalNames = "soil_texturetypes_display") [ set soil_textureTypes_display read-from-string item globalIndex globalValues ]
           if (item globalIndex globalNames = "soil_hydrologicsoilgroups") [ set soil_hydrologicSoilGroups read-from-string item globalIndex globalValues ]
+          if (item globalIndex globalNames = "soil_runoffcurvenumbertable") [ set soil_runOffCurveNumberTable read-from-string item globalIndex globalValues ]
 
           if (item globalIndex globalNames = "soil_fieldcapacity") [ set soil_fieldCapacity item globalIndex globalValues ]
-          if (item globalIndex globalNames = "soil_minWaterholdingcapacity") [ set soil_minWaterHoldingCapacity item globalIndex globalValues ]
-          if (item globalIndex globalNames = "soil_maxwaterholdingcapacity") [ set soil_maxWaterHoldingCapacity item globalIndex globalValues ]
+          if (item globalIndex globalNames = "soil_saturation") [ set soil_saturation item globalIndex globalValues ]
+          ;if (item globalIndex globalNames = "soil_minWaterholdingcapacity") [ set soil_minWaterHoldingCapacity item globalIndex globalValues ]
+          ;if (item globalIndex globalNames = "soil_maxwaterholdingcapacity") [ set soil_maxWaterHoldingCapacity item globalIndex globalValues ]
           if (item globalIndex globalNames = "soil_intakerate") [ set soil_intakeRate read-from-string item globalIndex globalValues ]
 
           if (item globalIndex globalNames = "soil_mindepth") [ set soil_minDepth item globalIndex globalValues ]
@@ -1838,10 +1915,11 @@ to import-terrain
             set p_soil_hydrologicSoilGroup read-from-string item 16 thisLine
             set p_soil_coverTreatmentAndHydrologicCondition read-from-string item 17 thisLine
             set p_soil_runOffCurveNumber item 18 thisLine
-            set p_soil_fieldCapacity item 19 thisLine
-            set p_soil_waterHoldingCapacity item 20 thisLine
-            set p_soil_wiltingPoint item 21 thisLine
-            set p_soil_deepDrainageCoefficient item 22 thisLine
+            set p_soil_saturation item 19 thisLine
+            set p_soil_fieldCapacity item 20 thisLine
+            set p_soil_waterHoldingCapacity item 21 thisLine
+            set p_soil_wiltingPoint item 22 thisLine
+            set p_soil_deepDrainageCoefficient item 23 thisLine
           ]
           set thisLine csv:from-row file-read-line
         ]
@@ -2006,6 +2084,8 @@ to load-soil-water-table
   ;;;    Conservation Service, Engineering Division
   ;;; 2. Rain Machine support documentation, "Zones", "Soil Types", Table.
   ;;;    https://support.rainmachine.com/hc/en-us/articles/228001248-Soil-Types
+  ;;; 3. SWAT theoretical documentation 2009, p. 148, Table 2:3-1,
+  ;;;    https://swat.tamu.edu/media/99192/swat2009-theory.pdf
 
   ;;; this procedure loads the values of the soil water table
   ;;; the table contains:
@@ -2027,15 +2107,18 @@ to load-soil-water-table
   ;;; Types of soil according to % of sand, silt and clay (ternary diagram) established by USDA
   let textureTypeColumn (item 1 (item 3 soilWaterTable)) - 1
 
-  ;;; values of field capacity (%) per texture type
+  ;;; values of field capacity (fraction of soil volume) per texture type
   let fieldCapacityColumn (item 3 (item 3 soilWaterTable)) - 1
 
-  ;;; values of minimum and maximum water holding capacity (in/ft) per texture type
-  let minWaterHoldingCapacityColumn (item 5 (item 3 soilWaterTable)) - 1
-  let maxWaterHoldingCapacityColumn (item 7 (item 3 soilWaterTable)) - 1
+  ;;; values of saturation (fraction of soil volume) per texture type
+  let saturationColumn (item 5 (item 3 soilWaterTable)) - 1
 
   ;;; values of intake rate (mm/hour) per texture type
-  let intakeRateColumn (item 9 (item 3 soilWaterTable)) - 1
+  let intakeRateColumn (item 7 (item 3 soilWaterTable)) - 1
+
+  ;;; values of minimum and maximum water holding capacity (in/ft) per texture type
+  let minWaterHoldingCapacityColumn (item 9 (item 3 soilWaterTable)) - 1
+  let maxWaterHoldingCapacityColumn (item 11 (item 3 soilWaterTable)) - 1
 
   ;;;==================================================================================================================
   ;;; extract data---------------------------------------------------------------------------------------
@@ -2048,12 +2131,15 @@ to load-soil-water-table
   ;;; extract field capacity
   set soil_fieldCapacity map [row -> item fieldCapacityColumn row ] soilWaterData
 
-  ;;; extract water holding capacity
-  set soil_minWaterHoldingCapacity map [row -> item minWaterHoldingCapacityColumn row ] soilWaterData
-  set soil_maxWaterHoldingCapacity map [row -> item maxWaterHoldingCapacityColumn row ] soilWaterData
+  ;;; extract saturation
+  set soil_saturation map [row -> item saturationColumn row ] soilWaterData
 
   ;;; extract intake rate
   set soil_intakeRate map [row -> item intakeRateColumn row ] soilWaterData
+
+  ;;; extract water holding capacity
+  set soil_minWaterHoldingCapacity map [row -> item minWaterHoldingCapacityColumn row ] soilWaterData
+  set soil_maxWaterHoldingCapacity map [row -> item maxWaterHoldingCapacityColumn row ] soilWaterData
 
 end
 
@@ -2167,10 +2253,10 @@ ELEVATION
 
 TEXTBOX
 10
-367
+332
 315
-543
----------- used when algorithm-style = C# -------------------------------------------\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|___________________________________________________________|
+576
+---------- used when algorithm-style = C# -------------------------------------------\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|___________________________________________________________|
 9
 0.0
 1
@@ -2197,25 +2283,25 @@ landRatio
 11
 
 SLIDER
-494
-229
-689
-262
+492
+150
+687
+183
 par_seaLevel
 par_seaLevel
 round min (list minElevation par_elev_riftHeight)
 round max (list maxElevation par_elev_rangeHeight)
--2.0
+-37.0
 1
 1
 m
 HORIZONTAL
 
 SLIDER
-15
-175
-187
-208
+14
+348
+186
+381
 par_elev_noise
 par_elev_noise
 0
@@ -2227,10 +2313,10 @@ m
 HORIZONTAL
 
 SLIDER
-14
-217
-196
-250
+6
+181
+188
+214
 par_elev_smoothStep
 par_elev_smoothStep
 0
@@ -2307,16 +2393,20 @@ par_elev_numRanges
 0
 Number
 
-INPUTBOX
-308
-226
-426
-286
+SLIDER
+309
+229
+516
+262
 par_elev_rangeLength
+par_elev_rangeLength
+0
+100
 100.0
 1
-0
-Number
+1
+% patches
+HORIZONTAL
 
 INPUTBOX
 308
@@ -2329,16 +2419,20 @@ par_elev_numRifts
 0
 Number
 
-INPUTBOX
-308
-286
-412
-346
+SLIDER
+310
+262
+517
+295
 par_elev_riftLength
+par_elev_riftLength
+0
+100
 100.0
 1
-0
-Number
+1
+% patches
+HORIZONTAL
 
 SLIDER
 15
@@ -2356,10 +2450,10 @@ m
 HORIZONTAL
 
 BUTTON
-488
-267
-696
-300
+486
+188
+694
+221
 refresh after changing sea level
 refresh-view-after-seaLevel-change
 NIL
@@ -2388,10 +2482,10 @@ m
 HORIZONTAL
 
 MONITOR
-525
-156
-610
-201
+523
+312
+608
+357
 NIL
 count patches
 0
@@ -2451,10 +2545,10 @@ par_elev_numDepressions
 Number
 
 SLIDER
-14
-250
-195
-283
+6
+214
+187
+247
 par_elev_smoothingRadius
 par_elev_smoothingRadius
 0
@@ -2466,10 +2560,10 @@ NIL
 HORIZONTAL
 
 MONITOR
-615
-156
-680
-201
+613
+312
+678
+357
 maxDist
 precision maxDist 4
 4
@@ -2477,10 +2571,10 @@ precision maxDist 4
 11
 
 MONITOR
-48
-283
-197
-320
+40
+247
+189
+284
 smoothing neighborhood size
 (word (count patches with [ distance patch 0 0 < elev_smoothingRadius ] - 1) \" patches\")
 0
@@ -2517,10 +2611,10 @@ elev_algorithm-style
 1
 
 SLIDER
-17
-323
-197
-356
+9
+287
+189
+320
 par_elev_featureAngleRange
 par_elev_featureAngleRange
 0
@@ -2553,7 +2647,7 @@ CHOOSER
 111
 display-mode
 display-mode
-"terrain" "soil formative erosion" "soil depth" "soil texture" "soil texture types" "soil run off curve number" "soil water holding capacity" "soil deep drainage coefficient"
+"elevation (m)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient"
 0
 
 SLIDER
@@ -2817,10 +2911,10 @@ elev_rangeHeight
 9
 
 MONITOR
-186
-173
-261
-210
+185
+346
+260
+383
 NIL
 elev_noise
 2
@@ -2828,10 +2922,10 @@ elev_noise
 9
 
 MONITOR
-196
-215
-296
-252
+188
+179
+288
+216
 NIL
 elev_smoothStep
 2
@@ -2839,10 +2933,10 @@ elev_smoothStep
 9
 
 MONITOR
-194
-250
-306
-287
+186
+214
+298
+251
 NIL
 elev_smoothingRadius
 2
@@ -2872,10 +2966,10 @@ elev_numRifts
 9
 
 MONITOR
-366
-256
-451
-293
+335
+295
+420
+332
 NIL
 elev_rangeLength
 0
@@ -2883,10 +2977,10 @@ elev_rangeLength
 9
 
 MONITOR
-362
-323
-437
-360
+420
+295
+495
+332
 NIL
 elev_riftLength
 0
@@ -2894,10 +2988,10 @@ elev_riftLength
 9
 
 MONITOR
-198
-322
-302
-359
+190
+286
+294
+323
 NIL
 elev_featureAngleRange
 0
@@ -2993,10 +3087,10 @@ elev_riftAggregation
 9
 
 SWITCH
-471
-312
-572
-345
+560
+237
+661
+270
 flow_do-fill-sinks
 flow_do-fill-sinks
 0
@@ -3004,10 +3098,10 @@ flow_do-fill-sinks
 -1000
 
 SWITCH
-572
-312
-676
-345
+558
+270
+662
+303
 show-flows
 show-flows
 0
@@ -3026,7 +3120,7 @@ par_flow_riverAccumulationAtStart
 Number
 
 MONITOR
-519
+536
 651
 676
 688
@@ -3178,9 +3272,9 @@ true
 true
 "" ""
 PENS
-"%sand" 1.0 0 -2674135 true "" "plot-table get-soilVariable-per-flowAccumulation \"Sand\""
-"%silt" 1.0 0 -10899396 true "" "plot-table get-soilVariable-per-flowAccumulation \"Silt\""
-"%clay" 1.0 0 -13345367 true "" "plot-table get-soilVariable-per-flowAccumulation \"Clay\""
+"%sand" 1.0 0 -2674135 true "" "plot-table get-variable-per-flowAccumulation \"Sand\""
+"%silt" 1.0 0 -10899396 true "" "plot-table get-variable-per-flowAccumulation \"Silt\""
+"%clay" 1.0 0 -13345367 true "" "plot-table get-variable-per-flowAccumulation \"Clay\""
 
 MONITOR
 750
@@ -3290,7 +3384,7 @@ true
 false
 "set-plot-y-range (round soil_minDepth - 1) (round soil_maxDepth + 1)" "set-plot-y-range (round soil_minDepth - 1) (round soil_maxDepth + 1)"
 PENS
-"default" 1.0 0 -16777216 true "" "plot-table get-soilVariable-per-flowAccumulation \"Depth\""
+"default" 1.0 0 -16777216 true "" "plot-table get-variable-per-flowAccumulation \"Depth\""
 
 MONITOR
 428
@@ -3366,6 +3460,50 @@ MONITOR
 NIL
 soil_formativeErosionRate
 2
+1
+9
+
+MONITOR
+768
+652
+893
+689
+NIL
+mostCommonTextureType
+0
+1
+9
+
+MONITOR
+894
+652
+1019
+689
+NIL
+meanRunOffCurveNumber
+2
+1
+9
+
+MONITOR
+1020
+651
+1146
+688
+NIL
+meanWaterHoldingCapacity
+4
+1
+9
+
+MONITOR
+1146
+651
+1283
+688
+NIL
+meanDeepDrainageCoefficient
+4
 1
 9
 

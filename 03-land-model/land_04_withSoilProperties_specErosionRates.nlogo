@@ -5,7 +5,7 @@
 ;;  Land model - v04 with soil properties
 ;;  Copyright (C) Andreas Angourakis (andros.spica@gmail.com)
 ;;  available at https://www.github.com/Andros-Spica/indus-village-model
-;;  This model is a cleaner version of the Terrain Generator model v.2 (https://github.com/Andros-Spica/ProceduralMap-NetLogo)
+;;  This model includes a cleaner version of the Terrain Generator model v.2 (https://github.com/Andros-Spica/ProceduralMap-NetLogo)
 ;;
 ;;  This program is free software: you can redistribute it and/or modify
 ;;  it under the terms of the GNU General Public License as published by
@@ -2158,16 +2158,20 @@ par_elev_numRanges
 0
 Number
 
-INPUTBOX
-308
-226
-426
-286
+SLIDER
+309
+229
+516
+262
 par_elev_rangeLength
-0.0
-1
+par_elev_rangeLength
 0
-Number
+100
+100.0
+1
+1
+% patches
+HORIZONTAL
 
 INPUTBOX
 308
@@ -2180,16 +2184,20 @@ par_elev_numRifts
 0
 Number
 
-INPUTBOX
-308
-286
-412
-346
+SLIDER
+310
+262
+517
+295
 par_elev_riftLength
-0.0
-1
+par_elev_riftLength
 0
-Number
+100
+100.0
+1
+1
+% patches
+HORIZONTAL
 
 SLIDER
 15

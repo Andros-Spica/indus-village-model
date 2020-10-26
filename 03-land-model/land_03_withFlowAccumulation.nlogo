@@ -5,7 +5,7 @@
 ;;  Land model - v03 with flow accumulation
 ;;  Copyright (C) Andreas Angourakis (andros.spica@gmail.com)
 ;;  available at https://www.github.com/Andros-Spica/indus-village-model
-;;  This model is a cleaner version of the Terrain Generator model v.2 (https://github.com/Andros-Spica/ProceduralMap-NetLogo)
+;;  This model includes a cleaner version of the Terrain Generator model v.2 (https://github.com/Andros-Spica/ProceduralMap-NetLogo)
 ;;
 ;;  This program is free software: you can redistribute it and/or modify
 ;;  it under the terms of the GNU General Public License as published by
@@ -87,13 +87,17 @@ globals
 
   ;;;; water flow accumulation
   flow_riverAccumulationAtStart ; the amount of flow units added to a land unit at the edge of the map.
-                               ; These units may be transmitted following flow directions,
-                               ; drawing meanders of a passing river.
+                                ; These units may be transmitted following flow directions,
+                                ; drawing meanders of a passing river.
+                                ; To better scale this parameter, consider that the catchment area today of
+                                ; the entire Indus River Basin is 116,500,000 ha or 1,165,000 km^2,
+                                ; the Chenab River Basin in Pakistani Punjab is 2,615,500 ha or 26,155 km^2,
+                                ; and the Ghaggar River Basin in Haryana is 4,997,800 ha or 49,978 km^2.
 
   ;;; variables ===============================================================
   seaLevel                    ; elevation considered as sea level for display purposes.
 
-  landRatio                   ; the ratio of land units above seaLevel.
+  landRatio                   ; the ratio of land units above or equal to seaLevel.
   elevationDistribution       ; the set or list containing the elevation of all land units
   minElevation                ; statistics on the elevation of land units.
   sdElevation
@@ -257,7 +261,7 @@ to set-parameters
     set elev_valleyAxisInclination random-float 1
     set elev_valleySlope random-float 0.02 ; only valley (no ridges)
 
-    set flow_riverAccumulationAtStart random 1E6
+    set flow_riverAccumulationAtStart random 2E6
   ]
   if (type-of-experiment = "defined by experiment-number")
   [
@@ -691,9 +695,7 @@ to set-flow-accumulations
   ; where each cell is assigned a value equal to the number of cells that flow to it (O’Callaghan and Mark, 1984).
   ; Cells having a flow accumulation value of zero (to which no other cells flow) generally correspond to the pattern of ridges.
   ; Because all cells in a depressionless DEM have a path to the data set edge, the pattern formed by highlighting cells
-  ; with values higher than some threshold delineates a fully connected drainage network. As the threshold value is increased,
-  ; the density of the drainage network decreases. The flow accumulation data set that was calculated for the numeric example
-  ; is shown in Table 2d, and the visual example is shown in Plate 1c."
+  ; with values higher than some threshold delineates a fully connected drainage network."
 
   ; identify patches that receive flow and those that do not (this makes the next step much easier)
   ask patches
@@ -780,7 +782,7 @@ to set-output-stats
   set par_seaLevel (floor minElevation) - 1
   set seaLevel par_seaLevel
 
-  set landRatio count patches with [elevation > seaLevel] / count patches
+  set landRatio count patches with [elevation >= seaLevel] / count patches
 
   set landWithRiver count patches with [flow_accumulation >= flow_riverAccumulationAtStart]
 
@@ -792,7 +794,7 @@ end
 
 to paint-patches
 
-  if (display-mode = "terrain")
+  if (display-mode = "elevation (m)")
   [
     ask patches
     [
@@ -930,7 +932,7 @@ to refresh-view-after-seaLevel-change
 
   set seaLevel par_seaLevel
 
-  set landRatio count patches with [elevation > seaLevel] / count patches
+  set landRatio count patches with [elevation >= seaLevel] / count patches
 
   update-plots
 
@@ -1348,10 +1350,10 @@ ELEVATION
 
 TEXTBOX
 10
-367
+333
 315
-543
----------- used when algorithm-style = C# -------------------------------------------\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|___________________________________________________________|
+576
+---------- used when algorithm-style = C# -------------------------------------------\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|                                                                                                  |\n|___________________________________________________________|
 9
 0.0
 1
@@ -1379,9 +1381,9 @@ landRatio
 
 SLIDER
 494
-229
+150
 689
-262
+183
 par_seaLevel
 par_seaLevel
 round min (list minElevation par_elev_riftHeight)
@@ -1393,10 +1395,10 @@ m
 HORIZONTAL
 
 SLIDER
-15
-175
-187
-208
+17
+347
+189
+380
 par_elev_noise
 par_elev_noise
 0
@@ -1408,10 +1410,10 @@ m
 HORIZONTAL
 
 SLIDER
-14
-217
-196
-250
+6
+182
+188
+215
 par_elev_smoothStep
 par_elev_smoothStep
 0
@@ -1488,16 +1490,20 @@ par_elev_numRanges
 0
 Number
 
-INPUTBOX
-308
-226
-426
-286
+SLIDER
+309
+229
+516
+262
 par_elev_rangeLength
-0.0
-1
+par_elev_rangeLength
 0
-Number
+100
+100.0
+1
+1
+% patches
+HORIZONTAL
 
 INPUTBOX
 308
@@ -1510,16 +1516,20 @@ par_elev_numRifts
 0
 Number
 
-INPUTBOX
-308
-286
-412
-346
+SLIDER
+310
+262
+517
+295
 par_elev_riftLength
-0.0
-1
+par_elev_riftLength
 0
-Number
+100
+100.0
+1
+1
+% patches
+HORIZONTAL
 
 SLIDER
 15
@@ -1538,9 +1548,9 @@ HORIZONTAL
 
 BUTTON
 488
-267
+188
 696
-300
+221
 refresh after changing sea level
 refresh-view-after-seaLevel-change
 NIL
@@ -1569,10 +1579,10 @@ m
 HORIZONTAL
 
 MONITOR
-525
-156
-610
-201
+530
+309
+615
+354
 NIL
 count patches
 0
@@ -1632,10 +1642,10 @@ par_elev_numDepressions
 Number
 
 SLIDER
-14
-250
-195
-283
+6
+215
+187
+248
 par_elev_smoothingRadius
 par_elev_smoothingRadius
 0
@@ -1647,10 +1657,10 @@ NIL
 HORIZONTAL
 
 MONITOR
-615
-156
-680
-201
+620
+309
+685
+354
 maxDist
 precision maxDist 4
 4
@@ -1658,10 +1668,10 @@ precision maxDist 4
 11
 
 MONITOR
-48
-283
-197
-320
+40
+248
+189
+285
 smoothing neighborhood size
 (word (count patches with [ distance patch 0 0 < elev_smoothingRadius ] - 1) \" patches\")
 0
@@ -1698,10 +1708,10 @@ elev_algorithm-style
 1
 
 SLIDER
-17
-323
-197
-356
+9
+288
+189
+321
 par_elev_featureAngleRange
 par_elev_featureAngleRange
 0
@@ -1734,7 +1744,7 @@ CHOOSER
 111
 display-mode
 display-mode
-"terrain"
+"elevation (m)"
 0
 
 SLIDER
@@ -1998,10 +2008,10 @@ elev_rangeHeight
 9
 
 MONITOR
-186
-173
-261
-210
+188
+345
+263
+382
 NIL
 elev_noise
 2
@@ -2009,10 +2019,10 @@ elev_noise
 9
 
 MONITOR
-196
-215
-296
-252
+188
+180
+288
+217
 NIL
 elev_smoothStep
 2
@@ -2020,10 +2030,10 @@ elev_smoothStep
 9
 
 MONITOR
-194
-250
-306
-287
+186
+215
+298
+252
 NIL
 elev_smoothingRadius
 2
@@ -2053,10 +2063,10 @@ elev_numRifts
 9
 
 MONITOR
-366
-256
-451
-293
+328
+297
+413
+334
 NIL
 elev_rangeLength
 0
@@ -2064,10 +2074,10 @@ elev_rangeLength
 9
 
 MONITOR
-362
-323
-437
-360
+410
+297
+485
+334
 NIL
 elev_riftLength
 0
@@ -2075,10 +2085,10 @@ elev_riftLength
 9
 
 MONITOR
-198
-322
-302
-359
+190
+287
+294
+324
 NIL
 elev_featureAngleRange
 0
@@ -2174,10 +2184,10 @@ elev_riftAggregation
 9
 
 SWITCH
-471
-312
-572
-345
+558
+230
+659
+263
 flow_do-fill-sinks
 flow_do-fill-sinks
 0
@@ -2185,10 +2195,10 @@ flow_do-fill-sinks
 -1000
 
 SWITCH
-572
-312
-676
-345
+557
+266
+661
+299
 show-flows
 show-flows
 0
