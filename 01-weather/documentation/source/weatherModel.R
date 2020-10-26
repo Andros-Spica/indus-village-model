@@ -267,10 +267,10 @@ escalonateCurve <- function(curve,
     # get a decreasing sample size proportionally to sample i
     thisSampleSize = ceiling(maxSampleSize * i / nSamples)
     # get random x coord point
-    plateauPoint = round(runif(1, min = 1, max = length(indexes)))
+    plateauMiddlePoint = round(runif(1, min = 1, max = length(indexes)))
     # set sample limits
-    earliestNeighbour = max(1, plateauPoint - thisSampleSize)
-    latestNeighbour = min(length(indexes), plateauPoint + thisSampleSize)
+    earliestNeighbour = max(1, plateauMiddlePoint - thisSampleSize)
+    latestNeighbour = min(length(indexes), plateauMiddlePoint + thisSampleSize)
     neighbourhood = curve[indexes >= earliestNeighbour & indexes <= latestNeighbour]
     # get mean of neighbourhood
     meanNeighbourhood = mean(neighbourhood)
