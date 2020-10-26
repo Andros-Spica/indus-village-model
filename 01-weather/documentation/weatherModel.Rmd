@@ -21,7 +21,7 @@ source("source/weatherModel.R")
 Generic function for geting points in sinusoidal curves depending on minValue, maxValue, length of year in days, and a normal stochastic fluctuation. See extended explanation at [HTML with R walkthrough](https://htmlpreview.github.io/?https://github.com/Andros-Spica/indus-village-model/blob/master/01-weather/documentation/annualSinusoidCurve.html).
 
 ```{r, out.width = "\\textwidth"}
-knitr::include_graphics("annualSinusoidCurve.png")
+knitr::include_graphics("annualSinusoidCurve_full.png")
 ```
 
 ### Annual cumulative daily precipitation using escalonated double logistic curve {-}

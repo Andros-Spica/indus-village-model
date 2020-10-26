@@ -132,7 +132,7 @@ for (i in 1:nrow(parValuesDoubleLogistic))
 }
 ```
 
-Plot only sinusoidal curves with mathmatical annotation:
+Plot only double logistic curves with mathematical annotation:
 
 ```{r}
 grScale = 2

@@ -29,7 +29,7 @@ getDayValueInAnnualSinusoid
 
 ## Demonstration {-}
 
-Set up six variations of parameter settings (i.e. minValue, maxValue, southHemisphere), assuming length of year of 365 days:
+Set up six variations of parameter settings (i.e. minValue, maxValue, southHemisphere and fluctuation), assuming length of year of 365 days:
 
 ```{r}
 yearLengthInDays_sim = 365
@@ -85,6 +85,91 @@ for (i in 1:nrow(parValuesAnnualSinusoid))
 }
 ```
 
+Plot only sinusoidal curves with mathematical annotation:
+
+```{r}
+grScale = 2
+
+plotName = "annualSinusoidCurve.png"
+  
+png(plotName, width = grScale * 800, height = grScale * 480)
+
+par(cex = grScale * 1.2)
+
+plot(c(0, yearLengthInDays_sim * 1.5), # leave some space on the right side to display legend
+     c(minMinValue, maxMaxValue * 1.45), # leave some space on top to display equation 
+     type = "n", 
+     main = "Annual sinusoid curve",
+     xlab = "day of year",
+     ylab = "output",
+     cex.main = grScale
+)
+
+for (i in 1:nrow(parValuesAnnualSinusoid))
+{
+  curve <- getAnnualSinusoid(
+    minValue = parValuesAnnualSinusoid[i, 1], 
+    maxValue = parValuesAnnualSinusoid[i, 2],
+    southHemisphere = FALSE,
+    yearLengthInDays = yearLengthInDays_sim)
+  
+  lines((1:length(curve)) - 1, curve, 
+        col = colorPalette[i], lwd = grScale * 3)
+  
+  legend(x = yearLengthInDays_sim * 1.05, 
+         y = maxMaxValue * (0.9 - 0.2 * (i - 1)), 
+         legend = substitute(
+           paste("minValue = ", minValue, 
+                 ", maxValue = ", maxValue), 
+           list(
+             minValue = parValuesAnnualSinusoid[i, 1], 
+             maxValue = parValuesAnnualSinusoid[i, 2])), 
+         col = colorPalette[i],
+         lwd = grScale * 3, cex = 0.8,
+         title = NULL, bty = "n")
+  
+  # add example with southHemisphere = TRUE
+  # curve <- getAnnualSinusoid(
+  #   minValue = parValuesAnnualSinusoid[i, 1], 
+  #   maxValue = parValuesAnnualSinusoid[i, 2], 
+  #   southHemisphere = TRUE,
+  #   yearLengthInDays = yearLengthInDays_sim)
+  # 
+  # lines((1:length(curve)), curve, 
+  #       col = colorPalette[i+nrow(parValuesAnnualSinusoid)], 
+  #       lwd = grScale * 3)
+  # 
+  # legend(x = yearLengthInDays_sim, 
+  #        y = maxMaxValue * (0.5 - 0.1 * (i - 1)), 
+  #        legend = substitute(
+  #          paste("minValue = ", minValue, 
+  #                ", maxValue = ", maxValue), 
+  #          list(
+  #            minValue = parValuesAnnualSinusoid[i, 1], 
+  #            maxValue = parValuesAnnualSinusoid[i, 2])), 
+  #        col = colorPalette[i+nrow(parValuesAnnualSinusoid)],
+  #        lwd = grScale * 3, cex = 0.8,
+  #        title = NULL, bty = "n")
+}
+# text(x = yearLengthInDays_sim * 1.2, 
+#      y = maxMaxValue * c(1.12, 0.52),
+#      labels = c("southHemisphere = FALSE", "southHemisphere = TRUE"),
+#      cex = 0.8)
+text(x = yearLengthInDays_sim * 0.75, y = maxMaxValue * 1.2,
+     expression(paste(
+       "output = minValue + ", frac(maxValue - minValue, 2) * 
+         bgroup("(", 1 + "sin" * 
+                  bgroup("(", angleAtLowestValue + 360 * frac(dayOfYear, yearLengthInDays), ")"), 
+                ")") 
+     ))
+     , cex = grScale * 0.5)
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
 Plot curves:
 
 ```{r}
@@ -92,7 +177,7 @@ Plot curves:
 grScale = 2
 fontRescale = 0
 
-plotName = "annualSinusoidCurve.png"
+plotName = "annualSinusoidCurve_full.png"
 
 png(plotName, width = grScale * 1000, height = grScale * 600)
 
@@ -143,10 +228,11 @@ for (southHemisphere in southHemisphereValues)
   
   for (i in 1:nrow(parValuesAnnualSinusoid))
   {
-    curve <- getAnnualSinusoid(minValue = parValuesAnnualSinusoid[i, 1], 
-                               maxValue = parValuesAnnualSinusoid[i, 2],
-                               yearLengthInDays = yearLengthInDays_sim,
-                               southHemisphere = southHemisphere
+    curve <- getAnnualSinusoid(
+      minValue = parValuesAnnualSinusoid[i, 1], 
+      maxValue = parValuesAnnualSinusoid[i, 2],
+      yearLengthInDays = yearLengthInDays_sim,
+      southHemisphere = southHemisphere
     )
     
     lines((1:length(curve)), curve, 
