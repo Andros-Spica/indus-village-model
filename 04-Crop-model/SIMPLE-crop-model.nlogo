@@ -74,11 +74,11 @@ globals
   precipitation_dailyCum_rate2_yearlySd
 
   ;;;; CO2 (ppm)
-  CO2_mean
-  CO2_annualDeviation
-  CO2_dailyFluctuation
+  CO2_annualMin
+  CO2_annualMax
+  CO2_meanDailyFluctuation
 
-  ;;;; Solar radiation (kWh/m2)
+  ;;;; Solar radiation (MJ/m2)
   solar_annualMax
   solar_annualMin
   solar_meanDailyFluctuation
@@ -247,9 +247,9 @@ to set-parameters
     set temperature_dailyLowerDeviation temperature_daily-lower-deviation
     set temperature_dailyUpperDeviation temperature_daily-upper-deviation
 
-    set CO2_mean CO2-mean
-    set CO2_annualDeviation CO2-annual-deviation
-    set CO2_dailyFluctuation CO2-daily-fluctuation
+    set CO2_annualMin CO2-annual-min
+    set CO2_annualMax CO2-annual-max
+    set CO2_meanDailyFluctuation CO2-mean-daily-fluctuation
 
     set solar_annualMax solar_annual-max
     set solar_annualMin solar_annual-min
@@ -273,34 +273,41 @@ to set-parameters
   if (type-of-experiment = "random")
   [
     ;;; use values from user interface as a maximum for random uniform distributions
-    set temperature_annualMaxAt2m 15 + random-float 35
+    set temperature_annualMaxAt2m 15 + random-float 25
     set temperature_annualMinAt2m -15 + random-float 30
-    set temperature_meanDailyFluctuation random-float temperature_mean-daily-fluctuation
-    set temperature_dailyLowerDeviation random-float temperature_daily-lower-deviation
-    set temperature_dailyUpperDeviation random-float temperature_daily-upper-deviation
+    set temperature_meanDailyFluctuation random-float 5
+    set temperature_dailyLowerDeviation random-float 10
+    set temperature_dailyUpperDeviation random-float 10
 
-    set CO2_mean random-normal 350 20
-    set CO2_annualDeviation max (list 0 random-normal 2.5 0.5)
-    set CO2_dailyFluctuation max (list 0 random-normal 2.5 0.5)
+    set CO2_annualMin random-normal 250 20
+    set CO2_annualMax CO2_annualMin + random-float 10
+    set CO2_meanDailyFluctuation max (list 0 random-normal 2.5 0.5)
 
-    set solar_annualMin random-normal 4 0.1
-    set solar_annualMax solar_annualMin + random-float 2
-    set solar_meanDailyFluctuation 0.01
+    set solar_annualMin 1.5 + random-float 15
+    set solar_annualMax 20 + random-float 10
+    set solar_meanDailyFluctuation 3 + random-float 3
 
     set precipitation_yearlyMean 200 + random-float 800
     set precipitation_yearlySd random-float 200
     set precipitation_dailyCum_nSamples 100 + random 200
     set precipitation_dailyCum_maxSampleSize 5 + random 20
-    set precipitation_dailyCum_plateauValue_yearlyMean random-float 1
-    set precipitation_dailyCum_plateauValue_yearlySd random-float 0.2
-    set precipitation_dailyCum_inflection1_yearlyMean 10 + random 60
-    set precipitation_dailyCum_inflection1_yearlySd 1 + random 10
-    set precipitation_dailyCum_rate1_yearlyMean 0.01 + random-float 0.2
-    set precipitation_dailyCum_rate1_yearlySd 0.001 + random-float 0.05
-    set precipitation_dailyCum_inflection2_yearlyMean 150 + random 100
-    set precipitation_dailyCum_inflection2_yearlySd 1 + random 10
-    set precipitation_dailyCum_rate2_yearlyMean 0.01 + random-float 0.2
-    set precipitation_dailyCum_rate2_yearlySd 0.001 + random-float 0.05
+    set precipitation_dailyCum_plateauValue_yearlyMean 0.2 + random-float 0.6
+    set precipitation_dailyCum_plateauValue_yearlySd random-float 0.4
+    set precipitation_dailyCum_inflection1_yearlyMean 40 + random 140
+    set precipitation_dailyCum_inflection1_yearlySd 20 + random 80
+    set precipitation_dailyCum_rate1_yearlyMean 0.01 + random-float 0.07
+    set precipitation_dailyCum_rate1_yearlySd 0.004 + random-float 0.02
+    set precipitation_dailyCum_inflection2_yearlyMean 180 + random 140
+    set precipitation_dailyCum_inflection2_yearlySd 20 + random 80
+    set precipitation_dailyCum_rate2_yearlyMean 0.01 + random-float 0.07
+    set precipitation_dailyCum_rate2_yearlySd 0.004 + random-float 0.02
+
+    ;;; NOTES about calibration:
+    ;;; Global Horizontal Irradiation can vary from about 2 to 7 KWh/m-2 per day.
+    ;;; (conversion kWh/m2 to MJ/m2 is 1 : 3.6)
+    ;;; See approx. values in https://globalsolaratlas.info/
+    ;;; and https://www.researchgate.net/publication/271722280_Solmap_Project_In_India%27s_Solar_Resource_Assessment
+    ;;; see general info in http://www.physicalgeography.net/fundamentals/6i.html
   ]
 
   ;;; to be modified
@@ -316,38 +323,70 @@ to parameters-check
 
   ;;; the default values of weather parameters aim to broadly represent conditions in Haryana, NW India.
 
-  if (temperature_annual-max-at-2m = 0)                          [ set temperature_annual-max-at-2m                   40 ]
-  if (temperature_annual-min-at-2m = 0)                          [ set temperature_annual-min-at-2m                   15 ]
-  if (temperature_mean-daily-fluctuation = 0)                    [ set temperature_mean-daily-fluctuation             5 ]
-  if (temperature_daily-lower-deviation = 0)                     [ set temperature_daily-lower-deviation              5 ]
-  if (temperature_daily-upper-deviation = 0)                     [ set temperature_daily-upper-deviation              5 ]
+  if (temperature_annual-max-at-2m = 0)                          [ set temperature_annual-max-at-2m                             37 ]
+  if (temperature_annual-min-at-2m = 0)                          [ set temperature_annual-min-at-2m                             12.8 ]
+  if (temperature_mean-daily-fluctuation = 0)                    [ set temperature_mean-daily-fluctuation                        2.2 ]
+  if (temperature_daily-lower-deviation = 0)                     [ set temperature_daily-lower-deviation                         6.8 ]
+  if (temperature_daily-upper-deviation = 0)                     [ set temperature_daily-upper-deviation                         7.9 ]
 
-  if (CO2-mean = 0)                                              [ set CO2-mean                                       250 ]
-  if (CO2-annual-deviation = 0)                                  [ set CO2-annual-deviation                           2 ]
-  if (CO2-daily-fluctuation = 0)                                 [ set CO2-daily-fluctuation                          1 ]
+  if (CO2-annual-min = 0)                                        [ set CO2-annual-min                               245 ]
+  if (CO2-annual-max = 0)                                        [ set CO2-annual-max                               255 ]
+  if (CO2-mean-daily-fluctuation = 0)                            [ set CO2-mean-daily-fluctuation                     1 ]
 
-  ;;; Global Horizontal Irradiation can vary from about 2 to 7 KWh/m-2 per day.
-  ;;; See approx. values in https://globalsolaratlas.info/
-  ;;; and https://www.researchgate.net/publication/271722280_Solmap_Project_In_India%27s_Solar_Resource_Assessment
-  ;;; see general info in http://www.physicalgeography.net/fundamentals/6i.html
-  if (solar_annual-max = 0)                                      [ set solar_annual-max                              7 ]
-  if (solar_annual-min = 0)                                      [ set solar_annual-min                              3 ]
-  if (solar_mean-daily-fluctuation = 0)                          [ set solar_mean-daily-fluctuation                  1 ]
+  if (solar_annual-max = 0)                                      [ set solar_annual-max                                          24.2 ]
+  if (solar_annual-min = 0)                                      [ set solar_annual-min                                          9.2 ]
+  if (solar_mean-daily-fluctuation = 0)                          [ set solar_mean-daily-fluctuation                              3.3 ]
 
-  if (precipitation_yearly-mean = 0)                             [ set precipitation_yearly-mean                     400 ]
-  if (precipitation_yearly-sd = 0)                               [ set precipitation_yearly-sd                       130 ]
-  if (precipitation_daily-cum_n-samples = 0)                     [ set precipitation_daily-cum_n-samples             200 ]
-  if (precipitation_daily-cum_max-sample-size = 0)               [ set precipitation_daily-cum_max-sample-size       10 ]
-  if (precipitation_daily-cum_plateau-value_yearly-mean = 0)     [ set precipitation_daily-cum_plateau-value_yearly-mean         0.1 ]
-  if (precipitation_daily-cum_plateau-value_yearly-sd = 0)       [ set precipitation_daily-cum_plateau-value_yearly-sd           0.05 ]
+  if (precipitation_yearly-mean = 0)                             [ set precipitation_yearly-mean                               489 ]
+  if (precipitation_yearly-sd = 0)                               [ set precipitation_yearly-sd                                 142.2 ]
+  if (precipitation_daily-cum_n-samples = 0)                      [ set precipitation_daily-cum_n-samples                      200 ]
+  if (precipitation_daily-cum_max-sample-size = 0)               [ set precipitation_daily-cum_max-sample-size                  10 ]
+  if (precipitation_daily-cum_plateau-value_yearly-mean = 0)     [ set precipitation_daily-cum_plateau-value_yearly-mean         0.25 ]
+  if (precipitation_daily-cum_plateau-value_yearly-sd = 0)       [ set precipitation_daily-cum_plateau-value_yearly-sd           0.1 ]
   if (precipitation_daily-cum_inflection1_yearly-mean = 0)       [ set precipitation_daily-cum_inflection1_yearly-mean           40 ]
-  if (precipitation_daily-cum_inflection1_yearly-sd = 0)         [ set precipitation_daily-cum_inflection1_yearly-sd             20 ]
-  if (precipitation_daily-cum_rate1_yearly-mean = 0)             [ set precipitation_daily-cum_rate1_yearly-mean                 0.15 ]
+  if (precipitation_daily-cum_inflection1_yearly-sd = 0)         [ set precipitation_daily-cum_inflection1_yearly-sd             5 ]
+  if (precipitation_daily-cum_rate1_yearly-mean = 0)             [ set precipitation_daily-cum_rate1_yearly-mean                 0.07 ]
   if (precipitation_daily-cum_rate1_yearly-sd = 0)               [ set precipitation_daily-cum_rate1_yearly-sd                   0.02 ]
-  if (precipitation_daily-cum_inflection2_yearly-mean = 0)       [ set precipitation_daily-cum_inflection2_yearly-mean           200 ]
+  if (precipitation_daily-cum_inflection2_yearly-mean = 0)       [ set precipitation_daily-cum_inflection2_yearly-mean           240 ]
   if (precipitation_daily-cum_inflection2_yearly-sd = 0)         [ set precipitation_daily-cum_inflection2_yearly-sd             20 ]
-  if (precipitation_daily-cum_rate2_yearly-mean = 0)             [ set precipitation_daily-cum_rate2_yearly-mean                 0.05 ]
-  if (precipitation_daily-cum_rate2_yearly-sd = 0)               [ set precipitation_daily-cum_rate2_yearly-sd                   0.01 ]
+  if (precipitation_daily-cum_rate2_yearly-mean = 0)             [ set precipitation_daily-cum_rate2_yearly-mean                 0.08 ]
+  if (precipitation_daily-cum_rate2_yearly-sd = 0)               [ set precipitation_daily-cum_rate2_yearly-sd                   0.02 ]
+
+end
+
+to parameters-to-default
+
+  ;;; set parameters to a default value
+  set end-simulation-in-tick                     (5 * 365)
+
+  set temperature_annual-max-at-2m                             37
+  set temperature_annual-min-at-2m                             12.8
+  set temperature_mean-daily-fluctuation                        2.2
+  set temperature_daily-lower-deviation                         6.8
+  set temperature_daily-upper-deviation                         7.9
+
+  set CO2-annual-min                                          245
+  set CO2-annual-max                                          255
+  set CO2-mean-daily-fluctuation                                1
+
+  set solar_annual-max                                          24.2
+  set solar_annual-min                                          9.2
+  set solar_mean-daily-fluctuation                              3.3
+
+  set precipitation_yearly-mean                               489
+  set precipitation_yearly-sd                                 142.2
+  set precipitation_daily-cum_n-samples                       200
+  set precipitation_daily-cum_max-sample-size                  10
+  set precipitation_daily-cum_plateau-value_yearly-mean         0.25
+  set precipitation_daily-cum_plateau-value_yearly-sd           0.1
+  set precipitation_daily-cum_inflection1_yearly-mean           40
+  set precipitation_daily-cum_inflection1_yearly-sd             5
+  set precipitation_daily-cum_rate1_yearly-mean                 0.07
+  set precipitation_daily-cum_rate1_yearly-sd                   0.02
+  set precipitation_daily-cum_inflection2_yearly-mean           240
+  set precipitation_daily-cum_inflection2_yearly-sd             20
+  set precipitation_daily-cum_rate2_yearly-mean                 0.08
+  set precipitation_daily-cum_rate2_yearly-sd                   0.02
 
 end
 
@@ -518,7 +557,6 @@ end
 to-report get-solar-radiation [ dayOfYear ]
 
   ;;; get solar radiation for the current day (MJ/m2)
-  ;;; return value converted from kWh/m2 to MJ/m2 (1 : 3.6)
 
   report max (list 0 (get-annual-sinusoid-with-fluctuation
     solar_annualMin
@@ -526,17 +564,22 @@ to-report get-solar-radiation [ dayOfYear ]
     solar_meanDailyFluctuation
     dayOfYear
     southHemisphere?
-  )) * 3.6
-  ;;; NOTE: it might be possible to decrease solar radiation depending on the current day precipitation. Further info on precipitation effect on solar radiation is needed.
+  ))
+  ;;; NOTE: it might be possible to decrease solar radiation depending on the current day precipitation. Additional info on precipitation effect on solar radiation is needed.
 
 end
 
 to-report get-CO2 [ dayOfYear ]
 
-  ; get CO2 atmospheric concentration for the current day (ppm)
-  let CO2-osc CO2_mean - CO2_annualDeviation + CO2_annualDeviation * (1 + sin (270 + 360 * dayOfYear / yearLengthInDays)) ; sin function in NetLogo needs angle in degrees. 270º equivalent to 3 * pi / 2 and 360º equivalent to 2 * pi
+  ;;; get CO2 atmospheric concentration for the current day (ppm)
 
-  report max (list 0 random-normal CO2-osc CO2_dailyFluctuation)
+  report (get-annual-sinusoid-with-fluctuation
+    CO2_annualMin
+    CO2_annualMax
+    CO2_meanDailyFluctuation
+    dayOfYear
+    southHemisphere?
+  )
 
 end
 
@@ -1163,6 +1206,10 @@ to-report rescale-curve [ curve ]
 
   ;;; Rescale curve to the 0-1 interval
 
+  ;;; cover special case where the curve is a horizontal line (first = last)
+  ;;; solution: interpolate 0-1 with a line
+  if ((last curve) = (item 0 curve)) [ set curve n-values (length curve) [ j -> j * 1 / (length curve) ] ]
+
   let newCurve curve
 
   foreach n-values (length curve) [j -> j]
@@ -1170,6 +1217,7 @@ to-report rescale-curve [ curve ]
     i ->
     set newCurve replace-item i newCurve (((item i curve) - (item 0 curve)) / ((last curve) - (item 0 curve)))
   ]
+
   report newCurve
 
 end
@@ -1367,11 +1415,11 @@ SLIDER
 temperature_mean-daily-fluctuation
 temperature_mean-daily-fluctuation
 0
-20
-5.0
+5
+2.2
 0.1
 1
-ºC  (default: 5)
+ºC  (default: 2.2)
 HORIZONTAL
 
 SLIDER
@@ -1382,11 +1430,11 @@ SLIDER
 temperature_daily-lower-deviation
 temperature_daily-lower-deviation
 0
-20
-5.0
+10
+6.8
 0.1
 1
-ºC  (default: 5)
+ºC  (default: 6.8)
 HORIZONTAL
 
 SLIDER
@@ -1397,11 +1445,11 @@ SLIDER
 temperature_daily-upper-deviation
 temperature_daily-upper-deviation
 0
-20
-5.0
+10
+7.9
 0.1
 1
-ºC  (default: 5)
+ºC  (default: 7.9)
 HORIZONTAL
 
 SLIDER
@@ -1411,12 +1459,12 @@ SLIDER
 131
 temperature_annual-max-at-2m
 temperature_annual-max-at-2m
-temperature_annual-min-at-2m
-50
-40.0
+15
+40
+37.0
 0.1
 1
-ºC  (default: 40)
+ºC  (default: 37)
 HORIZONTAL
 
 SLIDER
@@ -1426,12 +1474,12 @@ SLIDER
 168
 temperature_annual-min-at-2m
 temperature_annual-min-at-2m
--10
-temperature_annual-max-at-2m
-15.0
+-15
+15
+12.8
 0.1
 1
-ºC  (default: 15)
+ºC  (default: 12.8)
 HORIZONTAL
 
 MONITOR
@@ -1510,40 +1558,40 @@ currentDayOfYear
 11
 
 SLIDER
-1020
-283
-1258
-316
-CO2-mean
-CO2-mean
-250
-800
-250.0
+992
+282
+1289
+315
+CO2-annual-min
+CO2-annual-min
+200
+CO2-annual-max
+245.0
 0.01
 1
-ppm (default: 250)
+ppm (default: 245)
 HORIZONTAL
 
 SLIDER
-1021
-319
-1290
-352
-CO2-annual-deviation
-CO2-annual-deviation
-0
-5
-2.0
+993
+318
+1289
+351
+CO2-annual-max
+CO2-annual-max
+CO2-annual-min
+270
+255.0
 0.01
 1
-ppm (default: 2)
+ppm (default: 255)
 HORIZONTAL
 
 PLOT
-342
-281
-955
-401
+341
+280
+954
+400
 CO2
 days
 ppm
@@ -1553,17 +1601,17 @@ ppm
 10.0
 true
 false
-"set-plot-y-range (floor CO2_mean - CO2_annualDeviation - CO2_dailyFluctuation - 2) (ceiling CO2_mean + CO2_annualDeviation + CO2_dailyFluctuation + 2)" "set-plot-y-range (floor CO2_mean - CO2_annualDeviation - CO2_dailyFluctuation - 2) (ceiling CO2_mean + CO2_annualDeviation + CO2_dailyFluctuation + 2)"
+"set-plot-y-range (precision (CO2_annualMin - CO2_meanDailyFluctuation - 1) 2) (precision (CO2_annualMax + CO2_meanDailyFluctuation + 1) 2)" "set-plot-y-range (precision (CO2_annualMin - CO2_meanDailyFluctuation - 1) 2) (precision (CO2_annualMax + CO2_meanDailyFluctuation + 1) 2)"
 PENS
 "default" 1.0 0 -16777216 true "" "plot CO2"
 
 SLIDER
-1021
-354
-1283
-387
-CO2-daily-fluctuation
-CO2-daily-fluctuation
+993
+353
+1289
+386
+CO2-mean-daily-fluctuation
+CO2-mean-daily-fluctuation
 0
 5
 1.0
@@ -1645,11 +1693,11 @@ SLIDER
 solar_annual-max
 solar_annual-max
 solar_annual-min
-7
-7.0
-0.001
+30
+24.2
+0.01
 1
-kWh/m2 (default: 7)
+MJ/m2 (default: 24.2)
 HORIZONTAL
 
 SLIDER
@@ -1659,12 +1707,12 @@ SLIDER
 430
 solar_annual-min
 solar_annual-min
-2
-solar_annual-max
-3.0
-0.001
 1
-kWh/m2 (default: 3)
+solar_annual-max
+9.2
+0.01
+1
+MJ/m2 (default: 9.2)
 HORIZONTAL
 
 SLIDER
@@ -1675,11 +1723,11 @@ SLIDER
 solar_mean-daily-fluctuation
 solar_mean-daily-fluctuation
 0
-4
-1.0
-0.001
+6
+3.3
+0.01
 1
-kWh/m2 (default: 1)
+MJ/m2 (default: 3.3)
 HORIZONTAL
 
 PLOT
@@ -1689,16 +1737,16 @@ PLOT
 521
 Solar radiation
 days
-KWh/m2
+MJ/m2
 0.0
 10.0
 0.0
 10.0
 true
 false
-"set-plot-y-range (floor solar_annualMin - solar_meanDailyFluctuation - 1) (ceiling solar_annualMax + solar_meanDailyFluctuation + 1)" "set-plot-y-range (floor solar_annualMin - solar_meanDailyFluctuation - 1) (ceiling solar_annualMax + solar_meanDailyFluctuation + 1)"
+"" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot solarRadiation / 3.6"
+"default" 1.0 0 -16777216 true "" "plot solarRadiation"
 
 MONITOR
 1289
@@ -1706,7 +1754,7 @@ MONITOR
 1358
 318
 NIL
-CO2_mean
+CO2_annualMin
 2
 1
 9
@@ -1717,7 +1765,7 @@ MONITOR
 1409
 355
 NIL
-CO2_annualDeviation
+CO2_annualMax
 2
 1
 9
@@ -1728,7 +1776,7 @@ MONITOR
 1407
 390
 NIL
-CO2_dailyFluctuation
+CO2_meanDailyFluctuation
 2
 1
 9
@@ -1775,10 +1823,10 @@ precipitation_yearly-mean
 precipitation_yearly-mean
 0
 1000
-400.0
+489.0
 1.0
 1
-mm/year (default: 400)
+mm/year (default: 489)
 HORIZONTAL
 
 SLIDER
@@ -1790,10 +1838,10 @@ precipitation_yearly-sd
 precipitation_yearly-sd
 0
 250
-130.0
-1.0
+142.2
+0.1
 1
-mm/year (default: 130)
+mm/year (default: 142.2)
 HORIZONTAL
 
 SLIDER
@@ -1833,12 +1881,12 @@ SLIDER
 886
 precipitation_daily-cum_plateau-value_yearly-mean
 precipitation_daily-cum_plateau-value_yearly-mean
-0
-0.9
-0.1
+0.2
+0.8
+0.25
 0.01
 1
-winter (mm)/summer (mm) (default: 0.1)
+winter (mm)/summer (mm) (default: 0.25)
 HORIZONTAL
 
 SLIDER
@@ -1849,11 +1897,11 @@ SLIDER
 precipitation_daily-cum_plateau-value_yearly-sd
 precipitation_daily-cum_plateau-value_yearly-sd
 0
-0.2
-0.05
+0.4
+0.1
 0.001
 1
-(default: 0.05)
+(default: 0.1)
 HORIZONTAL
 
 SLIDER
@@ -1863,8 +1911,8 @@ SLIDER
 812
 precipitation_daily-cum_inflection1_yearly-mean
 precipitation_daily-cum_inflection1_yearly-mean
-1
-150
+40
+140
 40.0
 1.0
 1
@@ -1878,12 +1926,12 @@ SLIDER
 848
 precipitation_daily-cum_inflection1_yearly-sd
 precipitation_daily-cum_inflection1_yearly-sd
-0
-50
-20.0
+20
+100
+5.0
 1.0
 1
-days (default: 20)
+days (default: 5)
 HORIZONTAL
 
 SLIDER
@@ -1893,12 +1941,12 @@ SLIDER
 886
 precipitation_daily-cum_rate1_yearly-mean
 precipitation_daily-cum_rate1_yearly-mean
-0
-0.5
-0.15
 0.01
+0.07
+0.07
+0.001
 1
-(default: 0.15)
+(default: 0.07)
 HORIZONTAL
 
 SLIDER
@@ -1908,10 +1956,10 @@ SLIDER
 923
 precipitation_daily-cum_rate1_yearly-sd
 precipitation_daily-cum_rate1_yearly-sd
-0
-0.1
+0.004
+0.03
 0.02
-0.01
+0.001
 1
 (default: 0.02)
 HORIZONTAL
@@ -1923,12 +1971,12 @@ SLIDER
 815
 precipitation_daily-cum_inflection2_yearly-mean
 precipitation_daily-cum_inflection2_yearly-mean
-150
+180
 366
-200.0
+240.0
 1.0
 1
-day of year (default: 200)
+day of year (default: 240)
 HORIZONTAL
 
 SLIDER
@@ -1938,8 +1986,8 @@ SLIDER
 853
 precipitation_daily-cum_inflection2_yearly-sd
 precipitation_daily-cum_inflection2_yearly-sd
-0
-40
+20
+100
 20.0
 1
 1
@@ -1953,12 +2001,12 @@ SLIDER
 890
 precipitation_daily-cum_rate2_yearly-mean
 precipitation_daily-cum_rate2_yearly-mean
-0
-0.5
-0.05
 0.01
+0.08
+0.08
+0.001
 1
-(default: 0.05)
+(default: 0.08)
 HORIZONTAL
 
 SLIDER
@@ -1968,12 +2016,12 @@ SLIDER
 927
 precipitation_daily-cum_rate2_yearly-sd
 precipitation_daily-cum_rate2_yearly-sd
-0
-0.1
-0.01
-0.01
+0.004
+0.03
+0.02
+0.001
 1
-(default: 0.01)
+(default: 0.02)
 HORIZONTAL
 
 MONITOR

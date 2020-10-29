@@ -290,6 +290,13 @@ escalonateCurve <- function(curve,
 #' @export
 rescaleCurve <- function(curve)
 {
+  # cover special case where the curve is a horizontal line (first = last)
+  # solution: interpolate 0-1 with a line
+  if (curve[1] = curve[length(curve)]) 
+  { 
+    curve <- 1:length(curve) * 1 / length(curve)
+  }
+  
   return( (curve - curve[1]) / (curve[length(curve)] - curve[1]) )
 }
 
