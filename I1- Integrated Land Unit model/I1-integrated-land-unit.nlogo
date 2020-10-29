@@ -29,6 +29,7 @@ globals
 [
   ;;; constants
   patchArea
+  patchWidth
   maxDist
 
   yearLengthInDays
@@ -198,7 +199,7 @@ globals
   precipitation_dailyCum_rate2_yearlyMean
   precipitation_dailyCum_rate2_yearlySd
 
-  ;;;; Solar radiation (kWh/m2)
+  ;;;; Solar radiation (MJ/m2)
   solar_annualMax
   solar_annualMin
   solar_meanDailyFluctuation
@@ -264,6 +265,7 @@ patches-own
   elevation             ; average elevation above reference of the land unit (metres).
                         ; The reference is an arbitrary elevation from which all
                         ; algorithms will sculpt the terrain.
+  elevation_original    ; elevation imported from the terrain file before recentrering
 
   flow_direction        ; the numeric code for the (main) direction of flow or
                         ; drainage within the land unit.
@@ -380,9 +382,13 @@ to setup
 
   update-ecological-communities
 
+  update-soil-cover
+
   ; ------------------------------------------
 
-  set-output-stats
+  set-terrain-output-stats
+
+  update-output-stats
 
   setup-patch-coordinates-labels "bottom" "left"
 
@@ -399,8 +405,9 @@ to set-constants
   ; "constants" are variables that will not be explored as parameters
   ; and may be used during a simulation.
 
-  ; land units are 1 ha = 10,000 m^2
-  set patchArea 10000
+  ; land units are 100m x 100m or 1 ha = 10,000 m^2
+  set patchWidth 100
+  set patchArea patchWidth * patchWidth
 
   set yearLengthInDays 365
 
@@ -488,30 +495,30 @@ to set-parameters
     set elev_seaLevelReferenceShift -1 * random 1000
 
     ;;; weather generation
-    set temperature_annualMaxAt2m 15 + random-float 35
+    set temperature_annualMaxAt2m 15 + random-float 25
     set temperature_annualMinAt2m -15 + random-float 30
-    set temperature_meanDailyFluctuation random-float temperature_mean-daily-fluctuation
-    set temperature_dailyLowerDeviation random-float temperature_daily-lower-deviation
-    set temperature_dailyUpperDeviation random-float temperature_daily-upper-deviation
+    set temperature_meanDailyFluctuation random-float 5
+    set temperature_dailyLowerDeviation random-float 10
+    set temperature_dailyUpperDeviation random-float 10
 
-    set solar_annualMin random-normal 4 0.1
-    set solar_annualMax solar_annualMin + random-float 2
-    set solar_meanDailyFluctuation 0.01
+    set solar_annualMin 1.5 + random-float 15
+    set solar_annualMax 20 + random-float 10
+    set solar_meanDailyFluctuation 3 + random-float 3
 
     set precipitation_yearlyMean 200 + random-float 800
     set precipitation_yearlySd random-float 200
     set precipitation_dailyCum_nSamples 100 + random 200
     set precipitation_dailyCum_maxSampleSize 5 + random 20
-    set precipitation_dailyCum_plateauValue_yearlyMean random-float 1
-    set precipitation_dailyCum_plateauValue_yearlySd random-float 0.2
-    set precipitation_dailyCum_inflection1_yearlyMean 10 + random 60
-    set precipitation_dailyCum_inflection1_yearlySd 1 + random 10
-    set precipitation_dailyCum_rate1_yearlyMean 0.01 + random-float 0.2
-    set precipitation_dailyCum_rate1_yearlySd 0.001 + random-float 0.05
-    set precipitation_dailyCum_inflection2_yearlyMean 150 + random 100
-    set precipitation_dailyCum_inflection2_yearlySd 1 + random 10
-    set precipitation_dailyCum_rate2_yearlyMean 0.01 + random-float 0.2
-    set precipitation_dailyCum_rate2_yearlySd 0.001 + random-float 0.05
+    set precipitation_dailyCum_plateauValue_yearlyMean 0.2 + random-float 0.6
+    set precipitation_dailyCum_plateauValue_yearlySd random-float 0.4
+    set precipitation_dailyCum_inflection1_yearlyMean 40 + random 140
+    set precipitation_dailyCum_inflection1_yearlySd 20 + random 80
+    set precipitation_dailyCum_rate1_yearlyMean 0.01 + random-float 0.07
+    set precipitation_dailyCum_rate1_yearlySd 0.004 + random-float 0.02
+    set precipitation_dailyCum_inflection2_yearlyMean 180 + random 140
+    set precipitation_dailyCum_inflection2_yearlySd 20 + random 80
+    set precipitation_dailyCum_rate2_yearlyMean 0.01 + random-float 0.07
+    set precipitation_dailyCum_rate2_yearlySd 0.004 + random-float 0.02
 
     ;;; ETr
     set ecol_minAlbedo 1E-6 + random-float 0.3
@@ -531,6 +538,13 @@ to set-parameters
     set ecol_%wood_waterStressSensitivity 0.001 + random-float 0.009
     set ecol_%brush_waterStressSensitivity 0.001 + random-float 0.009
     set ecol_%grass_waterStressSensitivity 0.001 + random-float 0.009
+
+    ;;; NOTES about calibration:
+    ;;; Global Horizontal Irradiation can vary from about 2 to 7 KWh/m-2 per day.
+    ;;; (conversion kWh/m2 to MJ/m2 is 1 : 3.6)
+    ;;; See approx. values in https://globalsolaratlas.info/
+    ;;; and https://www.researchgate.net/publication/271722280_Solmap_Project_In_India%27s_Solar_Resource_Assessment
+    ;;; see general info in http://www.physicalgeography.net/fundamentals/6i.html
   ]
 
 end
@@ -546,34 +560,30 @@ to parameters-check
 
   ;;; the default values of weather parameters aim to broadly represent conditions in Haryana, NW India.
 
-  if (temperature_annual-max-at-2m = 0)                          [ set temperature_annual-max-at-2m                             40 ]
-  if (temperature_annual-min-at-2m = 0)                          [ set temperature_annual-min-at-2m                             15 ]
-  if (temperature_mean-daily-fluctuation = 0)                    [ set temperature_mean-daily-fluctuation                        5 ]
-  if (temperature_daily-lower-deviation = 0)                     [ set temperature_daily-lower-deviation                         5 ]
-  if (temperature_daily-upper-deviation = 0)                     [ set temperature_daily-upper-deviation                         5 ]
+  if (temperature_annual-max-at-2m = 0)                          [ set temperature_annual-max-at-2m                             37 ]
+  if (temperature_annual-min-at-2m = 0)                          [ set temperature_annual-min-at-2m                             12.8 ]
+  if (temperature_mean-daily-fluctuation = 0)                    [ set temperature_mean-daily-fluctuation                        2.2 ]
+  if (temperature_daily-lower-deviation = 0)                     [ set temperature_daily-lower-deviation                         6.8 ]
+  if (temperature_daily-upper-deviation = 0)                     [ set temperature_daily-upper-deviation                         7.9 ]
 
-  ;;; Global Horizontal Irradiation can vary from about 2 to 7 KWh/m-2 per day.
-  ;;; See approx. values in https://globalsolaratlas.info/
-  ;;; and https://www.researchgate.net/publication/271722280_Solmap_Project_In_India%27s_Solar_Resource_Assessment
-  ;;; see general info in http://www.physicalgeography.net/fundamentals/6i.html
-  if (solar_annual-max = 0)                                      [ set solar_annual-max                                          7 ]
-  if (solar_annual-min = 0)                                      [ set solar_annual-min                                          3 ]
-  if (solar_mean-daily-fluctuation = 0)                          [ set solar_mean-daily-fluctuation                              1 ]
+  if (solar_annual-max = 0)                                      [ set solar_annual-max                                          24.2 ]
+  if (solar_annual-min = 0)                                      [ set solar_annual-min                                          9.2 ]
+  if (solar_mean-daily-fluctuation = 0)                          [ set solar_mean-daily-fluctuation                              3.3 ]
 
-  if (precipitation_yearly-mean = 0)                             [ set precipitation_yearly-mean                               400 ]
-  if (precipitation_yearly-sd = 0)                               [ set precipitation_yearly-sd                                 130 ]
+  if (precipitation_yearly-mean = 0)                             [ set precipitation_yearly-mean                               489 ]
+  if (precipitation_yearly-sd = 0)                               [ set precipitation_yearly-sd                                 142.2 ]
   if (precipitation_daily-cum_n-samples = 0)                      [ set precipitation_daily-cum_n-samples                      200 ]
   if (precipitation_daily-cum_max-sample-size = 0)               [ set precipitation_daily-cum_max-sample-size                  10 ]
-  if (precipitation_daily-cum_plateau-value_yearly-mean = 0)     [ set precipitation_daily-cum_plateau-value_yearly-mean         0.1 ]
-  if (precipitation_daily-cum_plateau-value_yearly-sd = 0)       [ set precipitation_daily-cum_plateau-value_yearly-sd           0.05 ]
+  if (precipitation_daily-cum_plateau-value_yearly-mean = 0)     [ set precipitation_daily-cum_plateau-value_yearly-mean         0.25 ]
+  if (precipitation_daily-cum_plateau-value_yearly-sd = 0)       [ set precipitation_daily-cum_plateau-value_yearly-sd           0.1 ]
   if (precipitation_daily-cum_inflection1_yearly-mean = 0)       [ set precipitation_daily-cum_inflection1_yearly-mean           40 ]
-  if (precipitation_daily-cum_inflection1_yearly-sd = 0)         [ set precipitation_daily-cum_inflection1_yearly-sd             20 ]
-  if (precipitation_daily-cum_rate1_yearly-mean = 0)             [ set precipitation_daily-cum_rate1_yearly-mean                 0.15 ]
+  if (precipitation_daily-cum_inflection1_yearly-sd = 0)         [ set precipitation_daily-cum_inflection1_yearly-sd             5 ]
+  if (precipitation_daily-cum_rate1_yearly-mean = 0)             [ set precipitation_daily-cum_rate1_yearly-mean                 0.07 ]
   if (precipitation_daily-cum_rate1_yearly-sd = 0)               [ set precipitation_daily-cum_rate1_yearly-sd                   0.02 ]
-  if (precipitation_daily-cum_inflection2_yearly-mean = 0)       [ set precipitation_daily-cum_inflection2_yearly-mean           200 ]
+  if (precipitation_daily-cum_inflection2_yearly-mean = 0)       [ set precipitation_daily-cum_inflection2_yearly-mean           240 ]
   if (precipitation_daily-cum_inflection2_yearly-sd = 0)         [ set precipitation_daily-cum_inflection2_yearly-sd             20 ]
-  if (precipitation_daily-cum_rate2_yearly-mean = 0)             [ set precipitation_daily-cum_rate2_yearly-mean                 0.05 ]
-  if (precipitation_daily-cum_rate2_yearly-sd = 0)               [ set precipitation_daily-cum_rate2_yearly-sd                   0.01 ]
+  if (precipitation_daily-cum_rate2_yearly-mean = 0)             [ set precipitation_daily-cum_rate2_yearly-mean                 0.08 ]
+  if (precipitation_daily-cum_rate2_yearly-sd = 0)               [ set precipitation_daily-cum_rate2_yearly-sd                   0.02 ]
 
   if (par_ecol_minAlbedo = 0)                                        [ set par_ecol_minAlbedo                                            0.1 ]
   if (par_ecol_maxAlbedo = 0)                                        [ set par_ecol_maxAlbedo                                            0.5 ]
@@ -590,30 +600,30 @@ to parameters-to-default
   ;;; set parameters to a default value
   set par_elev_seaLevelReferenceShift                       -1000
 
-  set temperature_annual-max-at-2m                             40
-  set temperature_annual-min-at-2m                             15
-  set temperature_mean-daily-fluctuation                        5
-  set temperature_daily-lower-deviation                         5
-  set temperature_daily-upper-deviation                         5
+  set temperature_annual-max-at-2m                             37
+  set temperature_annual-min-at-2m                             12.8
+  set temperature_mean-daily-fluctuation                        2.2
+  set temperature_daily-lower-deviation                         6.8
+  set temperature_daily-upper-deviation                         7.9
 
-  set solar_annual-max                                          7
-  set solar_annual-min                                          3
-  set solar_mean-daily-fluctuation                              1
+  set solar_annual-max                                          24.2
+  set solar_annual-min                                          9.2
+  set solar_mean-daily-fluctuation                              3.3
 
-  set precipitation_yearly-mean                               400
-  set precipitation_yearly-sd                                 130
+  set precipitation_yearly-mean                               489
+  set precipitation_yearly-sd                                 142.2
   set precipitation_daily-cum_n-samples                       200
   set precipitation_daily-cum_max-sample-size                  10
-  set precipitation_daily-cum_plateau-value_yearly-mean         0.1
-  set precipitation_daily-cum_plateau-value_yearly-sd           0.05
+  set precipitation_daily-cum_plateau-value_yearly-mean         0.25
+  set precipitation_daily-cum_plateau-value_yearly-sd           0.1
   set precipitation_daily-cum_inflection1_yearly-mean           40
-  set precipitation_daily-cum_inflection1_yearly-sd             20
-  set precipitation_daily-cum_rate1_yearly-mean                 0.15
+  set precipitation_daily-cum_inflection1_yearly-sd             5
+  set precipitation_daily-cum_rate1_yearly-mean                 0.07
   set precipitation_daily-cum_rate1_yearly-sd                   0.02
-  set precipitation_daily-cum_inflection2_yearly-mean           200
+  set precipitation_daily-cum_inflection2_yearly-mean           240
   set precipitation_daily-cum_inflection2_yearly-sd             20
-  set precipitation_daily-cum_rate2_yearly-mean                 0.05
-  set precipitation_daily-cum_rate2_yearly-sd                   0.01
+  set precipitation_daily-cum_rate2_yearly-mean                 0.08
+  set precipitation_daily-cum_rate2_yearly-sd                   0.02
 
   set par_ecol_minAlbedo                                            0.1
   set par_ecol_maxAlbedo                                            0.5
@@ -656,7 +666,7 @@ end
 to-report get-recentred-elevation
 
   ;;; get re-centre value of elevation in relation to new seaLevel
-  report elevation - elev_seaLevelReferenceShift
+  report elevation_original - elev_seaLevelReferenceShift
 
 end
 
@@ -674,7 +684,7 @@ to go
 
   update-ecological-communities
 
-  update-cover-type
+  update-soil-cover
 
   ; --------------------------------------------
 
@@ -796,16 +806,15 @@ end
 to-report get-solar-radiation [ dayOfYear ]
 
   ;;; get solar radiation for the current day (MJ/m2)
-  ;;; return value converted from kWh/m2 to MJ/m2 (1 : 3.6)
 
-  report max (list 0 (get-annual-sinusoid-with-fluctuation
+  report clampMin0 (get-annual-sinusoid-with-fluctuation
     solar_annualMin
     solar_annualMax
     solar_meanDailyFluctuation
     dayOfYear
     southHemisphere?
-  )) * 3.6
-  ;;; NOTE: it might be possible to decrease solar radiation depending on the current day precipitation. Further info on precipitation effect on solar radiation is needed.
+  )
+  ;;; NOTE: it might be possible to decrease solar radiation depending on the current day precipitation. Additional info on precipitation effect on solar radiation is needed.
 
 end
 
@@ -887,6 +896,8 @@ end
 
 to update-water
 
+  reset-sea-water
+
   add-river-water
 
   add-precipitation-water
@@ -894,6 +905,16 @@ to update-water
   solve-runoff-exchange
 
   drain-soil-water
+
+end
+
+to reset-sea-water
+
+  ;;; add water to fill below sea level elevation (depth)
+  ask patches with [elevation < 0]
+  [
+    set p_water -1 * elevation * 1000
+  ]
 
 end
 
@@ -1026,17 +1047,17 @@ to infiltrate-soil-water
     set p_runoff p_runoff + (potentialSoilWaterChange - soilWaterChange)
 
     ; saturation sets the runnoffCurveNumber to maximum
-    set p_soil_runOffCurveNumber 100
+;    set p_soil_runOffCurveNumber 100
   ]
   [
     ; soil absorbes all water not running off
     set soilWaterChange potentialSoilWaterChange
 
     ; desaturation recovers the original runnoffCurveNumber, if it has been set to maximum
-    if (p_soil_runOffCurveNumber = 100)
-    [
-      set p_soil_runOffCurveNumber get-runOffCurveNumber p_soil_coverTreatmentAndHydrologicCondition p_soil_hydrologicSoilGroup
-    ]
+;    if (p_soil_runOffCurveNumber = 100)
+;    [
+;      set p_soil_runOffCurveNumber get-runOffCurveNumber p_soil_coverTreatmentAndHydrologicCondition p_soil_hydrologicSoilGroup
+;    ]
   ]
   ;print self print (word "p_runoff=" p_runoff)
   ;print self print (word p_water " = " (soilWaterChange + p_runoff) )
@@ -1247,16 +1268,6 @@ to-report flow-direction-is-loop ; ego = patch
 
 end
 
-to-report get-runOffCurveNumber [ coverTreatmentAndHydrologicCondition hydrologicSoilGroup ]
-
-  report (
-    item
-    (position coverTreatmentAndHydrologicCondition (item 0 soil_runOffCurveNumberTable))            ; selecting row
-    (item (1 + position hydrologicSoilGroup (list "A" "B" "C" "D")) soil_runOffCurveNumberTable)    ; selecting column (skip column with coverTreatmentAndHydrologicCondition)
-    )
-
-end
-
 ;=======================================================================================================
 ;;; END of water flow and soil water algorithms (combined)
 ;;; flow algorithms are based on:
@@ -1304,22 +1315,32 @@ to advance-ecological-succession [ mean_ecol_%grass mean_ecol_%brush mean_ecol_%
 
 end
 
-to update-cover-type
+to update-soil-cover
 
   ask patches
   [
-    set p_ecol_coverType get-cover-type p_ecol_%grass p_ecol_%brush p_ecol_%wood
+    set p_ecol_coverType get-cover-type p_ecol_%grass p_ecol_%brush p_ecol_%wood p_water
+
+    set p_soil_coverTreatmentAndHydrologicCondition get-coverTreatmentAndHydrologicCondition p_ecol_coverType
+
+    set p_soil_runOffCurveNumber get-runOffCurveNumber p_soil_coverTreatmentAndHydrologicCondition p_soil_hydrologicSoilGroup
   ]
 
 end
 
-to-report get-cover-type [ %grass %brush %wood ]
+to-report get-cover-type [ %grass %brush %wood water ]
 
   ;;; set cover type according to percentages
   ;;; The criteria used for separating cover types (to select runoff curve number) attempts to approach the one used in:
   ;;; Table 2.2 in: Cronshey R G 1986 Urban Hydrology for Small Watersheds, Technical Release 55 (TR-55).
   ;;; United States Department of Agriculture, Soil Conservation Service, Engineering Division
   ;;; See also ternary diagram "ternaryPlots/coverTypePerEcologicalCommunity.png", generated in R
+  ;;; An extra category for free water surfaces was added; the width / depth ratio criteria is informed by:
+  ;;; https://cfpub.epa.gov/watertrain/moduleFrame.cfm?parent_object_id=1262#:~:text=The%20width%2Fdepth%20(W%2F,the%20channel%20to%20move%20sediment.
+  ;;; ratio = patchWidth (m) / (P_water (mm) / 1000)
+  ;;; For minimum shallow stream type, ratio = 50, then p_water = patchSize * 1000 / 50 -> p_water = patchSize * 20
+
+  if(water > patchWidth * 20) [ report "free water" ]
 
   let %empty 100 - %grass - %brush - %wood
   if (%empty > 50) [ report "desert" ] ;;; if percentages are too low
@@ -1331,11 +1352,56 @@ to-report get-cover-type [ %grass %brush %wood ]
 
 end
 
+to-report get-coverTreatmentAndHydrologicCondition [ coverType ]
+
+  ;;; correspond cover type with cover/treatment/hydrologic condition as registred in runOffCurveNumberTable
+  ;;; That table, created by the USDA, holds a classification of cover conditions in the US;
+  ;;; future versions should aim to calibrate this data to the cover types within the region of interest.
+
+  if (coverType = "free water")
+  [
+    report (word "free water | surface covered with free water | null" )
+  ]
+  if (coverType = "desert")
+  [
+    report (word "desert shrub | major plants include saltbush-greasewood-creosotebush-blackbrush-bursage-palo verde-mesquite-cactus | good")
+  ]
+  if (coverType = "grassland")
+  [
+    report (word "pasture or grassland or range | continuous forage for grazing | good")
+  ]
+  if (coverType = "shrubland")
+  [
+    report (word "brush | brush-weed-grass mixture with brush the major element | good")
+  ]
+  if (coverType = "woodland")
+  [
+    report (word "woods | used and managed but not planted | good")
+  ]
+  if (coverType = "wood-grass")
+  [
+    report (word "woods-grass combination or tree farm | lightly or only occasionally grazed | good")
+  ]
+
+  report ""
+
+end
+
+to-report get-runOffCurveNumber [ coverTreatmentAndHydrologicCondition hydrologicSoilGroup ]
+
+  report (
+    item
+    (position coverTreatmentAndHydrologicCondition (item 0 soil_runOffCurveNumberTable))            ; selecting row
+    (item (1 + position hydrologicSoilGroup (list "A" "B" "C" "D")) soil_runOffCurveNumberTable)    ; selecting column (skip column with coverTreatmentAndHydrologicCondition)
+    )
+
+end
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; OUTPUT STATS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-to set-output-stats
+to set-terrain-output-stats
 
   set elevationDistribution [elevation] of patches
 
@@ -1348,6 +1414,10 @@ to set-output-stats
   set landRatio count patches with [elevation >= 0] / count patches
 
   set landWithRiver count patches with [flow_accumulation >= flow_riverAccumulationAtStart]
+
+end
+
+to update-output-stats
 
   set mostCommonTextureType modes [p_soil_textureType] of patches
   set meanRunOffCurveNumber mean [p_soil_runOffCurveNumber] of patches
@@ -1367,13 +1437,17 @@ to refresh-view-after-seaLevel-change
   ;;; this procedure will recentre patch elevations according to elev_seaLevelReferenceShift
   ;;; and update landRatio and display
 
+  set elev_seaLevelReferenceShift par_elev_seaLevelReferenceShift
+
   ask patches
   [
     ;;; recentre elevation so negative values are only below sea level
     set elevation get-recentred-elevation
   ]
 
-  set landRatio count patches with [elevation >= 0] / count patches
+  reset-sea-water
+
+  set-terrain-output-stats
 
   refresh-to-display-mode
 
@@ -2235,7 +2309,7 @@ to import-terrain
             let colorRGBValues read-from-string (item 2 thisLine)
             set pcolor rgb (item 0 colorRGBValues) (item 1 colorRGBValues) (item 2 colorRGBValues)
 
-            set elevation item 5 thisLine
+            set elevation_original item 5 thisLine
             set flow_direction item 6 thisLine
             set flow_receive item 7 thisLine
             set flow_accumulation item 8 thisLine
@@ -2294,7 +2368,7 @@ to import-terrain
     file-close
   ]
 
-  set-output-stats
+  set-terrain-output-stats
 
 end
 
@@ -2435,6 +2509,10 @@ to-report rescale-curve [ curve ]
 
   ;;; Rescale curve to the 0-1 interval
 
+  ;;; cover special case where the curve is a horizontal line (first = last)
+  ;;; solution: interpolate 0-1 with a line
+  if ((last curve) = (item 0 curve)) [ set curve n-values (length curve) [ j -> j * 1 / (length curve) ] ]
+
   let newCurve curve
 
   foreach n-values (length curve) [j -> j]
@@ -2442,6 +2520,7 @@ to-report rescale-curve [ curve ]
     i ->
     set newCurve replace-item i newCurve (((item i curve) - (item 0 curve)) / ((last curve) - (item 0 curve)))
   ]
+
   report newCurve
 
 end
@@ -2562,7 +2641,7 @@ par_elev_seaLevelReferenceShift
 par_elev_seaLevelReferenceShift
 -1000
 round max (list maxElevation elev_rangeHeight)
--1000.0
+4.0
 1
 1
 m
@@ -2676,7 +2755,7 @@ SWITCH
 52
 show-flows
 show-flows
-1
+0
 1
 -1000
 
@@ -2860,7 +2939,7 @@ INPUTBOX
 99
 118
 randomSeed
-2.0
+0.0
 1
 0
 Number
@@ -2940,11 +3019,11 @@ SLIDER
 temperature_mean-daily-fluctuation
 temperature_mean-daily-fluctuation
 0
-20
-5.0
+5
+2.2
 0.1
 1
-ºC  (default: 5)
+ºC  (default: 2.2)
 HORIZONTAL
 
 SLIDER
@@ -2955,11 +3034,11 @@ SLIDER
 temperature_daily-lower-deviation
 temperature_daily-lower-deviation
 0
-20
-5.0
+10
+6.8
 0.1
 1
-ºC  (default: 5)
+ºC  (default: 6.8)
 HORIZONTAL
 
 SLIDER
@@ -2970,11 +3049,11 @@ SLIDER
 temperature_daily-upper-deviation
 temperature_daily-upper-deviation
 0
-20
-5.0
+10
+7.9
 0.1
 1
-ºC  (default: 5)
+ºC  (default: 7.9)
 HORIZONTAL
 
 SLIDER
@@ -2984,12 +3063,12 @@ SLIDER
 693
 temperature_annual-max-at-2m
 temperature_annual-max-at-2m
-temperature_annual-min-at-2m
-50
-40.0
+15
+40
+37.0
 0.1
 1
-ºC  (default: 40)
+ºC  (default: 37)
 HORIZONTAL
 
 SLIDER
@@ -2999,12 +3078,12 @@ SLIDER
 730
 temperature_annual-min-at-2m
 temperature_annual-min-at-2m
--10
-temperature_annual-max-at-2m
-15.0
+-15
+15
+12.8
 0.1
 1
-ºC  (default: 15)
+ºC  (default: 12.8)
 HORIZONTAL
 
 MONITOR
@@ -3068,11 +3147,11 @@ SLIDER
 solar_annual-max
 solar_annual-max
 solar_annual-min
-7
-7.0
-0.001
+30
+24.2
+0.01
 1
-kWh/m2 (default: 7)
+MJ/m2 (default: 24.2)
 HORIZONTAL
 
 SLIDER
@@ -3082,12 +3161,12 @@ SLIDER
 901
 solar_annual-min
 solar_annual-min
-2
-solar_annual-max
-3.0
-0.001
 1
-kWh/m2 (default: 3)
+solar_annual-max
+9.2
+0.01
+1
+MJ/m2 (default: 9.2)
 HORIZONTAL
 
 SLIDER
@@ -3098,11 +3177,11 @@ SLIDER
 solar_mean-daily-fluctuation
 solar_mean-daily-fluctuation
 0
-4
-1.0
-0.001
+6
+3.3
+0.01
 1
-kWh/m2 (default: 1)
+MJ/m2 (default: 3.3)
 HORIZONTAL
 
 PLOT
@@ -3112,16 +3191,16 @@ PLOT
 694
 Solar radiation
 days
-KWh/m2
+MJ/m2
 0.0
 10.0
 0.0
 10.0
 true
 false
-"set-plot-y-range (precision (solar_annualMin - solar_meanDailyFluctuation - 0.1) 2) (precision (solar_annualMax + solar_meanDailyFluctuation + 0.1) 2)" "set-plot-y-range (precision (solar_annualMin - solar_meanDailyFluctuation - 0.1) 2) (precision (solar_annualMax + solar_meanDailyFluctuation + 0.1) 2)"
+"" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot solarRadiation / 3.6"
+"default" 1.0 0 -16777216 true "" "plot solarRadiation"
 
 MONITOR
 422
@@ -3186,7 +3265,7 @@ CHOOSER
 display-mode
 display-mode
 "elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type" "albedo" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "soil water content (ratio)" "ARID coefficient"
-14
+1
 
 BUTTON
 1117
@@ -3231,10 +3310,10 @@ precipitation_yearly-mean
 precipitation_yearly-mean
 0
 1000
-400.0
+489.0
 1.0
 1
-mm/year (default: 400)
+mm/year (default: 489)
 HORIZONTAL
 
 SLIDER
@@ -3246,10 +3325,10 @@ precipitation_yearly-sd
 precipitation_yearly-sd
 0
 250
-130.0
-1.0
+142.2
+0.1
 1
-mm/year (default: 130)
+mm/year (default: 142.2)
 HORIZONTAL
 
 SLIDER
@@ -3289,12 +3368,12 @@ SLIDER
 1108
 precipitation_daily-cum_plateau-value_yearly-mean
 precipitation_daily-cum_plateau-value_yearly-mean
-0
-0.9
-0.1
+0.2
+0.8
+0.25
 0.01
 1
-winter (mm)/summer (mm) (default: 0.1)
+winter (mm)/summer (mm) (default: 0.25)
 HORIZONTAL
 
 SLIDER
@@ -3305,11 +3384,11 @@ SLIDER
 precipitation_daily-cum_plateau-value_yearly-sd
 precipitation_daily-cum_plateau-value_yearly-sd
 0
-0.2
-0.05
+0.4
+0.1
 0.001
 1
-(default: 0.05)
+(default: 0.1)
 HORIZONTAL
 
 SLIDER
@@ -3319,8 +3398,8 @@ SLIDER
 1034
 precipitation_daily-cum_inflection1_yearly-mean
 precipitation_daily-cum_inflection1_yearly-mean
-1
-150
+40
+140
 40.0
 1.0
 1
@@ -3334,12 +3413,12 @@ SLIDER
 1070
 precipitation_daily-cum_inflection1_yearly-sd
 precipitation_daily-cum_inflection1_yearly-sd
-0
-50
-20.0
+20
+100
+5.0
 1.0
 1
-days (default: 20)
+days (default: 5)
 HORIZONTAL
 
 SLIDER
@@ -3349,12 +3428,12 @@ SLIDER
 1108
 precipitation_daily-cum_rate1_yearly-mean
 precipitation_daily-cum_rate1_yearly-mean
-0
-0.5
-0.15
 0.01
+0.07
+0.07
+0.001
 1
-(default: 0.15)
+(default: 0.07)
 HORIZONTAL
 
 SLIDER
@@ -3364,10 +3443,10 @@ SLIDER
 1145
 precipitation_daily-cum_rate1_yearly-sd
 precipitation_daily-cum_rate1_yearly-sd
-0
-0.1
+0.004
+0.03
 0.02
-0.01
+0.001
 1
 (default: 0.02)
 HORIZONTAL
@@ -3379,12 +3458,12 @@ SLIDER
 1037
 precipitation_daily-cum_inflection2_yearly-mean
 precipitation_daily-cum_inflection2_yearly-mean
-150
+180
 366
-200.0
+240.0
 1.0
 1
-day of year (default: 200)
+day of year (default: 240)
 HORIZONTAL
 
 SLIDER
@@ -3394,8 +3473,8 @@ SLIDER
 1075
 precipitation_daily-cum_inflection2_yearly-sd
 precipitation_daily-cum_inflection2_yearly-sd
-0
-40
+20
+100
 20.0
 1
 1
@@ -3409,12 +3488,12 @@ SLIDER
 1112
 precipitation_daily-cum_rate2_yearly-mean
 precipitation_daily-cum_rate2_yearly-mean
-0
-0.5
-0.05
 0.01
+0.08
+0.08
+0.001
 1
-(default: 0.05)
+(default: 0.08)
 HORIZONTAL
 
 SLIDER
@@ -3424,12 +3503,12 @@ SLIDER
 1149
 precipitation_daily-cum_rate2_yearly-sd
 precipitation_daily-cum_rate2_yearly-sd
-0
-0.1
-0.01
-0.01
+0.004
+0.03
+0.02
+0.001
 1
-(default: 0.01)
+(default: 0.02)
 HORIZONTAL
 
 MONITOR
