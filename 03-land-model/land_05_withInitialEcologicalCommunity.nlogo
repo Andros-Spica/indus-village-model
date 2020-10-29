@@ -1200,8 +1200,6 @@ end
 to setup-soil-coverAndTreatment
 
   ;;; set soil cover-treatment-hydrological condition
-  ;;; in this version, all land units have the same cover+treatment+condition, "fallow | crop residue | poor", the first one in  "runOffCurveNumberTable.csv".
-  ;;; This is temporary, it should be defined by ecological community
   set p_soil_coverTreatmentAndHydrologicCondition get-coverTreatmentAndHydrologicCondition p_ecol_coverType
 
 end
@@ -1228,40 +1226,28 @@ to-report get-coverTreatmentAndHydrologicCondition [ coverType ]
   ;;; That table, created by the USDA, holds a classification of cover conditions in the US;
   ;;; future versions should aim to calibrate this data to the cover types within the region of interest.
 
-  let coverTreatmentAndHydrologicCondition ""
-
   if (coverType = "desert")
   [
-    set coverTreatmentAndHydrologicCondition (word
-      "desert shrub | major plants include saltbush-greasewood-creosotebush-blackbrush-bursage-palo verde-mesquite-cactus | good"
-    )
+    report (word "desert shrub | major plants include saltbush-greasewood-creosotebush-blackbrush-bursage-palo verde-mesquite-cactus | good")
   ]
   if (coverType = "grassland")
   [
-    set coverTreatmentAndHydrologicCondition (word
-      "pasture or grassland or range | continuous forage for grazing | good"
-    )
+    report (word "pasture or grassland or range | continuous forage for grazing | good")
   ]
   if (coverType = "shrubland")
   [
-    set coverTreatmentAndHydrologicCondition (word
-      "brush | brush-weed-grass mixture with brush the major element | good"
-    )
+    report (word "brush | brush-weed-grass mixture with brush the major element | good")
   ]
   if (coverType = "woodland")
   [
-    set coverTreatmentAndHydrologicCondition (word
-      "woods | used and managed but not planted | good"
-    )
+    report (word "woods | used and managed but not planted | good")
   ]
   if (coverType = "wood-grass")
   [
-    set coverTreatmentAndHydrologicCondition (word
-      "woods-grass combination or tree farm | lightly or only occasionally grazed | good"
-    )
+    report (word "woods-grass combination or tree farm | lightly or only occasionally grazed | good")
   ]
 
-  report coverTreatmentAndHydrologicCondition
+  report ""
 
 end
 
