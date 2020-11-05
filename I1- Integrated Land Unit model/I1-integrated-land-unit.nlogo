@@ -72,6 +72,9 @@ globals
   soil_minWaterHoldingCapacity         ; minimum and maximum water holding capacity (in/ft) per texture type (not currently used)
   soil_maxWaterHoldingCapacity
 
+  ;;;;; albedo table
+  ecol_albedoTable                            ; table (list of lists) with min/max abedo by latitude range (columns) and broadband and cover type (and description)
+
   ;;;; elevation
   elev_numRanges                  ; number of landforming features ("ranges", "rifts").
   elev_numRifts
@@ -204,10 +207,6 @@ globals
   solar_annualMin
   solar_meanDailyFluctuation
 
-  ;;;; ETr
-  ecol_minAlbedo
-  ecol_maxAlbedo
-
   ;;; SOIL WATER BALANCE ------------------------------------------------------------------
   ecol_minRootZoneDepth
   ecol_maxRootZoneDepth
@@ -334,11 +333,12 @@ patches-own
                                     ; Namely, they are: "desert", "grassland", "wood-grass", "shrubland", and "woodland"
                                     ; see "03-land-model/ternaryPlots/coverTypePerEcologicalCommunity.png"
 
+  p_ecol_albedo                     ; albedo or percentage of solar radiation reflected by soil or soil cover
+
   ;========= SOIL WATER BALANCE model ======================================================================
 
   ;;; surface water
-  p_ecol_albedo                     ; canopy reflection
-  p_netSolarRadiation               ; net solar radiation discount canopy reflection or albedo (MJ m-2)
+  p_netSolarRadiation               ; net solar radiation discount reflection or albedo (MJ m-2)
   p_ETr                             ; reference evapotranspiration ( mm (height) / m^2 (area) )
   p_water                           ; surface water ( mm (height) / m^2 (area) )
   p_runoff                          ; Daily runoff ( mm (height) / m^2 (area) )
@@ -469,9 +469,6 @@ to set-parameters
     set precipitation_dailyCum_rate2_yearlyMean precipitation_daily-cum_rate2_yearly-mean
     set precipitation_dailyCum_rate2_yearlySd precipitation_daily-cum_rate2_yearly-sd
 
-    set ecol_minAlbedo par_ecol_minAlbedo
-    set ecol_maxAlbedo par_ecol_maxAlbedo
-
     ;;; Soil Water Balance model
     set ecol_minRootZoneDepth par_ecol_minRootZoneDepth
     set ecol_maxRootZoneDepth par_ecol_maxRootZoneDepth
@@ -519,10 +516,6 @@ to set-parameters
     set precipitation_dailyCum_inflection2_yearlySd 20 + random 80
     set precipitation_dailyCum_rate2_yearlyMean 0.01 + random-float 0.07
     set precipitation_dailyCum_rate2_yearlySd 0.004 + random-float 0.02
-
-    ;;; ETr
-    set ecol_minAlbedo 1E-6 + random-float 0.3
-    set ecol_maxAlbedo ecol_minAlbedo + random-float 0.3
 
     ;;; Soil Water Balance model
     set ecol_minRootZoneDepth random-float 1000
@@ -585,9 +578,6 @@ to parameters-check
   if (precipitation_daily-cum_rate2_yearly-mean = 0)             [ set precipitation_daily-cum_rate2_yearly-mean                 0.08 ]
   if (precipitation_daily-cum_rate2_yearly-sd = 0)               [ set precipitation_daily-cum_rate2_yearly-sd                   0.02 ]
 
-  if (par_ecol_minAlbedo = 0)                                        [ set par_ecol_minAlbedo                                            0.1 ]
-  if (par_ecol_maxAlbedo = 0)                                        [ set par_ecol_maxAlbedo                                            0.5 ]
-
   if (par_ecol_minRootZoneDepth = 0)                             [ set par_ecol_minRootZoneDepth                               200 ]
   if (par_ecol_maxRootZoneDepth = 0)                             [ set par_ecol_maxRootZoneDepth                              2000 ]
 
@@ -625,9 +615,6 @@ to parameters-to-default
   set precipitation_daily-cum_rate2_yearly-mean                 0.08
   set precipitation_daily-cum_rate2_yearly-sd                   0.02
 
-  set par_ecol_minAlbedo                                            0.1
-  set par_ecol_maxAlbedo                                            0.5
-
   set par_ecol_minRootZoneDepth                               200
   set par_ecol_maxRootZoneDepth                              2000
 
@@ -641,8 +628,6 @@ to setup-patches
   [
     ;;; recentre elevation so negative values are only below sea level
     set elevation get-recentred-elevation
-
-    set p_ecol_albedo ecol_minAlbedo + random-float ecol_maxAlbedo
 
     ; z : root zone depth (mm)
     let efectiveMaxRootZoneDepth min (list p_soil_depth par_ecol_maxRootZoneDepth)
@@ -726,7 +711,7 @@ to update-weather
 
   ask patches
   [
-    set p_netSolarRadiation (1 - p_ecol_albedo) * solarRadiation
+    set p_netSolarRadiation (1 - p_ecol_albedo / 100) * solarRadiation
     set p_ETr get-ETr
   ]
 
@@ -1319,28 +1304,42 @@ to update-soil-cover
 
   ask patches
   [
-    set p_ecol_coverType get-cover-type p_ecol_%grass p_ecol_%brush p_ecol_%wood p_water
+    let %water (get-%water-surface p_water)
+
+    set p_ecol_coverType get-cover-type p_ecol_%grass p_ecol_%brush p_ecol_%wood %water
 
     set p_soil_coverTreatmentAndHydrologicCondition get-coverTreatmentAndHydrologicCondition p_ecol_coverType
 
     set p_soil_runOffCurveNumber get-runOffCurveNumber p_soil_coverTreatmentAndHydrologicCondition p_soil_hydrologicSoilGroup
+
+    set p_ecol_albedo (get-albedo
+      %water
+      p_ecol_%wood
+      p_ecol_%brush
+      p_ecol_%grass
+      p_soil_%sand
+      p_soil_waterContentRatio
+     )
   ]
 
 end
 
-to-report get-cover-type [ %grass %brush %wood water ]
+to-report get-cover-type [ %grass %brush %wood %water ]
 
   ;;; set cover type according to percentages
   ;;; The criteria used for separating cover types (to select runoff curve number) attempts to approach the one used in:
   ;;; Table 2.2 in: Cronshey R G 1986 Urban Hydrology for Small Watersheds, Technical Release 55 (TR-55).
   ;;; United States Department of Agriculture, Soil Conservation Service, Engineering Division
   ;;; See also ternary diagram "ternaryPlots/coverTypePerEcologicalCommunity.png", generated in R
-  ;;; An extra category for free water surfaces was added; the width / depth ratio criteria is informed by:
-  ;;; https://cfpub.epa.gov/watertrain/moduleFrame.cfm?parent_object_id=1262#:~:text=The%20width%2Fdepth%20(W%2F,the%20channel%20to%20move%20sediment.
+  ;;; An extra category for free water surfaces was added.
+  ;;; the width / depth ratio criteria is used to identify patches with substantial water surface
+  ;;; informed by: https://cfpub.epa.gov/watertrain/moduleFrame.cfm?parent_object_id=1262#:~:text=The%20width%2Fdepth%20(W%2F,the%20channel%20to%20move%20sediment.
   ;;; ratio = patchWidth (m) / (P_water (mm) / 1000)
-  ;;; For minimum shallow stream type, ratio = 50, then p_water = patchSize * 1000 / 50 -> p_water = patchSize * 20
+  ;;; while %water = 1 / ratio
+  ;;; For minimum shallow stream type, ratio = 50, then
+  ;;; %water = 1 / 50
 
-  if(water > patchWidth * 20) [ report "free water" ]
+  if (%water > 1 / 50) [ report "free water" ]
 
   let %empty 100 - %grass - %brush - %wood
   if (%empty > 50) [ report "desert" ] ;;; if percentages are too low
@@ -1394,6 +1393,49 @@ to-report get-runOffCurveNumber [ coverTreatmentAndHydrologicCondition hydrologi
     (position coverTreatmentAndHydrologicCondition (item 0 soil_runOffCurveNumberTable))            ; selecting row
     (item (1 + position hydrologicSoilGroup (list "A" "B" "C" "D")) soil_runOffCurveNumberTable)    ; selecting column (skip column with coverTreatmentAndHydrologicCondition)
     )
+
+end
+
+to-report get-albedo [ %water %wood %brush %grass %sand waterContentRatio]
+
+  let %bareSoil (100 - p_ecol_%wood - p_ecol_%brush - p_ecol_%grass)
+
+  ;;; declare variables only available in other models and set them as 0
+  ;;; NOTE: these should be inputs, once integrated with other models
+  let %crops 0 ; no crops present
+
+  report (get-albedo-of-cover "inland water") * %water / 100 +
+  ((get-albedo-of-cover "woodlands") * %wood / 100) +
+  ((get-albedo-of-cover "shrublands") * %brush / 100) +
+  ((get-albedo-of-cover "grasslands") * %grass / 100) +
+  ((get-albedo-of-cover "croplands") * %crops / 100) +
+  ((get-albedo-of-cover "wet bare not sandy soil") * (%bareSoil / 100) * (1 - %sand / 100) * waterContentRatio) +
+  ((get-albedo-of-cover "dry bare not sandy soil") * (%bareSoil / 100) * (1 - %sand / 100) * (1 - waterContentRatio)) +
+  ((get-albedo-of-cover "wet bare sandy soil") * (%bareSoil / 100) * (%sand / 100) * waterContentRatio) +
+  ((get-albedo-of-cover "dry bare sandy soil") * (%bareSoil / 100) * (%sand / 100) * (1 - waterContentRatio))
+
+end
+
+to-report get-albedo-of-cover [ coverName ]
+
+  ;;; get albedo value corresponding to coverName in ecol_albedoTable
+  report item (position coverName (item 0 ecol_albedoTable)) (item 1 ecol_albedoTable)
+
+end
+
+to-report get-%water-surface [ water ]
+
+  ;;; get the percentage of patch surface that is covered by free water
+  ;;; the width / depth ratio criteria is informed by:
+  ;;; https://cfpub.epa.gov/watertrain/moduleFrame.cfm?parent_object_id=1262#:~:text=The%20width%2Fdepth%20(W%2F,the%20channel%20to%20move%20sediment.
+  ;;; ratio = patchWidth (m) / (P_water (mm) / 1000)
+  ;;; For minimum shallow stream type, ratio = 50, then
+  ;;; p_water = patchWidth * 1000 / 50 -> p_water = patchWidth * 20
+  ;;; The ratio is returned inverted (i.e. 1 / ratio or (P_water / 1000) / patchWidth ) to reflect an approximation to the horizontal water coverage
+  ;;; so if ratio = 50,
+  ;;; the percentage of water surface is 1 / 50
+
+  report (water / 1000) / patchWidth
 
 end
 
@@ -1464,8 +1506,8 @@ to refresh-to-display-mode
 
   if (display-mode = "elevation and surface water depth (m)")
   [
-    let minWater min [p_water] of patches with [p_water > 0]
-    let maxWater max [p_water] of patches with [p_water > 0]
+    let minWater min [p_water] of patches with [(get-%water-surface p_water) > 1 / 50]
+    let maxWater max [p_water] of patches with [(get-%water-surface p_water) > 1 / 50]
 
     let rangeWater maxWater - minWater
     if (rangeWater = 0) [ set rangeWater 1 ]
@@ -1477,7 +1519,7 @@ to refresh-to-display-mode
       set pcolor get-elevation-color elevation
 
       ; paint water depth
-      if (p_water > 0)
+      if ((get-%water-surface p_water) > 1 / 50)
       [ set pcolor 98 - 4 * (p_water - minWater) / rangeWater ]
     ]
 
@@ -1640,7 +1682,7 @@ to refresh-to-display-mode
     ]
     set-legend-coverType
   ]
-  if (display-mode = "albedo")
+  if (display-mode = "albedo (%)")
   [
     let minAlbedo min [p_ecol_albedo] of patches
     let maxAlbedo max [p_ecol_albedo] of patches
@@ -1652,7 +1694,7 @@ to refresh-to-display-mode
     [
       set pcolor 2 + 6 * (p_ecol_albedo - minAlbedo) / rangeAlbedo
     ]
-    set-legend-continuous-range maxAlbedo minAlbedo 8 2 6 true
+    set-legend-continuous-range maxAlbedo minAlbedo 2 8 6 false
   ]
   if (display-mode = "reference evapotranspiration (ETr) (mm)")
   [
@@ -1774,14 +1816,15 @@ end
 
 to-report get-coverType-color [ coverTypeName ]
 
-  ;;; orange: grassland, yellow: wood-grass, green: shrubland, green: woodland
+  ;;; blue: free water, orange: desert, brown: grassland, yellow: wood-grass, green: shrubland, green: woodland
   let col white
 
-  if (coverTypeName = "desert") [ set col grey ]
-  if (coverTypeName = "grassland") [ set col orange ]
-  if (coverTypeName = "wood-grass") [ set col yellow ]
-  if (coverTypeName = "shrubland") [ set col green ]
-  if (coverTypeName = "woodland") [ set col turquoise ]
+  if (coverTypeName = "free water") [ set col 104 ]
+  if (coverTypeName = "desert") [ set col 26 ]
+  if (coverTypeName = "grassland") [ set col 36 ]
+  if (coverTypeName = "wood-grass") [ set col 44 ]
+  if (coverTypeName = "shrubland") [ set col 53 ]
+  if (coverTypeName = "woodland") [ set col 74 ]
 
   report col
 
@@ -1800,8 +1843,6 @@ end
 
 to set-legend-elevation [ numberOfKeys ]
 
-  set-current-plot "Legend"
-
   let step precision ((maxElevation - minElevation) / numberOfKeys) 4
 
   let value maxElevation
@@ -1817,21 +1858,18 @@ end
 
 to set-legend-continuous-range [ maximum minimum maxShade minShade numberOfKeys ascendingOrder? ]
 
-  set-current-plot "Legend"
-
   set maximum precision maximum 4
   set minimum precision minimum 4
 
-  let step precision ((maximum - minimum) / numberOfKeys) 4
-
-  if (maximum = minimum) [ set maximum maximum + 1 set step 2 ] ; this makes that at least one legend key is drawn when maximum = minimum
-
   let rangeValues maximum - minimum
-  if (rangeValues = 0) [ set rangeValues 1 ]
+
+  let step precision (rangeValues / numberOfKeys) 4
+
+  if (maximum = minimum) [ set maximum maximum + 1 set step 2 set rangeValues 1 ] ; this makes that at least one legend key is drawn when maximum = minimum
 
   ifelse (ascendingOrder?)
   [
-    let value precision minimum 4
+    let value minimum
 
     while [ value < maximum ]
     [
@@ -1841,7 +1879,7 @@ to set-legend-continuous-range [ maximum minimum maxShade minShade numberOfKeys 
     ]
   ]
   [
-    let value precision maximum 4
+    let value maximum
 
     while [ value > minimum ]
     [
@@ -1855,8 +1893,6 @@ end
 
 to set-legend-soil-textureType
 
-  set-current-plot "Legend"
-
   foreach soil_textureTypes_display
   [
     textureTypeName ->
@@ -1867,8 +1903,6 @@ to set-legend-soil-textureType
 end
 
 to set-legend-texture [ %sandRange %siltRange %clayRange ]
-
-  set-current-plot "Legend"
 
   ;;; red: sand, green: silt, blue: clay
   create-temporary-plot-pen (word "max %sand = " round (item 1 %sandRange) )
@@ -1888,8 +1922,6 @@ end
 
 to set-legend-ecologicalCommunityComposition
 
-  set-current-plot "Legend"
-
   ;;; red: grass, green: brush, blue: wood
   create-temporary-plot-pen "100% grass"
   set-plot-pen-color red
@@ -1904,9 +1936,7 @@ end
 
 to set-legend-coverType
 
-  set-current-plot "Legend"
-
-  foreach (list "desert" "grassland" "wood-grass" "shrubland" "woodland")
+  foreach (list "free water" "desert" "grassland" "wood-grass" "shrubland" "woodland")
   [
     coverTypeName ->
     create-temporary-plot-pen coverTypeName
@@ -2265,6 +2295,9 @@ to import-terrain
           if (item globalIndex globalNames = "ecol_grassfrequencyrate") [ set ecol_grassFrequencyRate item globalIndex globalValues ]
           if (item globalIndex globalNames = "ecol_woodfrequencyinflection") [ set ecol_woodFrequencyInflection item globalIndex globalValues ]
           if (item globalIndex globalNames = "ecol_woodfrequencyrate") [ set ecol_woodFrequencyRate item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "ecol_albedotable") [ set ecol_albedoTable read-from-string item globalIndex globalValues ]
+
           ;;; add new global variables here
         ]
       ]
@@ -2335,6 +2368,7 @@ to import-terrain
             set p_ecol_%wood item 26 thisLine
             set p_initEcol_%wood item 26 thisLine
             set p_ecol_coverType read-from-string item 27 thisLine
+            set p_ecol_albedo item 28 thisLine
             ;;; add new patch variables here
           ]
           set thisLine csv:from-row file-read-line
@@ -2616,7 +2650,7 @@ INPUTBOX
 164
 312
 terrainRandomSeed
-0.0
+35.0
 1
 0
 Number
@@ -3264,7 +3298,7 @@ CHOOSER
 65
 display-mode
 display-mode
-"elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type" "albedo" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "soil water content (ratio)" "ARID coefficient"
+"elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type" "albedo (%)" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "soil water content (ratio)" "ARID coefficient"
 1
 
 BUTTON
@@ -3787,47 +3821,6 @@ root zone depth range
 9
 
 SLIDER
-17
-462
-258
-495
-par_ecol_minAlbedo
-par_ecol_minAlbedo
-0
-par_ecol_maxAlbedo
-0.1
-0.01
-1
-NIL
-HORIZONTAL
-
-MONITOR
-507
-465
-672
-502
-albedo range
-(word \"min = \" (precision ecol_minAlbedo 4) \", max = \" (precision ecol_maxAlbedo 4))
-2
-1
-9
-
-SLIDER
-257
-462
-507
-495
-par_ecol_maxAlbedo
-par_ecol_maxAlbedo
-par_ecol_minAlbedo
-1
-0.5
-0.01
-1
-NIL
-HORIZONTAL
-
-SLIDER
 260
 429
 507
@@ -3993,10 +3986,10 @@ southHemisphere?
 -1000
 
 SLIDER
-8
-509
-180
-542
+10
+483
+182
+516
 par_ecol_%wood_r
 par_ecol_%wood_r
 0
@@ -4008,10 +4001,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-8
-543
-180
-576
+10
+517
+182
+550
 par_ecol_%brush_r
 par_ecol_%brush_r
 0
@@ -4023,10 +4016,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-8
-576
-180
-609
+10
+550
+182
+583
 par_ecol_%grass_r
 par_ecol_%grass_r
 0
@@ -4038,10 +4031,10 @@ NIL
 HORIZONTAL
 
 MONITOR
-179
-506
-264
-543
+181
+480
+266
+517
 NIL
 ecol_%wood_r
 3
@@ -4049,10 +4042,10 @@ ecol_%wood_r
 9
 
 MONITOR
-180
-542
-263
-579
+182
+516
+265
+553
 NIL
 ecol_%brush_r
 4
@@ -4060,10 +4053,10 @@ ecol_%brush_r
 9
 
 MONITOR
-179
-576
-261
-613
+181
+550
+263
+587
 NIL
 ecol_%grass_r
 4
@@ -4071,30 +4064,15 @@ ecol_%grass_r
 9
 
 SLIDER
-264
-510
-584
-543
+266
+484
+586
+517
 par_ecol_%wood_waterStressSensitivity
 par_ecol_%wood_waterStressSensitivity
 0
 0.01
 0.01
-0.001
-1
-NIL
-HORIZONTAL
-
-SLIDER
-263
-542
-585
-575
-par_ecol_%brush_waterStressSensitivity
-par_ecol_%brush_waterStressSensitivity
-0
-0.01
-0.005
 0.001
 1
 NIL
@@ -4102,9 +4080,24 @@ HORIZONTAL
 
 SLIDER
 265
-575
-585
-608
+516
+587
+549
+par_ecol_%brush_waterStressSensitivity
+par_ecol_%brush_waterStressSensitivity
+0
+0.01
+0.005
+0.001
+1
+NIL
+HORIZONTAL
+
+SLIDER
+267
+549
+587
+582
 par_ecol_%grass_waterStressSensitivity
 par_ecol_%grass_waterStressSensitivity
 0
@@ -4116,10 +4109,10 @@ NIL
 HORIZONTAL
 
 MONITOR
-583
-511
-673
-548
+585
+485
+675
+522
 NIL
 ecol_%wood_waterStressSensitivity
 3
@@ -4127,10 +4120,10 @@ ecol_%wood_waterStressSensitivity
 9
 
 MONITOR
-584
-540
-673
-577
+586
+514
+675
+551
 NIL
 ecol_%brush_waterStressSensitivity
 3
@@ -4138,10 +4131,10 @@ ecol_%brush_waterStressSensitivity
 9
 
 MONITOR
-584
-576
-673
-613
+586
+550
+675
+587
 NIL
 ecol_%grass_waterStressSensitivity
 3
