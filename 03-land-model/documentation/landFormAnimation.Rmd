@@ -1,7 +1,7 @@
 ---
 title: "Landform algorithm animation"
 author: "Andreas Angourakis"
-date: "09/06/2020"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
 ---
 
