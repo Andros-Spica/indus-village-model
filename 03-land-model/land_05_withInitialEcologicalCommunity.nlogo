@@ -55,6 +55,9 @@ globals
   soil_minWaterHoldingCapacity         ; minimum and maximum water holding capacity (in/ft) per texture type (not currently used)
   soil_maxWaterHoldingCapacity
 
+  ;;;;; albedo table
+  ecol_albedoTable                            ; table (list of lists) with min/max abedo by latitude range (columns) and broadband and cover type (and description)
+
   ;;; parameters (modified copies of interface input) ===============================================================
 
   ;;;; elevation
@@ -222,6 +225,8 @@ patches-own
   p_ecol_coverType                  ; cover type summarising the composition of vegetation types in ecological community.
                                     ; Namely, they are: "desert", "grassland", "wood-grass", "shrubland", and "woodland"
                                     ; see "03-land-model/ternaryPlots/coverTypePerEcologicalCommunity.png"
+
+  p_ecol_albedo                     ; albedo or percentage of solar radiation reflected by soil or soil cover
 ]
 
 breed [ mapSetters mapSetter ] ; used when elev_algorithm-style = "NetLogo"
@@ -271,6 +276,8 @@ to create-terrain
   ;;; END - flow related procedures ;;;;;;;;;;;;;;;;;;;;;;;
 
   ;;; START - ecological communities related procedures ;;;;;;;;;;;;;;;;;;;;;;;
+
+  load-albedo-table
 
   setup-initial-ecological-communities
 
@@ -1013,6 +1020,8 @@ to setup-initial-ecological-communities
     set p_ecol_%grass min (list p_ecol_%grass (100 - (p_ecol_%wood + p_ecol_%brush) ) )
 
     set p_ecol_coverType get-cover-type p_ecol_%grass p_ecol_%brush p_ecol_%wood
+
+    set p_ecol_albedo (get-albedo p_ecol_%wood p_ecol_%brush p_ecol_%grass p_soil_%sand)
   ]
 
 end
@@ -1050,6 +1059,34 @@ to-report get-cover-type [ %grass %brush %wood ]
   if (%wood >= 50 and %brush <= 50 and %grass < 40) [ report "woodland" ]
   if (%brush >= 50 and %wood < 50 and %grass < 40) [ report "shrubland" ]
   if (%brush < 60 and %wood < 60 and %grass < 60 and %empty <= 50) [ report "wood-grass" ]
+
+end
+
+to-report get-albedo [ %wood %brush %grass %sand ]
+
+  let %bareSoil (100 - p_ecol_%wood - p_ecol_%brush - p_ecol_%grass)
+
+  ;;; declare variables only available in other models and set them as 0
+  ;;; NOTE: these should be inputs, once integrated with other models
+  let %crops 0 ; no crops present
+  let waterContentRatio 0 ; bare soil will be considered dry
+
+  report ;(get-albedo-of-cover "inland water") * "inland water" +
+  ((get-albedo-of-cover "woodlands") * %wood / 100) +
+  ((get-albedo-of-cover "shrublands") * %brush / 100) +
+  ((get-albedo-of-cover "grasslands") * %grass / 100) +
+  ((get-albedo-of-cover "croplands") * %crops / 100) +
+  ((get-albedo-of-cover "wet bare not sandy soil") * (%bareSoil / 100) * (1 - %sand / 100) * waterContentRatio) +
+  ((get-albedo-of-cover "dry bare not sandy soil") * (%bareSoil / 100) * (1 - %sand / 100) * (1 - waterContentRatio)) +
+  ((get-albedo-of-cover "wet bare sandy soil") * (%bareSoil / 100) * (%sand / 100) * waterContentRatio) +
+  ((get-albedo-of-cover "dry bare sandy soil") * (%bareSoil / 100) * (%sand / 100) * (1 - waterContentRatio))
+
+end
+
+to-report get-albedo-of-cover [ coverName ]
+
+  ;;; get albedo value corresponding to coverName in ecol_albedoTable
+  report item (position coverName (item 0 ecol_albedoTable)) (item 1 ecol_albedoTable)
 
 end
 
@@ -1228,23 +1265,23 @@ to-report get-coverTreatmentAndHydrologicCondition [ coverType ]
 
   if (coverType = "desert")
   [
-    report (word "desert shrub | major plants include saltbush-greasewood-creosotebush-blackbrush-bursage-palo verde-mesquite-cactus | good")
+    report "desert shrub | major plants include saltbush-greasewood-creosotebush-blackbrush-bursage-palo verde-mesquite-cactus | good"
   ]
   if (coverType = "grassland")
   [
-    report (word "pasture or grassland or range | continuous forage for grazing | good")
+    report "pasture or grassland or range | continuous forage for grazing | good"
   ]
   if (coverType = "shrubland")
   [
-    report (word "brush | brush-weed-grass mixture with brush the major element | good")
+    report "brush | brush-weed-grass mixture with brush the major element | good"
   ]
   if (coverType = "woodland")
   [
-    report (word "woods | used and managed but not planted | good")
+    report "woods | used and managed but not planted | good"
   ]
   if (coverType = "wood-grass")
   [
-    report (word "woods-grass combination or tree farm | lightly or only occasionally grazed | good")
+    report "woods-grass combination or tree farm | lightly or only occasionally grazed | good"
   ]
 
   report ""
@@ -1352,6 +1389,10 @@ to paint-patches
   ;;; several soil properties must be rescaled to enhance visualisation
   ;;; (the parametric max and min values of some of these are never realised for various reasons)
 
+  set-current-plot "Legend"
+
+  clear-plot
+
   if (display-mode = "elevation (m)")
   [
     ask patches
@@ -1367,11 +1408,14 @@ to paint-patches
   ]
   if (display-mode = "soil depth (mm)")
   [
-    let mindepth min [p_soil_depth] of patches
-    let maxdepth max [p_soil_depth] of patches
+    let minDepth min [p_soil_depth] of patches
+    let maxDepth max [p_soil_depth] of patches
 
-    ask patches [ set pcolor 38 - 6 * (p_soil_depth - mindepth) / (maxdepth - mindepth) ]
-    set-legend-continuous-range maxdepth mindepth 38 32 6 false
+    let rangeDepth maxDepth - minDepth
+    if (rangeDepth = 0) [ set rangeDepth 1 ]
+
+    ask patches [ set pcolor 38 - 6 * (p_soil_depth - mindepth) / rangeDepth ]
+    set-legend-continuous-range 100 0 38 32 6 false
   ]
   if (display-mode = "soil texture")
   [
@@ -1407,9 +1451,12 @@ to paint-patches
     let minWiltingPoint min [p_soil_wiltingPoint] of patches
     let maxWiltingPoint max [p_soil_wiltingPoint] of patches
 
+    let rangeWiltingPoint maxWiltingPoint - minWiltingPoint
+    if (rangeWiltingPoint = 0) [ set rangeWiltingPoint 1 ]
+
     ask patches
     [
-      set pcolor 98 - 6 * (p_soil_wiltingPoint - minWiltingPoint) / (maxWiltingPoint - minWiltingPoint)
+      set pcolor 98 - 6 * (p_soil_wiltingPoint - minWiltingPoint) / rangeWiltingPoint
     ]
     set-legend-continuous-range maxWiltingPoint minWiltingPoint 98 92 6 false
   ]
@@ -1418,9 +1465,12 @@ to paint-patches
     let minWaterHoldingCapacity min [p_soil_waterHoldingCapacity] of patches
     let maxWaterHoldingCapacity max [p_soil_waterHoldingCapacity] of patches
 
+    let rangeWaterHoldingCapacity maxWaterHoldingCapacity - minWaterHoldingCapacity
+    if (rangeWaterHoldingCapacity = 0) [ set rangeWaterHoldingCapacity 1 ]
+
     ask patches
     [
-      set pcolor 98 - 6 * (p_soil_waterHoldingCapacity - minWaterHoldingCapacity) / (maxWaterHoldingCapacity - minWaterHoldingCapacity)
+      set pcolor 98 - 6 * (p_soil_waterHoldingCapacity - minWaterHoldingCapacity) / rangeWaterHoldingCapacity
     ]
     set-legend-continuous-range maxWaterHoldingCapacity minWaterHoldingCapacity 98 92 6 false
   ]
@@ -1429,9 +1479,12 @@ to paint-patches
     let minFieldCapacity min [p_soil_fieldCapacity] of patches
     let maxFieldCapacity max [p_soil_fieldCapacity] of patches
 
+    let rangeFieldCapacity maxFieldCapacity - minFieldCapacity
+    if (rangeFieldCapacity = 0) [ set rangeFieldCapacity 1 ]
+
     ask patches
     [
-      set pcolor 98 - 6 * (p_soil_fieldCapacity - minFieldCapacity) / (maxFieldCapacity - minFieldCapacity)
+      set pcolor 98 - 6 * (p_soil_fieldCapacity - minFieldCapacity) / rangeFieldCapacity
     ]
     set-legend-continuous-range maxFieldCapacity minFieldCapacity 98 92 6 false
   ]
@@ -1440,9 +1493,12 @@ to paint-patches
     let minSaturation min [p_soil_saturation] of patches
     let maxSaturation max [p_soil_saturation] of patches
 
+    let rangeSaturation maxSaturation - minSaturation
+    if (rangeSaturation = 0) [ set rangeSaturation 1 ]
+
     ask patches
     [
-      set pcolor 98 - 6 * (p_soil_saturation - minSaturation) / (maxSaturation - minSaturation)
+      set pcolor 98 - 6 * (p_soil_saturation - minSaturation) / rangeSaturation
     ]
     set-legend-continuous-range maxSaturation minSaturation 98 92 6 false
   ]
@@ -1451,9 +1507,12 @@ to paint-patches
     let minDeepDrainageCoefficient min [p_soil_deepDrainageCoefficient] of patches
     let maxDeepDrainageCoefficient max [p_soil_deepDrainageCoefficient] of patches
 
+    let rangeDeepDrainageCoefficient maxDeepDrainageCoefficient - minDeepDrainageCoefficient
+    if (rangeDeepDrainageCoefficient = 0) [ set rangeDeepDrainageCoefficient 1 ]
+
     ask patches
     [
-      set pcolor 102 + 6 * (p_soil_deepDrainageCoefficient - minDeepDrainageCoefficient) / (maxDeepDrainageCoefficient - minDeepDrainageCoefficient)
+      set pcolor 102 + 6 * (p_soil_deepDrainageCoefficient - minDeepDrainageCoefficient) / rangeDeepDrainageCoefficient
       ;;; deep drainage coefficient is %, but depends on time and can vary beyond 100%
     ]
     set-legend-continuous-range maxDeepDrainageCoefficient minDeepDrainageCoefficient 108 102 6 true
@@ -1475,7 +1534,20 @@ to paint-patches
     ]
     set-legend-coverType
   ]
-  ;
+  if (display-mode = "albedo (%)")
+  [
+    let minAlbedo min [p_ecol_albedo] of patches
+    let maxAlbedo max [p_ecol_albedo] of patches
+
+    let rangeAlbedo maxAlbedo - minAlbedo
+    if (rangeAlbedo = 0) [ set rangeAlbedo 1 ]
+
+    ask patches
+    [
+      set pcolor 2 + 6 * (p_ecol_albedo - minAlbedo) / rangeAlbedo
+    ]
+    set-legend-continuous-range maxAlbedo minAlbedo 2 8 6 false
+  ]
   ;
   ;;; other modes of display can be added here
 
@@ -1531,24 +1603,21 @@ end
 
 to-report get-coverType-color [ coverTypeName ]
 
-  ;;; orange: grassland, yellow: wood-grass, green: shrubland, green: woodland
+  ;;; blue: free water, orange: desert, brown: grassland, yellow: wood-grass, green: shrubland, green: woodland
   let col white
 
-  if (coverTypeName = "desert") [ set col grey ]
-  if (coverTypeName = "grassland") [ set col orange ]
-  if (coverTypeName = "wood-grass") [ set col yellow ]
-  if (coverTypeName = "shrubland") [ set col green ]
-  if (coverTypeName = "woodland") [ set col turquoise ]
+  if (coverTypeName = "free water") [ set col 104 ]
+  if (coverTypeName = "desert") [ set col 26 ]
+  if (coverTypeName = "grassland") [ set col 36 ]
+  if (coverTypeName = "wood-grass") [ set col 44 ]
+  if (coverTypeName = "shrubland") [ set col 53 ]
+  if (coverTypeName = "woodland") [ set col 74 ]
 
   report col
 
 end
 
 to set-legend-elevation [ numberOfKeys ]
-
-  set-current-plot "Legend"
-
-  clear-plot
 
   let step precision ((maxElevation - minElevation) / numberOfKeys) 4
 
@@ -1565,30 +1634,33 @@ end
 
 to set-legend-continuous-range [ maximum minimum maxShade minShade numberOfKeys ascendingOrder? ]
 
-  set-current-plot "Legend"
+  set maximum precision maximum 4
+  set minimum precision minimum 4
 
-  clear-plot
+  let rangeValues maximum - minimum
 
-  let step precision ((maximum - minimum) / numberOfKeys) 4
+  let step precision (rangeValues / numberOfKeys) 4
+
+  if (maximum = minimum) [ set maximum maximum + 1 set step 2 set rangeValues 1 ] ; this makes that at least one legend key is drawn when maximum = minimum
 
   ifelse (ascendingOrder?)
   [
-    let value precision minimum 4
+    let value minimum
 
     while [ value < maximum ]
     [
       create-temporary-plot-pen (word "" (precision value 4) "")
-      set-plot-pen-color minShade + (maxShade - minShade) * (value - minimum) / (maximum - minimum)
+      set-plot-pen-color minShade + (maxShade - minShade) * (value - minimum) / rangeValues
       set value value + step
     ]
   ]
   [
-    let value precision maximum 4
+    let value maximum
 
     while [ value > minimum ]
     [
       create-temporary-plot-pen (word "" (precision value 4) "")
-      set-plot-pen-color maxShade - (maxShade - minShade) * (value - minimum) / (maximum - minimum)
+      set-plot-pen-color maxShade - (maxShade - minShade) * (value - minimum) / rangeValues
       set value value - step
     ]
   ]
@@ -1596,10 +1668,6 @@ to set-legend-continuous-range [ maximum minimum maxShade minShade numberOfKeys 
 end
 
 to set-legend-soil-textureType
-
-  set-current-plot "Legend"
-
-  clear-plot
 
   foreach soil_textureTypes_display
   [
@@ -1611,10 +1679,6 @@ to set-legend-soil-textureType
 end
 
 to set-legend-texture [ %sandRange %siltRange %clayRange ]
-
-  set-current-plot "Legend"
-
-  clear-plot
 
   ;;; red: sand, green: silt, blue: clay
   create-temporary-plot-pen (word "max %sand = " round (item 1 %sandRange) )
@@ -1634,10 +1698,6 @@ end
 
 to set-legend-ecologicalCommunityComposition
 
-  set-current-plot "Legend"
-
-  clear-plot
-
   ;;; red: grass, green: brush, blue: wood
   create-temporary-plot-pen "100% grass"
   set-plot-pen-color red
@@ -1652,11 +1712,7 @@ end
 
 to set-legend-coverType
 
-  set-current-plot "Legend"
-
-  clear-plot
-
-  foreach (list "desert" "grassland" "wood-grass" "shrubland" "woodland")
+  foreach (list "free water" "desert" "grassland" "wood-grass" "shrubland" "woodland")
   [
     coverTypeName ->
     create-temporary-plot-pen coverTypeName
@@ -2327,10 +2383,6 @@ to load-runoff-curve-number-table
   ;;; Columns holding data for the four Hydrologic soil groups: value 8 and 10 (=item 7 and 9)
   let HydrologycSoilGroupsColumns (list ((item 7 (item 3 runOffCurveNumberTable)) - 1) ((item 9 (item 3 runOffCurveNumberTable)) - 1) )
 
-  ;;; line 5 (= index 4), row indexes
-  ;;; extract names of Hydrologic Soil Groups
-  ;set soil_namesOfHydrologicSoilGroups (sublist (item 4 runOffCurveNumberTable) (item 0 HydrologycSoilGroupsColumns) ((item 1 HydrologycSoilGroupsColumns) + 1))
-
   ;;;==================================================================================================================
   ;;; extract data---------------------------------------------------------------------------------------
 
@@ -2415,6 +2467,66 @@ to load-soil-water-table
   ;;; extract water holding capacity
   set soil_minWaterHoldingCapacity map [row -> item minWaterHoldingCapacityColumn row ] soilWaterData
   set soil_maxWaterHoldingCapacity map [row -> item maxWaterHoldingCapacityColumn row ] soilWaterData
+
+end
+
+to load-albedo-table
+
+  ;;; SOURCE:
+  ;;; Values are informed on (not derived from) the following sources:
+
+  ;;; Houldcroft C J, Grey W M F, Barnsley M, Taylor C M, Los S O and North P R J (2009).
+  ;;; New vegetation Albedo parameters and global fields of soil background Albedo derived from MODIS for use in a climate model,
+  ;;; J. Hydrometeorol., 10: 183–98.
+  ;;; https://doi.org/10.1175/2008JHM1021.1
+
+  ;;; Table 2 in:
+  ;;; Gao F, Schaaf C B, Strahler A H, Roesch A, Lucht W and Dickinson R (2005).
+  ;;; MODIS bidirectional reflectance distribution function and albedo Climate Modeling
+  ;;; Grid products and the variability of albedo major global vegetation types,
+  ;;; Journal of Geophysical Research D: Atmospheres, 110(1): 1–13.
+  ;;; https://doi.org/10.1029/2004JD005190
+
+  ;;; also https://en.wikipedia.org/wiki/Albedo
+
+  ;;; this procedure loads the values of the albedo table
+  ;;; the table contains:
+  ;;;   1. two lines of headers with comments (metadata, to be ignored)
+  ;;;   2. two lines with statements mapping the different types of data, if more than one
+  ;;;   3. the header of the table with the names of variables
+  ;;;   4. remaining rows containing row name and values
+
+  let albedoTable csv:from-file "albedoTable.csv"
+
+  ;;;==================================================================================================================
+  ;;; mapping coordinates (row or columns) in lines 3 and 4 (= index 2 and 3) -----------------------------------------
+  ;;; NOTE: always correct raw mapping coordinates (start at 1) into list indexes (start at 0)
+
+  ;;; line 3 (= index 2), row indexes
+  let typesOfCoverRowRange (list ((item 1 (item 2 albedoTable)) - 1) ((item 3 (item 2 albedoTable)) - 1))
+
+  ;;; line 4 (= index 3), row indexes
+  ;;; broadband range
+  ;;; types of soil cover
+  let coverTypeColumn (item 1 (item 3 albedoTable)) - 1
+
+  ;;; albedo (%)
+  let albedoColumn (item 3 (item 3 albedoTable)) - 1
+
+  ;;;==================================================================================================================
+  ;;; extract data---------------------------------------------------------------------------------------
+
+  ;;; read variables (list of lists, matrix: cover types-treatment-condition x hydrologic soil groups)
+  let albedoData sublist albedoTable (item 0 typesOfCoverRowRange) (item 1 typesOfCoverRowRange + 1) ; select only those rows corresponding to data on types of cover
+
+  ;;; extract cover types
+  let coverType map [row -> item coverTypeColumn row ] albedoData
+
+  ;;; extract albedo (%)
+  let albedo map [row -> item albedoColumn row ] albedoData
+
+  ;;; combine with cover types with albedo values
+  set ecol_albedoTable (list coverType albedo)
 
 end
 
@@ -2578,7 +2690,7 @@ par_seaLevel
 par_seaLevel
 round min (list minElevation par_elev_riftHeight)
 round max (list maxElevation par_elev_rangeHeight)
-10.0
+-37.0
 1
 1
 m
@@ -2608,7 +2720,7 @@ par_elev_smoothStep
 par_elev_smoothStep
 0
 1
-1.0
+0.0
 0.01
 1
 NIL
@@ -2620,7 +2732,7 @@ INPUTBOX
 156
 70
 randomSeed
-8.0
+0.0
 1
 0
 Number
@@ -2631,7 +2743,7 @@ INPUTBOX
 468
 498
 par_elev_inversionIterations
-5.0
+0.0
 1
 0
 Number
@@ -2675,7 +2787,7 @@ INPUTBOX
 425
 166
 par_elev_numRanges
-1.0
+0.0
 1
 0
 Number
@@ -2689,7 +2801,7 @@ par_elev_rangeLength
 par_elev_rangeLength
 0
 100
-100.0
+0.0
 1
 1
 % patches
@@ -2701,7 +2813,7 @@ INPUTBOX
 425
 225
 par_elev_numRifts
-1.0
+0.0
 1
 0
 Number
@@ -2715,7 +2827,7 @@ par_elev_riftLength
 par_elev_riftLength
 0
 100
-100.0
+0.0
 1
 1
 % patches
@@ -2762,7 +2874,7 @@ par_elev_rangeHeight
 par_elev_rangeHeight
 0
 500
-15.0
+0.0
 1
 1
 m
@@ -2788,7 +2900,7 @@ par_elev_rangeAggregation
 par_elev_rangeAggregation
 0
 1
-0.75
+0.0
 0.01
 1
 NIL
@@ -2803,7 +2915,7 @@ par_elev_riftAggregation
 par_elev_riftAggregation
 0
 1
-0.9
+0.0
 .01
 1
 NIL
@@ -2815,7 +2927,7 @@ INPUTBOX
 137
 440
 par_elev_numProtuberances
-1.0
+0.0
 1
 0
 Number
@@ -2826,7 +2938,7 @@ INPUTBOX
 270
 440
 par_elev_numDepressions
-1.0
+0.0
 1
 0
 Number
@@ -2840,7 +2952,7 @@ par_elev_smoothingRadius
 par_elev_smoothingRadius
 0
 .1
-0.1
+0.0
 .01
 1
 NIL
@@ -2921,7 +3033,7 @@ par_elev_ySlope
 par_elev_ySlope
 -0.1
 0.1
-0.033
+0.0
 0.001
 1
 NIL
@@ -2934,8 +3046,8 @@ CHOOSER
 111
 display-mode
 display-mode
-"elevation (m)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type"
-12
+"elevation (m)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type" "albedo (%)"
+10
 
 SLIDER
 15
@@ -2946,7 +3058,7 @@ par_elev_xSlope
 par_elev_xSlope
 -0.1
 0.1
-0.01
+0.0
 0.001
 1
 NIL
@@ -3076,7 +3188,7 @@ par_elev_valleyAxisInclination
 par_elev_valleyAxisInclination
 0
 1
-0.1
+0.0
 0.01
 1
 NIL
@@ -3091,7 +3203,7 @@ par_elev_valleySlope
 par_elev_valleySlope
 -0.1
 0.1
-0.02
+0.0
 0.001
 1
 NIL
@@ -3401,7 +3513,7 @@ INPUTBOX
 515
 697
 par_flow_riverAccumulationAtStart
-1000000.0
+0.0
 1
 0
 Number
@@ -3452,7 +3564,7 @@ par_soil_max%sand
 par_soil_max%sand
 par_soil_min%sand + 1
 100.0
-90.0
+0.0
 1.0
 1
 %
@@ -3482,7 +3594,7 @@ par_soil_max%silt
 par_soil_max%silt
 par_soil_min%silt + 1
 100.0
-70.0
+0.0
 1.0
 1
 %
@@ -3512,7 +3624,7 @@ par_soil_max%clay
 par_soil_max%clay
 par_soil_min%clay + 1
 100.0
-50.0
+0.0
 1.0
 1
 %
@@ -3527,7 +3639,7 @@ par_soil_textureNoise
 par_soil_textureNoise
 0.0
 20.0
-5.0
+0.0
 1.0
 1
 %
@@ -3608,7 +3720,7 @@ par_soil_maxDepth
 par_soil_maxDepth
 par_soil_minDepth + 1
 600
-500.0
+0.0
 1
 1
 mm
@@ -3623,7 +3735,7 @@ par_soil_formativeErosionRate
 par_soil_formativeErosionRate
 0
 3
-0.68
+0.0
 0.01
 1
 NIL
@@ -3638,7 +3750,7 @@ par_soil_depthNoise
 par_soil_depthNoise
 0
 100
-50.0
+0.0
 1
 1
 mm
@@ -3759,7 +3871,7 @@ par_ecol_grassFrequencyInflection
 par_ecol_grassFrequencyInflection
 0
 100
-3.0
+0.0
 0.01
 1
 flow accum.
@@ -3774,7 +3886,7 @@ par_ecol_brushFrequencyInflection
 par_ecol_brushFrequencyInflection
 0
 100
-15.0
+0.0
 0.01
 1
 flow accum.
@@ -3789,7 +3901,7 @@ par_ecol_woodFrequencyInflection
 par_ecol_woodFrequencyInflection
 0
 100
-40.0
+0.0
 0.01
 1
 flow accum.
@@ -3867,7 +3979,7 @@ par_ecol_grassFrequencyRate
 par_ecol_grassFrequencyRate
 0
 0.2
-0.2
+0.0
 0.01
 1
 NIL
@@ -3882,7 +3994,7 @@ par_ecol_brushFrequencyRate
 par_ecol_brushFrequencyRate
 0
 0.2
-0.1
+0.0
 0.001
 1
 NIL
@@ -3897,7 +4009,7 @@ par_ecol_woodFrequencyRate
 par_ecol_woodFrequencyRate
 0
 0.1
-0.04
+0.0
 0.001
 1
 NIL

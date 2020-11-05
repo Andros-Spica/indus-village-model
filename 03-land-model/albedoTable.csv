@@ -1,0 +1,14 @@
+"""source: Houldcroft C J, Grey W M F, Barnsley M, Taylor C M, Los S O and North P R J (2009). New vegetation Albedo parameters and global fields of soil background Albedo derived from MODIS for use in a climate model, J. Hydrometeorol., 10 183–98 Online: https://doi.org/10.1175/2008JHM1021.1; Table 2 in: Gao F, Schaaf C B, Strahler A H, Roesch A, Lucht W and Dickinson R (2005) MODIS bidirectional reflectance distribution function and albedo Climate Modeling Grid products and the variability of albedo major global vegetation types, Journal of Geophysical Research D: Atmospheres, 110(1): 1–13. https://doi.org/10.1029/2004JD005190; see also https://en.wikipedia.org/wiki/Albedo""",,,
+"""NOTES: values are informed on (but not derived from) the sources; cover types relate to the Joint UK Land Environment Simulator (JULES) model' plant functional types (Houldcroft et al. 2009) and the IGBP classes used in MODIS (Gao et al. 2005)""",,,
+"""types of cover from row """,6,""" to """,14
+"""Cover type in column """,1,"""Albedo (%) in column """,2
+cover type,albedo (%),,
+inland water,6,,
+woodlands,15,,
+shrublands,20,,
+grasslands,20,,
+croplands,20,,
+wet bare not sandy soil,6,,
+dry bare not sandy soil,35,,
+wet bare sandy soil,20,,
+dry bare sandy soil,45,,
