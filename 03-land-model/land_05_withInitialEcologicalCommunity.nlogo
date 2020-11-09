@@ -1051,14 +1051,15 @@ to-report get-cover-type [ %grass %brush %wood ]
   ;;; Table 2.2 in: Cronshey R G 1986 Urban Hydrology for Small Watersheds, Technical Release 55 (TR-55).
   ;;; United States Department of Agriculture, Soil Conservation Service, Engineering Division
   ;;; See also ternary diagram "ternaryPlots/coverTypePerEcologicalCommunity.png", generated in R
+  ;;; NOTE: desert (%bareSoil > 50) definition is arbitrary. Pending to find information on this threshold (keep in mind it affects runoff curve number and albedo).
 
-  let %empty 100 - %grass - %brush - %wood
-  if (%empty > 50) [ report "desert" ] ;;; if percentages are too low
+  let %bareSoil 100 - %grass - %brush - %wood
+  if (%bareSoil > 50) [ report "desert" ] ;;; if percentages are too low
 
   if (%grass >= 60) [ report "grassland" ]
   if (%wood >= 50 and %brush <= 50 and %grass < 40) [ report "woodland" ]
   if (%brush >= 50 and %wood < 50 and %grass < 40) [ report "shrubland" ]
-  if (%brush < 60 and %wood < 60 and %grass < 60 and %empty <= 50) [ report "wood-grass" ]
+  if (%brush < 60 and %wood < 60 and %grass < 60) [ report "wood-grass" ]
 
 end
 
@@ -1431,7 +1432,7 @@ to paint-patches
       ;;; red: sand, green: silt, blue: clay
       set pcolor get-texture-color (list p_soil_%sand min%sand max%sand) (list p_soil_%silt min%silt max%silt) (list p_soil_%clay min%clay max%clay)
     ]
-    set-legend-texture (list min%sand max%sand) (list min%silt max%silt) (list min%clay max%clay)
+    set-legend-soil-texture (list min%sand max%sand) (list min%silt max%silt) (list min%clay max%clay)
   ]
   if (display-mode = "soil texture types")
   [
@@ -1521,7 +1522,7 @@ to paint-patches
   [
     ask patches
     [
-      ;;; red: sand, green: silt, blue: clay
+      ;;; red: grass, green: brush, blue: wood, black: bare soil
       set pcolor get-ecologicalCommunityComposition-color p_ecol_%grass p_ecol_%brush p_ecol_%wood
     ]
     set-legend-ecologicalCommunityComposition
@@ -1678,7 +1679,7 @@ to set-legend-soil-textureType
 
 end
 
-to set-legend-texture [ %sandRange %siltRange %clayRange ]
+to set-legend-soil-texture [ %sandRange %siltRange %clayRange ]
 
   ;;; red: sand, green: silt, blue: clay
   create-temporary-plot-pen (word "max %sand = " round (item 1 %sandRange) )

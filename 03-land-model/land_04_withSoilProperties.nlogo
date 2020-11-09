@@ -1238,7 +1238,7 @@ to paint-patches
       ;;; red: sand, green: silt, blue: clay
       set pcolor get-texture-color (list p_soil_%sand min%sand max%sand) (list p_soil_%silt min%silt max%silt) (list p_soil_%clay min%clay max%clay)
     ]
-    set-legend-texture (list min%sand max%sand) (list min%silt max%silt) (list min%clay max%clay)
+    set-legend-soil-texture (list min%sand max%sand) (list min%silt max%silt) (list min%clay max%clay)
   ]
   if (display-mode = "soil texture types")
   [
@@ -1423,7 +1423,7 @@ to set-legend-soil-textureType
 
 end
 
-to set-legend-texture [ %sandRange %siltRange %clayRange ]
+to set-legend-soil-texture [ %sandRange %siltRange %clayRange ]
 
   set-current-plot "Legend"
 
