@@ -322,12 +322,14 @@ patches-own
   p_soil_deepDrainageCoefficient    ; saturated hydraulic conductivity or fraction of soil water above field capacity drained per day (mm/day)
 
   ;;; initial and current ecological communities
-  p_ecol_%grass                     ; percentage of grass vegetation (biomass) in ecological community
+  p_ecol_%grass                     ; percentage of grass vegetation (surface cover) in ecological community
   p_initEcol_%grass
-  p_ecol_%brush                     ; percentage of brush/shrub vegetation (biomass) in ecological community
+  p_ecol_%brush                     ; percentage of brush/shrub vegetation (surface cover) in ecological community
   p_initEcol_%brush
-  p_ecol_%wood                      ; percentage of wood vegetation (biomass) in ecological community
+  p_ecol_%wood                      ; percentage of wood vegetation (surface cover) in ecological community
   p_initEcol_%wood
+
+  p_ecol_%water                     ; percentage of water (surface cover) in ecological community
 
   p_ecol_coverType                  ; cover type summarising the composition of vegetation types in ecological community.
                                     ; Namely, they are: "desert", "grassland", "wood-grass", "shrubland", and "woodland"
@@ -1267,25 +1269,54 @@ end
 
 to update-ecological-communities
 
-  ;;; advance the ecological succession in patches according to the landscape mean frequency of vegetation components
-
-  ;;; get mean frequency of vegetation components
-  let mean_ecol_%grass mean [p_ecol_%grass] of patches
-  let mean_ecol_%brush mean [p_ecol_%brush] of patches
-  let mean_ecol_%wood mean [p_ecol_%wood] of patches
+  ;;; update the composition of ecological communities in patches
 
   ask patches
   [
-    advance-ecological-succession mean_ecol_%grass mean_ecol_%brush mean_ecol_%wood
+    set p_ecol_%water (get-%water-surface p_water)
+
+    apply-recolonisation
+
+    advance-ecological-succession
   ]
 
 end
 
-to advance-ecological-succession [ mean_ecol_%grass mean_ecol_%brush mean_ecol_%wood ]
+to apply-recolonisation
 
+  ;;; if this patch has 0 of a component it had initially,
+  ;;; is not completely covered by water,
+  ;;; and has a neighbour with such component,
+  ;;; a very small amount of that component will be added in order to activate the logistic growth
+
+  if (get-%water-surface p_water < 100)
+  [
+
+    if (p_ecol_%wood = 0 and
+      p_initEcol_%wood > 0 and
+      any? neighbors with [p_ecol_%wood > 0])
+    [ set p_ecol_%wood 1E-6 ]
+
+    if (p_ecol_%brush = 0 and
+      p_initEcol_%brush > 0 and
+      any? neighbors with [p_ecol_%brush > 0])
+    [ set p_ecol_%brush 1E-6 ]
+
+    if (p_ecol_%grass = 0 and
+      p_initEcol_%grass > 0 and
+      any? neighbors with [p_ecol_%grass > 0])
+    [ set p_ecol_%grass 1E-6 ]
+
+  ]
+
+end
+
+to advance-ecological-succession
+
+  ;;; advance the ecological succession in this patch
   ;;; all ecological components (based on vegetation) are assumed to grow towards the initial ecological community configuration, minus the influence of water stress.
-  ;;; The logistic growth model is used, where the reproductive rate (growth slope) is regulated by the mean frequencies of all patches
-  ;;; TODO: distance-dependent reproduction could also be included as a factor here
+  ;;; The logistic growth model is used, where the reproductive rate (growth slope) is regulated by the frequency of the component and its proportion to a carrying capacity (here, the initial value)
+
 ;print (word "wood: " p_ecol_%wood " | delta: " (get-logistic-growth-delta p_ecol_%wood (p_initEcol_%wood - p_soil_ARID * 100) par_ecol_%wood_r))
 
   let waterStress_%wood p_ecol_%wood * p_soil_ARID * ecol_%wood_waterStressSensitivity
@@ -1298,22 +1329,30 @@ to advance-ecological-succession [ mean_ecol_%grass mean_ecol_%brush mean_ecol_%
 
   set p_ecol_%grass clampMin0 (p_ecol_%grass + (get-logistic-growth-delta p_ecol_%grass p_initEcol_%grass par_ecol_%grass_r) - waterStress_%grass + waterStress_%brush)
 
+  ;;; scale the final percentage to account for acquatic ecological communities
+  let newTotal p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water
+
+  if (newTotal > 100)
+  [
+    set p_ecol_%wood p_ecol_%wood * (100 - p_ecol_%water) / 100
+    set p_ecol_%brush p_ecol_%brush * (100 - p_ecol_%water) / 100
+    set p_ecol_%grass p_ecol_%grass * (100 - p_ecol_%water) / 100
+  ]
+
 end
 
 to update-soil-cover
 
   ask patches
   [
-    let %water (get-%water-surface p_water)
-
-    set p_ecol_coverType get-cover-type p_ecol_%grass p_ecol_%brush p_ecol_%wood %water
+    set p_ecol_coverType get-cover-type p_ecol_%grass p_ecol_%brush p_ecol_%wood p_ecol_%water
 
     set p_soil_coverTreatmentAndHydrologicCondition get-coverTreatmentAndHydrologicCondition p_ecol_coverType
 
     set p_soil_runOffCurveNumber get-runOffCurveNumber p_soil_coverTreatmentAndHydrologicCondition p_soil_hydrologicSoilGroup
 
     set p_ecol_albedo (get-albedo
-      %water
+      p_ecol_%water
       p_ecol_%wood
       p_ecol_%brush
       p_ecol_%grass
@@ -1332,22 +1371,17 @@ to-report get-cover-type [ %grass %brush %wood %water ]
   ;;; United States Department of Agriculture, Soil Conservation Service, Engineering Division
   ;;; See also ternary diagram "ternaryPlots/coverTypePerEcologicalCommunity.png", generated in R
   ;;; An extra category for free water surfaces was added.
-  ;;; the width / depth ratio criteria is used to identify patches with substantial water surface
-  ;;; informed by: https://cfpub.epa.gov/watertrain/moduleFrame.cfm?parent_object_id=1262#:~:text=The%20width%2Fdepth%20(W%2F,the%20channel%20to%20move%20sediment.
-  ;;; ratio = patchWidth (m) / (P_water (mm) / 1000)
-  ;;; while %water = 1 / ratio
-  ;;; For minimum shallow stream type, ratio = 50, then
-  ;;; %water = 1 / 50
+  ;;; NOTE: desert (%bareSoil > 50) and water (%water > 50) definitions are arbitrary. Pending to find information on these thresholds (keep in mind they affect runoff curve number and albedo).
 
-  if (%water > 1 / 50) [ report "free water" ]
+  if (%water > 50) [ report "free water" ]
 
-  let %empty 100 - %grass - %brush - %wood
-  if (%empty > 50) [ report "desert" ] ;;; if percentages are too low
+  let %bareSoil 100 - %grass - %brush - %wood - %water
+  if (%bareSoil > 50) [ report "desert" ] ;;; if percentages are too low
 
   if (%grass >= 60) [ report "grassland" ]
   if (%wood >= 50 and %brush <= 50 and %grass < 40) [ report "woodland" ]
   if (%brush >= 50 and %wood < 50 and %grass < 40) [ report "shrubland" ]
-  if (%brush < 60 and %wood < 60 and %grass < 60 and %empty <= 50) [ report "wood-grass" ]
+  if (%brush < 60 and %wood < 60 and %grass < 60) [ report "wood-grass" ]
 
 end
 
@@ -1425,17 +1459,21 @@ end
 
 to-report get-%water-surface [ water ]
 
-  ;;; get the percentage of patch surface that is covered by free water
-  ;;; the width / depth ratio criteria is informed by:
-  ;;; https://cfpub.epa.gov/watertrain/moduleFrame.cfm?parent_object_id=1262#:~:text=The%20width%2Fdepth%20(W%2F,the%20channel%20to%20move%20sediment.
-  ;;; ratio = patchWidth (m) / (P_water (mm) / 1000)
-  ;;; For minimum shallow stream type, ratio = 50, then
-  ;;; p_water = patchWidth * 1000 / 50 -> p_water = patchWidth * 20
-  ;;; The ratio is returned inverted (i.e. 1 / ratio or (P_water / 1000) / patchWidth ) to reflect an approximation to the horizontal water coverage
-  ;;; so if ratio = 50,
-  ;;; the percentage of water surface is 1 / 50
+  ;;; get an estimation of the percentage of patch surface covered by free water.
+  ;;; The bankfull surface width / mean bankfull depth ratio criteria is used as an approaximation.
+  ;;; See: https://cfpub.epa.gov/watertrain/moduleFrame.cfm?parent_object_id=1262#:~:text=The%20width%2Fdepth%20(W%2F,the%20channel%20to%20move%20sediment
+  ;;; It is assumed that
+  ;;; 1. all patches have a stream shaped relief with W/D = 12 (the most common value empirically) when filled,
+  ;;; 2. the bankfull surface width is smaller or equal to patchWidth
+  ;;; Therefore,
+  ;;; ratio = width (m) / (p_water (mm) / 1000)
+  ;;; width = ratio * p_water / 1000
+  ;;; and
+  ;;; water% = min (list (100 * width / patchWidth) 100)
 
-  report (water / 1000) / patchWidth
+  let waterWidth 12 * water / 1000
+
+  report clampMinMax (100 * waterWidth / patchWidth) 0 100
 
 end
 
@@ -1506,24 +1544,34 @@ to refresh-to-display-mode
 
   if (display-mode = "elevation and surface water depth (m)")
   [
-    let minWater min [p_water] of patches with [(get-%water-surface p_water) > 1 / 50]
-    let maxWater max [p_water] of patches with [(get-%water-surface p_water) > 1 / 50]
-
-    let rangeWater maxWater - minWater
-    if (rangeWater = 0) [ set rangeWater 1 ]
-
-
-    ask patches
+    ifelse (any? patches with [p_ecol_coverType = "free water"])
     [
-      ; paint elevation
-      set pcolor get-elevation-color elevation
+      let minWater min [p_water] of patches with [p_ecol_coverType = "free water"]
+      let maxWater max [p_water] of patches with [p_ecol_coverType = "free water"]
 
-      ; paint water depth
-      if ((get-%water-surface p_water) > 1 / 50)
-      [ set pcolor 98 - 4 * (p_water - minWater) / rangeWater ]
+      let rangeWater maxWater - minWater
+      if (rangeWater = 0) [ set rangeWater 1 ]
+
+      ask patches
+      [
+        ; paint elevation
+        set pcolor get-elevation-color elevation
+
+        ; paint water depth
+        if (p_ecol_coverType = "free water")
+        [ set pcolor 98 - 4 * (p_water - minWater) / rangeWater ]
+      ]
+
+      set-legend-elevation-and-water (maxWater / 1000) (minWater / 1000) 94 98 6 true ; in metres
     ]
-
-    set-legend-elevation-and-water (maxWater / 1000) (minWater / 1000) 94 98 6 true ; in metres
+    [
+      ;;; if there  is no "free water" patch, behave like display-mode = "elevation (m)"
+      ask patches
+      [
+        set pcolor get-elevation-color elevation
+      ]
+      set-legend-elevation 12
+    ]
   ]
   if (display-mode = "elevation (m)")
   [
@@ -1531,7 +1579,7 @@ to refresh-to-display-mode
     [
       set pcolor get-elevation-color elevation
     ]
-    set-legend-elevation 10
+    set-legend-elevation 12
   ]
   if (display-mode = "surface water depth (mm)")
   [
@@ -1545,6 +1593,22 @@ to refresh-to-display-mode
     [
       ifelse (p_water > 0)
       [ set pcolor 94 - 4 * (p_water - minWater) / rangeWater ]
+      [ set pcolor 99 ]
+    ]
+    set-legend-continuous-range maxWater minWater 98 94 6 false
+  ]
+  if (display-mode = "surface water width (%)")
+  [
+    let minWater min [get-%water-surface p_water] of patches with [p_water > 0]
+    let maxWater max [get-%water-surface p_water] of patches with [p_water > 0]
+
+    let rangeWater maxWater - minWater
+    if (rangeWater = 0) [ set rangeWater 1 ]
+
+    ask patches
+    [
+      ifelse (p_water > 0)
+      [ set pcolor 94 - 4 * ((get-%water-surface p_water) - minWater) / rangeWater ]
       [ set pcolor 99 ]
     ]
     set-legend-continuous-range maxWater minWater 98 94 6 false
@@ -1579,7 +1643,7 @@ to refresh-to-display-mode
       ;;; red: sand, green: silt, blue: clay
       set pcolor get-texture-color (list p_soil_%sand min%sand max%sand) (list p_soil_%silt min%silt max%silt) (list p_soil_%clay min%clay max%clay)
     ]
-    set-legend-texture (list min%sand max%sand) (list min%silt max%silt) (list min%clay max%clay)
+    set-legend-soil-texture (list min%sand max%sand) (list min%silt max%silt) (list min%clay max%clay)
   ]
   if (display-mode = "soil texture types")
   [
@@ -1669,7 +1733,7 @@ to refresh-to-display-mode
   [
     ask patches
     [
-      ;;; red: sand, green: silt, blue: clay
+      ;;; red: grass, green: brush, blue: wood, black: bare soil and water
       set pcolor get-ecologicalCommunityComposition-color p_ecol_%grass p_ecol_%brush p_ecol_%wood
     ]
     set-legend-ecologicalCommunityComposition
@@ -1771,20 +1835,20 @@ to-report get-elevation-color [ elevationValue ]
 
   let elevationGradient 0
 
-  ifelse (elevationValue < 0)
-  [
-    let normSubElevation (-1) * (elevationValue)
-    let normSubMinElevation (-1) * (minElevation) + 1E-6
-    set elevationGradient 20 + (200 * (1 - normSubElevation / normSubMinElevation))
-    report rgb 0 0 elevationGradient
-  ]
-  [
+;  ifelse (elevationValue < 0)
+;  [
+;    let normSubElevation (-1) * (elevationValue)
+;    let normSubMinElevation (-1) * (minElevation) + 1E-6
+;    set elevationGradient 20 + (200 * (1 - normSubElevation / normSubMinElevation))
+;    report rgb 0 0 elevationGradient
+;  ]
+;  [
     ;;; this fragment was adapted to also represent land that is far above sea level
     let normSupElevation elevationValue - minElevation
     let normSupMaxElevation maxElevation - minElevation + 1E-6
     set elevationGradient 100 + (155 * (normSupElevation / normSupMaxElevation))
     report rgb (elevationGradient - 100) elevationGradient 0
-  ]
+;  ]
 
 end
 
@@ -1817,7 +1881,7 @@ end
 to-report get-coverType-color [ coverTypeName ]
 
   ;;; blue: free water, orange: desert, brown: grassland, yellow: wood-grass, green: shrubland, green: woodland
-  let col white
+  let col pink ; color to mark patches with any bugs
 
   if (coverTypeName = "free water") [ set col 104 ]
   if (coverTypeName = "desert") [ set col 26 ]
@@ -1902,7 +1966,7 @@ to set-legend-soil-textureType
 
 end
 
-to set-legend-texture [ %sandRange %siltRange %clayRange ]
+to set-legend-soil-texture [ %sandRange %siltRange %clayRange ]
 
   ;;; red: sand, green: silt, blue: clay
   create-temporary-plot-pen (word "max %sand = " round (item 1 %sandRange) )
@@ -1929,7 +1993,7 @@ to set-legend-ecologicalCommunityComposition
   set-plot-pen-color green
   create-temporary-plot-pen "100% wood"
   set-plot-pen-color blue
-  create-temporary-plot-pen "100% bare soil"
+  create-temporary-plot-pen "100% bare soil and water"
   set-plot-pen-color black
 
 end
@@ -2197,10 +2261,7 @@ to import-terrain
   ;;; corresponding to the random seed given as a parameter in the interface
 
   ;;; build a unique file name according to the user setting
-  let filePath (word "terrains//terrain_" type-of-experiment "_w=" world-width "_h=" world-height "_a=" elev_algorithm-style "_fill-sinks=" flow_do-fill-sinks "_seed=" terrainRandomSeed)
-
-  if (type-of-experiment = "user-defined") [ set filePath (word filePath "_" date-and-time) ]
-  ;if (type-of-experiment = "defined by expNumber") [set filePath (word filePath "_" expNumber) ]
+  let filePath (word "terrains//terrain_random_w=" world-width "_h=" world-height "_a=" elev_algorithm-style "_fill-sinks=" flow_do-fill-sinks "_seed=" terrainRandomSeed)
 
   ;;; check that filePath does not exceed 100 (not common in this context)
   if (length filePath > 100) [ print "WARNING: file path may be too long, depending on your current directory. Decrease length of file name or increase the limit." set filePath substring filePath 0 100 ]
@@ -2208,7 +2269,7 @@ to import-terrain
   set filePath (word filePath ".csv")
 
   ifelse (not file-exists? filePath)
-  [ print (word "WARNING: could not find '" filePath "'") ]
+  [ print (word "WARNING: could not find '" filePath "'") stop ] ;;; unfortunately the stop command doesn't stop the setup procedure
   [
     file-open filePath
 
@@ -2627,10 +2688,10 @@ ticks
 30.0
 
 PLOT
-1229
-83
-1596
-569
+1194
+76
+1594
+562
 Legend
 NIL
 NIL
@@ -2675,7 +2736,7 @@ par_elev_seaLevelReferenceShift
 par_elev_seaLevelReferenceShift
 -1000
 round max (list maxElevation elev_rangeHeight)
-4.0
+13.0
 1
 1
 m
@@ -2837,7 +2898,7 @@ xTransect
 xTransect
 min-pxcor
 max-pxcor
-0.0
+40.0
 1
 1
 NIL
@@ -2887,7 +2948,7 @@ SWITCH
 656
 show-transects
 show-transects
-1
+0
 1
 -1000
 
@@ -2921,7 +2982,7 @@ CHOOSER
 type-of-experiment
 type-of-experiment
 "random" "user-defined" "defined by expNumber"
-0
+1
 
 BUTTON
 11
@@ -3298,8 +3359,8 @@ CHOOSER
 65
 display-mode
 display-mode
-"elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type" "albedo (%)" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "soil water content (ratio)" "ARID coefficient"
-1
+"elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "surface water width (%)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type" "albedo (%)" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "soil water content (ratio)" "ARID coefficient"
+0
 
 BUTTON
 1117
@@ -3770,10 +3831,11 @@ true
 true
 "set-plot-y-range -1 101" ""
 PENS
-"mean wood (%)" 1.0 1 -14835848 true "" "plot 100"
-"mean brush (%)" 1.0 1 -6459832 true "" "plot 100 - mean [p_ecol_%wood] of patches"
-"mean grass (%)" 1.0 1 -13840069 true "" "plot (100 - (mean [p_ecol_%brush] of patches + mean [p_ecol_%wood] of patches))"
-"mean bare soil (%)" 1.0 1 -16777216 true "" "plot 100 - (mean [p_ecol_%grass] of patches + mean [p_ecol_%brush] of patches + mean [p_ecol_%wood] of patches)"
+"mean water (%)" 1.0 1 -14454117 true "" "plot 100"
+"mean wood (%)" 1.0 1 -14835848 true "" "plot 100 - mean [get-%water-surface p_water] of patches"
+"mean brush (%)" 1.0 1 -6459832 true "" "plot 100 - (mean [p_ecol_%wood] of patches + mean [get-%water-surface p_water] of patches)"
+"mean grass (%)" 1.0 1 -13840069 true "" "plot 100 - (mean [p_ecol_%brush] of patches + mean [p_ecol_%wood] of patches + mean [get-%water-surface p_water] of patches)"
+"mean bare soil (%)" 1.0 1 -16777216 true "" "plot 100 - (mean [p_ecol_%grass] of patches + mean [p_ecol_%brush] of patches + mean [p_ecol_%wood] of patches + mean [get-%water-surface p_water] of patches)"
 
 PLOT
 1596
@@ -3894,7 +3956,7 @@ SWITCH
 624
 show-seaLevel-in-transects
 show-seaLevel-in-transects
-1
+0
 1
 -1000
 
@@ -4072,7 +4134,7 @@ par_ecol_%wood_waterStressSensitivity
 par_ecol_%wood_waterStressSensitivity
 0
 0.01
-0.01
+0.005
 0.001
 1
 NIL
@@ -4087,7 +4149,7 @@ par_ecol_%brush_waterStressSensitivity
 par_ecol_%brush_waterStressSensitivity
 0
 0.01
-0.005
+0.001
 0.001
 1
 NIL
@@ -4102,7 +4164,7 @@ par_ecol_%grass_waterStressSensitivity
 par_ecol_%grass_waterStressSensitivity
 0
 0.01
-0.005
+0.001
 0.001
 1
 NIL
