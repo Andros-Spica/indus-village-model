@@ -1609,6 +1609,17 @@ false
 PENS
 "default" 1.0 1 -16777216 true "" "plot-precipitation-table"
 
+MONITOR
+106
+663
+179
+708
+year total
+sum precipitation_yearSeries
+2
+1
+11
+
 BUTTON
 51
 141
