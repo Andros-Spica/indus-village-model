@@ -3836,7 +3836,7 @@ MONITOR
 973
 826
 NIL
-soil_max%clay
+soil_min%clay
 2
 1
 9
