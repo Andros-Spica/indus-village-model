@@ -382,6 +382,8 @@ to setup
 
   update-water
 
+  rescale-ecological-communities
+
   update-ecological-communities
 
   update-soil-cover
@@ -527,12 +529,12 @@ to set-parameters
     set riverWaterPerFlowAccumulation 1E-4 + random-float 0.00099 ; range between 1E-4 and 1E-5
 
     ;;; ecological communities
-    set ecol_%wood_r 0.001 + random-float 0.049
-    set ecol_%brush_r 0.005 + random-float 0.095
-    set ecol_%grass_r 0.01 + random-float 0.09
-    set ecol_%wood_waterStressSensitivity 0.001 + random-float 0.009
-    set ecol_%brush_waterStressSensitivity 0.001 + random-float 0.009
-    set ecol_%grass_waterStressSensitivity 0.001 + random-float 0.009
+    set ecol_%wood_r 365 + random-float (5 * 365) ;;; full recovery can take between one and five years
+    set ecol_%brush_r (6 * 30) + random-float 365 ;;; full recovery can take between six months and one year
+    set ecol_%grass_r 30 + random-float (3 * 30) ;;; full recovery can take between one and three months
+    set ecol_%wood_waterStressSensitivity 0.01 + random-float 0.49
+    set ecol_%brush_waterStressSensitivity 0.01 + random-float 0.24
+    set ecol_%grass_waterStressSensitivity 0.01 + random-float 0.09
 
     ;;; NOTES about calibration:
     ;;; Global Horizontal Irradiation can vary from about 2 to 7 KWh/m-2 per day.
@@ -585,6 +587,13 @@ to parameters-check
 
   if (par_riverWaterPerFlowAccumulation = 0)                     [ set par_riverWaterPerFlowAccumulation                        1E-4 ]
 
+  if (par_ecol_%wood_r = 0)                                      [ set par_ecol_%wood_r                                          365 ] ;;; full recovery takes one year
+  if (par_ecol_%brush_r = 0)                                     [ set par_ecol_%brush_r                                         6 * 30 ] ;;; full recovery takes six months
+  if (par_ecol_%grass_r = 0)                                     [ set par_ecol_%grass_r                                         30 ] ;;; full recovery takes one month
+  ;if (par_ecol_%wood_waterStressSensitivity = 0)                 [ set par_riverWaterPerFlowAccumulation                        0.5 ]
+  ;if (par_ecol_%brush_waterStressSensitivity = 0)                [ set par_riverWaterPerFlowAccumulation                        0.25 ]
+  ;if (par_ecol_%grass_waterStressSensitivity = 0)                [ set par_riverWaterPerFlowAccumulation                        0.01 ]
+
 end
 
 to parameters-to-default
@@ -621,6 +630,13 @@ to parameters-to-default
   set par_ecol_maxRootZoneDepth                              2000
 
   set par_riverWaterPerFlowAccumulation                        1E-4
+
+  set par_riverWaterPerFlowAccumulation                       365 ;;; full recovery takes one year
+  set par_riverWaterPerFlowAccumulation                    6 * 30 ;;; full recovery takes six months
+  set par_riverWaterPerFlowAccumulation                        30 ;;; full recovery takes one month
+  ;set par_riverWaterPerFlowAccumulation                        0.5
+  ;set par_riverWaterPerFlowAccumulation                        0.25
+  ;set par_riverWaterPerFlowAccumulation                        0.01
 
 end
 
@@ -893,6 +909,8 @@ to update-water
 
   drain-soil-water
 
+  ask patches [ set p_ecol_%water (get-%water-surface p_water) ]
+
 end
 
 to reset-sea-water
@@ -1163,7 +1181,11 @@ to drain-soil-water
 
     ; Calculate rate of change of state variable p_soil_waterContent
     set p_soil_waterContent p_soil_waterContent - deepDrainage - transpiration
-    if (p_soil_waterContent < 0) [ print self print p_soil_waterContent ]
+    if (p_soil_waterContent < 0)
+    [
+      print self print p_soil_waterContent
+      set p_soil_waterContent 0
+    ]
     set p_soil_waterContentRatio p_soil_waterContent / p_ecol_rootZoneDepth
 
     ; Calculate ARID coefficient or drought index
@@ -1267,46 +1289,76 @@ end
 ;;; See also: "02-Soil-Water-Balance-model" and "03-land-model" directory within "indus-village-model".
 ;=======================================================================================================
 
+to-report get-%water-surface [ water ]
+
+  ;;; get an estimation of the percentage of patch surface covered by free water.
+  ;;; The bankfull surface width / mean bankfull depth ratio criteria is used as an approaximation.
+  ;;; See: https://cfpub.epa.gov/watertrain/moduleFrame.cfm?parent_object_id=1262#:~:text=The%20width%2Fdepth%20(W%2F,the%20channel%20to%20move%20sediment
+  ;;; It is assumed that
+  ;;; 1. all patches have a stream shaped relief with W/D = 12 (the most common value empirically) when filled,
+  ;;; 2. the bankfull surface width is smaller or equal to patchWidth
+  ;;; Therefore,
+  ;;; ratio = width (m) / (p_water (mm) / 1000)
+  ;;; width = ratio * p_water / 1000
+  ;;; and
+  ;;; water% = min (list (100 * width / patchWidth) 100)
+
+  let waterWidth 12 * water / 1000
+
+  report clampMinMax (100 * waterWidth / patchWidth) 0 100
+
+end
+
 to update-ecological-communities
 
   ;;; update the composition of ecological communities in patches
 
   ask patches
   [
-    set p_ecol_%water (get-%water-surface p_water)
+    apply-ecological-recolonisation
 
-    apply-recolonisation
+    ;rescale-ecological-communities
 
     advance-ecological-succession
   ]
 
 end
 
-to apply-recolonisation
+to apply-ecological-recolonisation
 
-  ;;; if this patch has 0 of a component it had initially,
-  ;;; is not completely covered by water,
-  ;;; and has a neighbour with such component,
+  ;;; if this patch has 0 of a component,
   ;;; a very small amount of that component will be added in order to activate the logistic growth
 
-  if (get-%water-surface p_water < 100)
+  if (get-%water-surface p_water < 100) ;;; not completely covered by water
   [
-
-    if (p_ecol_%wood = 0 and
-      p_initEcol_%wood > 0 and
-      any? neighbors with [p_ecol_%wood > 0])
+    ;;; wood
+    if (p_ecol_%wood = 0)
     [ set p_ecol_%wood 1E-6 ]
 
-    if (p_ecol_%brush = 0 and
-      p_initEcol_%brush > 0 and
-      any? neighbors with [p_ecol_%brush > 0])
+    ;;; brush
+    if (p_ecol_%brush = 0)
     [ set p_ecol_%brush 1E-6 ]
 
-    if (p_ecol_%grass = 0 and
-      p_initEcol_%grass > 0 and
-      any? neighbors with [p_ecol_%grass > 0])
+    ;;; grass
+    if (p_ecol_%grass = 0)
     [ set p_ecol_%grass 1E-6 ]
+  ]
 
+end
+
+to rescale-ecological-communities
+
+  ask patches with [ p_water > 0 ]
+  [
+    ;;; scale the final percentage to account for acquatic ecological communities
+    let newTotal p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water
+
+    if (newTotal > 100)
+    [
+      set p_ecol_%wood p_ecol_%wood * (100 - p_ecol_%water) / 100
+      set p_ecol_%brush p_ecol_%brush * (100 - p_ecol_%water) / 100
+      set p_ecol_%grass p_ecol_%grass * (100 - p_ecol_%water) / 100
+    ]
   ]
 
 end
@@ -1317,27 +1369,30 @@ to advance-ecological-succession
   ;;; all ecological components (based on vegetation) are assumed to grow towards the initial ecological community configuration, minus the influence of water stress.
   ;;; The logistic growth model is used, where the reproductive rate (growth slope) is regulated by the frequency of the component and its proportion to a carrying capacity (here, the initial value)
 
-;print (word "wood: " p_ecol_%wood " | delta: " (get-logistic-growth-delta p_ecol_%wood (p_initEcol_%wood - p_soil_ARID * 100) par_ecol_%wood_r))
+  let recovery_%wood 1 / par_ecol_%wood_r
+  let recovery_%brush 1 / par_ecol_%brush_r
+  let recovery_%grass 1 / par_ecol_%grass_r
 
-  let waterStress_%wood p_ecol_%wood * p_soil_ARID * ecol_%wood_waterStressSensitivity
-  let waterStress_%brush p_ecol_%brush * p_soil_ARID * ecol_%brush_waterStressSensitivity
-  let waterStress_%grass p_ecol_%grass * p_soil_ARID * ecol_%grass_waterStressSensitivity
+  set p_ecol_%wood (p_ecol_%wood +
+    recovery_%wood *
+    ((p_initEcol_%wood * (1 - p_soil_ARID * ecol_%wood_waterStressSensitivity) *
+      (100 - p_ecol_%water) / 100) - p_ecol_%wood
+    )
+  )
 
-  set p_ecol_%wood clampMin0 (p_ecol_%wood + (get-logistic-growth-delta p_ecol_%wood p_initEcol_%wood par_ecol_%wood_r) - waterStress_%wood)
+  set p_ecol_%brush (p_ecol_%brush +
+    recovery_%brush *
+    ((p_initEcol_%brush * (1 - p_soil_ARID * ecol_%brush_waterStressSensitivity) *
+      (100 - p_ecol_%water) / 100) - p_ecol_%brush
+    )
+  )
 
-  set p_ecol_%brush clampMin0 (p_ecol_%brush + (get-logistic-growth-delta p_ecol_%brush p_initEcol_%brush par_ecol_%brush_r) - waterStress_%brush + waterStress_%wood)
-
-  set p_ecol_%grass clampMin0 (p_ecol_%grass + (get-logistic-growth-delta p_ecol_%grass p_initEcol_%grass par_ecol_%grass_r) - waterStress_%grass + waterStress_%brush)
-
-  ;;; scale the final percentage to account for acquatic ecological communities
-  let newTotal p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water
-
-  if (newTotal > 100)
-  [
-    set p_ecol_%wood p_ecol_%wood * (100 - p_ecol_%water) / 100
-    set p_ecol_%brush p_ecol_%brush * (100 - p_ecol_%water) / 100
-    set p_ecol_%grass p_ecol_%grass * (100 - p_ecol_%water) / 100
-  ]
+  set p_ecol_%grass (p_ecol_%grass +
+    recovery_%grass *
+    ((p_initEcol_%grass * (1 - p_soil_ARID * ecol_%grass_waterStressSensitivity) *
+      (100 - p_ecol_%water) / 100) - p_ecol_%grass
+    )
+  )
 
 end
 
@@ -1454,26 +1509,6 @@ to-report get-albedo-of-cover [ coverName ]
 
   ;;; get albedo value corresponding to coverName in ecol_albedoTable
   report item (position coverName (item 0 ecol_albedoTable)) (item 1 ecol_albedoTable)
-
-end
-
-to-report get-%water-surface [ water ]
-
-  ;;; get an estimation of the percentage of patch surface covered by free water.
-  ;;; The bankfull surface width / mean bankfull depth ratio criteria is used as an approaximation.
-  ;;; See: https://cfpub.epa.gov/watertrain/moduleFrame.cfm?parent_object_id=1262#:~:text=The%20width%2Fdepth%20(W%2F,the%20channel%20to%20move%20sediment
-  ;;; It is assumed that
-  ;;; 1. all patches have a stream shaped relief with W/D = 12 (the most common value empirically) when filled,
-  ;;; 2. the bankfull surface width is smaller or equal to patchWidth
-  ;;; Therefore,
-  ;;; ratio = width (m) / (p_water (mm) / 1000)
-  ;;; width = ratio * p_water / 1000
-  ;;; and
-  ;;; water% = min (list (100 * width / patchWidth) 100)
-
-  let waterWidth 12 * water / 1000
-
-  report clampMinMax (100 * waterWidth / patchWidth) 0 100
 
 end
 
@@ -2654,7 +2689,7 @@ end
 to-report get-logistic-growth-delta [ X maxX r ]
 
   ;;; because maxX is dynamic, do preliminary check to avoid division by zero
-  if (maxX = 0) [ report r * X * (1 - X / 1E-6) ] ;;; this sets a very high maximum decrease rate
+  if (maxX = 0) [ report -1 * X ] ;;; this sets the maximum decrease rate
 
   report r * X * (1 - X / maxX)
 
@@ -2736,7 +2771,7 @@ par_elev_seaLevelReferenceShift
 par_elev_seaLevelReferenceShift
 -1000
 round max (list maxElevation elev_rangeHeight)
-13.0
+-1000.0
 1
 1
 m
@@ -2898,7 +2933,7 @@ xTransect
 xTransect
 min-pxcor
 max-pxcor
-40.0
+0.0
 1
 1
 NIL
@@ -2948,7 +2983,7 @@ SWITCH
 656
 show-transects
 show-transects
-0
+1
 1
 -1000
 
@@ -3360,7 +3395,7 @@ CHOOSER
 display-mode
 display-mode
 "elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "surface water width (%)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type" "albedo (%)" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "soil water content (ratio)" "ARID coefficient"
-0
+21
 
 BUTTON
 1117
@@ -3815,6 +3850,17 @@ false
 PENS
 "default" 1.0 1 -16777216 true "" "plot-precipitation-table"
 
+MONITOR
+2086
+888
+2159
+933
+year total
+sum precipitation_yearSeries
+2
+1
+11
+
 PLOT
 1596
 14
@@ -3956,7 +4002,7 @@ SWITCH
 624
 show-seaLevel-in-transects
 show-seaLevel-in-transects
-0
+1
 1
 -1000
 
@@ -4048,55 +4094,55 @@ southHemisphere?
 -1000
 
 SLIDER
-10
-483
-182
-516
+7
+482
+194
+515
 par_ecol_%wood_r
 par_ecol_%wood_r
-0
-0.01
-0.003
-0.001
+365
+5 * 365
+365.0
 1
-NIL
+1
+days
 HORIZONTAL
 
 SLIDER
 10
 517
-182
+199
 550
 par_ecol_%brush_r
 par_ecol_%brush_r
-0
-0.01
-0.006
-0.001
+3 * 30
+6 * 30
+90.0
 1
-NIL
+1
+days
 HORIZONTAL
 
 SLIDER
-10
+11
 550
-182
+200
 583
 par_ecol_%grass_r
 par_ecol_%grass_r
-0
-0.1
-0.05
-0.01
+30
+90
+30.0
 1
-NIL
+1
+days
 HORIZONTAL
 
 MONITOR
-181
-480
-266
-517
+194
+479
+279
+516
 NIL
 ecol_%wood_r
 3
@@ -4104,10 +4150,10 @@ ecol_%wood_r
 9
 
 MONITOR
-182
-516
-265
-553
+195
+515
+278
+552
 NIL
 ecol_%brush_r
 4
@@ -4115,10 +4161,10 @@ ecol_%brush_r
 9
 
 MONITOR
-181
-550
-263
-587
+194
+549
+276
+586
 NIL
 ecol_%grass_r
 4
@@ -4133,9 +4179,9 @@ SLIDER
 par_ecol_%wood_waterStressSensitivity
 par_ecol_%wood_waterStressSensitivity
 0
+1
+0.5
 0.01
-0.005
-0.001
 1
 NIL
 HORIZONTAL
@@ -4148,9 +4194,9 @@ SLIDER
 par_ecol_%brush_waterStressSensitivity
 par_ecol_%brush_waterStressSensitivity
 0
+1
+0.25
 0.01
-0.001
-0.001
 1
 NIL
 HORIZONTAL
@@ -4163,9 +4209,9 @@ SLIDER
 par_ecol_%grass_waterStressSensitivity
 par_ecol_%grass_waterStressSensitivity
 0
+1
+0.1
 0.01
-0.001
-0.001
 1
 NIL
 HORIZONTAL
