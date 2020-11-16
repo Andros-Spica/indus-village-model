@@ -2,7 +2,7 @@
 ;;; GNU GENERAL PUBLIC LICENSE ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;  Land model - v04 with soil properties
+;;  Land model - v04 with soil depth and texture
 ;;  Copyright (C) Andreas Angourakis (andros.spica@gmail.com)
 ;;  available at https://www.github.com/Andros-Spica/indus-village-model
 ;;  This model includes a cleaner version of the Terrain Generator model v.2 (https://github.com/Andros-Spica/ProceduralMap-NetLogo)
@@ -38,22 +38,6 @@ globals
   ; flow_do-fill-sinks (GUI): whether to apply algorithm to fill all drainage "sinks" (land units
   ;                      not on the edge of the map where there is no flow towards a neighbour).
   ;                      Those sinks are likely to have been created by land forming algorithms.
-
-  ;;; table inputs
-  ;;;;; hydrologic Soil Groups table
-  soil_textureTypes                           ; Types of soil according to % of sand, silt and clay (ternary diagram) established by USDA
-  soil_textureTypes_display                   ; The content of soil_textureTypes ordered specifically for display (i.e. meaninful fixed colour pallete)
-  soil_hydrologicSoilGroups                   ; USDA classification of soils according to water infiltration (A, B, C, and D) per each texture type
-
-  ;;;;; run off curve number table
-  soil_runOffCurveNumberTable                 ; table (list of lists) with run off curve numbers of Hydrologic Soil Group (columns) combination of cover type-treatment-hydrologic condition
-
-  ;;;;; Field Capacity and Water Holding capacity table
-  soil_fieldCapacity                   ; field capacity (fraction of soil volume) per texture type
-  soil_saturation                      ; saturation (fraction of soil volume) per texture type (not currently used)
-  soil_intakeRate                      ; intake rate (mm/hour) per texture type
-  soil_minWaterHoldingCapacity         ; minimum and maximum water holding capacity (in/ft) per texture type (not currently used)
-  soil_maxWaterHoldingCapacity
 
   ;;; parameters (modified copies of interface input) ===============================================================
 
@@ -125,6 +109,8 @@ globals
   soil_max%clay                          ; maximum percentage of clay (within the represented area)
   soil_textureNoise                      ; normal random variation in the proportion of sand/silt/clay (standard deviation of every component previous to normalisation)
 
+  soil_textureTypes_display              ; Texture types ordered specifically for display (i.e. meaninful fixed colour pallete)
+
   ;;; variables ===============================================================
   seaLevel                    ; elevation considered as sea level for display purposes.
 
@@ -138,9 +124,6 @@ globals
   maxFlowAccumulation
 
   mostCommonTextureType       ; the most common of texture type, see soil_textureTypes
-  meanRunOffCurveNumber       ; mean runoff curve number of land units
-  meanWaterHoldingCapacity    ; mean water holding capacity of land units (fraction of soil volume)
-  meanDeepDrainageCoefficient ; mean deep drainage coefficient (1/day)
 ]
 
 patches-own
@@ -176,33 +159,6 @@ patches-own
   p_soil_%clay          ; percentage of clay fraction in soil
   p_soil_textureType          ; soil texture type according to sand-silt-clay proportions, under USDA convention.
                               ; see "03-land-model/documentation/USDA-texturalSoilClassification.png"
-  p_soil_hydrologicSoilGroup  ; USDA simplification of soil texture types into four categories
-
-  p_soil_coverTreatmentAndHydrologicCondition  ; the type of combination of cover, treatment and hydrologic condition used to estimate runoff curve number (see "runOffCurveNumberTable.csv")
-  p_soil_runOffCurveNumber                     ; runoff curve number (0=full retention to 100=full impermeability)
-
-  ; Soil water capacities:
-  ; ___ saturation
-  ;  |
-  ;  |  gravitational water
-  ;  |  (rapid drainage)
-  ;  |
-  ; --- field capacity
-  ;  |
-  ;  |  water holding capacity or available soil moisture or capilary water
-  ;  |  (slow drainage)
-  ; --- permanent wilting point
-  ;  |
-  ;  |  unavailable soil moisture or hydroscopic water
-  ;  |  (no drainage)
-  ; --- oven dry
-
-  p_soil_saturation                 ; saturation (fraction of soil volume)
-  p_soil_fieldCapacity              ; field capacity (fraction of soil volume)
-  p_soil_waterHoldingCapacity       ; water holding capacity (fraction of soil volume)
-  p_soil_wiltingPoint               ; permanent wilting point (fraction of soil volume)
-
-  p_soil_deepDrainageCoefficient    ; saturated hydraulic conductivity or fraction of soil water above field capacity drained per day (1/day)
 ]
 
 breed [ mapSetters mapSetter ] ; used when elev_algorithm-style = "NetLogo"
@@ -221,47 +177,15 @@ to create-terrain
 
   reset-timer
 
-  ifelse (elev_algorithm-style = "NetLogo")
-  [
-    set-landform-NetLogo
-  ]
-  [
-    set-landform-Csharp
-  ]
+  ;;; START - core procedures ;;;;;;;;;;;;;;;;;;;;;;;
 
-  set-xySlope
+  setup-elevations
 
-  set-valleySlope
+  setup-flows
 
-  ;;; START - flow related procedures ;;;;;;;;;;;;;;;;;;;;;;;
+  setup-soil
 
-  if (flow_do-fill-sinks)
-  [
-    fill-sinks
-  ]
-
-  set-flow-directions
-
-  introduce-river-flow
-
-  set-flow-accumulations
-
-  ; set maximum flow accumulation as a reference excluding the flow entering through the river
-  set maxFlowAccumulation max [flow_accumulation] of patches with [flow_accumulation < flow_riverAccumulationAtStart]
-
-  ;;; END - flow related procedures ;;;;;;;;;;;;;;;;;;;;;;;
-
-  ;;; START - soil related procedures ;;;;;;;;;;;;;;;;;;;;;;;
-
-  load-hydrologic-soil-groups-table
-
-  load-runoff-curve-number-table
-
-  load-soil-water-table
-
-  setup-soil-conditions
-
-  ;;; END - soil related procedures ;;;;;;;;;;;;;;;;;;;;;;;
+  ;;; END - core procedures ;;;;;;;;;;;;;;;;;;;;;;;
 
   set-output-stats
 
@@ -505,6 +429,22 @@ to parameters-to-default
 
 end
 
+to setup-elevations
+
+  ifelse (elev_algorithm-style = "NetLogo")
+  [
+    set-landform-NetLogo
+  ]
+  [
+    set-landform-Csharp
+  ]
+
+  set-xySlope
+
+  set-valleySlope
+
+end
+
 to set-landform-NetLogo ;[ elev_numRanges elev_rangeLength elev_rangeHeight elev_numRifts elev_riftLength elev_riftHeight inversionIterations smoothingNeighborhood elevationSmoothStep]
 
   ; Netlogo-like code
@@ -676,6 +616,24 @@ to set-valleySlope
     let xValley (world-width / 2) + elev_valleyAxisInclination * (pycor - (world-height / 2))
     set elevation (1 - elev_valleySlope) * elevation + (elev_valleySlope * (elev_rangeHeight - elev_riftHeight) * abs (xValley - pxcor))
   ]
+
+end
+
+to setup-flows
+
+  if (flow_do-fill-sinks)
+  [
+    fill-sinks
+  ]
+
+  set-flow-directions
+
+  introduce-river-flow
+
+  set-flow-accumulations
+
+  ; set maximum flow accumulation as a reference excluding the flow entering through the river
+  set maxFlowAccumulation max [flow_accumulation] of patches with [flow_accumulation < flow_riverAccumulationAtStart]
 
 end
 
@@ -933,7 +891,7 @@ end
 ;;; J. Earth Syst. Sci. 124 1653–65
 ;=======================================================================================================
 
-to setup-soil-conditions
+to setup-soil
 
   ask patches
   [
@@ -942,10 +900,6 @@ to setup-soil-conditions
     setup-soil-depth
 
     setup-soil-texture
-
-    setup-soil-coverAndTreatment
-
-    setup-soil-soilWaterProperties
   ]
 
 end
@@ -1009,9 +963,6 @@ to setup-soil-texture
 
   ;;; get soil texture type according to sand/silt/clay composition
   set p_soil_textureType get-soil-texture-type (p_soil_%sand) (p_soil_%silt) (p_soil_%clay)
-
-  ;;; get hydrologic soil group
-  set p_soil_hydrologicSoilGroup item (position p_soil_textureType soil_textureTypes) soil_hydrologicSoilGroups
 
 end
 
@@ -1077,94 +1028,6 @@ to-report get-soil-texture-type [ %sand %silt %clay ]
 
 end
 
-to setup-soil-coverAndTreatment
-
-  ;;; set soil cover-treatment-hydrological condition
-  ;;; in this version, all land units have the same cover+treatment+condition, "fallow | crop residue | poor", the first one in  "runOffCurveNumberTable.csv".
-  ;;; This is temporary, it should be defined by ecological community
-  set p_soil_coverTreatmentAndHydrologicCondition get-coverTreatmentAndHydrologicCondition 1
-
-end
-
-to setup-soil-soilWaterProperties
-
-  set p_soil_runOffCurveNumber get-runOffCurveNumber p_soil_coverTreatmentAndHydrologicCondition p_soil_hydrologicSoilGroup
-
-  set p_soil_fieldCapacity get-fieldCapacity p_soil_textureType
-
-  set p_soil_wiltingPoint get-wiltingPoint
-
-  set p_soil_saturation get-saturation
-
-  set p_soil_waterHoldingCapacity get-waterHoldingCapacity ;p_soil_textureType
-
-  set p_soil_deepDrainageCoefficient get-deepDrainageCoefficient p_soil_textureType
-
-end
-
-to-report get-coverTreatmentAndHydrologicCondition [ index ]
-
-  report item index (item 0 soil_runOffCurveNumberTable)
-
-end
-
-to-report get-runOffCurveNumber [ coverTreatmentAndHydrologicCondition hydrologicSoilGroup ]
-
-  report (
-    item
-    (position coverTreatmentAndHydrologicCondition (item 0 soil_runOffCurveNumberTable))            ; selecting row
-    (item (1 + position hydrologicSoilGroup (list "A" "B" "C" "D")) soil_runOffCurveNumberTable)    ; selecting column (skip column with coverTreatmentAndHydrologicCondition)
-    )
-
-end
-
-to-report get-fieldCapacity [ textureType ]
-
-  report item (position textureType soil_textureTypes) soil_fieldCapacity
-
-end
-
-to-report get-wiltingPoint
-
-  ; using linear estimation
-  ; See "documentation/linearEstimationOfSoilWaterHorizons.Rmd"
-
-  report max (list (-0.0105 + 0.0042 * p_soil_%clay) 0)
-
-end
-
-to-report get-saturation
-
-  ; using linear estimation
-  ; See "documentation/linearEstimationOfSoilWaterHorizons.Rmd"
-
-  report 0.3916 + 0.0045 * p_soil_%clay
-
-end
-
-to-report get-waterHoldingCapacity ;[ textureType ]
-
-  report (p_soil_fieldCapacity - p_soil_wiltingPoint)
-
-  ; alternative using input data water holding capacity x soil texture type
-  ;let minWHC (item (position textureType soil_textureTypes) soil_minWaterHoldingCapacity)
-  ;let maxWHC (item (position textureType soil_textureTypes) soil_maxWaterHoldingCapacity)
-
-  ;report (minWHC + random-float (maxWHC - minWHC)) * 2.54 / 30.48 ; converted from in/ft to cm/cm
-
-end
-
-to-report get-deepDrainageCoefficient [ textureType ]
-
-  ; get intake rate (mm/hour) of the given texture type
-  let intakeRate item (position textureType soil_textureTypes) soil_intakeRate
-
-  ; return daily intake rate divided by the volume of soil above field capacity (intake/drainage rate at saturation) as approximation of deep drainage coefficient
-  ; TO-DO: ideally, data on deep drainage coefficient should be used instead.
-  report 24 * intakeRate / ((1 - p_soil_fieldCapacity) * p_soil_depth + 1E-6) ; + 1E-6 to avoid error when p_soil_depth = 0
-
-end
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; OUTPUT STATS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1188,9 +1051,6 @@ to set-output-stats
   set landWithRiver count patches with [flow_accumulation >= flow_riverAccumulationAtStart]
 
   set mostCommonTextureType modes [p_soil_textureType] of patches
-  set meanRunOffCurveNumber mean [p_soil_runOffCurveNumber] of patches
-  set meanWaterHoldingCapacity mean [p_soil_waterHoldingCapacity] of patches
-  set meanDeepDrainageCoefficient mean [p_soil_deepDrainageCoefficient] of patches
 
 end
 
@@ -1248,69 +1108,6 @@ to paint-patches
     ]
     set-legend-soil-textureType
   ]
-  if (display-mode = "soil run off curve number")
-  [
-    ask patches [ set pcolor 18 - 6 * p_soil_runOffCurveNumber / 100 ] ;;; runoff curve number is limited between 0-100
-    set-legend-continuous-range 100 0 18 12 6 false
-  ]
-  if (display-mode = "soil water wilting point")
-  [
-    let minWiltingPoint min [p_soil_wiltingPoint] of patches
-    let maxWiltingPoint max [p_soil_wiltingPoint] of patches
-
-    ask patches
-    [
-      set pcolor 98 - 6 * (p_soil_wiltingPoint - minWiltingPoint) / (maxWiltingPoint - minWiltingPoint)
-    ]
-    set-legend-continuous-range maxWiltingPoint minWiltingPoint 98 92 6 false
-  ]
-  if (display-mode = "soil water holding capacity")
-  [
-    let minWaterHoldingCapacity min [p_soil_waterHoldingCapacity] of patches
-    let maxWaterHoldingCapacity max [p_soil_waterHoldingCapacity] of patches
-
-    ask patches
-    [
-      set pcolor 98 - 6 * (p_soil_waterHoldingCapacity - minWaterHoldingCapacity) / (maxWaterHoldingCapacity - minWaterHoldingCapacity)
-    ]
-    set-legend-continuous-range maxWaterHoldingCapacity minWaterHoldingCapacity 98 92 6 false
-  ]
-  if (display-mode = "soil water field capacity")
-  [
-    let minFieldCapacity min [p_soil_fieldCapacity] of patches
-    let maxFieldCapacity max [p_soil_fieldCapacity] of patches
-
-    ask patches
-    [
-      set pcolor 98 - 6 * (p_soil_fieldCapacity - minFieldCapacity) / (maxFieldCapacity - minFieldCapacity)
-    ]
-    set-legend-continuous-range maxFieldCapacity minFieldCapacity 98 92 6 false
-  ]
-  if (display-mode = "soil water saturation")
-  [
-    let minSaturation min [p_soil_saturation] of patches
-    let maxSaturation max [p_soil_saturation] of patches
-
-    ask patches
-    [
-      set pcolor 98 - 6 * (p_soil_saturation - minSaturation) / (maxSaturation - minSaturation)
-    ]
-    set-legend-continuous-range maxSaturation minSaturation 98 92 6 false
-  ]
-  if (display-mode = "soil deep drainage coefficient")
-  [
-    let minDeepDrainageCoefficient min [p_soil_deepDrainageCoefficient] of patches
-    let maxDeepDrainageCoefficient max [p_soil_deepDrainageCoefficient] of patches
-
-    ask patches
-    [
-      set pcolor 102 + 6 * (p_soil_deepDrainageCoefficient - minDeepDrainageCoefficient) / (maxDeepDrainageCoefficient - minDeepDrainageCoefficient)
-      ;;; deep drainage coefficient is %, but depends on time and can vary beyond 100%
-    ]
-    set-legend-continuous-range maxDeepDrainageCoefficient minDeepDrainageCoefficient 108 102 6 true
-  ]
-  ;
-  ;
   ;;; other modes of display can be added here
 
   display-flows
@@ -1835,17 +1632,6 @@ to import-terrain
 
           if (item globalIndex globalNames = "soil_formativeerosionrate") [ set soil_formativeErosionRate item globalIndex globalValues ]
 
-          if (item globalIndex globalNames = "soil_texturetypes") [ set soil_textureTypes read-from-string item globalIndex globalValues ]
-          if (item globalIndex globalNames = "soil_texturetypes_display") [ set soil_textureTypes_display read-from-string item globalIndex globalValues ]
-          if (item globalIndex globalNames = "soil_hydrologicsoilgroups") [ set soil_hydrologicSoilGroups read-from-string item globalIndex globalValues ]
-          if (item globalIndex globalNames = "soil_runoffcurvenumbertable") [ set soil_runOffCurveNumberTable read-from-string item globalIndex globalValues ]
-
-          if (item globalIndex globalNames = "soil_fieldcapacity") [ set soil_fieldCapacity item globalIndex globalValues ]
-          if (item globalIndex globalNames = "soil_saturation") [ set soil_saturation item globalIndex globalValues ]
-          ;if (item globalIndex globalNames = "soil_minWaterholdingcapacity") [ set soil_minWaterHoldingCapacity item globalIndex globalValues ]
-          ;if (item globalIndex globalNames = "soil_maxwaterholdingcapacity") [ set soil_maxWaterHoldingCapacity item globalIndex globalValues ]
-          if (item globalIndex globalNames = "soil_intakerate") [ set soil_intakeRate read-from-string item globalIndex globalValues ]
-
           if (item globalIndex globalNames = "soil_mindepth") [ set soil_minDepth item globalIndex globalValues ]
           if (item globalIndex globalNames = "soil_maxdepth") [ set soil_maxDepth item globalIndex globalValues ]
           if (item globalIndex globalNames = "soil_depthnoise") [ set soil_depthNoise item globalIndex globalValues ]
@@ -1858,6 +1644,8 @@ to import-terrain
           if (item globalIndex globalNames = "soil_max%clay") [ set soil_max%clay item globalIndex globalValues ]
 
           if (item globalIndex globalNames = "soil_texturenoise") [ set soil_textureNoise item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "soil_texturetypes_display") [ set soil_textureTypes_display read-from-string item globalIndex globalValues ]
         ]
       ]
 
@@ -1912,14 +1700,6 @@ to import-terrain
             set p_soil_%silt item 13 thisLine
             set p_soil_%clay item 14 thisLine
             set p_soil_textureType read-from-string item 15 thisLine
-            set p_soil_hydrologicSoilGroup read-from-string item 16 thisLine
-            set p_soil_coverTreatmentAndHydrologicCondition read-from-string item 17 thisLine
-            set p_soil_runOffCurveNumber item 18 thisLine
-            set p_soil_saturation item 19 thisLine
-            set p_soil_fieldCapacity item 20 thisLine
-            set p_soil_waterHoldingCapacity item 21 thisLine
-            set p_soil_wiltingPoint item 22 thisLine
-            set p_soil_deepDrainageCoefficient item 23 thisLine
           ]
           set thisLine csv:from-row file-read-line
         ]
@@ -1969,191 +1749,6 @@ to-report get-flowHolder-who-from-link-data [ linkDataEntry ]
   set str remove "r" str
   set str remove " " str
   report read-from-string remove "}" str
-
-end
-
-;;; IMPORT TABLES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-to load-hydrologic-soil-groups-table
-
-  ;;; SOURCE: table in page A-1,
-  ;;; Cronshey R G 1986 Urban Hydrology for Small Watersheds, Technical Release 55 (TR-55).
-  ;;; United States Department of Agriculture, Soil Conservation Service, Engineering Division.
-
-  ;;; this procedure loads the values of the hydrologic soil groups table
-  ;;; the table contains:
-  ;;;   1. two lines of headers with comments (metadata, to be ignored)
-  ;;;   2. two lines with statements mapping the different types of data, if more than one
-  ;;;   3. the header of the table with the names of variables
-  ;;;   4. remaining rows containing row name and values
-
-  let hydrologicSoilGroupTable csv:from-file "hydrologicSoilGroupTable.csv"
-
-  ;;;==================================================================================================================
-  ;;; mapping coordinates (row or columns) in lines 3 and 4 (= index 2 and 3) -----------------------------------------
-  ;;; NOTE: always correct raw mapping coordinates (start at 1) into list indexes (start at 0)
-
-  ;;; line 3 (= index 2), row indexes
-  let textureTypesRowRange (list ((item 1 (item 2 hydrologicSoilGroupTable)) - 1) ((item 3 (item 2 hydrologicSoilGroupTable)) - 1))
-
-  ;;; line 4 (= index 3), row indexes
-  ;;; Types of soil according to % of sand, silt and clay (ternary diagram) established by USDA
-  let textureTypeColumn (item 1 (item 3 hydrologicSoilGroupTable)) - 1
-
-  ;;; USDA classification of soils according to water infiltration (A, B, C, and D; see reference in csv file)
-  let HydrologycSoilGroupsColumn (item 3 (item 3 hydrologicSoilGroupTable)) - 1
-
-  ;;;==================================================================================================================
-  ;;; extract data---------------------------------------------------------------------------------------
-
-  ;;; read variables (list of lists, matrix: texture types x hydrologic soil groups)
-  let hydrologicSoilGroupsData sublist hydrologicSoilGroupTable (item 0 textureTypesRowRange) (item 1 textureTypesRowRange + 1)
-
-  ;;; extract type of texture
-  set soil_textureTypes map [row -> item textureTypeColumn row ] hydrologicSoilGroupsData
-
-  ;;; extract hydrologic soil group
-  set soil_hydrologicSoilGroups map [row -> item HydrologycSoilGroupsColumn row ] hydrologicSoilGroupsData
-
-end
-
-to load-runoff-curve-number-table
-
-  ;;; SOURCE: table 2.2,
-  ;;; Cronshey R G 1986 Urban Hydrology for Small Watersheds, Technical Release 55 (TR-55).
-  ;;; United States Department of Agriculture, Soil Conservation Service, Engineering Division.
-
-  ;;; this procedure loads the values of the run off curve number table
-  ;;; the table contains:
-  ;;;   1. two lines of headers with comments (metadata, to be ignored)
-  ;;;   2. two lines with statements mapping the different types of data, if more than one
-  ;;;   3. the header of the table with the names of variables
-  ;;;   4. remaining rows containing row name and values
-
-  let runOffCurveNumberTable csv:from-file "runOffCurveNumberTable.csv"
-
-  ;;;==================================================================================================================
-  ;;; mapping coordinates (row or columns) in lines 3 and 4 (= index 2 and 3) -----------------------------------------
-  ;;; NOTE: always correct raw mapping coordinates (start at 1) into list indexes (start at 0)
-
-  ;;; line 3 (= index 2), row indexes
-  let typesOfCoverRowRange (list ((item 1 (item 2 runOffCurveNumberTable)) - 1) ((item 3 (item 2 runOffCurveNumberTable)) - 1))
-
-  ;;; line 4 (= index 3), row indexes
-  ;;; types of soil cover
-  let coverTypeColumn (item 1 (item 3 runOffCurveNumberTable)) - 1
-
-  ;;; types of soil treatment (if applies)
-  let TreatmentColumn (item 3 (item 3 runOffCurveNumberTable)) - 1
-
-  ;;; types of soil hydrologic condition (if applies)
-  let HydrologicConditionColumn (item 5 (item 3 runOffCurveNumberTable)) - 1
-
-  ;;; Columns holding data for the four Hydrologic soil groups: value 8 and 10 (=item 7 and 9)
-  let HydrologycSoilGroupsColumns (list ((item 7 (item 3 runOffCurveNumberTable)) - 1) ((item 9 (item 3 runOffCurveNumberTable)) - 1) )
-
-  ;;; line 5 (= index 4), row indexes
-  ;;; extract names of Hydrologic Soil Groups
-  ;set soil_namesOfHydrologicSoilGroups (sublist (item 4 runOffCurveNumberTable) (item 0 HydrologycSoilGroupsColumns) ((item 1 HydrologycSoilGroupsColumns) + 1))
-
-  ;;;==================================================================================================================
-  ;;; extract data---------------------------------------------------------------------------------------
-
-  ;;; read variables (list of lists, matrix: cover types-treatment-condition x hydrologic soil groups)
-  let runOffCurveNumberData sublist runOffCurveNumberTable (item 0 typesOfCoverRowRange) (item 1 typesOfCoverRowRange + 1) ; select only those rows corresponding to data on types of cover
-
-  ;;; extract cover, treatment and hydrologic condition
-  let coverTreatmentAndHydrologicCondition (
-    map [row -> (word (item coverTypeColumn row) " | " (item TreatmentColumn row) " | " (item HydrologicConditionColumn row) ) ] runOffCurveNumberData
-    )
-
-  ;;; extract curve number table
-  set soil_runOffCurveNumberTable extract-subtable runOffCurveNumberData (item 0 HydrologycSoilGroupsColumns) (item 1 HydrologycSoilGroupsColumns)
-
-  ;;; combine with cover-treatment-hydrologic condition
-  set soil_runOffCurveNumberTable fput coverTreatmentAndHydrologicCondition soil_runOffCurveNumberTable
-
-end
-
-to load-soil-water-table
-
-  ;;; SOURCE (TO-DO: FIND BETTER SOURCES!):
-  ;;; 1. Plant & Soil Sciences eLibrary, Lesson: Soils - Part 2: Physical Properties
-  ;;;    of Soil and Soil Water, page 10 (Soil Water), Table 2.6.
-  ;;;    https://passel2.unl.edu/view/lesson/0cff7943f577/10
-  ;;;    Conservation Service, Engineering Division
-  ;;; 2. Rain Machine support documentation, "Zones", "Soil Types", Table.
-  ;;;    https://support.rainmachine.com/hc/en-us/articles/228001248-Soil-Types
-  ;;; 3. SWAT theoretical documentation 2009, p. 148, Table 2:3-1,
-  ;;;    https://swat.tamu.edu/media/99192/swat2009-theory.pdf
-
-  ;;; this procedure loads the values of the soil water table
-  ;;; the table contains:
-  ;;;   1. two lines of headers with comments (metadata, to be ignored)
-  ;;;   2. two lines with statements mapping the different types of data, if more than one
-  ;;;   3. the header of the table with the names of variables
-  ;;;   4. remaining rows containing row name and values
-
-  let soilWaterTable csv:from-file "soilWaterTable.csv"
-
-  ;;;==================================================================================================================
-  ;;; mapping coordinates (row or columns) in lines 3 and 4 (= index 2 and 3) -----------------------------------------
-  ;;; NOTE: always correct raw mapping coordinates (start at 1) into list indexes (start at 0)
-
-  ;;; line 3 (= index 2), row indexes
-  let textureTypesRowRange (list ((item 1 (item 2 soilWaterTable)) - 1) ((item 3 (item 2 soilWaterTable)) - 1))
-
-  ;;; line 4 (= index 3), row indexes
-  ;;; Types of soil according to % of sand, silt and clay (ternary diagram) established by USDA
-  let textureTypeColumn (item 1 (item 3 soilWaterTable)) - 1
-
-  ;;; values of field capacity (fraction of soil volume) per texture type
-  let fieldCapacityColumn (item 3 (item 3 soilWaterTable)) - 1
-
-  ;;; values of saturation (fraction of soil volume) per texture type
-  let saturationColumn (item 5 (item 3 soilWaterTable)) - 1
-
-  ;;; values of intake rate (mm/hour) per texture type
-  let intakeRateColumn (item 7 (item 3 soilWaterTable)) - 1
-
-  ;;; values of minimum and maximum water holding capacity (in/ft) per texture type
-  let minWaterHoldingCapacityColumn (item 9 (item 3 soilWaterTable)) - 1
-  let maxWaterHoldingCapacityColumn (item 11 (item 3 soilWaterTable)) - 1
-
-  ;;;==================================================================================================================
-  ;;; extract data---------------------------------------------------------------------------------------
-
-  ;;; read variables (list of lists, matrix: texture types x soil water variables)
-  let soilWaterData sublist soilWaterTable (item 0 textureTypesRowRange) (item 1 textureTypesRowRange + 1)
-
-  ;;; types of texture must be exactly the same that is extracted from the Hydrologic Soil Group table
-
-  ;;; extract field capacity
-  set soil_fieldCapacity map [row -> item fieldCapacityColumn row ] soilWaterData
-
-  ;;; extract saturation
-  set soil_saturation map [row -> item saturationColumn row ] soilWaterData
-
-  ;;; extract intake rate
-  set soil_intakeRate map [row -> item intakeRateColumn row ] soilWaterData
-
-  ;;; extract water holding capacity
-  set soil_minWaterHoldingCapacity map [row -> item minWaterHoldingCapacityColumn row ] soilWaterData
-  set soil_maxWaterHoldingCapacity map [row -> item maxWaterHoldingCapacityColumn row ] soilWaterData
-
-end
-
-to-report extract-subtable [ table startColumnIndex endColumnIndex ]
-
-  let subtable (list)
-  let columnsCount ((endColumnIndex + 1) - startColumnIndex)
-  foreach n-values columnsCount [ j -> j ]
-  [
-    i ->
-    let columnIndex startColumnIndex + i
-    set subtable lput (map [row -> item columnIndex row ] table) subtable
-  ]
-  report subtable
 
 end
 
@@ -2647,7 +2242,7 @@ CHOOSER
 111
 display-mode
 display-mode
-"elevation (m)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient"
+"elevation (m)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types"
 0
 
 SLIDER
@@ -3471,39 +3066,6 @@ MONITOR
 NIL
 mostCommonTextureType
 0
-1
-9
-
-MONITOR
-894
-652
-1019
-689
-NIL
-meanRunOffCurveNumber
-2
-1
-9
-
-MONITOR
-1020
-651
-1146
-688
-NIL
-meanWaterHoldingCapacity
-4
-1
-9
-
-MONITOR
-1146
-651
-1283
-688
-NIL
-meanDeepDrainageCoefficient
-4
 1
 9
 
