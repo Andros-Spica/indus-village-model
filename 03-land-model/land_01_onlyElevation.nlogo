@@ -113,17 +113,11 @@ to create-terrain
 
   reset-timer
 
-  ifelse (elev_algorithm-style = "NetLogo")
-  [
-    set-landform-NetLogo
-  ]
-  [
-    set-landform-Csharp
-  ]
+  ;;; START - core procedures ;;;;;;;;;;;;;;;;;;;;;;;
 
-  set-xySlope
+  setup-elevations
 
-  set-valleySlope
+  ;;; END - core procedures ;;;;;;;;;;;;;;;;;;;;;;;
 
   set-output-stats
 
@@ -278,6 +272,22 @@ to parameters-to-default
   set par_elev_ySlope                         0.025
   set par_elev_valleyAxisInclination          0.1
   set par_elev_valleySlope                    0.02
+
+end
+
+to setup-elevations
+
+  ifelse (elev_algorithm-style = "NetLogo")
+  [
+    set-landform-NetLogo
+  ]
+  [
+    set-landform-Csharp
+  ]
+
+  set-xySlope
+
+  set-valleySlope
 
 end
 
