@@ -2771,7 +2771,7 @@ INPUTBOX
 164
 312
 terrainRandomSeed
-35.0
+64.0
 1
 0
 Number
@@ -3094,7 +3094,7 @@ INPUTBOX
 99
 118
 randomSeed
-0.0
+2.0
 1
 0
 Number
@@ -3420,7 +3420,7 @@ CHOOSER
 display-mode
 display-mode
 "elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "surface water width (%)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type" "albedo (%)" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "soil water content (ratio)" "ARID coefficient"
-1
+21
 
 BUTTON
 1117
@@ -3939,7 +3939,7 @@ par_ecol_maxRootZoneDepth
 200.0
 1
 1
-mm3/mm3
+mm
 HORIZONTAL
 
 MONITOR
@@ -3965,7 +3965,7 @@ par_ecol_minRootZoneDepth
 2000.0
 1
 1
-mm3/mm3
+mm
 HORIZONTAL
 
 TEXTBOX
@@ -4142,7 +4142,7 @@ par_ecol_%brush_r
 par_ecol_%brush_r
 3 * 30
 6 * 30
-90.0
+180.0
 1
 1
 days

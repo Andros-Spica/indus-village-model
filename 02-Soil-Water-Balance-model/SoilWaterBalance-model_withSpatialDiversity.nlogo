@@ -1919,10 +1919,10 @@ root-zone-depth_min
 root-zone-depth_min
 0
 root-zone-depth_max
-100.0
+0.0
 1
 1
-mm3/mm3
+mm
 HORIZONTAL
 
 SLIDER
@@ -1954,10 +1954,10 @@ elevation_mean
 MONITOR
 1497
 47
-1559
+1590
 84
-WHC
-(list WHC_min WHC_max)
+WHC [min, max]
+(list (precision WHC_min 2) (precision WHC_max 2))
 2
 1
 9
@@ -1965,10 +1965,10 @@ WHC
 MONITOR
 1476
 79
-1533
+1559
 116
-DC
-(list DC_min DC_max)
+DC [min, max]
+(list (precision DC_min 2) (precision DC_max 2))
 2
 1
 9
@@ -1976,10 +1976,10 @@ DC
 MONITOR
 1476
 110
-1529
+1560
 147
-z
-(list z_min z_max)
+z [min, max]
+(list (precision z_min 2) (precision z_max 2))
 2
 1
 9
@@ -1987,10 +1987,10 @@ z
 MONITOR
 1475
 145
-1532
+1560
 182
-CN
-(list CN_min CN_max)
+CN [min, max]
+(list (precision CN_min 2) (precision CN_max 2))
 2
 1
 9
@@ -2030,10 +2030,10 @@ HORIZONTAL
 MONITOR
 1681
 10
-1739
+1771
 47
-albedo
-(list albedo_min albedo_max)
+albedo [min, max]
+(list (precision albedo_min 2) (precision albedo_max 2))
 2
 1
 9
@@ -2095,7 +2095,7 @@ root-zone-depth_min
 0.0
 1
 1
-mm3/mm3
+mm
 HORIZONTAL
 
 SLIDER

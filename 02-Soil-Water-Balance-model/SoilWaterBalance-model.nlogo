@@ -1699,7 +1699,7 @@ root-zone-depth
 400.0
 1
 1
-mm3/mm3
+mm
 HORIZONTAL
 
 SLIDER
