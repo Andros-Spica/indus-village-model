@@ -37,6 +37,33 @@ globals
   ; randomSeed (GUI): seed of random number generator used for setting parameters and general stocahstic processes.
 
   ;*****************************************************************************************************************
+  ;;; imported table inputs
+  ;;;;; hydrologic Soil Groups table
+  soil_textureTypes                           ; Types of soil according to % of sand, silt and clay (ternary diagram) established by USDA
+  soil_hydrologicSoilGroups                   ; USDA classification of soils according to water infiltration (A, B, C, and D) per each texture type
+
+  ;;;;; run off curve number table
+  soil_runOffCurveNumberTable                 ; table (list of lists) with run off curve numbers of Hydrologic Soil Group (columns) combination of cover type-treatment-hydrologic condition
+
+  ;;;;; Field Capacity and Water Holding capacity table
+  soil_fieldCapacity                   ; field capacity (fraction of soil volume) per texture type
+  soil_saturation                      ; saturation (fraction of soil volume) per texture type (not currently used)
+  soil_intakeRate                      ; intake rate (mm/hour) per texture type
+  soil_minWaterHoldingCapacity         ; minimum and maximum water holding capacity (in/ft) per texture type (not currently used)
+  soil_maxWaterHoldingCapacity
+
+  ;;;;; albedo table
+  ecol_albedoTable                            ; table (list of lists) with min/max abedo by latitude range (columns) and broadband and cover type (and description)
+
+
+  ;;;;; ecological component table
+  ecol_ecologicalComponents      ; ecological component names (order)
+  ecol_maxRootDepth              ; maximum root depth (mm) of each vegetation component (to be used as root zone depth)
+  ecol_biomass                   ; biomass (g/m^2) of each vegetation component (above ground biomass (AGB))
+  ecol_recoveryLag               ; recovery lag (days) of each vegetation component
+  ecol_waterStressSensitivity    ; water stress sensitivity (%maxAffected/%total*day) of each vegetation component
+
+  ;*****************************************************************************************************************
   ;*** LAND model
 
   ;***** non-fixed parameters (to select terrain to import):
@@ -55,25 +82,6 @@ globals
   ;;; NOTE: terrainRandomSeed, elev_algorithm-style and flow_do-fill-sinks are used to select the file containing the terrain to import.
 
   ;***** fixed parameters (imported terrain):
-
-  ;;; table inputs
-  ;;;;; hydrologic Soil Groups table
-  soil_textureTypes                           ; Types of soil according to % of sand, silt and clay (ternary diagram) established by USDA
-  soil_textureTypes_display                   ; The content of soil_textureTypes ordered specifically for display (i.e. meaninful fixed colour pallete)
-  soil_hydrologicSoilGroups                   ; USDA classification of soils according to water infiltration (A, B, C, and D) per each texture type
-
-  ;;;;; run off curve number table
-  soil_runOffCurveNumberTable                 ; table (list of lists) with run off curve numbers of Hydrologic Soil Group (columns) combination of cover type-treatment-hydrologic condition
-
-  ;;;;; Field Capacity and Water Holding capacity table
-  soil_fieldCapacity                   ; field capacity (fraction of soil volume) per texture type
-  soil_saturation                      ; saturation (fraction of soil volume) per texture type (not currently used)
-  soil_intakeRate                      ; intake rate (mm/hour) per texture type
-  soil_minWaterHoldingCapacity         ; minimum and maximum water holding capacity (in/ft) per texture type (not currently used)
-  soil_maxWaterHoldingCapacity
-
-  ;;;;; albedo table
-  ecol_albedoTable                            ; table (list of lists) with min/max abedo by latitude range (columns) and broadband and cover type (and description)
 
   ;;;; elevation
   elev_numRanges                  ; number of landforming features ("ranges", "rifts").
@@ -143,6 +151,8 @@ globals
   soil_max%clay                          ; maximum percentage of clay (within the represented area)
   soil_textureNoise                      ; normal random variation in the proportion of sand/silt/clay (standard deviation of every component previous to normalisation)
 
+  soil_textureTypes_display              ; Texture types ordered specifically for display (i.e. meaninful fixed colour pallete)
+
   ;;;; ecological community
   ecol_grassFrequencyInflection          ; flow accumulation required for having 50% of grass coverage (inflection point of the logistic curve)
   ecol_grassFrequencyRate                ; rate of increase in percentage of grass coverage, depending on flow_accumulation (rate or slope parameter of the logistic curve)
@@ -162,11 +172,6 @@ globals
   maxFlowAccumulation
 
   mostCommonTextureType       ; the most common of texture type, see soil_textureTypes
-  meanRunOffCurveNumber       ; mean runoff curve number of land units
-  meanWaterHoldingCapacity    ; mean water holding capacity of land units (fraction of soil volume)
-  meanDeepDrainageCoefficient ; mean deep drainage coefficient (1/day)
-
-  mostCommonCoverType        ; the most common of cover type, see p_ecol_coverType
 
   ;*****************************************************************************************************************
 
@@ -207,10 +212,6 @@ globals
   solar_annualMin
   solar_meanDailyFluctuation
 
-  ;;; SOIL WATER BALANCE ------------------------------------------------------------------
-  ecol_minRootZoneDepth
-  ecol_maxRootZoneDepth
-
   ;;; RIVER -------------------------------------------------------------------------------
   riverWaterPerFlowAccumulation ; average river stage increment per flow accumulation at the river's starting land unit ( mm (height) / m^2 (area) ).
                                 ; Because there are many factors subtracting river flow (assumin that the catchment area is large enough,
@@ -225,18 +226,6 @@ globals
                                 ; https://cfpub.epa.gov/watertrain/moduleFrame.cfm?parent_object_id=1262#:~:text=The%20width%2Fdepth%20(W%2F,the%20channel%20to%20move%20sediment
                                 ; and about stream types:
                                 ; https://cfpub.epa.gov/watertrain/moduleFrame.cfm?parent_object_id=1199
-
-  ;;; ECOLOGICAL COMMUNITIES --------------------------------------------------------------
-  ecol_%wood_r                         ; intrinsic or maximum reproductive/recovery rate of ecological communities
-  ecol_%brush_r
-  ecol_%grass_r
-  ecol_%wood_waterStressSensitivity   ; sensitivity of the ecological components (vegetation) to water stress (ARID coefficient)
-  ecol_%brush_waterStressSensitivity
-  ecol_%grass_waterStressSensitivity
-
-  ecol_%wood_biomass                   ; biomass of each ecological community (g/m^2)
-  ecol_%brush_biomass
-  ecol_%grass_biomass
 
   ;;; variables ===============================================================
 
@@ -258,6 +247,13 @@ globals
 
   ;;;; counters and final measures
 
+  ;;;;; ecological communities and cover
+  mostCommonCoverType        ; the most common of cover type, see p_ecol_coverType
+
+  ;;;;; soil water properties
+  meanRunOffCurveNumber       ; mean runoff curve number of land units
+  meanWaterHoldingCapacity    ; mean water holding capacity of land units (fraction of soil volume)
+  meanDeepDrainageCoefficient ; mean deep drainage coefficient (1/day)
 ]
 
 patches-own
@@ -341,7 +337,7 @@ patches-own
 
   p_ecol_albedo                     ; albedo or percentage of solar radiation reflected by soil or soil cover
 
-  p_ecol_biomass                    ; total biomass (g/m^2) of ecological communities
+  p_ecol_biomass                    ; total biomass (g/m^2) of ecological communities (vegetation as proxy)
 
   ;========= SOIL WATER BALANCE model ======================================================================
 
@@ -370,6 +366,18 @@ to setup
 
   import-terrain
 
+  ; --- import tables ------------------------
+
+  load-hydrologic-soil-groups-table
+
+  load-runoff-curve-number-table
+
+  load-soil-water-table
+
+  load-albedo-table
+
+  load-ecological-component-table
+
   ; --- loading/testing parameters -----------
 
   set-constants
@@ -381,8 +389,6 @@ to setup
   set currentDayOfYear 1
 
   setup-patches
-
-  setup-river-water
 
   update-weather
 
@@ -479,23 +485,8 @@ to set-parameters
     set precipitation_dailyCum_rate2_yearlyMean precipitation_daily-cum_rate2_yearly-mean
     set precipitation_dailyCum_rate2_yearlySd precipitation_daily-cum_rate2_yearly-sd
 
-    ;;; Soil Water Balance model
-    set ecol_minRootZoneDepth par_ecol_minRootZoneDepth
-    set ecol_maxRootZoneDepth par_ecol_maxRootZoneDepth
-
     ;;; River water (dependent on flow_riverAccumulationAtStart, which is set by Land model)
     set riverWaterPerFlowAccumulation par_riverWaterPerFlowAccumulation
-
-    ;;; ecological communities
-    set ecol_%wood_r par_ecol_%wood_r
-    set ecol_%brush_r par_ecol_%brush_r
-    set ecol_%grass_r par_ecol_%grass_r
-    set ecol_%wood_waterStressSensitivity par_ecol_%wood_waterStressSensitivity
-    set ecol_%brush_waterStressSensitivity par_ecol_%brush_waterStressSensitivity
-    set ecol_%grass_waterStressSensitivity par_ecol_%grass_waterStressSensitivity
-    set ecol_%wood_biomass par_ecol_%wood_biomass
-    set ecol_%brush_biomass par_ecol_%brush_biomass
-    set ecol_%grass_biomass par_ecol_%grass_biomass
   ]
   if (type-of-experiment = "random")
   [
@@ -530,23 +521,8 @@ to set-parameters
     set precipitation_dailyCum_rate2_yearlyMean 0.01 + random-float 0.07
     set precipitation_dailyCum_rate2_yearlySd 0.004 + random-float 0.02
 
-    ;;; Soil Water Balance model
-    set ecol_minRootZoneDepth random-float 1000
-    set ecol_maxRootZoneDepth ecol_minRootZoneDepth + random-float 1000
-
     ;;; River water (effect on p_water depends on flow_riverAccumulationAtStart, which is set by the Land model)
     set riverWaterPerFlowAccumulation 1E-4 + random-float 0.00099 ; range between 1E-4 and 1E-5
-
-    ;;; ecological communities
-    set ecol_%wood_r 365 + random-float (5 * 365) ;;; full recovery can take between one and five years
-    set ecol_%brush_r (6 * 30) + random-float 365 ;;; full recovery can take between six months and one year
-    set ecol_%grass_r 30 + random-float (3 * 30) ;;; full recovery can take between one and three months
-    set ecol_%wood_waterStressSensitivity 0.01 + random-float 0.49
-    set ecol_%brush_waterStressSensitivity 0.01 + random-float 0.24
-    set ecol_%grass_waterStressSensitivity 0.01 + random-float 0.09
-    set ecol_%wood_biomass 5500 + random-float 25000
-    set ecol_%brush_biomass 500 + random-float 1000
-    set ecol_%grass_biomass 80 + random-float 320
 
     ;;; NOTES about calibration:
     ;;; Global Horizontal Irradiation can vary from about 2 to 7 KWh/m-2 per day.
@@ -594,21 +570,7 @@ to parameters-check
   if (precipitation_daily-cum_rate2_yearly-mean = 0)             [ set precipitation_daily-cum_rate2_yearly-mean                 0.08 ]
   if (precipitation_daily-cum_rate2_yearly-sd = 0)               [ set precipitation_daily-cum_rate2_yearly-sd                   0.02 ]
 
-  if (par_ecol_minRootZoneDepth = 0)                             [ set par_ecol_minRootZoneDepth                               200 ]
-  if (par_ecol_maxRootZoneDepth = 0)                             [ set par_ecol_maxRootZoneDepth                              2000 ]
-
   if (par_riverWaterPerFlowAccumulation = 0)                     [ set par_riverWaterPerFlowAccumulation                        1E-4 ]
-
-  if (par_ecol_%wood_r = 0)                                      [ set par_ecol_%wood_r                                          365 ] ;;; full recovery takes one year
-  if (par_ecol_%brush_r = 0)                                     [ set par_ecol_%brush_r                                         6 * 30 ] ;;; full recovery takes six months
-  if (par_ecol_%grass_r = 0)                                     [ set par_ecol_%grass_r                                         30 ] ;;; full recovery takes one month
-  ;if (par_ecol_%wood_waterStressSensitivity = 0)                 [ set par_riverWaterPerFlowAccumulation                        0.5 ]
-  ;if (par_ecol_%brush_waterStressSensitivity = 0)                [ set par_riverWaterPerFlowAccumulation                        0.25 ]
-  ;if (par_ecol_%grass_waterStressSensitivity = 0)                [ set par_riverWaterPerFlowAccumulation                        0.01 ]
-
-  if (ecol_%wood_biomass = 0)                                    [ set ecol_%wood_biomass                                        8000 ]
-  if (ecol_%brush_biomass = 0)                                   [ set ecol_%brush_biomass                                        600 ]
-  if (ecol_%grass_biomass = 0)                                   [ set ecol_%grass_biomass                                        200 ]
 
 end
 
@@ -642,20 +604,7 @@ to parameters-to-default
   set precipitation_daily-cum_rate2_yearly-mean                 0.08
   set precipitation_daily-cum_rate2_yearly-sd                   0.02
 
-  set par_ecol_minRootZoneDepth                               200
-  set par_ecol_maxRootZoneDepth                              2000
-
   set par_riverWaterPerFlowAccumulation                        1E-4
-
-  set par_riverWaterPerFlowAccumulation                       365 ;;; full recovery takes one year
-  set par_riverWaterPerFlowAccumulation                    6 * 30 ;;; full recovery takes six months
-  set par_riverWaterPerFlowAccumulation                        30 ;;; full recovery takes one month
-  ;set par_riverWaterPerFlowAccumulation                        0.5
-  ;set par_riverWaterPerFlowAccumulation                        0.25
-  ;set par_riverWaterPerFlowAccumulation                        0.01
-  set ecol_%wood_biomass                                        8000
-  set ecol_%brush_biomass                                        600
-  set ecol_%grass_biomass                                        200
 
 end
 
@@ -666,22 +615,17 @@ to setup-patches
     ;;; recentre elevation so negative values are only below sea level
     set elevation get-recentred-elevation
 
-    ; z : root zone depth (mm)
-    let efectiveMaxRootZoneDepth min (list p_soil_depth par_ecol_maxRootZoneDepth)
-    set p_ecol_rootZoneDepth ecol_minRootZoneDepth + random-float efectiveMaxRootZoneDepth
+    ;;; use table input data to set up soil water properties
+    setup-soil-soilWaterProperties
 
-    ; WAT0 : Initial Water content (mm)
+    ;;; root zone depth (mm) given initial ecological communities
+    set-ecological-community-root-zone-depth
+
+    ;;; Initial water content (mm) given initial ecological communities
     set p_soil_waterContent  p_ecol_rootZoneDepth * p_soil_fieldCapacity
   ]
 
-end
-
-to setup-river-water
-
-  ask patches with [flow_accumulation > flow_riverAccumulationAtStart] ; patches containing the river
-  [
-    set p_water flow_accumulation * riverWaterPerFlowAccumulation
-  ]
+  setup-river-water
 
 end
 
@@ -689,6 +633,77 @@ to-report get-recentred-elevation
 
   ;;; get re-centre value of elevation in relation to new seaLevel
   report elevation_original - elev_seaLevelReferenceShift
+
+end
+
+to setup-soil-soilWaterProperties
+
+  set p_soil_coverTreatmentAndHydrologicCondition get-coverTreatmentAndHydrologicCondition p_ecol_coverType
+
+  set p_soil_hydrologicSoilGroup item (position p_soil_textureType soil_textureTypes) soil_hydrologicSoilGroups
+
+  set p_soil_runOffCurveNumber get-runOffCurveNumber p_soil_coverTreatmentAndHydrologicCondition p_soil_hydrologicSoilGroup
+
+  set p_soil_fieldCapacity get-fieldCapacity p_soil_textureType
+
+  set p_soil_wiltingPoint get-wiltingPoint
+
+  set p_soil_saturation get-saturation
+
+  set p_soil_waterHoldingCapacity get-waterHoldingCapacity ;p_soil_textureType
+
+  set p_soil_deepDrainageCoefficient get-deepDrainageCoefficient p_soil_textureType
+
+end
+
+to-report get-fieldCapacity [ textureType ]
+
+  report item (position textureType soil_textureTypes) soil_fieldCapacity
+
+end
+
+to-report get-wiltingPoint
+
+  ; using linear estimation
+  ; See "SecondaryDocs/linearEstimationOfSoilWaterHorizons.Rmd"
+
+  report max (list (-0.0105 + 0.0042 * p_soil_%clay) 0)
+
+end
+
+to-report get-saturation
+
+  ; using linear estimation
+  ; See "SecondaryDocs/linearEstimationOfSoilWaterHorizons.Rmd"
+
+  report 0.3916 + 0.0045 * p_soil_%clay
+
+end
+
+to-report get-waterHoldingCapacity ;[ textureType ]
+
+  report (p_soil_fieldCapacity - p_soil_wiltingPoint)
+
+  ; alternative using input data water holding capacity x soil texture type
+  ;let minWHC (item (position textureType soil_textureTypes) soil_minWaterHoldingCapacity)
+  ;let maxWHC (item (position textureType soil_textureTypes) soil_maxWaterHoldingCapacity)
+
+  ;report (minWHC + random-float (maxWHC - minWHC)) * 2.54 / 30.48 ; converted from in/ft to cm/cm
+
+end
+
+to-report get-deepDrainageCoefficient [ textureType ]
+
+  ; get intake rate (mm/hour) of the given texture type
+  let intakeRate item (position textureType soil_textureTypes) soil_intakeRate
+
+  ; return daily intake rate divided by the volume of soil above field capacity (intake/drainage rate at saturation) as approximation of deep drainage coefficient
+  ; TO-DO: ideally, data on deep drainage coefficient should be used instead.
+  let soilAboveFieldCapacity (1 - p_soil_fieldCapacity) * p_soil_depth
+
+  ifelse (soilAboveFieldCapacity < 1E-17)
+  [ report 1 ] ; to avoid error when p_soil_depth = 0
+  [ report min (list 1 (24 * intakeRate / soilAboveFieldCapacity)) ] ; deep drainage cannot be greater than one
 
 end
 
@@ -705,6 +720,15 @@ to rescale-ecological-communities
       set p_ecol_%brush p_ecol_%brush * (100 - p_ecol_%water) / 100
       set p_ecol_%grass p_ecol_%grass * (100 - p_ecol_%water) / 100
     ]
+  ]
+
+end
+
+to setup-river-water
+
+  ask patches with [flow_accumulation > flow_riverAccumulationAtStart] ; patches containing the river
+  [
+    set p_water flow_accumulation * riverWaterPerFlowAccumulation
   ]
 
 end
@@ -1356,6 +1380,8 @@ to update-ecological-communities
     advance-ecological-succession
 
     set-ecological-communities-biomass
+
+    set-ecological-community-root-zone-depth
   ]
 
 end
@@ -1388,27 +1414,27 @@ to advance-ecological-succession
   ;;; all ecological components (based on vegetation) are assumed to grow towards the initial ecological community configuration, minus the influence of water stress.
   ;;; The logistic growth model is used, where the reproductive rate (growth slope) is regulated by the frequency of the component and its proportion to a carrying capacity (here, the initial value)
 
-  let recovery_%wood 1 / par_ecol_%wood_r
-  let recovery_%brush 1 / par_ecol_%brush_r
-  let recovery_%grass 1 / par_ecol_%grass_r
+  let recoveryRate_%wood 1 / (get-recovery-lag-of-ecological-component "wood")
+  let recoveryRate_%brush 1 / (get-recovery-lag-of-ecological-component "brush")
+  let recoveryRate_%grass 1 / (get-recovery-lag-of-ecological-component "grass")
 
   set p_ecol_%wood (p_ecol_%wood +
-    recovery_%wood *
-    ((p_initEcol_%wood * (1 - p_soil_ARID * ecol_%wood_waterStressSensitivity) *
+    recoveryRate_%wood *
+    ((p_initEcol_%wood * (1 - p_soil_ARID * (get-water-stress-sensitivity-of-ecological-component "wood")) *
       (100 - p_ecol_%water) / 100) - p_ecol_%wood
     )
   )
 
   set p_ecol_%brush (p_ecol_%brush +
-    recovery_%brush *
-    ((p_initEcol_%brush * (1 - p_soil_ARID * ecol_%brush_waterStressSensitivity) *
+    recoveryRate_%brush *
+    ((p_initEcol_%brush * (1 - p_soil_ARID * (get-water-stress-sensitivity-of-ecological-component "brush")) *
       (100 - p_ecol_%water) / 100) - p_ecol_%brush
     )
   )
 
   set p_ecol_%grass (p_ecol_%grass +
-    recovery_%grass *
-    ((p_initEcol_%grass * (1 - p_soil_ARID * ecol_%grass_waterStressSensitivity) *
+    recoveryRate_%grass *
+    ((p_initEcol_%grass * (1 - p_soil_ARID * (get-water-stress-sensitivity-of-ecological-component "grass")) *
       (100 - p_ecol_%water) / 100) - p_ecol_%grass
     )
   )
@@ -1417,7 +1443,52 @@ end
 
 to set-ecological-communities-biomass
 
-  set p_ecol_biomass (((p_ecol_%wood / 100) * ecol_%wood_biomass) + ((p_ecol_%brush / 100) * ecol_%brush_biomass) + ((p_ecol_%grass / 100) * ecol_%grass_biomass))
+  set p_ecol_biomass (
+    ((p_ecol_%wood / 100) * (get-biomass-of-ecological-component "wood")) +
+    ((p_ecol_%brush / 100) * (get-biomass-of-ecological-component "brush")) +
+    ((p_ecol_%grass / 100) * (get-biomass-of-ecological-component "grass"))
+  )
+
+end
+
+to set-ecological-community-root-zone-depth
+
+  set p_ecol_rootZoneDepth (
+    ((p_ecol_%wood / 100) * (get-max-root-depth-of-ecological-component "wood")) +
+    ((p_ecol_%brush / 100) * (get-max-root-depth-of-ecological-component "brush")) +
+    ((p_ecol_%grass / 100) * (get-max-root-depth-of-ecological-component "grass"))
+  )
+
+  set p_ecol_rootZoneDepth min (list p_soil_depth p_ecol_rootZoneDepth) ;;; it cannot be deeper than the soil layer
+  ;;; root zone depth will be 0 if there is no active (terrestrial) ecological community (100% bare soil or water)
+
+end
+
+to-report get-max-root-depth-of-ecological-component [ ecologicalComponentName ]
+
+  ;;; get max root depth value corresponding to ecologicalComponentName
+  report item (position ecologicalComponentName ecol_ecologicalComponents) ecol_maxRootDepth
+
+end
+
+to-report get-biomass-of-ecological-component [ ecologicalComponentName ]
+
+  ;;; get biomass value corresponding to ecologicalComponentName
+  report item (position ecologicalComponentName ecol_ecologicalComponents) ecol_biomass
+
+end
+
+to-report get-recovery-lag-of-ecological-component [ ecologicalComponentName ]
+
+  ;;; get recovery lag value corresponding to ecologicalComponentName
+  report item (position ecologicalComponentName ecol_ecologicalComponents) ecol_recoveryLag
+
+end
+
+to-report get-water-stress-sensitivity-of-ecological-component [ ecologicalComponentName ]
+
+  ;;; get water stress sensitivity value corresponding to ecologicalComponentName
+  report item (position ecologicalComponentName ecol_ecologicalComponents) ecol_waterStressSensitivity
 
 end
 
@@ -1559,7 +1630,6 @@ end
 
 to update-output-stats
 
-  set mostCommonTextureType modes [p_soil_textureType] of patches
   set meanRunOffCurveNumber mean [p_soil_runOffCurveNumber] of patches
   set meanWaterHoldingCapacity mean [p_soil_waterHoldingCapacity] of patches
   set meanDeepDrainageCoefficient mean [p_soil_deepDrainageCoefficient] of patches
@@ -2386,17 +2456,6 @@ to import-terrain
 
           if (item globalIndex globalNames = "soil_formativeerosionrate") [ set soil_formativeErosionRate item globalIndex globalValues ]
 
-          if (item globalIndex globalNames = "soil_texturetypes") [ set soil_textureTypes read-from-string item globalIndex globalValues ]
-          if (item globalIndex globalNames = "soil_texturetypes_display") [ set soil_textureTypes_display read-from-string item globalIndex globalValues ]
-          if (item globalIndex globalNames = "soil_hydrologicsoilgroups") [ set soil_hydrologicSoilGroups read-from-string item globalIndex globalValues ]
-          if (item globalIndex globalNames = "soil_runoffcurvenumbertable") [ set soil_runOffCurveNumberTable read-from-string item globalIndex globalValues ]
-
-          if (item globalIndex globalNames = "soil_fieldcapacity") [ set soil_fieldCapacity item globalIndex globalValues ]
-          if (item globalIndex globalNames = "soil_saturation") [ set soil_saturation item globalIndex globalValues ]
-          ;if (item globalIndex globalNames = "soil_minWaterholdingcapacity") [ set soil_minWaterHoldingCapacity item globalIndex globalValues ]
-          ;if (item globalIndex globalNames = "soil_maxwaterholdingcapacity") [ set soil_maxWaterHoldingCapacity item globalIndex globalValues ]
-          if (item globalIndex globalNames = "soil_intakerate") [ set soil_intakeRate read-from-string item globalIndex globalValues ]
-
           if (item globalIndex globalNames = "soil_mindepth") [ set soil_minDepth item globalIndex globalValues ]
           if (item globalIndex globalNames = "soil_maxdepth") [ set soil_maxDepth item globalIndex globalValues ]
           if (item globalIndex globalNames = "soil_depthnoise") [ set soil_depthNoise item globalIndex globalValues ]
@@ -2410,16 +2469,14 @@ to import-terrain
 
           if (item globalIndex globalNames = "soil_texturenoise") [ set soil_textureNoise item globalIndex globalValues ]
 
+          if (item globalIndex globalNames = "soil_texturetypes_display") [ set soil_textureTypes_display read-from-string item globalIndex globalValues ]
+
           if (item globalIndex globalNames = "ecol_brushfrequencyinflection") [ set ecol_brushFrequencyInflection item globalIndex globalValues ]
           if (item globalIndex globalNames = "ecol_brushfrequencyrate") [ set ecol_brushFrequencyRate item globalIndex globalValues ]
           if (item globalIndex globalNames = "ecol_grassfrequencyinflection") [ set ecol_grassFrequencyInflection item globalIndex globalValues ]
           if (item globalIndex globalNames = "ecol_grassfrequencyrate") [ set ecol_grassFrequencyRate item globalIndex globalValues ]
           if (item globalIndex globalNames = "ecol_woodfrequencyinflection") [ set ecol_woodFrequencyInflection item globalIndex globalValues ]
           if (item globalIndex globalNames = "ecol_woodfrequencyrate") [ set ecol_woodFrequencyRate item globalIndex globalValues ]
-
-          if (item globalIndex globalNames = "ecol_albedotable") [ set ecol_albedoTable read-from-string item globalIndex globalValues ]
-
-          ;;; add new global variables here
         ]
       ]
 
@@ -2474,23 +2531,13 @@ to import-terrain
             set p_soil_%silt item 13 thisLine
             set p_soil_%clay item 14 thisLine
             set p_soil_textureType read-from-string item 15 thisLine
-            set p_soil_hydrologicSoilGroup read-from-string item 16 thisLine
-            set p_soil_coverTreatmentAndHydrologicCondition read-from-string item 17 thisLine
-            set p_soil_runOffCurveNumber item 18 thisLine
-            set p_soil_saturation item 19 thisLine
-            set p_soil_fieldCapacity item 20 thisLine
-            set p_soil_waterHoldingCapacity item 21 thisLine
-            set p_soil_wiltingPoint item 22 thisLine
-            set p_soil_deepDrainageCoefficient item 23 thisLine
-            set p_ecol_%grass item 24 thisLine
-            set p_initEcol_%grass item 24 thisLine
-            set p_ecol_%brush item 25 thisLine
-            set p_initEcol_%brush item 25 thisLine
-            set p_ecol_%wood item 26 thisLine
-            set p_initEcol_%wood item 26 thisLine
-            set p_ecol_coverType read-from-string item 27 thisLine
-            set p_ecol_albedo item 28 thisLine
-            ;;; add new patch variables here
+            set p_ecol_%grass item 16 thisLine
+            set p_initEcol_%grass item 16 thisLine
+            set p_ecol_%brush item 17 thisLine
+            set p_initEcol_%brush item 17 thisLine
+            set p_ecol_%wood item 18 thisLine
+            set p_initEcol_%wood item 18 thisLine
+            set p_ecol_coverType read-from-string item 19 thisLine
           ]
           set thisLine csv:from-row file-read-line
         ]
@@ -2540,6 +2587,329 @@ to-report get-flowHolder-who-from-link-data [ linkDataEntry ]
   set str remove "r" str
   set str remove " " str
   report read-from-string remove "}" str
+
+end
+
+;;; IMPORT TABLES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to load-hydrologic-soil-groups-table
+
+  ;;; SOURCE: table in page A-1,
+  ;;; Cronshey R G 1986 Urban Hydrology for Small Watersheds, Technical Release 55 (TR-55).
+  ;;; United States Department of Agriculture, Soil Conservation Service, Engineering Division.
+
+  ;;; this procedure loads the values of the hydrologic soil groups table
+  ;;; the table contains:
+  ;;;   1. two lines of headers with comments (metadata, to be ignored)
+  ;;;   2. two lines with statements mapping the different types of data, if more than one
+  ;;;   3. the header of the table with the names of variables
+  ;;;   4. remaining rows containing row name and values
+
+  let hydrologicSoilGroupTable csv:from-file "hydrologicSoilGroupTable.csv"
+
+  ;;;==================================================================================================================
+  ;;; mapping coordinates (row or columns) in lines 3 and 4 (= index 2 and 3) -----------------------------------------
+  ;;; NOTE: always correct raw mapping coordinates (start at 1) into list indexes (start at 0)
+
+  ;;; line 3 (= index 2), row indexes
+  let textureTypesRowRange (list ((item 1 (item 2 hydrologicSoilGroupTable)) - 1) ((item 3 (item 2 hydrologicSoilGroupTable)) - 1))
+
+  ;;; line 4 (= index 3), row indexes
+  ;;; Types of soil according to % of sand, silt and clay (ternary diagram) established by USDA
+  let textureTypeColumn (item 1 (item 3 hydrologicSoilGroupTable)) - 1
+
+  ;;; USDA classification of soils according to water infiltration (A, B, C, and D; see reference in csv file)
+  let HydrologycSoilGroupsColumn (item 3 (item 3 hydrologicSoilGroupTable)) - 1
+
+  ;;;==================================================================================================================
+  ;;; extract data---------------------------------------------------------------------------------------
+
+  ;;; read variables (list of lists, matrix: texture types x hydrologic soil groups)
+  let hydrologicSoilGroupsData sublist hydrologicSoilGroupTable (item 0 textureTypesRowRange) (item 1 textureTypesRowRange + 1)
+
+  ;;; extract type of texture
+  set soil_textureTypes map [row -> item textureTypeColumn row ] hydrologicSoilGroupsData
+
+  ;;; extract hydrologic soil group
+  set soil_hydrologicSoilGroups map [row -> item HydrologycSoilGroupsColumn row ] hydrologicSoilGroupsData
+
+end
+
+to load-runoff-curve-number-table
+
+  ;;; SOURCE: table 2.2,
+  ;;; Cronshey R G 1986 Urban Hydrology for Small Watersheds, Technical Release 55 (TR-55).
+  ;;; United States Department of Agriculture, Soil Conservation Service, Engineering Division.
+
+  ;;; this procedure loads the values of the run off curve number table
+  ;;; the table contains:
+  ;;;   1. two lines of headers with comments (metadata, to be ignored)
+  ;;;   2. two lines with statements mapping the different types of data, if more than one
+  ;;;   3. the header of the table with the names of variables
+  ;;;   4. remaining rows containing row name and values
+
+  let runOffCurveNumberTable csv:from-file "runOffCurveNumberTable.csv"
+
+  ;;;==================================================================================================================
+  ;;; mapping coordinates (row or columns) in lines 3 and 4 (= index 2 and 3) -----------------------------------------
+  ;;; NOTE: always correct raw mapping coordinates (start at 1) into list indexes (start at 0)
+
+  ;;; line 3 (= index 2), row indexes
+  let typesOfCoverRowRange (list ((item 1 (item 2 runOffCurveNumberTable)) - 1) ((item 3 (item 2 runOffCurveNumberTable)) - 1))
+
+  ;;; line 4 (= index 3), row indexes
+  ;;; types of soil cover
+  let coverTypeColumn (item 1 (item 3 runOffCurveNumberTable)) - 1
+
+  ;;; types of soil treatment (if applies)
+  let TreatmentColumn (item 3 (item 3 runOffCurveNumberTable)) - 1
+
+  ;;; types of soil hydrologic condition (if applies)
+  let HydrologicConditionColumn (item 5 (item 3 runOffCurveNumberTable)) - 1
+
+  ;;; Columns holding data for the four Hydrologic soil groups: value 8 and 10 (=item 7 and 9)
+  let HydrologycSoilGroupsColumns (list ((item 7 (item 3 runOffCurveNumberTable)) - 1) ((item 9 (item 3 runOffCurveNumberTable)) - 1) )
+
+  ;;;==================================================================================================================
+  ;;; extract data---------------------------------------------------------------------------------------
+
+  ;;; read variables (list of lists, matrix: cover types-treatment-condition x hydrologic soil groups)
+  let runOffCurveNumberData sublist runOffCurveNumberTable (item 0 typesOfCoverRowRange) (item 1 typesOfCoverRowRange + 1) ; select only those rows corresponding to data on types of cover
+
+  ;;; extract cover, treatment and hydrologic condition
+  let coverTreatmentAndHydrologicCondition (
+    map [row -> (word (item coverTypeColumn row) " | " (item TreatmentColumn row) " | " (item HydrologicConditionColumn row) ) ] runOffCurveNumberData
+    )
+
+  ;;; extract curve number table
+  set soil_runOffCurveNumberTable extract-subtable runOffCurveNumberData (item 0 HydrologycSoilGroupsColumns) (item 1 HydrologycSoilGroupsColumns)
+
+  ;;; combine with cover-treatment-hydrologic condition
+  set soil_runOffCurveNumberTable fput coverTreatmentAndHydrologicCondition soil_runOffCurveNumberTable
+
+end
+
+to load-soil-water-table
+
+  ;;; SOURCE (TO-DO: FIND BETTER SOURCES!):
+  ;;; 1. Plant & Soil Sciences eLibrary, Lesson: Soils - Part 2: Physical Properties
+  ;;;    of Soil and Soil Water, page 10 (Soil Water), Table 2.6.
+  ;;;    https://passel2.unl.edu/view/lesson/0cff7943f577/10
+  ;;;    Conservation Service, Engineering Division
+  ;;; 2. Rain Machine support documentation, "Zones", "Soil Types", Table.
+  ;;;    https://support.rainmachine.com/hc/en-us/articles/228001248-Soil-Types
+  ;;; 3. SWAT theoretical documentation 2009, p. 148, Table 2:3-1,
+  ;;;    https://swat.tamu.edu/media/99192/swat2009-theory.pdf
+
+  ;;; this procedure loads the values of the soil water table
+  ;;; the table contains:
+  ;;;   1. two lines of headers with comments (metadata, to be ignored)
+  ;;;   2. two lines with statements mapping the different types of data, if more than one
+  ;;;   3. the header of the table with the names of variables
+  ;;;   4. remaining rows containing row name and values
+
+  let soilWaterTable csv:from-file "soilWaterTable.csv"
+
+  ;;;==================================================================================================================
+  ;;; mapping coordinates (row or columns) in lines 3 and 4 (= index 2 and 3) -----------------------------------------
+  ;;; NOTE: always correct raw mapping coordinates (start at 1) into list indexes (start at 0)
+
+  ;;; line 3 (= index 2), row indexes
+  let textureTypesRowRange (list ((item 1 (item 2 soilWaterTable)) - 1) ((item 3 (item 2 soilWaterTable)) - 1))
+
+  ;;; line 4 (= index 3), row indexes
+  ;;; Types of soil according to % of sand, silt and clay (ternary diagram) established by USDA
+  let textureTypeColumn (item 1 (item 3 soilWaterTable)) - 1
+
+  ;;; values of field capacity (fraction of soil volume) per texture type
+  let fieldCapacityColumn (item 3 (item 3 soilWaterTable)) - 1
+
+  ;;; values of saturation (fraction of soil volume) per texture type
+  let saturationColumn (item 5 (item 3 soilWaterTable)) - 1
+
+  ;;; values of intake rate (mm/hour) per texture type
+  let intakeRateColumn (item 7 (item 3 soilWaterTable)) - 1
+
+  ;;; values of minimum and maximum water holding capacity (in/ft) per texture type
+  let minWaterHoldingCapacityColumn (item 9 (item 3 soilWaterTable)) - 1
+  let maxWaterHoldingCapacityColumn (item 11 (item 3 soilWaterTable)) - 1
+
+  ;;;==================================================================================================================
+  ;;; extract data---------------------------------------------------------------------------------------
+
+  ;;; read variables (list of lists, matrix: texture types x soil water variables)
+  let soilWaterData sublist soilWaterTable (item 0 textureTypesRowRange) (item 1 textureTypesRowRange + 1)
+
+  ;;; types of texture must be exactly the same that is extracted from the Hydrologic Soil Group table
+
+  ;;; extract field capacity
+  set soil_fieldCapacity map [row -> item fieldCapacityColumn row ] soilWaterData
+
+  ;;; extract saturation
+  set soil_saturation map [row -> item saturationColumn row ] soilWaterData
+
+  ;;; extract intake rate
+  set soil_intakeRate map [row -> item intakeRateColumn row ] soilWaterData
+
+  ;;; extract water holding capacity
+  set soil_minWaterHoldingCapacity map [row -> item minWaterHoldingCapacityColumn row ] soilWaterData
+  set soil_maxWaterHoldingCapacity map [row -> item maxWaterHoldingCapacityColumn row ] soilWaterData
+
+end
+
+to load-albedo-table
+
+  ;;; SOURCE:
+  ;;; Values are informed on (not derived from) the following sources:
+
+  ;;; Houldcroft C J, Grey W M F, Barnsley M, Taylor C M, Los S O and North P R J (2009).
+  ;;; New vegetation Albedo parameters and global fields of soil background Albedo derived from MODIS for use in a climate model,
+  ;;; J. Hydrometeorol., 10: 183–98.
+  ;;; https://doi.org/10.1175/2008JHM1021.1
+
+  ;;; Table 2 in:
+  ;;; Gao F, Schaaf C B, Strahler A H, Roesch A, Lucht W and Dickinson R (2005).
+  ;;; MODIS bidirectional reflectance distribution function and albedo Climate Modeling
+  ;;; Grid products and the variability of albedo major global vegetation types,
+  ;;; Journal of Geophysical Research D: Atmospheres, 110(1): 1–13.
+  ;;; https://doi.org/10.1029/2004JD005190
+
+  ;;; also https://en.wikipedia.org/wiki/Albedo
+
+  ;;; this procedure loads the values of the albedo table
+  ;;; the table contains:
+  ;;;   1. two lines of headers with comments (metadata, to be ignored)
+  ;;;   2. two lines with statements mapping the different types of data, if more than one
+  ;;;   3. the header of the table with the names of variables
+  ;;;   4. remaining rows containing row name and values
+
+  let albedoTable csv:from-file "albedoTable.csv"
+
+  ;;;==================================================================================================================
+  ;;; mapping coordinates (row or columns) in lines 3 and 4 (= index 2 and 3) -----------------------------------------
+  ;;; NOTE: always correct raw mapping coordinates (start at 1) into list indexes (start at 0)
+
+  ;;; line 3 (= index 2), row indexes
+  let typesOfCoverRowRange (list ((item 1 (item 2 albedoTable)) - 1) ((item 3 (item 2 albedoTable)) - 1))
+
+  ;;; line 4 (= index 3), row indexes
+  ;;; broadband range
+  ;;; types of soil cover
+  let coverTypeColumn (item 1 (item 3 albedoTable)) - 1
+
+  ;;; albedo (%)
+  let albedoColumn (item 3 (item 3 albedoTable)) - 1
+
+  ;;;==================================================================================================================
+  ;;; extract data---------------------------------------------------------------------------------------
+
+  ;;; read variables (list of lists, matrix: cover types x albedo)
+  let albedoData sublist albedoTable (item 0 typesOfCoverRowRange) (item 1 typesOfCoverRowRange + 1) ; select only those rows corresponding to data on types of cover
+
+  ;;; extract cover types
+  let coverType map [row -> item coverTypeColumn row ] albedoData
+
+  ;;; extract albedo (%)
+  let albedo map [row -> item albedoColumn row ] albedoData
+
+  ;;; combine with cover types with albedo values
+  set ecol_albedoTable (list coverType albedo)
+
+end
+
+to load-ecological-component-table
+
+  ;;; SOURCE:
+  ;;; Values are informed on (not derived from) the following sources:
+
+  ;;; "source: on root depth:
+  ;;; Foxx T S, Tierney G D and Williams J M (1984).
+  ;;; Rooting depths of plants relative to biological and environmental factors 26
+  ;;; Online: http://permalink.lanl.gov/object/tr?what=info:lanl-repo/lareport/LA-10254-MS 00318770.pdf
+
+  ;;; on biomass:
+  ;;; Wu Z, Dye D, Vogel J and Middleton B (2016).
+  ;;; Estimating forest and woodland aboveground biomass using active and passive remote sensing Photogramm.
+  ;;; Eng. Remote Sensing 82 271–81.
+  ;;; Online: https://doi.org/10.14358/PERS.82.4.271
+
+  ;;; Li A, Dhakal S, Glenn N, Spaete L, Shinneman D, Pilliod D, Arkle R and McIlroy S (2017).
+  ;;; Lidar Aboveground Vegetation Biomass Estimates in Shrublands: Prediction, Uncertainties and Application to Coarser Scales
+  ;;; Remote Sens. 9 903
+  ;;; Online: http://www.mdpi.com/2072-4292/9/9/903
+
+  ;;; Navarro Cerrillo R M and Blanco Oyonarte P (2006).
+  ;;; Estimation of above-ground biomass in shrubland ecosystems of southern Spain
+  ;;; Investig. Agrar. Sist. y Recur. For. 15 197.
+  ;;; Online: https://www.researchgate.net/publication/28126747"
+
+  ;;; this procedure loads the values of the ecological component table
+  ;;; the table contains:
+  ;;;   1. two lines of headers with comments (metadata, to be ignored)
+  ;;;   2. two lines with statements mapping the different types of data, if more than one
+  ;;;   3. the header of the table with the names of variables
+  ;;;   4. remaining rows containing row name and values
+
+  let ecologicalCommunityTable csv:from-file "ecologicalCommunityTable.csv"
+
+  ;;;==================================================================================================================
+  ;;; mapping coordinates (row or columns) in lines 3 and 4 (= index 2 and 3) -----------------------------------------
+  ;;; NOTE: always correct raw mapping coordinates (start at 1) into list indexes (start at 0)
+
+  ;;; line 3 (= index 2), row indexes
+  let typesOfEcologicalComponentRowRange (list ((item 1 (item 2 ecologicalCommunityTable)) - 1) ((item 3 (item 2 ecologicalCommunityTable)) - 1))
+
+  ;;; line 4 (= index 3), row indexes
+  ;;; broadband range
+  ;;; types of soil cover
+  let ecologicalComponentTypeColumn (item 1 (item 3 ecologicalCommunityTable)) - 1
+
+  ;;; maximum root depth (mm)
+  let maxRootDepthColumn (item 3 (item 3 ecologicalCommunityTable)) - 1
+
+  ;;; biomass (g/m^2)
+  let biomassColumn (item 5 (item 3 ecologicalCommunityTable)) - 1
+
+  ;;; recovery lag (days)
+  let recoveryLagColumn (item 7 (item 3 ecologicalCommunityTable)) - 1
+
+  ;;; water stress sensitivity (%maxAffected/%total*day)
+  let waterStressSensitivityColumn (item 9 (item 3 ecologicalCommunityTable)) - 1
+
+  ;;;==================================================================================================================
+  ;;; extract data---------------------------------------------------------------------------------------
+
+  ;;; read variables (list of lists, matrix: ecological component types x max root depth-biomass-recovery lag-water stress sensitivity)
+  let ecologicalComponentData sublist ecologicalCommunityTable (item 0 typesOfEcologicalComponentRowRange) (item 1 typesOfEcologicalComponentRowRange + 1) ; select only those rows corresponding to data on types of cover
+
+  ;;; extract ecological component names
+  set ecol_ecologicalComponents map [row -> item ecologicalComponentTypeColumn row ] ecologicalComponentData
+
+  ;;; extract maximum root depth
+  set ecol_maxRootDepth map [row -> item maxRootDepthColumn row ] ecologicalComponentData
+
+  ;;; extract biomass
+  set ecol_biomass map [row -> item biomassColumn row ] ecologicalComponentData
+
+  ;;; extract recovery lag
+  set ecol_recoveryLag map [row -> item recoveryLagColumn row ] ecologicalComponentData
+
+  ;;; extract water stress sensitivity
+  set ecol_waterStressSensitivity map [row -> item waterStressSensitivityColumn row ] ecologicalComponentData
+
+end
+
+to-report extract-subtable [ table startColumnIndex endColumnIndex ]
+
+  let subtable (list)
+  let columnsCount ((endColumnIndex + 1) - startColumnIndex)
+  foreach n-values columnsCount [ j -> j ]
+  [
+    i ->
+    let columnIndex startColumnIndex + i
+    set subtable lput (map [row -> item columnIndex row ] table) subtable
+  ]
+  report subtable
 
 end
 
@@ -2771,16 +3141,16 @@ INPUTBOX
 164
 312
 terrainRandomSeed
-64.0
+0.0
 1
 0
 Number
 
 MONITOR
-496
-25
-597
-70
+423
+12
+524
+57
 NIL
 landRatio
 4
@@ -2803,10 +3173,10 @@ m
 HORIZONTAL
 
 MONITOR
-332
-71
-430
-116
+264
+58
+362
+103
 sdElevation
 precision sdElevation 4
 4
@@ -2814,10 +3184,10 @@ precision sdElevation 4
 11
 
 MONITOR
-429
-71
-511
-116
+361
+58
+443
+103
 minElevation
 precision minElevation 4
 4
@@ -2825,10 +3195,10 @@ precision minElevation 4
 11
 
 MONITOR
-505
-71
-592
-116
+437
+58
+524
+103
 maxElevation
 precision maxElevation 4
 4
@@ -2853,10 +3223,10 @@ NIL
 1
 
 MONITOR
-334
-25
-426
-70
+266
+12
+358
+57
 NIL
 count patches
 0
@@ -2864,10 +3234,10 @@ count patches
 11
 
 MONITOR
-424
-25
-489
-70
+356
+12
+421
+57
 maxDist
 precision maxDist 4
 4
@@ -3094,7 +3464,7 @@ INPUTBOX
 99
 118
 randomSeed
-2.0
+0.0
 1
 0
 Number
@@ -3117,10 +3487,10 @@ NIL
 1
 
 MONITOR
-887
-809
-1021
-846
+385
+525
+519
+562
 NIL
 temperature_annualMinAt2m
 2
@@ -3145,10 +3515,10 @@ NIL
 1
 
 MONITOR
-387
-807
-523
-844
+384
+488
+520
+525
 NIL
 temperature_annualMaxAt2m
 2
@@ -3167,10 +3537,10 @@ end-simulation-in-tick
 Number
 
 SLIDER
-1023
-812
-1394
-845
+15
+561
+386
+594
 temperature_mean-daily-fluctuation
 temperature_mean-daily-fluctuation
 0
@@ -3182,10 +3552,10 @@ temperature_mean-daily-fluctuation
 HORIZONTAL
 
 SLIDER
-256
-849
-623
-882
+19
+600
+386
+633
 temperature_daily-lower-deviation
 temperature_daily-lower-deviation
 0
@@ -3197,10 +3567,10 @@ temperature_daily-lower-deviation
 HORIZONTAL
 
 SLIDER
-779
-851
-1146
-884
+19
+639
+386
+672
 temperature_daily-upper-deviation
 temperature_daily-upper-deviation
 0
@@ -3212,10 +3582,10 @@ temperature_daily-upper-deviation
 HORIZONTAL
 
 SLIDER
-16
-809
-387
-842
+13
+490
+384
+523
 temperature_annual-max-at-2m
 temperature_annual-max-at-2m
 15
@@ -3227,10 +3597,10 @@ temperature_annual-max-at-2m
 HORIZONTAL
 
 SLIDER
-523
-810
-887
-843
+14
+526
+385
+559
 temperature_annual-min-at-2m
 temperature_annual-min-at-2m
 -15
@@ -3242,10 +3612,10 @@ temperature_annual-min-at-2m
 HORIZONTAL
 
 MONITOR
-1395
-810
-1552
-847
+387
+559
+544
+596
 NIL
 temperature_meanDailyFluctuation
 2
@@ -3253,10 +3623,10 @@ temperature_meanDailyFluctuation
 9
 
 MONITOR
-624
-848
-776
-885
+387
+599
+539
+636
 NIL
 temperature_dailyLowerDeviation
 2
@@ -3264,10 +3634,10 @@ temperature_dailyLowerDeviation
 9
 
 MONITOR
-1148
-848
-1302
-885
+388
+636
+542
+673
 NIL
 temperature_dailyUpperDeviation
 2
@@ -3295,10 +3665,10 @@ PENS
 "max" 1.0 0 -2674135 true "" "plot maxTemperature"
 
 SLIDER
-506
-893
-901
-926
+20
+731
+419
+764
 solar_annual-max
 solar_annual-max
 solar_annual-min
@@ -3310,10 +3680,10 @@ MJ/m2 (default: 24.2)
 HORIZONTAL
 
 SLIDER
-22
-893
-419
-926
+20
+696
+417
+729
 solar_annual-min
 solar_annual-min
 1
@@ -3325,10 +3695,10 @@ MJ/m2 (default: 9.2)
 HORIZONTAL
 
 SLIDER
-985
-894
-1378
-927
+22
+767
+419
+800
 solar_mean-daily-fluctuation
 solar_mean-daily-fluctuation
 0
@@ -3358,10 +3728,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot solarRadiation"
 
 MONITOR
-422
-889
-505
-926
+420
+692
+503
+729
 NIL
 solar_annualMin
 3
@@ -3369,10 +3739,10 @@ solar_annualMin
 9
 
 MONITOR
-901
-892
-983
-929
+419
+730
+501
+767
 NIL
 solar_annualMax
 3
@@ -3380,10 +3750,10 @@ solar_annualMax
 9
 
 MONITOR
-1381
-891
-1512
-928
+420
+764
+551
+801
 NIL
 solar_meanDailyFluctuation
 3
@@ -3420,7 +3790,7 @@ CHOOSER
 display-mode
 display-mode
 "elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "surface water width (%)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type" "albedo (%)" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "soil water content (ratio)" "ARID coefficient"
-21
+1
 
 BUTTON
 1117
@@ -3457,10 +3827,10 @@ NIL
 1
 
 SLIDER
-22
-944
-423
-977
+24
+831
+425
+864
 precipitation_yearly-mean
 precipitation_yearly-mean
 0
@@ -3472,10 +3842,10 @@ mm/year (default: 489)
 HORIZONTAL
 
 SLIDER
-550
-947
-952
-980
+552
+834
+954
+867
 precipitation_yearly-sd
 precipitation_yearly-sd
 0
@@ -3487,10 +3857,10 @@ mm/year (default: 142.2)
 HORIZONTAL
 
 SLIDER
-20
-998
-428
-1031
+24
+882
+432
+915
 precipitation_daily-cum_n-samples
 precipitation_daily-cum_n-samples
 0
@@ -3502,10 +3872,10 @@ precipitation_daily-cum_n-samples
 HORIZONTAL
 
 SLIDER
-20
-1035
-428
-1068
+24
+919
+432
+952
 precipitation_daily-cum_max-sample-size
 precipitation_daily-cum_max-sample-size
 1
@@ -3517,10 +3887,10 @@ precipitation_daily-cum_max-sample-size
 HORIZONTAL
 
 SLIDER
-20
-1075
-570
-1108
+626
+885
+1235
+918
 precipitation_daily-cum_plateau-value_yearly-mean
 precipitation_daily-cum_plateau-value_yearly-mean
 0.2
@@ -3532,10 +3902,10 @@ winter (mm)/summer (mm) (default: 0.25)
 HORIZONTAL
 
 SLIDER
-20
-1107
-570
-1140
+627
+917
+1235
+950
 precipitation_daily-cum_plateau-value_yearly-sd
 precipitation_daily-cum_plateau-value_yearly-sd
 0
@@ -3547,10 +3917,10 @@ precipitation_daily-cum_plateau-value_yearly-sd
 HORIZONTAL
 
 SLIDER
-631
-1001
-1110
-1034
+23
+973
+502
+1006
 precipitation_daily-cum_inflection1_yearly-mean
 precipitation_daily-cum_inflection1_yearly-mean
 40
@@ -3562,10 +3932,10 @@ day of year (default: 40)
 HORIZONTAL
 
 SLIDER
-709
-1037
-1112
-1070
+26
+1009
+504
+1042
 precipitation_daily-cum_inflection1_yearly-sd
 precipitation_daily-cum_inflection1_yearly-sd
 20
@@ -3577,10 +3947,10 @@ days (default: 5)
 HORIZONTAL
 
 SLIDER
-709
-1075
-1114
-1108
+28
+1047
+506
+1080
 precipitation_daily-cum_rate1_yearly-mean
 precipitation_daily-cum_rate1_yearly-mean
 0.01
@@ -3592,10 +3962,10 @@ precipitation_daily-cum_rate1_yearly-mean
 HORIZONTAL
 
 SLIDER
-709
-1112
-1112
-1145
+28
+1084
+504
+1117
 precipitation_daily-cum_rate1_yearly-sd
 precipitation_daily-cum_rate1_yearly-sd
 0.004
@@ -3607,10 +3977,10 @@ precipitation_daily-cum_rate1_yearly-sd
 HORIZONTAL
 
 SLIDER
-1271
-1004
-1689
-1037
+663
+976
+1133
+1009
 precipitation_daily-cum_inflection2_yearly-mean
 precipitation_daily-cum_inflection2_yearly-mean
 180
@@ -3622,10 +3992,10 @@ day of year (default: 240)
 HORIZONTAL
 
 SLIDER
-1272
-1042
-1675
-1075
+664
+1014
+1132
+1047
 precipitation_daily-cum_inflection2_yearly-sd
 precipitation_daily-cum_inflection2_yearly-sd
 20
@@ -3637,10 +4007,10 @@ days (default: 20)
 HORIZONTAL
 
 SLIDER
-1273
-1079
-1678
-1112
+665
+1051
+1130
+1084
 precipitation_daily-cum_rate2_yearly-mean
 precipitation_daily-cum_rate2_yearly-mean
 0.01
@@ -3652,10 +4022,10 @@ precipitation_daily-cum_rate2_yearly-mean
 HORIZONTAL
 
 SLIDER
-1273
-1116
-1676
-1149
+665
+1088
+1138
+1121
 precipitation_daily-cum_rate2_yearly-sd
 precipitation_daily-cum_rate2_yearly-sd
 0.004
@@ -3667,10 +4037,10 @@ precipitation_daily-cum_rate2_yearly-sd
 HORIZONTAL
 
 MONITOR
-422
-943
-550
-980
+424
+830
+552
+867
 NIL
 precipitation_yearlyMean
 2
@@ -3678,10 +4048,10 @@ precipitation_yearlyMean
 9
 
 MONITOR
-952
-944
-1090
-981
+954
+831
+1092
+868
 NIL
 precipitation_yearlySd
 2
@@ -3689,10 +4059,10 @@ precipitation_yearlySd
 9
 
 MONITOR
-427
-996
-600
-1033
+431
+880
+588
+917
 NIL
 precipitation_dailyCum_nSamples
 2
@@ -3700,10 +4070,10 @@ precipitation_dailyCum_nSamples
 9
 
 MONITOR
-426
-1033
-580
-1070
+430
+917
+611
+954
 NIL
 precipitation_dailyCum_maxSampleSize
 2
@@ -3711,10 +4081,10 @@ precipitation_dailyCum_maxSampleSize
 9
 
 MONITOR
-569
-1074
-697
-1111
+1234
+884
+1458
+921
 NIL
 precipitation_dailyCum_plateauValue_yearlyMean
 2
@@ -3722,10 +4092,10 @@ precipitation_dailyCum_plateauValue_yearlyMean
 9
 
 MONITOR
-570
-1109
-708
-1146
+1235
+919
+1457
+956
 NIL
 precipitation_dailyCum_plateauValue_yearlySd
 2
@@ -3733,10 +4103,10 @@ precipitation_dailyCum_plateauValue_yearlySd
 9
 
 MONITOR
-1111
-1001
-1267
-1038
+503
+973
+659
+1010
 NIL
 precipitation_dailyCum_inflection1_yearlyMean
 2
@@ -3744,10 +4114,10 @@ precipitation_dailyCum_inflection1_yearlyMean
 9
 
 MONITOR
-1114
-1040
-1268
-1077
+506
+1012
+660
+1049
 NIL
 precipitation_dailyCum_inflection1_yearlySd
 2
@@ -3755,10 +4125,10 @@ precipitation_dailyCum_inflection1_yearlySd
 9
 
 MONITOR
-1111
-1076
-1267
-1113
+503
+1048
+659
+1085
 NIL
 precipitation_dailyCum_rate1_yearlyMean
 2
@@ -3766,10 +4136,10 @@ precipitation_dailyCum_rate1_yearlyMean
 9
 
 MONITOR
-1114
-1115
-1268
-1152
+506
+1087
+660
+1124
 NIL
 precipitation_dailyCum_rate1_yearlySd
 2
@@ -3777,10 +4147,10 @@ precipitation_dailyCum_rate1_yearlySd
 9
 
 MONITOR
-1689
-1004
-1845
-1041
+1135
+975
+1291
+1012
 NIL
 precipitation_dailyCum_inflection2_yearlyMean
 2
@@ -3788,10 +4158,10 @@ precipitation_dailyCum_inflection2_yearlyMean
 9
 
 MONITOR
-1677
-1045
-1831
-1082
+1137
+1010
+1291
+1047
 NIL
 precipitation_dailyCum_inflection2_yearlySd
 2
@@ -3799,10 +4169,10 @@ precipitation_dailyCum_inflection2_yearlySd
 9
 
 MONITOR
-1675
-1080
-1831
-1117
+1135
+1045
+1291
+1082
 NIL
 precipitation_dailyCum_rate2_yearlyMean
 2
@@ -3810,10 +4180,10 @@ precipitation_dailyCum_rate2_yearlyMean
 9
 
 MONITOR
-1678
-1119
-1832
-1156
+1138
+1084
+1292
+1121
 NIL
 precipitation_dailyCum_rate2_yearlySd
 2
@@ -3927,63 +4297,12 @@ PENS
 "mean ARID" 1.0 0 -16777216 true "" "plot mean [p_soil_ARID] of patches"
 "mean water content ratio" 1.0 0 -13345367 true "" "plot mean [p_soil_waterContentRatio] of patches"
 
-SLIDER
-4
-458
-260
-491
-par_ecol_minRootZoneDepth
-par_ecol_minRootZoneDepth
-0
-par_ecol_maxRootZoneDepth
-200.0
-1
-1
-mm
-HORIZONTAL
-
-MONITOR
-557
-457
-679
-494
-root zone depth range
-(word \"min = \" (precision ecol_minRootZoneDepth 4) \", max = \" (precision ecol_maxRootZoneDepth 4))
-2
-1
-9
-
-SLIDER
-262
-458
-551
-491
-par_ecol_maxRootZoneDepth
-par_ecol_maxRootZoneDepth
-par_ecol_minRootZoneDepth
-3000
-2000.0
-1
-1
-mm
-HORIZONTAL
-
 TEXTBOX
-18
-745
-670
-763
+15
+426
+667
+444
 =============================WEATHER=============================
-14
-0.0
-1
-
-TEXTBOX
-23
-432
-666
-450
-========================ECOLOGICAL COMMUNITY========================
 14
 0.0
 1
@@ -4043,10 +4362,10 @@ landWithRiver
 11
 
 MONITOR
-224
-124
-364
-169
+229
+119
+369
+164
 NIL
 mostCommonTextureType
 0
@@ -4054,10 +4373,10 @@ mostCommonTextureType
 11
 
 MONITOR
-365
-124
-515
-169
+370
+119
+520
+164
 NIL
 meanRunOffCurveNumber
 2
@@ -4065,10 +4384,10 @@ meanRunOffCurveNumber
 11
 
 MONITOR
-224
-169
-364
-214
+229
+164
+369
+209
 NIL
 meanWaterHoldingCapacity
 4
@@ -4076,10 +4395,10 @@ meanWaterHoldingCapacity
 11
 
 MONITOR
-363
-169
-520
-214
+368
+164
+525
+209
 NIL
 meanDeepDrainageCoefficient
 4
@@ -4087,10 +4406,10 @@ meanDeepDrainageCoefficient
 11
 
 MONITOR
-532
-146
-668
-191
+535
+166
+671
+211
 NIL
 mostCommonCoverType
 0
@@ -4108,260 +4427,37 @@ TEXTBOX
 1
 
 SWITCH
-17
-771
-182
-804
+14
+452
+179
+485
 southHemisphere?
 southHemisphere?
 1
 1
 -1000
 
-SLIDER
-4
-511
-191
-544
-par_ecol_%wood_r
-par_ecol_%wood_r
-365
-5 * 365
-365.0
-1
-1
-days
-HORIZONTAL
-
-SLIDER
-8
-546
-196
-579
-par_ecol_%brush_r
-par_ecol_%brush_r
-3 * 30
-6 * 30
-180.0
-1
-1
-days
-HORIZONTAL
-
-SLIDER
-9
-579
-197
-612
-par_ecol_%grass_r
-par_ecol_%grass_r
-30
-90
-30.0
-1
-1
-days
-HORIZONTAL
-
 MONITOR
-193
-509
-278
-546
-NIL
-ecol_%wood_r
-3
-1
-9
-
-MONITOR
-194
-545
-277
-582
-NIL
-ecol_%brush_r
-4
-1
-9
-
-MONITOR
-193
-579
-275
-616
-NIL
-ecol_%grass_r
-4
-1
-9
-
-SLIDER
-268
-513
-588
-546
-par_ecol_%wood_waterStressSensitivity
-par_ecol_%wood_waterStressSensitivity
-0
-1
-0.5
-0.01
-1
-NIL
-HORIZONTAL
-
-SLIDER
-267
-545
-589
-578
-par_ecol_%brush_waterStressSensitivity
-par_ecol_%brush_waterStressSensitivity
-0
-1
-0.25
-0.01
-1
-NIL
-HORIZONTAL
-
-SLIDER
-269
-578
-589
-611
-par_ecol_%grass_waterStressSensitivity
-par_ecol_%grass_waterStressSensitivity
-0
-1
-0.1
-0.01
-1
-NIL
-HORIZONTAL
-
-MONITOR
-587
-514
-677
-551
-NIL
-ecol_%wood_waterStressSensitivity
-3
-1
-9
-
-MONITOR
-588
-543
-677
-580
-NIL
-ecol_%brush_waterStressSensitivity
-3
-1
-9
-
-MONITOR
-588
-579
-677
-616
-NIL
-ecol_%grass_waterStressSensitivity
-3
-1
-9
-
-SLIDER
-32
-630
-310
-663
-par_ecol_%wood_biomass
-par_ecol_%wood_biomass
-5500
-30500
-8000.0
-500
-1
-g/m^2
-HORIZONTAL
-
-SLIDER
-32
-665
-311
-698
-par_ecol_%brush_biomass
-par_ecol_%brush_biomass
-500
-1500
-600.0
-10
-1
-g/m^2
-HORIZONTAL
-
-SLIDER
-32
-700
-311
-733
-par_ecol_%grass_biomass
-par_ecol_%grass_biomass
-80
-400
-200.0
-10
-1
-g/m^2
-HORIZONTAL
-
-MONITOR
-314
-626
-426
-663
-NIL
-ecol_%wood_biomass
-2
-1
-9
-
-MONITOR
-314
-663
-426
-700
-NIL
-ecol_%brush_biomass
-2
-1
-9
-
-MONITOR
-314
-699
-426
-736
-NIL
-ecol_%grass_biomass
-2
-1
-9
-
-MONITOR
-442
-663
-566
-700
+534
+123
+674
+168
 mean biomass (g/m^2)
 mean [p_ecol_biomass] of patches
 4
 1
-9
+11
+
+MONITOR
+563
+78
+639
+123
+mean albedo
+mean [p_ecol_albedo] of patches
+2
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
