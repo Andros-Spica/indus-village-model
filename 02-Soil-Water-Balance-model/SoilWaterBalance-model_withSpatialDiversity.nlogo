@@ -321,14 +321,14 @@ to parameters-check
 
   if (par_elevation_mean = 0)                                    [ set par_elevation_mean                          200 ]
 
-  if (WHC_min = 0)                                               [ set WHC_min                              0.05 ]
-  if (WHC_max = 0)                                               [ set WHC_max                              0.25 ]
-  if (DC_min = 0)                                                [ set DC_min                               0.3 ]
-  if (DC_max = 0)                                                [ set DC_max                               0.7 ]
-  if (z_min = 0)                                                 [ set z_min                               200 ]
-  if (z_max = 0)                                                 [ set z_max                               2000 ]
-  if (CN_min = 0)                                                [ set CN_min                               30 ]
-  if (CN_max = 0)                                                [ set CN_max                               80 ]
+  if (water-holding-capacity_min = 0)                            [ set water-holding-capacity_min                    0.05 ]
+  if (water-holding-capacity_max = 0)                            [ set water-holding-capacity_max                    0.25 ]
+  if (drainage-coefficient_min = 0)                              [ set drainage-coefficient_min                      0.3 ]
+  if (drainage-coefficient_max = 0)                              [ set drainage-coefficient_max                      0.7 ]
+  if (root-zone-depth_min = 0)                                   [ set root-zone-depth_min                         200 ]
+  if (root-zone-depth_max = 0)                                   [ set root-zone-depth_max                        2000 ]
+  if (runoff-curve_min = 0)                                      [ set runoff-curve_min                             30 ]
+  if (runoff-curve_max = 0)                                      [ set runoff-curve_max                             80 ]
 
 end
 
@@ -362,19 +362,19 @@ to parameters-to-default
   set precipitation_daily-cum_rate2_yearly-mean                 0.08
   set precipitation_daily-cum_rate2_yearly-sd                   0.02
 
-  set par_albedo_min                              0.1
-  set par_albedo_max                              0.5
+  set par_albedo_min                                            0.1
+  set par_albedo_max                                            0.5
 
-  set par_elevation_mean                          200
+  set par_elevation_mean                                      200
 
-  set WHC_min                              0.05
-  set WHC_max                              0.25
-  set DC_min                               0.3
-  set DC_max                               0.7
-  set z_min                               200
-  set z_max                               2000
-  set CN_min                               30
-  set CN_max                               80
+  set water-holding-capacity_min                                0.05
+  set water-holding-capacity_max                                0.25
+  set drainage-coefficient_min                                  0.3
+  set drainage-coefficient_max                                  0.7
+  set root-zone-depth_min                                     200
+  set root-zone-depth_max                                    2000
+  set runoff-curve_min                                         30
+  set runoff-curve_max                                         80
 
 end
 
