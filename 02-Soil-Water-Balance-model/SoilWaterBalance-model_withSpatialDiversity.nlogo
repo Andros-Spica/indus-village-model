@@ -6,7 +6,6 @@
 ;;  Copyright (C) 2019 Andreas Angourakis (andros.spica@gmail.com)
 ;;  available at https://www.github.com/Andros-Spica/indus-village-model
 ;;  implementing the Soil Water Balance model from Wallach et al. 2006 'Working with dynamic crop models' (p. 24-28 and p. 138-144).
-;;  last update Nov 2019
 ;;  This implementation uses parts of the Weather model to simulate input variables (i.e., temperature, solar radiation, precipitation, evapotranspiration)
 ;;
 ;;  This program is free software: you can redistribute it and/or modify
@@ -383,16 +382,16 @@ to setup-patches
   ask patches
   [
     set elevation random-poisson elevation_mean ; this is only a temporal approach to test this submodel (elevation should be given by the Land model)
-    set albedo albedo_min + random-float albedo_max
+    set albedo albedo_min + random-float (albedo_max - albedo_min)
 
     ; Water Holding Capacity of the soil (cm^3 cm^-3).
-    set WHC WHC_min + random-float WHC_max
+    set WHC WHC_min + random-float (WHC_max - WHC_min)
     ; DC :  Drainage coefficient (mm^3 mm^-3)
-    set DC DC_min + random-float DC_max
+    set DC DC_min + random-float (DC_max - DC_min)
     ; z : root zone depth (mm)
-    set z z_min + random z_max
+    set z z_min + random (z_max - z_min)
     ; CN : Runoff curve number
-    set CN CN_min + random CN_max
+    set CN CN_min + random (CN_max - CN_max)
 
     ; FC : Water content at field capacity (cm^3.cm^-3)
     set FC WP + WHC
@@ -1889,7 +1888,7 @@ water-holding-capacity_min
 water-holding-capacity_min
 0.01
 water-holding-capacity_max
-0.0
+0.05
 0.01
 1
 cm3/cm3
@@ -1919,7 +1918,7 @@ root-zone-depth_min
 root-zone-depth_min
 0
 root-zone-depth_max
-0.0
+200.0
 1
 1
 mm
@@ -2092,7 +2091,7 @@ root-zone-depth_max
 root-zone-depth_max
 root-zone-depth_min
 2000
-0.0
+2000.0
 1
 1
 mm
@@ -2107,7 +2106,7 @@ runoff-curve_max
 runoff-curve_max
 runoff-curve_min
 100
-0.0
+80.0
 1
 1
 NIL

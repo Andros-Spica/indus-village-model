@@ -6,7 +6,6 @@
 ;;  Copyright (C) 2019 Andreas Angourakis (andros.spica@gmail.com)
 ;;  available at https://www.github.com/Andros-Spica/indus-village-model
 ;;  implementing the Soil Water Balance model from Wallach et al. 2006 'Working with dynamic crop models' (p. 24-28 and p. 138-144).
-;;  last update Nov 2019
 ;;  This implementation uses parts of the Weather model to simulate input variables (i.e., temperature, solar radiation, precipitation, evapotranspiration)
 ;;
 ;;  This program is free software: you can redistribute it and/or modify

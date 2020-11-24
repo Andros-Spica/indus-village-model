@@ -1344,7 +1344,7 @@ to set-legend-continuous-range [ maximum minimum maxShade minShade numberOfKeys 
 
   let step precision (rangeValues / numberOfKeys) 4
 
-  if (maximum = minimum) [ set maximum maximum + 1 set step 2 set rangeValues 1 ] ; this makes that at least one legend key is drawn when maximum = minimum
+  if (maximum = minimum or step = 0) [ set maximum maximum + 1 set step 2 set rangeValues 1 ] ; this makes that at least one legend key is drawn when maximum = minimum or step is 0
 
   ifelse (ascendingOrder?)
   [
