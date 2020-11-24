@@ -139,8 +139,6 @@ globals
   ;;;; counters and final measures
   minElevation
   maxElevation
-  ;maxBiomass
-  ;maxMeanYield
 ]
 
 ;;; agents variables
