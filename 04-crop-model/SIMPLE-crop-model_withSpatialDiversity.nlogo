@@ -494,7 +494,7 @@ to go
 
   refresh-view
 
-  ; --------------------------------------------
+  ; -- time -------------------------------------
 
   advance-time
 
@@ -725,6 +725,16 @@ to update-WAT
 
 end
 
+;=======================================================================================================
+;;; START of SIMPLE crop model algorithms
+;;; Zhao C, Liu B, Xiao L, Hoogenboom G, Boote K J, Kassie B T, 
+;;; Pavan W, Shelia V, Kim K S, Hernandez-Ochoa I M, Wallach D, 
+;;; Porter C H, Stockle C O, Zhu Y and Asseng S (2019) 
+;;; A SIMPLE crop model Eur. J. Agron. 104 97–106 
+;;; Online: https://doi.org/10.1016/j.eja.2019.01.009
+;;; See also: "04-crop-model" directory within "indus-village-model".
+;=======================================================================================================
+
 to update-crops
 
   ask patches
@@ -883,6 +893,16 @@ to update-f_Solar [ cropIndex ]
   ]
 
 end
+
+;=======================================================================================================
+;;; END of SIMPLE crop model algorithms
+;;; Zhao C, Liu B, Xiao L, Hoogenboom G, Boote K J, Kassie B T, 
+;;; Pavan W, Shelia V, Kim K S, Hernandez-Ochoa I M, Wallach D, 
+;;; Porter C H, Stockle C O, Zhu Y and Asseng S (2019) 
+;;; A SIMPLE crop model Eur. J. Agron. 104 97–106 
+;;; Online: https://doi.org/10.1016/j.eja.2019.01.009
+;;; See also: "04-crop-model" directory within "indus-village-model".
+;=======================================================================================================
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; COUNTERS AND MEASURES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

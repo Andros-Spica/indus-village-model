@@ -153,9 +153,11 @@ to setup
 
   ask patches [ update-WAT ]
 
-  ; ------------------------------------------
+  ; --- output handling ------------------------
 
   refresh-view
+
+  ; -- time -------------------------------------
 
   reset-ticks
 
@@ -413,11 +415,13 @@ to go
 
   ask patches [ update-WAT ]
 
-  ; --------------------------------------------
-
-  advance-time
+  ; --- output handling ------------------------
 
   refresh-view
+
+  ; -- time -------------------------------------
+
+  advance-time
 
   tick
 

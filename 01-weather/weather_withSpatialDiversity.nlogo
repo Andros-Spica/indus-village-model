@@ -128,9 +128,11 @@ to setup
 
   update-weather
 
-  ; ------------------------------------------
+  ; --- output handling ------------------------
 
   refresh-view
+
+  ; -- time -------------------------------------
 
   reset-ticks
 
@@ -342,11 +344,13 @@ to go
 
   update-weather
 
-  ; --------------------------------------------
-
-  advance-time
+  ; --- output handling ------------------------
 
   refresh-view
+
+  ; -- time -------------------------------------
+
+  advance-time
 
   tick
 

@@ -400,7 +400,7 @@ to setup
 
   update-soil-cover
 
-  ; ------------------------------------------
+  ; --- output handling ------------------------
 
   set-terrain-output-stats
 
@@ -411,6 +411,8 @@ to setup
   setup-transect
 
   refresh-to-display-mode
+
+  ; -- time -------------------------------------
 
   reset-ticks
 
@@ -749,11 +751,13 @@ to go
 
   update-soil-cover
 
-  ; --------------------------------------------
-
-  advance-time
+  ; --- output handling ------------------------
 
   refresh-to-display-mode
+
+  ; -- time -------------------------------------
+
+  advance-time
 
   tick
 
