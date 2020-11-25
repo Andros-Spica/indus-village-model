@@ -121,8 +121,6 @@ globals
   ;;;; time tracking
   currentYear
   currentDayOfYear
-  sowingDay
-  harvestingDay
 
   ;;;; main (these follow a seasonal pattern and apply for all patches)
 
@@ -135,6 +133,9 @@ globals
   RAIN ; precipitation of current day (mm)
   precipitation_yearSeries
   precipitation_cumYearSeries
+
+  sowingDay
+  harvestingDay
 
   ;;;; counters and final measures
   minElevation

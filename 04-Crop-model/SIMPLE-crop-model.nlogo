@@ -117,9 +117,7 @@ globals
   ;;;; time tracking
   currentYear
   currentDayOfYear
-  sowingDay
-  harvestingDay
-
+  
   ;;;; main (these follow a seasonal pattern and apply for all patches)
 
   T ; average temperature of current day (ºC)
@@ -139,7 +137,9 @@ globals
   WAT ; Water content in the soil profile for the rooting depth (mm)
   WATp ; Volumetric Soil Water content (fraction : mm.mm-1). calculated as WAT/z
 
-  ;;; main variables
+  sowingDay
+  harvestingDay
+  
   TT ; cumulative mean temperature (ºC day)
   biomass ; crop biomass (g)
   yield ; crop biomass harvested (g)
