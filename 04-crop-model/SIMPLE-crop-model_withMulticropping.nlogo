@@ -175,6 +175,7 @@ patches-own
   biomass ; crop biomass (g)
   totalBiomass ; total crop biomass (g)
   yield ; crop biomass harvested (g)
+  totalYield ; total crop biomass harvested (g)
 
   ;;; auxiliar variables
   biomass_rate ; daily change in plant biomass (g)
@@ -412,8 +413,8 @@ to parameters-check
   if (runoff-curve_min = 0)                                      [ set runoff-curve_min                             50 ]
   if (runoff-curve_max = 0)                                      [ set runoff-curve_max                             80 ]
 
-  if (crops-selected = "" or crops-selected = "0" or crops-selected = "[ 0 ]") [ set crops-selected     (word (map [i -> (word "\"" i "\"")] typesOfCrops)) ]
-  if (crop-to-display = "" or crop-to-display = "0" or crop-to-display = "[ 0 ]") [ set crop-to-display          (first typesOfCrops) ]
+  if (crops-selected = "" or crops-selected = "0" or crops-selected = 0) [ set crops-selected     (word (map [i -> (word "\"" i "\"")] typesOfCrops)) ]
+  if (crop-to-display = "" or crop-to-display = "0" or crop-to-display = 0) [ set crop-to-display          (first typesOfCrops) ]
 
 end
 
@@ -516,7 +517,9 @@ to setup-crops
   ;;; initialise all crop related variables as list where items correspond to crops
   set TT n-values (length typesOfCrops) [ j -> 0 ]
   set biomass n-values (length typesOfCrops) [ j -> 0 ]
+  set totalBiomass n-values (length typesOfCrops) [ j -> 0 ]
   set yield n-values (length typesOfCrops) [ j -> 0 ]
+  set totalYield n-values (length typesOfCrops) [ j -> 0 ]
 
   set biomass_rate n-values (length typesOfCrops) [ j -> 0 ]
   set f_solar n-values (length typesOfCrops) [ j -> 0 ]
@@ -793,8 +796,6 @@ to update-crops
 
   ask patches
   [
-    set totalBiomass 0
-
     foreach cropSelection
     [
       crop ->
@@ -805,15 +806,22 @@ to update-crops
       [
         update-biomass cropIndex
 
-        set totalBiomass totalBiomass + (item cropIndex biomass) * patchArea * (item cropIndex cropFrequency) / 100
+        set totalBiomass replace-item cropIndex totalBiomass ((item cropIndex biomass) * patchArea * (item cropIndex cropFrequency) / 100)
       ]
 
       if ( is-ripe cropIndex )
       [
         ;;; calculate harvest yield
         ifelse (item cropIndex TT >= item cropIndex T_sum)
-        [ set yield replace-item cropIndex yield (item cropIndex biomass * item cropIndex HI) ]
-        [ set yield replace-item cropIndex yield 0 ]
+        [
+          set yield replace-item cropIndex yield (item cropIndex biomass * item cropIndex HI)
+          set totalYield replace-item cropIndex totalYield ((item cropIndex yield) * patchArea * (item cropIndex cropFrequency) / 100)
+
+        ]
+        [
+          set yield replace-item cropIndex yield 0
+          set totalYield replace-item cropIndex totalYield 0
+        ]
 
         ;;; reset biomass and auxiliary variables
         reset-variables cropIndex
@@ -1116,13 +1124,13 @@ to refresh-to-display-mode
   ]
   if (display-mode = "total biomass (g/m2)")
   [
-    let minBiomass min [totalBiomass] of patches
-    let maxBiomass max [totalBiomass] of patches
+    let minBiomass min [sum totalBiomass] of patches
+    let maxBiomass max [sum totalBiomass] of patches
 
     ask patches
     [
-      ifelse (totalBiomass > 0)
-      [ set pcolor 52 + 6 * (1 - (totalBiomass - minBiomass) / (maxBiomass + 1E-6 - minBiomass)) ]
+      ifelse (sum totalBiomass > 0)
+      [ set pcolor 52 + 6 * (1 - ((sum totalBiomass) - minBiomass) / (maxBiomass + 1E-6 - minBiomass)) ]
       [ set pcolor 59 ]
     ]
     set-legend-continuous-range maxBiomass minBiomass 59 52 7 true
@@ -1130,14 +1138,14 @@ to refresh-to-display-mode
   if (display-mode = "total yield (g/m2)")
   [
     let minMeanYield 0
-    carefully [ set minMeanYield min [sum yield] of patches ] [ set minMeanYield 0 ]
+    carefully [ set minMeanYield min [sum totalYield] of patches ] [ set minMeanYield 0 ]
     let maxMeanYield 0
-    carefully [ set maxMeanYield max [sum yield] of patches ] [ set maxMeanYield 1E-6 ]
+    carefully [ set maxMeanYield max [sum totalYield] of patches ] [ set maxMeanYield 1E-6 ]
 
     ask patches
     [
       carefully
-      [ set pcolor 42 + 6 * (1 - (sum yield - minMeanYield) / (maxMeanYield + 1E-6 - minMeanYield)) ]
+      [ set pcolor 42 + 6 * (1 - (sum totalYield - minMeanYield) / (maxMeanYield + 1E-6 - minMeanYield)) ]
       [ set pcolor 49 ]
     ]
     set-legend-continuous-range maxMeanYield minMeanYield 49 42 7 true
@@ -1774,7 +1782,7 @@ INPUTBOX
 237
 128
 end-simulation-in-tick
-1825.0
+0.0
 1
 0
 Number
