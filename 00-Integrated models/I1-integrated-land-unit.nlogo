@@ -293,6 +293,32 @@ patches-own
   p_soil_%clay          ; percentage of clay fraction in soil
   p_soil_textureType          ; soil texture type according to sand-silt-clay proportions, under USDA convention.
                               ; see "03-land-model/ternaryPlots/USDA-texturalSoilClassification.png"
+
+  ;;; initial ecological communities
+  p_initEcol_%grass                 ; percentage of grass vegetation (surface cover) in ecological community
+  p_initEcol_%brush                 ; percentage of brush/shrub vegetation (surface cover) in ecological community
+  p_initEcol_%wood                  ; percentage of wood vegetation (surface cover) in ecological community
+
+  ;========= SOIL WATER BALANCE model ======================================================================
+
+  ;;; surface water
+  p_water                           ; surface water ( mm (height) / m^2 (area) )
+  p_runoff                          ; Daily runoff ( mm (height) / m^2 (area) )
+
+  ;;; soil water
+  p_ecol_rootZoneDepth              ; root zone depth (mm).
+  p_soil_waterContent               ; Water content in the soil profile for the rooting depth ( mm (height) / m^2 (area) )
+  p_soil_waterContentRatio          ; Volumetric Soil Water content (fraction : mm.mm-1). calculated as WAT/z
+
+  ;;; transpiration
+  p_netSolarRadiation               ; net solar radiation discount reflection or albedo (MJ m-2)
+  p_ETr                             ; reference evapotranspiration ( mm (height) / m^2 (area) )
+
+  p_soil_ARID                       ; ARID index after Woli et al. 2012, ranging form 0 (no water shortage) to 1 (extreme water shortage)
+
+  ;======= new vI1 variables ======================================================================================
+
+  ;;; soil water properties
   p_soil_hydrologicSoilGroup  ; USDA simplification of soil texture types into four categories
 
   p_soil_coverTreatmentAndHydrologicCondition  ; the type of combination of cover, treatment and hydrologic condition used to estimate runoff curve number (see "runOffCurveNumberTable.csv")
@@ -321,13 +347,10 @@ patches-own
 
   p_soil_deepDrainageCoefficient    ; saturated hydraulic conductivity or fraction of soil water above field capacity drained per day (mm/day)
 
-  ;;; initial and current ecological communities
+  ;;; ecological communities and soil cover
   p_ecol_%grass                     ; percentage of grass vegetation (surface cover) in ecological community
-  p_initEcol_%grass
   p_ecol_%brush                     ; percentage of brush/shrub vegetation (surface cover) in ecological community
-  p_initEcol_%brush
   p_ecol_%wood                      ; percentage of wood vegetation (surface cover) in ecological community
-  p_initEcol_%wood
 
   p_ecol_%water                     ; percentage of water (surface cover) in ecological community
 
@@ -338,20 +361,6 @@ patches-own
   p_ecol_albedo                     ; albedo or percentage of solar radiation reflected by soil or soil cover
 
   p_ecol_biomass                    ; total biomass (g/m^2) of ecological communities (vegetation as proxy)
-
-  ;========= SOIL WATER BALANCE model ======================================================================
-
-  ;;; surface water
-  p_netSolarRadiation               ; net solar radiation discount reflection or albedo (MJ m-2)
-  p_ETr                             ; reference evapotranspiration ( mm (height) / m^2 (area) )
-  p_water                           ; surface water ( mm (height) / m^2 (area) )
-  p_runoff                          ; Daily runoff ( mm (height) / m^2 (area) )
-
-  ;;; soil water
-  p_soil_waterContent               ; Water content in the soil profile for the rooting depth ( mm (height) / m^2 (area) )
-  p_soil_waterContentRatio          ; Volumetric Soil Water content (fraction : mm.mm-1). calculated as WAT/z
-  p_ecol_rootZoneDepth              ; root zone depth (mm).
-  p_soil_ARID                       ; ARID index after Woli et al. 2012, ranging form 0 (no water shortage) to 1 (extreme water shortage)
 ]
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -640,11 +649,15 @@ end
 
 to setup-soil-soilWaterProperties
 
-  set p_soil_coverTreatmentAndHydrologicCondition get-coverTreatmentAndHydrologicCondition p_ecol_coverType
-
   set p_soil_hydrologicSoilGroup item (position p_soil_textureType soil_textureTypes) soil_hydrologicSoilGroups
 
-  set p_soil_runOffCurveNumber get-runOffCurveNumber p_soil_coverTreatmentAndHydrologicCondition p_soil_hydrologicSoilGroup
+  set p_soil_runOffCurveNumber (get-runOffCurveNumber
+      p_ecol_%grass
+      p_ecol_%brush
+      p_ecol_%wood
+      p_ecol_%water
+      p_soil_hydrologicSoilGroup
+      )
 
   set p_soil_fieldCapacity get-fieldCapacity p_soil_textureType
 
@@ -1447,24 +1460,34 @@ end
 
 to set-ecological-communities-biomass
 
-  set p_ecol_biomass (
-    ((p_ecol_%wood / 100) * (get-biomass-of-ecological-component "wood")) +
-    ((p_ecol_%brush / 100) * (get-biomass-of-ecological-component "brush")) +
-    ((p_ecol_%grass / 100) * (get-biomass-of-ecological-component "grass"))
-  )
+  set p_ecol_biomass get-ecological-communities-biomass p_ecol_%wood p_ecol_%brush p_ecol_%grass
+
+end
+
+to-report get-ecological-communities-biomass [ %wood %brush %grass ]
+
+  report
+  (%wood / 100) * (get-biomass-of-ecological-component "wood") +
+  (%brush / 100) * (get-biomass-of-ecological-component "brush") +
+  (%grass / 100) * (get-biomass-of-ecological-component "grass")
 
 end
 
 to set-ecological-community-root-zone-depth
 
-  set p_ecol_rootZoneDepth (
-    ((p_ecol_%wood / 100) * (get-max-root-depth-of-ecological-component "wood")) +
-    ((p_ecol_%brush / 100) * (get-max-root-depth-of-ecological-component "brush")) +
-    ((p_ecol_%grass / 100) * (get-max-root-depth-of-ecological-component "grass"))
-  )
+  set p_ecol_rootZoneDepth get-ecological-community-root-zone-depth p_ecol_%wood p_ecol_%brush p_ecol_%grass
 
   set p_ecol_rootZoneDepth min (list p_soil_depth p_ecol_rootZoneDepth) ;;; it cannot be deeper than the soil layer
   ;;; root zone depth will be 0 if there is no active (terrestrial) ecological community (100% bare soil or water)
+
+end
+
+to-report get-ecological-community-root-zone-depth [ %wood %brush %grass ]
+
+  report
+  (%wood / 100) * (get-max-root-depth-of-ecological-component "wood") +
+  (%brush / 100) * (get-max-root-depth-of-ecological-component "brush") +
+  (%grass / 100) * (get-max-root-depth-of-ecological-component "grass")
 
 end
 
@@ -1500,11 +1523,20 @@ to update-soil-cover
 
   ask patches
   [
-    set p_ecol_coverType get-cover-type p_ecol_%grass p_ecol_%brush p_ecol_%wood p_ecol_%water
+    set p_ecol_coverType (get-cover-type
+      p_ecol_%grass
+      p_ecol_%brush
+      p_ecol_%wood
+      p_ecol_%water
+      )
 
-    set p_soil_coverTreatmentAndHydrologicCondition get-coverTreatmentAndHydrologicCondition p_ecol_coverType
-
-    set p_soil_runOffCurveNumber get-runOffCurveNumber p_soil_coverTreatmentAndHydrologicCondition p_soil_hydrologicSoilGroup
+    set p_soil_runOffCurveNumber (get-runOffCurveNumber
+      p_ecol_%grass
+      p_ecol_%brush
+      p_ecol_%wood
+      p_ecol_%water
+      p_soil_hydrologicSoilGroup
+      )
 
     set p_ecol_albedo (get-albedo
       p_ecol_%water
@@ -1540,11 +1572,47 @@ to-report get-cover-type [ %grass %brush %wood %water ]
 
 end
 
-to-report get-coverTreatmentAndHydrologicCondition [ coverType ]
+to-report get-runOffCurveNumber [ %grass %brush %wood %water hydrologicSoilGroup ]
+
+  let %crops 0 ; no crops present
+  ; cropland should be broken down once crop model is integrated (I2 model)
+
+  let treatment "" ; defaults to no specific treatment
+  let condition "good" ; defaults to "good"
+
+  let %bareSoil (100 - %wood - %brush - %grass - %water - %crops)
+
+  report (
+  ((get-runOffCurveNumber-of-cover-and-soil "free water" condition treatment hydrologicSoilGroup) * %water / 100) +
+  ((get-runOffCurveNumber-of-cover-and-soil "woodland" condition treatment hydrologicSoilGroup) * %wood / 100) +
+  ((get-runOffCurveNumber-of-cover-and-soil "shrubland" condition treatment hydrologicSoilGroup) * %brush / 100) +
+  ((get-runOffCurveNumber-of-cover-and-soil "grassland" condition treatment hydrologicSoilGroup) * %grass / 100) +
+  ((get-runOffCurveNumber-of-cover-and-soil "cropland" condition treatment hydrologicSoilGroup) * %crops / 100) +
+  ((get-runOffCurveNumber-of-cover-and-soil "desert" condition treatment hydrologicSoilGroup) * %bareSoil / 100)
+  )
+
+end
+
+to-report get-runOffCurveNumber-of-cover-and-soil [ coverType condition treatment hydrologicSoilGroup ]
+
+  let coverTreatmentAndHydrologicCondition get-coverTreatmentAndHydrologicCondition coverType condition treatment
+
+  report (
+    item
+    (position coverTreatmentAndHydrologicCondition (item 0 soil_runOffCurveNumberTable))            ; selecting row
+    (item (1 + position hydrologicSoilGroup (list "A" "B" "C" "D")) soil_runOffCurveNumberTable)    ; selecting column (skip column with coverTreatmentAndHydrologicCondition)
+    )
+
+end
+
+to-report get-coverTreatmentAndHydrologicCondition [ coverType condition treatment ]
 
   ;;; correspond cover type with cover/treatment/hydrologic condition as registred in runOffCurveNumberTable
   ;;; That table, created by the USDA, holds a classification of cover conditions in the US;
   ;;; future versions should aim to calibrate this data to the cover types within the region of interest.
+
+  ;;; NOTE: this version ignores condition and treatment and selects a single default per each coverType
+  ;;; NOTE2: cropland should be broken down once crop model is integrated (I2 model)
 
   if (coverType = "free water")
   [
@@ -1570,30 +1638,25 @@ to-report get-coverTreatmentAndHydrologicCondition [ coverType ]
   [
     report (word "woods-grass combination or tree farm | lightly or only occasionally grazed | good")
   ]
+  if (coverType = "cropland")
+  [
+    report (word "small grain crop | straight row | good")
+  ]
 
   report ""
 
 end
 
-to-report get-runOffCurveNumber [ coverTreatmentAndHydrologicCondition hydrologicSoilGroup ]
-
-  report (
-    item
-    (position coverTreatmentAndHydrologicCondition (item 0 soil_runOffCurveNumberTable))            ; selecting row
-    (item (1 + position hydrologicSoilGroup (list "A" "B" "C" "D")) soil_runOffCurveNumberTable)    ; selecting column (skip column with coverTreatmentAndHydrologicCondition)
-    )
-
-end
-
 to-report get-albedo [ %water %wood %brush %grass %sand waterContentRatio]
-
-  let %bareSoil (100 - p_ecol_%wood - p_ecol_%brush - p_ecol_%grass)
 
   ;;; declare variables only available in other models and set them as 0
   ;;; NOTE: these should be inputs, once integrated with other models
   let %crops 0 ; no crops present
 
-  report (get-albedo-of-cover "inland water") * %water / 100 +
+  let %bareSoil (100 - %wood - %brush - %grass - %water - %crops)
+
+  report
+  ((get-albedo-of-cover "inland water") * %water / 100) +
   ((get-albedo-of-cover "woodlands") * %wood / 100) +
   ((get-albedo-of-cover "shrublands") * %brush / 100) +
   ((get-albedo-of-cover "grasslands") * %grass / 100) +
@@ -1611,6 +1674,8 @@ to-report get-albedo-of-cover [ coverName ]
   report item (position coverName (item 0 ecol_albedoTable)) (item 1 ecol_albedoTable)
 
 end
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; OUTPUT STATS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -3794,7 +3859,7 @@ CHOOSER
 display-mode
 display-mode
 "elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "surface water width (%)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type" "albedo (%)" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "soil water content (ratio)" "ARID coefficient"
-1
+7
 
 BUTTON
 1117
