@@ -34,6 +34,13 @@ globals
 
   yearLengthInDays
 
+  ;;;; Soil Water Balance model global
+  soil_rootWaterUptakeCoefficient        ; (root) Water Uptake coefficient (mm^3.mm^-3) (MUF)
+
+  ;;;; Crop model
+  crop_f_Solar_max ; fSolar_max is the maximum fraction of radiation interception that a crop can reach
+  ; Zhao et al. 2019 note: fSolar_max is considered as a management parameter, not a crop parameter, to account for different plant spacings. For most high-density crops, this value is set at 0.95.
+
   ; randomSeed (GUI): seed of random number generator used for setting parameters and general stocahstic processes.
 
   ;*****************************************************************************************************************
@@ -55,13 +62,32 @@ globals
   ;;;;; albedo table
   ecol_albedoTable                            ; table (list of lists) with min/max abedo by latitude range (columns) and broadband and cover type (and description)
 
-
   ;;;;; ecological component table
   ecol_ecologicalComponents      ; ecological component names (order)
   ecol_maxRootDepth              ; maximum root depth (mm) of each vegetation component (to be used as root zone depth)
   ecol_biomass                   ; biomass (g/m^2) of each vegetation component (above ground biomass (AGB))
   ecol_recoveryLag               ; recovery lag (days) of each vegetation component
   ecol_waterStressSensitivity    ; water stress sensitivity (%maxAffected/%total*day) of each vegetation component
+
+  ;;;;; crop table
+  crop_typesOfCrops                   ; common name of crop
+  ;;;; Species-specific
+  crop_RUE                            ; Radiation use efficiency (above ground only and without respiration) (g MJ−1 m-2)
+  crop_T_base                         ; Base temperature for phenology development and growth (ºC)
+  crop_T_opt                          ; Optimal temperature for biomass growth (ºC)
+  crop_I_50maxH                       ; The maximum daily reduction in I50B due to heat stress (ºC d)
+  crop_I_50maxW                       ; The maximum daily reduction in I50B due to drought stress (ºC d)
+  crop_T_heat                         ; Threshold temperature to start accelerating senescence from heat stress (ºC). In the Zhao et al. 2019, named as T_max
+  crop_T_extreme                      ; The extreme temperature threshold when RUE becomes 0 due to heat stress (ºC)
+  crop_S_Water                        ; sensitivity of crop RUE to the ARID index (representing water shortage; see below)
+  ;;;; Cultivar-specific
+  crop_T_sum                          ; Cumulative temperature requirement from sowing to maturity (ºC d)
+  crop_HI                             ; Potential harvest index
+  crop_I_50A                          ; Cumulative temperature requirement for leaf area development to intercept 50% of radiation (ºC d)
+  crop_I_50B                          ; Cumulative temperature till maturity to reach 50% radiation interception due to leaf senescence (ºC d)
+  ;;;; management
+  crop_sugSowingDay                   ; sowing day (day of year)
+  crop_sugHarvestingDay               ; harvesting day (day of year)
 
   ;*****************************************************************************************************************
   ;*** LAND model
@@ -175,9 +201,6 @@ globals
 
   ;*****************************************************************************************************************
 
-  ;;;; soil water balance constants (?)
-  soil_rootWaterUptakeCoefficient        ; (root) Water Uptake coefficient (mm^3.mm^-3) (MUF)
-
   ;;; parameters (modified copies of interface input) ===============================================================
 
   ;;; LAND ---------------------------------------------------------------------
@@ -227,6 +250,11 @@ globals
                                 ; and about stream types:
                                 ; https://cfpub.epa.gov/watertrain/moduleFrame.cfm?parent_object_id=1199
 
+  ;;; CROP ---------------------------------------------------------------------------------
+  crop_intensity                 ; crop cover as percentage of patch area
+  crop_selection                 ; list of crop common names to be cultivated in every patch
+ ; NOTE: these are a temporary setting exclusive to this version and to be replaced with agent decision-making in I3
+
   ;;; variables ===============================================================
 
   ;;;; time tracking
@@ -244,6 +272,9 @@ globals
   precipitation                                 ; precipitation of current day ( mm (height) / m^2 (area) )
   precipitation_yearSeries
   precipitation_cumYearSeries
+
+  crop_sowingDay
+  crop_harvestingDay
 
   ;;;; counters and final measures
 
@@ -293,9 +324,34 @@ patches-own
   p_soil_%clay          ; percentage of clay fraction in soil
   p_soil_textureType          ; soil texture type according to sand-silt-clay proportions, under USDA convention.
                               ; see "03-land-model/ternaryPlots/USDA-texturalSoilClassification.png"
+
+  ;;; initial ecological communities
+  p_initEcol_%grass                 ; percentage of grass vegetation (surface cover) in ecological community
+  p_initEcol_%brush                 ; percentage of brush/shrub vegetation (surface cover) in ecological community
+  p_initEcol_%wood                  ; percentage of wood vegetation (surface cover) in ecological community
+
+  ;========= SOIL WATER BALANCE model ======================================================================
+
+  ;;; surface water
+  p_water                           ; surface water ( mm (height) / m^2 (area) )
+  p_runoff                          ; Daily runoff ( mm (height) / m^2 (area) )
+
+  ;;; soil water
+  p_ecol_rootZoneDepth              ; root zone depth (mm).
+  p_soil_waterContent               ; Water content in the soil profile for the rooting depth ( mm (height) / m^2 (area) )
+  p_soil_waterContentRatio          ; Volumetric Soil Water content (fraction : mm.mm-1). calculated as WAT/z
+
+  ;;; transpiration
+  p_netSolarRadiation               ; net solar radiation discount reflection or albedo (MJ m-2)
+  p_ETr                             ; reference evapotranspiration ( mm (height) / m^2 (area) )
+
+  p_soil_ARID                       ; ARID index after Woli et al. 2012, ranging form 0 (no water shortage) to 1 (extreme water shortage)
+
+  ;======= I1 variables ======================================================================================
+
+  ;;; soil water properties
   p_soil_hydrologicSoilGroup  ; USDA simplification of soil texture types into four categories
 
-  p_soil_coverTreatmentAndHydrologicCondition  ; the type of combination of cover, treatment and hydrologic condition used to estimate runoff curve number (see "runOffCurveNumberTable.csv")
   p_soil_runOffCurveNumber                     ; runoff curve number (0=full retention to 100=full impermeability)
 
   ; Soil water capacities:
@@ -321,13 +377,10 @@ patches-own
 
   p_soil_deepDrainageCoefficient    ; saturated hydraulic conductivity or fraction of soil water above field capacity drained per day (mm/day)
 
-  ;;; initial and current ecological communities
+  ;;; ecological communities and soil cover
   p_ecol_%grass                     ; percentage of grass vegetation (surface cover) in ecological community
-  p_initEcol_%grass
   p_ecol_%brush                     ; percentage of brush/shrub vegetation (surface cover) in ecological community
-  p_initEcol_%brush
   p_ecol_%wood                      ; percentage of wood vegetation (surface cover) in ecological community
-  p_initEcol_%wood
 
   p_ecol_%water                     ; percentage of water (surface cover) in ecological community
 
@@ -339,19 +392,23 @@ patches-own
 
   p_ecol_biomass                    ; total biomass (g/m^2) of ecological communities (vegetation as proxy)
 
-  ;========= SOIL WATER BALANCE model ======================================================================
+  ;========= I2 variables ======================================================================
 
-  ;;; surface water
-  p_netSolarRadiation               ; net solar radiation discount reflection or albedo (MJ m-2)
-  p_ETr                             ; reference evapotranspiration ( mm (height) / m^2 (area) )
-  p_water                           ; surface water ( mm (height) / m^2 (area) )
-  p_runoff                          ; Daily runoff ( mm (height) / m^2 (area) )
+  ;;; main variables
+  p_crop_frequency                  ; frequency in % of patchArea of each crop in typesOfCrop
+  p_crop_TT                         ; cumulative mean temperature (ºC day)
+  p_crop_biomass                    ; crop biomass (g)
+  p_crop_totalBiomass               ; total crop biomass (g)
+  p_crop_yield                      ; crop biomass harvested (g)
+  p_crop_totalYield                 ; total crop biomass harvested (g)
 
-  ;;; soil water
-  p_soil_waterContent               ; Water content in the soil profile for the rooting depth ( mm (height) / m^2 (area) )
-  p_soil_waterContentRatio          ; Volumetric Soil Water content (fraction : mm.mm-1). calculated as WAT/z
-  p_ecol_rootZoneDepth              ; root zone depth (mm).
-  p_soil_ARID                       ; ARID index after Woli et al. 2012, ranging form 0 (no water shortage) to 1 (extreme water shortage)
+  ;;; auxiliar variables
+  p_crop_biomass_rate               ; daily change in plant biomass (g)
+  p_crop_f_solar                    ; the fraction of solar ra- diation intercepted by a crop canopy
+  p_crop_I_50Blocal                 ; The cumulative temperature required to reach 50% of radiation interception during canopy senescence (I50B) (value affected by heat and drought stress)
+  p_crop_f_temp                     ; temperature impact
+  p_crop_f_heat                     ; heat stress
+  p_crop_f_water                    ; drought stress
 ]
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -377,6 +434,8 @@ to setup
   load-albedo-table
 
   load-ecological-component-table
+
+  load-crops-table
 
   ; --- loading/testing parameters -----------
 
@@ -412,6 +471,12 @@ to setup
 
   refresh-to-display-mode
 
+  print-crop-table
+
+  setup-plot-crop
+
+  update-plot-crop
+
   reset-ticks
 
 end
@@ -429,6 +494,9 @@ to set-constants
 
   ; MUF : Water Uptake coefficient (mm^3 mm^-3)
   set soil_rootWaterUptakeCoefficient 0.096
+
+  ; maximum fraction of radiation interception
+  set crop_f_Solar_max 0.95
 
 end
 
@@ -532,6 +600,17 @@ to set-parameters
     ;;; see general info in http://www.physicalgeography.net/fundamentals/6i.html
   ]
 
+  ;;; crop management parameters (never not randomised)
+  ;;; crop intensity on every patch
+  set crop_intensity crop-intensity
+
+  ;;; convert crops-selected from string to list
+  set crop_selection read-from-string crop-selection
+
+  ;;; sowing/harvest dates are initialised as the ones suggested in cropTable.csv
+  set crop_sowingDay crop_sugSowingDay
+  set crop_harvestingDay crop_sugHarvestingDay
+
 end
 
 to parameters-check
@@ -572,6 +651,10 @@ to parameters-check
 
   if (par_riverWaterPerFlowAccumulation = 0)                     [ set par_riverWaterPerFlowAccumulation                        1E-4 ]
 
+  if (crop-intensity = 0)                                        [ set crop-intensity                                            50 ]
+  if (crop-selection = "" or crop-selection = "0" or crop-selection = 0) [ set crop-selection     (word (map [i -> (word "\"" i "\"")] crop_typesOfCrops)) ]
+  if (crop-to-display = "" or crop-to-display = "0" or crop-to-display = 0) [ set crop-to-display          (first crop_typesOfCrops) ]
+
 end
 
 to parameters-to-default
@@ -606,6 +689,10 @@ to parameters-to-default
 
   set par_riverWaterPerFlowAccumulation                        1E-4
 
+  set crop-intensity                                            50
+  set crop-selection                   (word (map [i -> (word "\"" i "\"")] crop_typesOfCrops))
+  set crop-to-display                               (first crop_typesOfCrops)
+
 end
 
 to setup-patches
@@ -623,6 +710,8 @@ to setup-patches
 
     ;;; Initial water content (mm) given initial ecological communities
     set p_soil_waterContent  p_ecol_rootZoneDepth * p_soil_fieldCapacity
+
+    setup-crops
   ]
 
   setup-river-water
@@ -638,11 +727,16 @@ end
 
 to setup-soil-soilWaterProperties
 
-  set p_soil_coverTreatmentAndHydrologicCondition get-coverTreatmentAndHydrologicCondition p_ecol_coverType
-
   set p_soil_hydrologicSoilGroup item (position p_soil_textureType soil_textureTypes) soil_hydrologicSoilGroups
 
-  set p_soil_runOffCurveNumber get-runOffCurveNumber p_soil_coverTreatmentAndHydrologicCondition p_soil_hydrologicSoilGroup
+  set p_soil_runOffCurveNumber (get-runOffCurveNumber
+    p_ecol_%grass
+    p_ecol_%brush
+    p_ecol_%wood
+    p_ecol_%water
+    p_crop_frequency
+    p_soil_hydrologicSoilGroup
+    )
 
   set p_soil_fieldCapacity get-fieldCapacity p_soil_textureType
 
@@ -733,6 +827,43 @@ to setup-river-water
 
 end
 
+to setup-crops
+
+  ;;; crop assignment
+  ;;; all patches have a varying proportion of all crops-selected
+  ;;; NOTE: this is a temporary aspect to be replaced by agent decision-making
+  set p_crop_frequency []
+  foreach crop_typesOfCrops
+  [
+    cropName ->
+    ifelse (member? cropName crop_typesOfCrops)
+    [
+      set p_crop_frequency lput (random 100) p_crop_frequency
+    ]
+    [
+      set p_crop_frequency lput 0 p_crop_frequency
+    ]
+  ]
+  let cropFrequencyTotal sum p_crop_frequency
+  ;;; rescale values
+  set p_crop_frequency map [i -> 100 * i / cropFrequencyTotal] p_crop_frequency
+
+  ;;; initialise all crop related variables as list where items correspond to crops
+  set p_crop_TT n-values (length crop_typesOfCrops) [ j -> 0 ]
+  set p_crop_biomass n-values (length crop_typesOfCrops) [ j -> 0 ]
+  set p_crop_totalBiomass n-values (length crop_typesOfCrops) [ j -> 0 ]
+  set p_crop_yield n-values (length crop_typesOfCrops) [ j -> 0 ]
+  set p_crop_totalYield n-values (length crop_typesOfCrops) [ j -> 0 ]
+
+  set p_crop_biomass_rate n-values (length crop_typesOfCrops) [ j -> 0 ]
+  set p_crop_f_solar n-values (length crop_typesOfCrops) [ j -> 0 ]
+  set p_crop_I_50Blocal n-values (length crop_typesOfCrops) [ j -> 0 ]
+  set p_crop_f_temp n-values (length crop_typesOfCrops) [ j -> 0 ]
+  set p_crop_f_heat n-values (length crop_typesOfCrops) [ j -> 0 ]
+  set p_crop_f_water n-values (length crop_typesOfCrops) [ j -> 0 ]
+
+end
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; GO ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -747,13 +878,19 @@ to go
 
   update-ecological-communities
 
+  update-crops
+
   update-soil-cover
 
-  ; --------------------------------------------
-
-  advance-time
+  ; --- output handling ------------------------
 
   refresh-to-display-mode
+
+  update-plot-crop
+
+  ; -- time -------------------------------------
+
+  advance-time
 
   tick
 
@@ -1339,6 +1476,14 @@ end
 
 ;=======================================================================================================
 ;;; END of water flow and soil water algorithms (combined)
+;;; soil water balance model is based on:
+;;; 'Working with dynamic crop models: Methods, tools, and examples for agriculture and enviromnent'
+;;; Daniel Wallach, David Makowski, James W. Jones, François Brun (2006, 2014, 2019)
+;;; Model description in p. 24-28, R code example in p. 138-144.
+;;; see also https://github.com/cran/ZeBook/blob/master/R/watbal.model.r
+;;; Some additional info about run off at: https://engineering.purdue.edu/mapserve/LTHIA7/documentation/scs.htm
+;;; and at: https://en.wikipedia.org/wiki/Runoff_curve_number
+;;;
 ;;; flow algorithms are based on:
 ;;; Jenson, S. K., & Domingue, J. O. (1988).
 ;;; Extracting topographic structure from digital elevation data for geographic information system analysis.
@@ -1443,10 +1588,10 @@ end
 
 to set-ecological-communities-biomass
 
-  set p_ecol_biomass (
-    ((p_ecol_%wood / 100) * (get-biomass-of-ecological-component "wood")) +
-    ((p_ecol_%brush / 100) * (get-biomass-of-ecological-component "brush")) +
-    ((p_ecol_%grass / 100) * (get-biomass-of-ecological-component "grass"))
+  set p_ecol_biomass (list
+    ((p_ecol_%wood / 100) * (get-biomass-of-ecological-component "wood") * patchArea)
+    ((p_ecol_%brush / 100) * (get-biomass-of-ecological-component "brush") * patchArea)
+    ((p_ecol_%grass / 100) * (get-biomass-of-ecological-component "grass") * patchArea)
   )
 
 end
@@ -1492,21 +1637,226 @@ to-report get-water-stress-sensitivity-of-ecological-component [ ecologicalCompo
 
 end
 
+;=======================================================================================================
+;;; START of SIMPLE crop model algorithms
+;;; Zhao C, Liu B, Xiao L, Hoogenboom G, Boote K J, Kassie B T,
+;;; Pavan W, Shelia V, Kim K S, Hernandez-Ochoa I M, Wallach D,
+;;; Porter C H, Stockle C O, Zhu Y and Asseng S (2019)
+;;; A SIMPLE crop model Eur. J. Agron. 104 97–106
+;;; Online: https://doi.org/10.1016/j.eja.2019.01.009
+;;; See also: "04-crop-model" directory within "indus-village-model".
+;=======================================================================================================
+
+to update-crops
+
+  ask patches
+  [
+    foreach crop_selection
+    [
+      crop ->
+
+      let cropIndex position crop crop_typesOfCrops
+
+      if ( is-growing cropIndex )
+      [
+        update-biomass cropIndex
+
+        set p_crop_totalBiomass replace-item cropIndex p_crop_totalBiomass ((item cropIndex p_crop_biomass) * (crop_intensity / 100) * patchArea * (item cropIndex p_crop_frequency) / 100)
+      ]
+
+      if ( is-ripe cropIndex )
+      [
+        ;;; calculate harvest yield
+        ifelse (item cropIndex p_crop_TT >= item cropIndex crop_T_sum)
+        [
+          set p_crop_yield replace-item cropIndex p_crop_yield (item cropIndex p_crop_biomass * item cropIndex crop_HI)
+          set p_crop_totalYield replace-item cropIndex p_crop_totalYield ((item cropIndex p_crop_yield) * (crop_intensity / 100) * patchArea * (item cropIndex p_crop_frequency) / 100)
+        ]
+        [
+          set p_crop_yield replace-item cropIndex p_crop_yield 0
+          set p_crop_totalYield replace-item cropIndex p_crop_totalYield 0
+        ]
+
+        ;;; reset biomass and auxiliary variables
+        reset-variables cropIndex
+      ]
+    ]
+  ]
+
+end
+
+;;; PATCHES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to reset-variables [ cropIndex ]
+
+  set p_crop_TT replace-item cropIndex p_crop_TT 0
+  set p_crop_biomass replace-item cropIndex p_crop_biomass 0
+
+  set p_crop_biomass_rate replace-item cropIndex p_crop_biomass_rate 0
+  set p_crop_f_solar replace-item cropIndex p_crop_f_solar 0
+  set p_crop_I_50Blocal replace-item cropIndex p_crop_I_50Blocal 0
+  set p_crop_f_temp replace-item cropIndex p_crop_f_temp 0
+  set p_crop_f_heat replace-item cropIndex p_crop_f_heat 0
+  set p_crop_f_water replace-item cropIndex p_crop_f_water 0
+
+end
+
+to-report is-growing [ cropIndex ]
+
+  let myCropSowingDay (item cropIndex crop_sowingDay)
+  let myCropHarvestingDay (item cropIndex crop_harvestingDay)
+
+  ifelse (myCropSowingDay < myCropHarvestingDay)
+  [
+    ; summer crop (sowing day comes before harvesting day in the Jan-Dec calendar)
+    report (currentDayOfYear >= myCropSowingDay) and (currentDayOfYear < myCropHarvestingDay)
+  ]
+  [
+    ; winter crop (harvesting day comes before sowing day in the Jan-Dec calendar; ignore first year harvest)
+    report (currentDayOfYear >= myCropSowingDay) or (currentYear > 0 and currentDayOfYear < myCropHarvestingDay)
+  ]
+
+end
+
+to-report is-ripe [ cropIndex ]
+
+  report (currentDayOfYear = item cropIndex crop_harvestingDay)
+
+end
+
+to update-biomass [ cropIndex ]
+
+  update-TT cropIndex
+
+  update-f_Temp cropIndex
+
+  update-f_Heat cropIndex
+
+  update-f__Water cropIndex
+
+  set p_crop_I_50Blocal replace-item cropIndex p_crop_I_50Blocal ((item cropIndex crop_I_50B) + (item cropIndex crop_I_50maxW) * (1 - item cropIndex p_crop_f_Water) + (item cropIndex crop_I_50maxH) * (1 - item cropIndex p_crop_f_Heat))
+
+  update-f_Solar cropIndex
+
+  set p_crop_biomass_rate replace-item cropIndex p_crop_biomass_rate (solarRadiation * (item cropIndex crop_RUE) * item cropIndex p_crop_f_Solar * item cropIndex p_crop_f_Temp * min (list (item cropIndex p_crop_f_Heat) (item cropIndex p_crop_f_Water)))
+
+  set p_crop_biomass replace-item cropIndex p_crop_biomass (item cropIndex p_crop_biomass + item cropIndex p_crop_biomass_rate)
+
+end
+
+to update-TT [ cropIndex ]
+
+  let deltaTT 0
+
+  ifelse ( temperature > item cropIndex crop_T_base )
+  [
+    set deltaTT temperature - item cropIndex crop_T_base
+  ]
+  [
+    set deltaTT 0
+  ]
+
+  set p_crop_TT replace-item cropIndex p_crop_TT (item cropIndex p_crop_TT + deltaTT)
+
+end
+
+to update-f_Temp [ cropIndex ]
+
+  ifelse ( temperature < item cropIndex crop_T_base )
+  [
+    set p_crop_f_Temp replace-item cropIndex p_crop_f_Temp 0
+  ]
+  [
+    ifelse ( temperature >= item cropIndex crop_T_opt )
+    [
+      set p_crop_f_Temp replace-item cropIndex p_crop_f_Temp 1
+    ]
+    [
+      set p_crop_f_Temp replace-item cropIndex p_crop_f_Temp ((temperature - item cropIndex crop_T_base) / (item cropIndex crop_T_opt - item cropIndex crop_T_base))
+    ]
+  ]
+
+end
+
+to update-f_Heat [ cropIndex ]
+
+  ifelse ( maxTemperature <= item cropIndex crop_T_heat )
+  [
+    set p_crop_f_Heat replace-item cropIndex p_crop_f_Heat 1
+  ]
+  [
+    ifelse ( maxTemperature > item cropIndex crop_T_extreme )
+    [
+      set p_crop_f_Heat replace-item cropIndex p_crop_f_Heat 0
+    ]
+    [
+      set p_crop_f_Heat replace-item cropIndex p_crop_f_Heat ((maxTemperature - item cropIndex crop_T_heat) / (item cropIndex crop_T_extreme - item cropIndex crop_T_heat))
+    ]
+  ]
+
+end
+
+to update-f__Water [ cropIndex ]
+
+  set p_crop_f_Water replace-item cropIndex p_crop_f_Water (1 - (item cropIndex crop_S_Water) * p_soil_ARID)
+
+end
+
+to update-f_Solar [ cropIndex ]
+
+  ifelse (item cropIndex p_crop_TT < item cropIndex crop_T_sum)
+  [
+    set p_crop_f_Solar replace-item cropIndex p_crop_f_Solar (crop_f_Solar_max / (1 + e ^ (-0.01 * (item cropIndex p_crop_TT - item cropIndex crop_I_50A))))
+  ]
+  [
+    set p_crop_f_Solar replace-item cropIndex p_crop_f_Solar (crop_f_Solar_max / (1 + e ^ (-0.01 * (item cropIndex p_crop_TT - item cropIndex p_crop_I_50Blocal))))
+  ]
+
+  ;;; drought effect
+  if (item cropIndex p_crop_f_Water < 0.1)
+  [
+    set p_crop_f_Solar replace-item cropIndex p_crop_f_Solar (item cropIndex p_crop_f_Solar * (0.9 + item cropIndex p_crop_f_Water))
+  ]
+
+end
+
+;=======================================================================================================
+;;; END of SIMPLE crop model algorithms
+;;; Zhao C, Liu B, Xiao L, Hoogenboom G, Boote K J, Kassie B T,
+;;; Pavan W, Shelia V, Kim K S, Hernandez-Ochoa I M, Wallach D,
+;;; Porter C H, Stockle C O, Zhu Y and Asseng S (2019)
+;;; A SIMPLE crop model Eur. J. Agron. 104 97–106
+;;; Online: https://doi.org/10.1016/j.eja.2019.01.009
+;;; See also: "04-crop-model" directory within "indus-village-model".
+;=======================================================================================================
+
 to update-soil-cover
 
   ask patches
   [
-    set p_ecol_coverType get-cover-type p_ecol_%grass p_ecol_%brush p_ecol_%wood p_ecol_%water
+    set p_ecol_coverType (get-cover-type
+      p_ecol_%grass
+      p_ecol_%brush
+      p_ecol_%wood
+      p_ecol_%water
+      crop_intensity
+      )
 
-    set p_soil_coverTreatmentAndHydrologicCondition get-coverTreatmentAndHydrologicCondition p_ecol_coverType
-
-    set p_soil_runOffCurveNumber get-runOffCurveNumber p_soil_coverTreatmentAndHydrologicCondition p_soil_hydrologicSoilGroup
+    set p_soil_runOffCurveNumber (get-runOffCurveNumber
+      p_ecol_%grass
+      p_ecol_%brush
+      p_ecol_%wood
+      p_ecol_%water
+      crop_intensity
+      p_soil_hydrologicSoilGroup
+      )
 
     set p_ecol_albedo (get-albedo
-      p_ecol_%water
-      p_ecol_%wood
-      p_ecol_%brush
       p_ecol_%grass
+      p_ecol_%brush
+      p_ecol_%wood
+      p_ecol_%water
+      crop_intensity
       p_soil_%sand
       p_soil_waterContentRatio
      )
@@ -1514,7 +1864,7 @@ to update-soil-cover
 
 end
 
-to-report get-cover-type [ %grass %brush %wood %water ]
+to-report get-cover-type [ %grass %brush %wood %water %crop ]
 
   ;;; set cover type according to percentages
   ;;; The criteria used for separating cover types (to select runoff curve number) attempts to approach the one used in:
@@ -1522,11 +1872,14 @@ to-report get-cover-type [ %grass %brush %wood %water ]
   ;;; United States Department of Agriculture, Soil Conservation Service, Engineering Division
   ;;; See also ternary diagram "ternaryPlots/coverTypePerEcologicalCommunity.png", generated in R
   ;;; An extra category for free water surfaces was added.
-  ;;; NOTE: desert (%bareSoil > 50) and water (%water > 50) definitions are arbitrary. Pending to find information on these thresholds (keep in mind they affect runoff curve number and albedo).
+  ;;; NOTE: desert (%bareSoil > 50), cropland (%crop > 50) and water (%water > 50) definitions are arbitrary.
+  ;;; Pending to find information on these thresholds, if any standards exist (keep in mind they affect runoff curve number and albedo).
 
   if (%water > 50) [ report "free water" ]
 
-  let %bareSoil 100 - %grass - %brush - %wood - %water
+  if (%crop > 50) [ report "cropland" ]
+
+  let %bareSoil 100 - %grass - %brush - %wood - %water - %crop
   if (%bareSoil > 50) [ report "desert" ] ;;; if percentages are too low
 
   if (%grass >= 60) [ report "grassland" ]
@@ -1536,11 +1889,46 @@ to-report get-cover-type [ %grass %brush %wood %water ]
 
 end
 
-to-report get-coverTreatmentAndHydrologicCondition [ coverType ]
+to-report get-runOffCurveNumber [ %grass %brush %wood %water %crop hydrologicSoilGroup ]
+
+  ; cropland should be broken down once crop model is integrated (I2 model)
+
+  let treatment "" ; defaults to no specific treatment
+  let condition "good" ; defaults to "good"
+
+  let %bareSoil (100 - %wood - %brush - %grass - %water - %crop)
+
+  report (
+  ((get-runOffCurveNumber-of-cover-and-soil "free water" condition treatment hydrologicSoilGroup) * %water / 100) +
+  ((get-runOffCurveNumber-of-cover-and-soil "woodland" condition treatment hydrologicSoilGroup) * %wood / 100) +
+  ((get-runOffCurveNumber-of-cover-and-soil "shrubland" condition treatment hydrologicSoilGroup) * %brush / 100) +
+  ((get-runOffCurveNumber-of-cover-and-soil "grassland" condition treatment hydrologicSoilGroup) * %grass / 100) +
+  ((get-runOffCurveNumber-of-cover-and-soil "cropland" condition treatment hydrologicSoilGroup) * %crop / 100) +
+  ((get-runOffCurveNumber-of-cover-and-soil "desert" condition treatment hydrologicSoilGroup) * %bareSoil / 100)
+  )
+
+end
+
+to-report get-runOffCurveNumber-of-cover-and-soil [ coverType condition treatment hydrologicSoilGroup ]
+
+  let coverTreatmentAndHydrologicCondition get-coverTreatmentAndHydrologicCondition coverType condition treatment
+
+  report (
+    item
+    (position coverTreatmentAndHydrologicCondition (item 0 soil_runOffCurveNumberTable))            ; selecting row
+    (item (1 + position hydrologicSoilGroup (list "A" "B" "C" "D")) soil_runOffCurveNumberTable)    ; selecting column (skip column with coverTreatmentAndHydrologicCondition)
+    )
+
+end
+
+to-report get-coverTreatmentAndHydrologicCondition [ coverType condition treatment ]
 
   ;;; correspond cover type with cover/treatment/hydrologic condition as registred in runOffCurveNumberTable
   ;;; That table, created by the USDA, holds a classification of cover conditions in the US;
   ;;; future versions should aim to calibrate this data to the cover types within the region of interest.
+
+  ;;; NOTE: this version ignores condition and treatment and selects a single default per each coverType
+  ;;; NOTE2: cropland should be broken down once crop model is integrated (I2 model)
 
   if (coverType = "free water")
   [
@@ -1566,34 +1954,25 @@ to-report get-coverTreatmentAndHydrologicCondition [ coverType ]
   [
     report (word "woods-grass combination or tree farm | lightly or only occasionally grazed | good")
   ]
+  if (coverType = "cropland")
+  [
+    report (word "small grain crop | straight row | good")
+  ]
 
   report ""
 
 end
 
-to-report get-runOffCurveNumber [ coverTreatmentAndHydrologicCondition hydrologicSoilGroup ]
+to-report get-albedo [ %grass %brush %wood %water %crop %sand waterContentRatio]
 
-  report (
-    item
-    (position coverTreatmentAndHydrologicCondition (item 0 soil_runOffCurveNumberTable))            ; selecting row
-    (item (1 + position hydrologicSoilGroup (list "A" "B" "C" "D")) soil_runOffCurveNumberTable)    ; selecting column (skip column with coverTreatmentAndHydrologicCondition)
-    )
+  let %bareSoil (100 - %wood - %brush - %grass - %water - %crop)
 
-end
-
-to-report get-albedo [ %water %wood %brush %grass %sand waterContentRatio]
-
-  let %bareSoil (100 - p_ecol_%wood - p_ecol_%brush - p_ecol_%grass)
-
-  ;;; declare variables only available in other models and set them as 0
-  ;;; NOTE: these should be inputs, once integrated with other models
-  let %crops 0 ; no crops present
-
-  report (get-albedo-of-cover "inland water") * %water / 100 +
+  report
+  ((get-albedo-of-cover "inland water") * %water / 100) +
   ((get-albedo-of-cover "woodlands") * %wood / 100) +
   ((get-albedo-of-cover "shrublands") * %brush / 100) +
   ((get-albedo-of-cover "grasslands") * %grass / 100) +
-  ((get-albedo-of-cover "croplands") * %crops / 100) +
+  ((get-albedo-of-cover "croplands") * %crop / 100) +
   ((get-albedo-of-cover "wet bare not sandy soil") * (%bareSoil / 100) * (1 - %sand / 100) * waterContentRatio) +
   ((get-albedo-of-cover "dry bare not sandy soil") * (%bareSoil / 100) * (1 - %sand / 100) * (1 - waterContentRatio)) +
   ((get-albedo-of-cover "wet bare sandy soil") * (%bareSoil / 100) * (%sand / 100) * waterContentRatio) +
@@ -1859,6 +2238,20 @@ to refresh-to-display-mode
     ]
     set-legend-continuous-range maxDeepDrainageCoefficient minDeepDrainageCoefficient 108 102 6 true
   ]
+  if (display-mode = "soil water content (ratio)")
+  [
+    let minWaterContentRatio min [p_soil_waterContentRatio] of patches
+    let maxWaterContentRatio max [p_soil_waterContentRatio] of patches
+
+    let rangeWaterContentRatio maxWaterContentRatio - minWaterContentRatio
+    if (rangeWaterContentRatio = 0) [ set rangeWaterContentRatio 1 ]
+
+    ask patches
+    [
+      set pcolor 102 + 6 * (p_soil_waterContentRatio - minWaterContentRatio) / rangeWaterContentRatio
+    ]
+    set-legend-continuous-range maxWaterContentRatio minWaterContentRatio 108 102 6 true
+  ]
   if (display-mode = "ecological community composition")
   [
     ask patches
@@ -1867,6 +2260,19 @@ to refresh-to-display-mode
       set pcolor get-ecologicalCommunityComposition-color p_ecol_%grass p_ecol_%brush p_ecol_%wood
     ]
     set-legend-ecologicalCommunityComposition
+  ]
+  if (display-mode = "total ecological community biomass (Kg/patch)")
+  [
+    let minBiomass 0.001 * min [sum p_ecol_biomass] of patches
+    let maxBiomass 0.001 * max [sum p_ecol_biomass] of patches
+
+    ask patches
+    [
+      ifelse (sum p_ecol_biomass > 0)
+      [ set pcolor 52 + 6 * (1 - ((0.001 * sum p_ecol_biomass) - minBiomass) / (maxBiomass + 1E-6 - minBiomass)) ]
+      [ set pcolor 59 ]
+    ]
+    set-legend-continuous-range maxBiomass minBiomass 59 52 7 true
   ]
   if (display-mode = "cover type")
   [
@@ -1926,20 +2332,6 @@ to refresh-to-display-mode
     ]
     set-legend-continuous-range maxRootZoneDepth minRootZoneDepth 48 42 6 true
   ]
-  if (display-mode = "soil water content (ratio)")
-  [
-    let minWaterContentRatio min [p_soil_waterContentRatio] of patches
-    let maxWaterContentRatio max [p_soil_waterContentRatio] of patches
-
-    let rangeWaterContentRatio maxWaterContentRatio - minWaterContentRatio
-    if (rangeWaterContentRatio = 0) [ set rangeWaterContentRatio 1 ]
-
-    ask patches
-    [
-      set pcolor 102 + 6 * (p_soil_waterContentRatio - minWaterContentRatio) / rangeWaterContentRatio
-    ]
-    set-legend-continuous-range maxWaterContentRatio minWaterContentRatio 108 102 6 true
-  ]
   if (display-mode = "ARID coefficient")
   [
     let minARID min [p_soil_ARID] of patches
@@ -1953,6 +2345,42 @@ to refresh-to-display-mode
       set pcolor 12 + 6 * (p_soil_ARID - minARID) / rangeARID
     ]
     set-legend-continuous-range maxARID minARID 18 12 6 true
+  ]
+  if (display-mode = "crop-to-display frequency (%)")
+  [
+    ask patches
+    [
+      set pcolor 2 + 6 * (item (position crop-to-display crop_typesOfCrops) p_crop_frequency) / 100
+    ]
+    set-legend-continuous-range 100 0 8 2 6 true
+  ]
+  if (display-mode = "total crop biomass (Kg/patch)")
+  [
+    let minBiomass 0.001 * min [sum p_crop_totalBiomass] of patches
+    let maxBiomass 0.001 * max [sum p_crop_totalBiomass] of patches
+
+    ask patches
+    [
+      ifelse (sum p_crop_totalBiomass > 0)
+      [ set pcolor 52 + 6 * (1 - ((0.001 * sum p_crop_totalBiomass) - minBiomass) / (maxBiomass + 1E-6 - minBiomass)) ]
+      [ set pcolor 59 ]
+    ]
+    set-legend-continuous-range maxBiomass minBiomass 59 52 7 true
+  ]
+  if (display-mode = "total crop yield (Kg/patch)")
+  [
+    let minMeanYield 0
+    carefully [ set minMeanYield 0.001 * min [sum p_crop_totalYield] of patches ] [ set minMeanYield 0 ]
+    let maxMeanYield 0
+    carefully [ set maxMeanYield 0.001 * max [sum p_crop_totalYield] of patches ] [ set maxMeanYield 1E-6 ]
+
+    ask patches
+    [
+      carefully
+      [ set pcolor 42 + 6 * (1 - (0.001 * sum p_crop_totalYield - minMeanYield) / (maxMeanYield + 1E-6 - minMeanYield)) ]
+      [ set pcolor 49 ]
+    ]
+    set-legend-continuous-range maxMeanYield minMeanYield 49 42 7 true
   ]
 
   ;;; other modes of display can be added here
@@ -2008,6 +2436,13 @@ to-report get-ecologicalCommunityComposition-color [ %grass %brush %wood ]
 
 end
 
+to-report get-crop-color [ cropName ]
+
+  ; for a maximum of 13 crops
+  report (16 + 9 * 10 * (position cropName crop_typesOfCrops)) mod 140
+
+end
+
 to-report get-coverType-color [ coverTypeName ]
 
   ;;; blue: free water, orange: desert, brown: grassland, yellow: wood-grass, green: shrubland, green: woodland
@@ -2015,6 +2450,7 @@ to-report get-coverType-color [ coverTypeName ]
 
   if (coverTypeName = "free water") [ set col 104 ]
   if (coverTypeName = "desert") [ set col 26 ]
+  if (coverTypeName = "cropland") [ set col 67 ]
   if (coverTypeName = "grassland") [ set col 36 ]
   if (coverTypeName = "wood-grass") [ set col 44 ]
   if (coverTypeName = "shrubland") [ set col 53 ]
@@ -2130,7 +2566,7 @@ end
 
 to set-legend-coverType
 
-  foreach (list "free water" "desert" "grassland" "wood-grass" "shrubland" "woodland")
+  foreach (list "free water" "desert" "cropland" "grassland" "wood-grass" "shrubland" "woodland")
   [
     coverTypeName ->
     create-temporary-plot-pen coverTypeName
@@ -2376,6 +2812,92 @@ to plot-precipitation-table-by-month
     plotxy (startDay) (sum sublist precipitation_yearSeries (startDay - 1) (endDay - 1)) ; correct to list indexes (starting with 0 instead of 1)
   ]
   plot-pen-up
+
+end
+
+to print-crop-table
+
+  output-print (word " | typesOfCrops | T_sum | HI | I_50A | I_50B | T_base | T_opt | RUE | I_50maxH | I_50maxW | T_heat | T_ext | S_water | sugSowingDay | sugHarvestingDay | ")
+
+  foreach n-values (length crop_typesOfCrops) [j -> j]
+  [
+    cropIndex ->
+    output-print (word
+      " | " (item cropIndex crop_typesOfCrops)
+      " | " (item cropIndex crop_T_sum)
+      " | " (item cropIndex crop_HI)
+      " | " (item cropIndex crop_I_50A)
+      " | " (item cropIndex crop_I_50B)
+      " | " (item cropIndex crop_T_base)
+      " | " (item cropIndex crop_T_opt)
+      " | " (item cropIndex crop_RUE)
+      " | " (item cropIndex crop_I_50maxH)
+      " | " (item cropIndex crop_I_50maxW)
+      " | " (item cropIndex crop_T_heat)
+      " | " (item cropIndex crop_T_extreme)
+      " | " (item cropIndex crop_S_water)
+      " | " (item cropIndex crop_sugSowingDay)
+      " | " (item cropIndex crop_sugHarvestingDay)
+      " | ")
+  ]
+
+end
+
+to setup-plot-crop
+
+  set-current-plot "Crops biomass (patch mean)"
+
+  foreach crop_typesOfCrops
+  [
+    cropName ->
+    create-temporary-plot-pen cropName
+    set-plot-pen-color get-crop-color cropName
+  ]
+
+  set-current-plot "Crops yield (patch mean) and annual total precipitation"
+
+  create-temporary-plot-pen "annual RAIN"
+  set-plot-pen-mode 1
+  set-plot-pen-color 0
+
+  foreach crop_typesOfCrops
+  [
+    cropName ->
+    create-temporary-plot-pen cropName
+    set-plot-pen-mode 0
+    set-plot-pen-color get-crop-color cropName
+  ]
+
+end
+
+to update-plot-crop
+
+  set-current-plot "Crops biomass (patch mean)"
+
+  foreach crop_typesOfCrops
+  [
+    cropName ->
+    set-current-plot-pen cropName
+    plot mean [item (position cropName crop_typesOfCrops) p_crop_biomass] of patches
+  ]
+
+  set-current-plot "Crops yield (patch mean) and annual total precipitation"
+
+  if (currentDayOfYear = 2) ; skips plotting on setup
+  [
+    set-current-plot-pen "annual RAIN"
+    plot sum precipitation_yearSeries
+  ]
+
+  foreach crop_typesOfCrops
+  [
+    cropName ->
+    set-current-plot-pen cropName
+    if (is-ripe position cropName crop_typesOfCrops)
+    [
+      plotxy (currentyear + (currentDayOfYear / yearLengthInDays)) (mean [item (position cropName crop_typesOfCrops) p_crop_yield] of patches)
+    ]
+  ]
 
 end
 
@@ -2899,6 +3421,98 @@ to load-ecological-component-table
 
 end
 
+to load-crops-table
+
+  ;;; this procedure loads the values of the crops table
+  ;;; the table contains:
+  ;;;   1. two lines of headers with comments (metadata, to be ignored)
+  ;;;   2. two lines with statements mapping the different types of data, if more than one
+  ;;;   3. the header of the table with the names of variables
+  ;;;   4. remaining rows containing row name and values
+
+  let cropsTable csv:from-file "cropsTable.csv"
+
+  ;;;==================================================================================================================
+  ;;; mapping coordinates (row or columns) in lines 3 and 4 (= index 2 and 3) -----------------------------------------
+  ;;; NOTE: always correct raw mapping coordinates (start at 1) into list indexes (start at 0)
+
+  ;;; line 3 (= index 2), row indexes
+
+  ;;; Types of crops rows: value 2 and 4 (= index 1 and 3)
+  let typesOfCropsRowRange (list ((item 1 (item 2 cropsTable)) - 1) ((item 3 (item 2 cropsTable)) - 1))
+
+  ;;; line 4 (= index 3), column indexes
+
+  let T_sumColumn (item 7 (item 3 cropsTable)) - 1
+
+  let HIColumn (item 9 (item 3 cropsTable)) - 1
+
+  let I_50AColumn (item 11 (item 3 cropsTable)) - 1
+
+  let I_50BColumn (item 13 (item 3 cropsTable)) - 1
+
+  let T_baseColumn (item 15 (item 3 cropsTable)) - 1
+
+  let T_optColumn (item 17 (item 3 cropsTable)) - 1
+
+  let RUEColumn (item 19 (item 3 cropsTable)) - 1
+
+  let I_50maxHColumn (item 21 (item 3 cropsTable)) - 1
+
+  let I_50maxWColumn (item 23 (item 3 cropsTable)) - 1
+
+  let T_heatColumn (item 25 (item 3 cropsTable)) - 1
+
+  let T_extColumn (item 27 (item 3 cropsTable)) - 1
+
+  ;let S_CO2Column (item 29 (item 3 cropsTable)) - 1
+
+  let S_waterColumn (item 31 (item 3 cropsTable)) - 1
+
+  let sugSowingDayColumn (item 33 (item 3 cropsTable)) - 1
+
+  let sugHarvestingDayColumn (item 35 (item 3 cropsTable)) - 1
+
+  ;;;==================================================================================================================
+  ;;; extract data---------------------------------------------------------------------------------------
+
+  ;;; read variables per crop type (list of lists, matrix: crop types x variables)
+  let cropsData sublist cropsTable (item 0 typesOfCropsRowRange) (item 1 typesOfCropsRowRange + 1) ; select only those row corresponding to types of crops, if there is anything else
+
+  ;;; extract types of crops from the first column
+  set crop_typesOfCrops map [row -> item 0 row ] cropsData
+
+  ;;; extract parameter values from the given column
+  set crop_T_sum map [row -> item T_sumColumn row ] cropsData
+
+  set crop_HI map [row -> item HIColumn row ] cropsData
+
+  set crop_I_50A map [row -> item I_50AColumn row ] cropsData
+
+  set crop_I_50B map [row -> item I_50BColumn row ] cropsData
+
+  set crop_T_base map [row -> item T_baseColumn row ] cropsData
+
+  set crop_T_opt map [row -> item T_optColumn row ] cropsData
+
+  set crop_RUE map [row -> item RUEColumn row ] cropsData
+
+  set crop_I_50maxH map [row -> item I_50maxHColumn row ] cropsData
+
+  set crop_I_50maxW map [row -> item I_50maxWColumn row ] cropsData
+
+  set crop_T_heat map [row -> item T_heatColumn row ] cropsData
+
+  set crop_T_extreme map [row -> item T_extColumn row ] cropsData
+
+  set crop_S_water map [row -> item S_waterColumn row ] cropsData
+
+  set crop_sugSowingDay map [row -> item sugSowingDayColumn row ] cropsData
+
+  set crop_sugHarvestingDay map [row -> item sugHarvestingDayColumn row ] cropsData
+
+end
+
 to-report extract-subtable [ table startColumnIndex endColumnIndex ]
 
   let subtable (list)
@@ -3141,7 +3755,7 @@ INPUTBOX
 164
 312
 terrainRandomSeed
-0.0
+35.0
 1
 0
 Number
@@ -3274,10 +3888,10 @@ elev_algorithm-style
 1
 
 SWITCH
-969
-19
-1089
-52
+765
+14
+885
+47
 show-flows
 show-flows
 0
@@ -3645,10 +4259,10 @@ temperature_dailyUpperDeviation
 9
 
 PLOT
-1561
-361
-2111
-545
+1566
+492
+2116
+612
 Temperature
 days
 ºC
@@ -3710,10 +4324,10 @@ MJ/m2 (default: 3.3)
 HORIZONTAL
 
 PLOT
-1562
-548
-2060
-690
+1566
+613
+2064
+733
 Solar radiation
 days
 MJ/m2
@@ -3761,10 +4375,10 @@ solar_meanDailyFluctuation
 9
 
 MONITOR
-679
-10
-758
-55
+553
+13
+632
+58
 NIL
 currentYear
 0
@@ -3772,10 +4386,10 @@ currentYear
 11
 
 MONITOR
-771
-10
-885
-55
+645
+13
+759
+58
 NIL
 currentDayOfYear
 0
@@ -3783,20 +4397,20 @@ currentDayOfYear
 11
 
 CHOOSER
-1249
-20
-1522
-65
+1032
+10
+1334
+55
 display-mode
 display-mode
-"elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "surface water width (%)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type" "albedo (%)" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "soil water content (ratio)" "ARID coefficient"
-1
+"elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "surface water width (%)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "soil water content (ratio)" "ecological community composition" "total ecological community biomass (Kg/patch)" "cover type" "albedo (%)" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "ARID coefficient" "crop-to-display frequency (%)" "total crop biomass (Kg/patch)" "total crop yield (Kg/patch)"
+16
 
 BUTTON
-1117
-20
-1241
-53
+893
+14
+1017
+47
 refresh display
 refresh-to-display-mode
 NIL
@@ -3842,10 +4456,10 @@ mm/year (default: 489)
 HORIZONTAL
 
 SLIDER
-552
-834
-954
-867
+21
+871
+423
+904
 precipitation_yearly-sd
 precipitation_yearly-sd
 0
@@ -3857,10 +4471,10 @@ mm/year (default: 142.2)
 HORIZONTAL
 
 SLIDER
-24
-882
-432
-915
+21
+921
+429
+954
 precipitation_daily-cum_n-samples
 precipitation_daily-cum_n-samples
 0
@@ -3872,10 +4486,10 @@ precipitation_daily-cum_n-samples
 HORIZONTAL
 
 SLIDER
-24
-919
-432
-952
+21
+958
+429
+991
 precipitation_daily-cum_max-sample-size
 precipitation_daily-cum_max-sample-size
 1
@@ -3887,10 +4501,10 @@ precipitation_daily-cum_max-sample-size
 HORIZONTAL
 
 SLIDER
-626
-885
-1235
-918
+15
+1013
+499
+1046
 precipitation_daily-cum_plateau-value_yearly-mean
 precipitation_daily-cum_plateau-value_yearly-mean
 0.2
@@ -3902,10 +4516,10 @@ winter (mm)/summer (mm) (default: 0.25)
 HORIZONTAL
 
 SLIDER
-627
-917
-1235
-950
+16
+1045
+499
+1078
 precipitation_daily-cum_plateau-value_yearly-sd
 precipitation_daily-cum_plateau-value_yearly-sd
 0
@@ -3917,10 +4531,10 @@ precipitation_daily-cum_plateau-value_yearly-sd
 HORIZONTAL
 
 SLIDER
-23
-973
-502
-1006
+20
+1091
+499
+1124
 precipitation_daily-cum_inflection1_yearly-mean
 precipitation_daily-cum_inflection1_yearly-mean
 40
@@ -3932,10 +4546,10 @@ day of year (default: 40)
 HORIZONTAL
 
 SLIDER
-26
-1009
-504
-1042
+23
+1127
+501
+1160
 precipitation_daily-cum_inflection1_yearly-sd
 precipitation_daily-cum_inflection1_yearly-sd
 20
@@ -3947,10 +4561,10 @@ days (default: 5)
 HORIZONTAL
 
 SLIDER
-28
-1047
-506
-1080
+25
+1165
+503
+1198
 precipitation_daily-cum_rate1_yearly-mean
 precipitation_daily-cum_rate1_yearly-mean
 0.01
@@ -3962,10 +4576,10 @@ precipitation_daily-cum_rate1_yearly-mean
 HORIZONTAL
 
 SLIDER
-28
-1084
-504
-1117
+25
+1202
+501
+1235
 precipitation_daily-cum_rate1_yearly-sd
 precipitation_daily-cum_rate1_yearly-sd
 0.004
@@ -3977,10 +4591,10 @@ precipitation_daily-cum_rate1_yearly-sd
 HORIZONTAL
 
 SLIDER
-663
-976
-1133
-1009
+33
+1245
+503
+1278
 precipitation_daily-cum_inflection2_yearly-mean
 precipitation_daily-cum_inflection2_yearly-mean
 180
@@ -3992,10 +4606,10 @@ day of year (default: 240)
 HORIZONTAL
 
 SLIDER
-664
-1014
-1132
-1047
+34
+1283
+502
+1316
 precipitation_daily-cum_inflection2_yearly-sd
 precipitation_daily-cum_inflection2_yearly-sd
 20
@@ -4007,10 +4621,10 @@ days (default: 20)
 HORIZONTAL
 
 SLIDER
-665
-1051
-1130
-1084
+35
+1320
+500
+1353
 precipitation_daily-cum_rate2_yearly-mean
 precipitation_daily-cum_rate2_yearly-mean
 0.01
@@ -4022,10 +4636,10 @@ precipitation_daily-cum_rate2_yearly-mean
 HORIZONTAL
 
 SLIDER
-665
-1088
-1138
-1121
+35
+1357
+508
+1390
 precipitation_daily-cum_rate2_yearly-sd
 precipitation_daily-cum_rate2_yearly-sd
 0.004
@@ -4048,10 +4662,10 @@ precipitation_yearlyMean
 9
 
 MONITOR
-954
-831
-1092
+423
 868
+561
+905
 NIL
 precipitation_yearlySd
 2
@@ -4059,10 +4673,10 @@ precipitation_yearlySd
 9
 
 MONITOR
-431
-880
-588
-917
+428
+919
+585
+956
 NIL
 precipitation_dailyCum_nSamples
 2
@@ -4070,10 +4684,10 @@ precipitation_dailyCum_nSamples
 9
 
 MONITOR
-430
-917
-611
-954
+427
+956
+608
+993
 NIL
 precipitation_dailyCum_maxSampleSize
 2
@@ -4081,10 +4695,10 @@ precipitation_dailyCum_maxSampleSize
 9
 
 MONITOR
-1234
-884
-1458
-921
+499
+1010
+723
+1047
 NIL
 precipitation_dailyCum_plateauValue_yearlyMean
 2
@@ -4092,10 +4706,10 @@ precipitation_dailyCum_plateauValue_yearlyMean
 9
 
 MONITOR
-1235
-919
-1457
-956
+500
+1045
+722
+1082
 NIL
 precipitation_dailyCum_plateauValue_yearlySd
 2
@@ -4103,10 +4717,10 @@ precipitation_dailyCum_plateauValue_yearlySd
 9
 
 MONITOR
-503
-973
-659
-1010
+500
+1091
+656
+1128
 NIL
 precipitation_dailyCum_inflection1_yearlyMean
 2
@@ -4114,10 +4728,10 @@ precipitation_dailyCum_inflection1_yearlyMean
 9
 
 MONITOR
-506
-1012
-660
-1049
+503
+1130
+657
+1167
 NIL
 precipitation_dailyCum_inflection1_yearlySd
 2
@@ -4125,10 +4739,10 @@ precipitation_dailyCum_inflection1_yearlySd
 9
 
 MONITOR
-503
-1048
-659
-1085
+500
+1166
+656
+1203
 NIL
 precipitation_dailyCum_rate1_yearlyMean
 2
@@ -4136,10 +4750,10 @@ precipitation_dailyCum_rate1_yearlyMean
 9
 
 MONITOR
-506
-1087
-660
-1124
+503
+1205
+657
+1242
 NIL
 precipitation_dailyCum_rate1_yearlySd
 2
@@ -4147,10 +4761,10 @@ precipitation_dailyCum_rate1_yearlySd
 9
 
 MONITOR
-1135
-975
-1291
-1012
+505
+1244
+661
+1281
 NIL
 precipitation_dailyCum_inflection2_yearlyMean
 2
@@ -4158,10 +4772,10 @@ precipitation_dailyCum_inflection2_yearlyMean
 9
 
 MONITOR
-1137
-1010
-1291
-1047
+507
+1279
+661
+1316
 NIL
 precipitation_dailyCum_inflection2_yearlySd
 2
@@ -4169,10 +4783,10 @@ precipitation_dailyCum_inflection2_yearlySd
 9
 
 MONITOR
-1135
-1045
-1291
-1082
+505
+1314
+661
+1351
 NIL
 precipitation_dailyCum_rate2_yearlyMean
 2
@@ -4180,10 +4794,10 @@ precipitation_dailyCum_rate2_yearlyMean
 9
 
 MONITOR
-1138
-1084
-1292
-1121
+508
+1353
+662
+1390
 NIL
 precipitation_dailyCum_rate2_yearlySd
 2
@@ -4191,10 +4805,10 @@ precipitation_dailyCum_rate2_yearlySd
 9
 
 PLOT
-1558
-690
-2149
-848
+1566
+734
+2157
+854
 precipitation
 days
 mm
@@ -4210,10 +4824,10 @@ PENS
 "mean ETr" 1.0 0 -2674135 true "" "plot mean[p_ETr] of patches"
 
 PLOT
-1791
-849
-2048
-969
+1799
+855
+2056
+975
 cumulative year precipitation
 NIL
 NIL
@@ -4228,10 +4842,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot-cumPrecipitation-table"
 
 PLOT
-1558
-849
-1791
-969
+1566
+855
+1799
+975
 year preciptation
 NIL
 NIL
@@ -4246,10 +4860,10 @@ PENS
 "default" 1.0 1 -16777216 true "" "plot-precipitation-table"
 
 MONITOR
-2051
-884
-2124
-929
+2059
+890
+2132
+935
 year total
 sum precipitation_yearSeries
 2
@@ -4257,10 +4871,10 @@ sum precipitation_yearSeries
 11
 
 PLOT
-1561
-10
-2182
-185
+1566
+251
+2187
+371
 Ecological communities
 days
 NIL
@@ -4279,10 +4893,10 @@ PENS
 "mean bare soil (%)" 1.0 1 -16777216 true "" "plot 100 - (mean [p_ecol_%grass] of patches + mean [p_ecol_%brush] of patches + mean [p_ecol_%wood] of patches + mean [get-%water-surface p_water] of patches)"
 
 PLOT
-1561
-186
-2224
-361
+1566
+372
+2229
+492
 Soil water content & ARID
 days
 NIL
@@ -4308,10 +4922,10 @@ TEXTBOX
 1
 
 TEXTBOX
-285
-308
-572
-340
+316
+312
+603
+344
 ========= RIVER =========
 14
 0.0
@@ -4406,10 +5020,10 @@ meanDeepDrainageCoefficient
 11
 
 MONITOR
-535
-166
-671
-211
+533
+169
+669
+214
 NIL
 mostCommonCoverType
 0
@@ -4438,26 +5052,154 @@ southHemisphere?
 -1000
 
 MONITOR
-534
-123
-674
-168
-mean biomass (g/m^2)
-mean [p_ecol_biomass] of patches
+521
+120
+680
+165
+mean total biomass (Kg/patch)
+0.001 * mean [sum p_ecol_biomass + sum p_crop_totalBiomass] of patches
 4
 1
 11
 
 MONITOR
-563
-78
-639
-123
+554
+69
+630
+114
 mean albedo
 mean [p_ecol_albedo] of patches
 2
 1
 11
+
+OUTPUT
+747
+923
+1533
+1124
+9
+
+PLOT
+1566
+10
+2260
+130
+Crops biomass (patch mean)
+days
+g/m2
+0.0
+10.0
+0.0
+10.0
+true
+true
+"" ""
+PENS
+
+PLOT
+1566
+130
+2251
+250
+Crops yield (patch mean) and annual total precipitation
+years
+g/m2 | mm
+0.0
+10.0
+0.0
+10.0
+true
+true
+"" ""
+PENS
+
+MONITOR
+1404
+862
+1559
+907
+NIL
+crop_HarvestingDay
+0
+1
+11
+
+MONITOR
+1267
+862
+1405
+907
+NIL
+crop_sowingDay
+0
+1
+11
+
+TEXTBOX
+819
+827
+1451
+854
+=============================CROPS=============================
+14
+0.0
+1
+
+INPUTBOX
+1015
+849
+1258
+909
+crop-selection
+[\"wheat\" \"rice\" \"barley\" \"pearl millet\"]
+1
+0
+String
+
+INPUTBOX
+1327
+10
+1546
+70
+crop-to-display
+wheat
+1
+0
+String
+
+SLIDER
+724
+862
+983
+895
+crop-intensity
+crop-intensity
+0
+100
+60.0
+1
+1
+% of patch area
+HORIZONTAL
+
+PLOT
+1148
+681
+1348
+831
+Biomass per patch
+g
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot count turtles"
 
 @#$#@#$#@
 ## WHAT IS IT?
