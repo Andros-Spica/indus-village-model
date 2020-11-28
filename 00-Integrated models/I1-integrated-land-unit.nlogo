@@ -34,6 +34,9 @@ globals
 
   yearLengthInDays
 
+  ;;;; soil water balance constants (?)
+  soil_rootWaterUptakeCoefficient        ; (root) Water Uptake coefficient (mm^3.mm^-3) (MUF)
+
   ; randomSeed (GUI): seed of random number generator used for setting parameters and general stocahstic processes.
 
   ;*****************************************************************************************************************
@@ -175,9 +178,6 @@ globals
 
   ;*****************************************************************************************************************
 
-  ;;;; soil water balance constants (?)
-  soil_rootWaterUptakeCoefficient        ; (root) Water Uptake coefficient (mm^3.mm^-3) (MUF)
-
   ;;; parameters (modified copies of interface input) ===============================================================
 
   ;;; LAND ---------------------------------------------------------------------
@@ -316,12 +316,11 @@ patches-own
 
   p_soil_ARID                       ; ARID index after Woli et al. 2012, ranging form 0 (no water shortage) to 1 (extreme water shortage)
 
-  ;======= new vI1 variables ======================================================================================
+  ;======= new I1 variables ======================================================================================
 
   ;;; soil water properties
   p_soil_hydrologicSoilGroup  ; USDA simplification of soil texture types into four categories
 
-  p_soil_coverTreatmentAndHydrologicCondition  ; the type of combination of cover, treatment and hydrologic condition used to estimate runoff curve number (see "runOffCurveNumberTable.csv")
   p_soil_runOffCurveNumber                     ; runoff curve number (0=full retention to 100=full impermeability)
 
   ; Soil water capacities:
@@ -1674,8 +1673,6 @@ to-report get-albedo-of-cover [ coverName ]
   report item (position coverName (item 0 ecol_albedoTable)) (item 1 ecol_albedoTable)
 
 end
-
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; OUTPUT STATS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -3210,7 +3207,7 @@ INPUTBOX
 164
 312
 terrainRandomSeed
-0.0
+35.0
 1
 0
 Number
@@ -3859,7 +3856,7 @@ CHOOSER
 display-mode
 display-mode
 "elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "surface water width (%)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type" "albedo (%)" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "soil water content (ratio)" "ARID coefficient"
-7
+21
 
 BUTTON
 1117
