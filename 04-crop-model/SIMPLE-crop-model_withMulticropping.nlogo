@@ -181,7 +181,6 @@ patches-own
   biomass_rate ; daily change in plant biomass (g)
   f_solar ; the fraction of solar ra- diation intercepted by a crop canopy
   I_50Blocal ; The cumulative temperature required to reach 50% of radiation interception during canopy senescence (I50B) (value affected by heat and drought stress)
-  f_CO2 ; CO2 impact
   f_temp ; temperature impact
   f_heat ; heat stress
   f_water ; drought stress
@@ -524,7 +523,6 @@ to setup-crops
   set biomass_rate n-values (length typesOfCrops) [ j -> 0 ]
   set f_solar n-values (length typesOfCrops) [ j -> 0 ]
   set I_50Blocal n-values (length typesOfCrops) [ j -> 0 ]
-  set f_CO2 n-values (length typesOfCrops) [ j -> 0 ]
   set f_temp n-values (length typesOfCrops) [ j -> 0 ]
   set f_heat n-values (length typesOfCrops) [ j -> 0 ]
   set f_water n-values (length typesOfCrops) [ j -> 0 ]
@@ -1408,8 +1406,6 @@ to load-crops-table
 
   let T_extColumn (item 27 (item 3 cropsTable)) - 1
 
-  ;let S_CO2Column (item 29 (item 3 cropsTable)) - 1
-
   let S_waterColumn (item 31 (item 3 cropsTable)) - 1
 
   let sugSowingDayColumn (item 33 (item 3 cropsTable)) - 1
@@ -1447,8 +1443,6 @@ to load-crops-table
   set T_heat map [row -> item T_heatColumn row ] cropsData
 
   set T_extreme map [row -> item T_extColumn row ] cropsData
-
-  ;set S_CO2 map [row -> item S_CO2Column row ] cropsData
 
   set S_water map [row -> item S_waterColumn row ] cropsData
 

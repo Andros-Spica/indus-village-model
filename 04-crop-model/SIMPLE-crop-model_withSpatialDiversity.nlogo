@@ -174,7 +174,6 @@ patches-own
   biomass_rate ; daily change in plant biomass (g)
   f_solar ; the fraction of solar ra- diation intercepted by a crop canopy
   I_50Blocal ; The cumulative temperature required to reach 50% of radiation interception during canopy senescence (I50B) (value affected by heat and drought stress)
-  f_CO2 ; CO2 impact
   f_temp ; temperature impact
   f_heat ; heat stress
   f_water ; drought stress
@@ -728,10 +727,10 @@ end
 
 ;=======================================================================================================
 ;;; START of SIMPLE crop model algorithms
-;;; Zhao C, Liu B, Xiao L, Hoogenboom G, Boote K J, Kassie B T, 
-;;; Pavan W, Shelia V, Kim K S, Hernandez-Ochoa I M, Wallach D, 
-;;; Porter C H, Stockle C O, Zhu Y and Asseng S (2019) 
-;;; A SIMPLE crop model Eur. J. Agron. 104 97–106 
+;;; Zhao C, Liu B, Xiao L, Hoogenboom G, Boote K J, Kassie B T,
+;;; Pavan W, Shelia V, Kim K S, Hernandez-Ochoa I M, Wallach D,
+;;; Porter C H, Stockle C O, Zhu Y and Asseng S (2019)
+;;; A SIMPLE crop model Eur. J. Agron. 104 97–106
 ;;; Online: https://doi.org/10.1016/j.eja.2019.01.009
 ;;; See also: "04-crop-model" directory within "indus-village-model".
 ;=======================================================================================================
@@ -897,10 +896,10 @@ end
 
 ;=======================================================================================================
 ;;; END of SIMPLE crop model algorithms
-;;; Zhao C, Liu B, Xiao L, Hoogenboom G, Boote K J, Kassie B T, 
-;;; Pavan W, Shelia V, Kim K S, Hernandez-Ochoa I M, Wallach D, 
-;;; Porter C H, Stockle C O, Zhu Y and Asseng S (2019) 
-;;; A SIMPLE crop model Eur. J. Agron. 104 97–106 
+;;; Zhao C, Liu B, Xiao L, Hoogenboom G, Boote K J, Kassie B T,
+;;; Pavan W, Shelia V, Kim K S, Hernandez-Ochoa I M, Wallach D,
+;;; Porter C H, Stockle C O, Zhu Y and Asseng S (2019)
+;;; A SIMPLE crop model Eur. J. Agron. 104 97–106
 ;;; Online: https://doi.org/10.1016/j.eja.2019.01.009
 ;;; See also: "04-crop-model" directory within "indus-village-model".
 ;=======================================================================================================
@@ -1348,8 +1347,6 @@ to load-crops-table
 
   let T_extColumn (item 27 (item 3 cropsTable)) - 1
 
-  ;let S_CO2Column (item 29 (item 3 cropsTable)) - 1
-
   let S_waterColumn (item 31 (item 3 cropsTable)) - 1
 
   let sugSowingDayColumn (item 33 (item 3 cropsTable)) - 1
@@ -1387,8 +1384,6 @@ to load-crops-table
   set T_heat map [row -> item T_heatColumn row ] cropsData
 
   set T_extreme map [row -> item T_extColumn row ] cropsData
-
-  ;set S_CO2 map [row -> item S_CO2Column row ] cropsData
 
   set S_water map [row -> item S_waterColumn row ] cropsData
 
