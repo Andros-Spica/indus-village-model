@@ -227,6 +227,12 @@ globals
                                 ; and about stream types:
                                 ; https://cfpub.epa.gov/watertrain/moduleFrame.cfm?parent_object_id=1199
 
+  ;;; Inundation algorithm
+  errorToleranceThreshold       ; in metres
+                                ; NOTE: this is an arbitrary limit to the precision of the inundation algorithm.
+                                ; Differences in height (i.e. elevation + water depth) that amount to less than this value will be ignored.
+                                ; It also serves as the step used to redistribute the water depth among patches of a neighborhood.
+
   ;;; variables ===============================================================
 
   ;;;; time tracking
@@ -437,8 +443,20 @@ to set-constants
 
   set yearLengthInDays 365
 
+  ;;; Ordered list of soil texture types used for visualisation
+  ;;; this order corresponds to an approximation to the soil texture palette (red: sand, green: silt, blue: clay)
+  set soil_textureTypes_display (list
+    "Sand"             "Loamy sand"        "Sandy loam"     ; red         orange  brown
+    "Loam"             "Silt loam"         "Silt"           ; yellow      green   lime
+    "Silty clay loam"  "Silty clay"        "Clay"           ; turquoise   cyan    sky
+    "Clay loam"        "Sandy clay"        "Sandy clay loam"; blue        violet  magenta
+  )
+
   ; MUF : Water Uptake coefficient (mm^3 mm^-3)
   set soil_rootWaterUptakeCoefficient 0.096
+
+  ; inundation algorithm
+  set errorToleranceThreshold 1
 
 end
 
@@ -448,15 +466,6 @@ to set-parameters
   random-seed randomSeed
 
   set maxDist (sqrt (( (max-pxcor - min-pxcor) ^ 2) + ((max-pycor - min-pycor) ^ 2)) / 2)
-
-  ;;; Ordered list of soil texture types used for visualisation
-  ;;; this order corresponds to an approximation to the soil texture palette (red: sand, green: silt, blue: clay)
-  set soil_textureTypes_display (list
-    "Sand"             "Loamy sand"        "Sandy loam"     ; red         orange  brown
-    "Loam"             "Silt loam"         "Silt"           ; yellow      green   lime
-    "Silty clay loam"  "Silty clay"        "Clay"           ; turquoise   cyan    sky
-    "Clay loam"        "Sandy clay"        "Sandy clay loam"; blue        violet  magenta
-  )
 
   ; check parameters values
   parameters-check
@@ -541,6 +550,11 @@ to set-parameters
     ;;; and https://www.researchgate.net/publication/271722280_Solmap_Project_In_India%27s_Solar_Resource_Assessment
     ;;; see general info in http://www.physicalgeography.net/fundamentals/6i.html
   ]
+
+  ;;; scenario settings:
+
+  ;;; precipitation
+  set precipitation_yearlyMean precipitation_yearlyMean + precipitation_yearly-mean-bias
 
 end
 
@@ -983,6 +997,8 @@ to update-water
 
   solve-runoff-exchange
 
+  ;solve-inundation-exchange
+
   drain-soil-water
 
   ask patches [ set p_ecol_%water (get-%water-surface p_water) ]
@@ -1233,6 +1249,67 @@ to try-send-runoff-to [ downstreamPatch ]
 ;print "================================================"
 end
 
+to solve-inundation-exchange
+
+  ;;; case 3 in try-send-runoff-to can make water depth plus elevation to be uneven between neighbouring patches.
+  ;;; particularly when the value of riverWaterPerFlowAccumulation is relatively high (>>1E-4)
+
+  let patchesWithExcess patches with [has-excess-water-depth]
+
+  let maxIterations 100000 ; just as a safety measure, to avoid infinite loop
+  while [any? patchesWithExcess and maxIterations > 0]
+  [
+    ask one-of patchesWithExcess
+    [
+      let sumNeighborhoodWaterDepth (p_water + sum [p_water] of neighbors) / 1000
+      let neighborhood (patch-set self neighbors)
+
+      set p_water 0
+      ask neighbors [ set p_water 0 ]
+
+      repeat round (sumNeighborhoodWaterDepth / errorToleranceThreshold)
+      [
+        ask min-one-of neighborhood [get-height]
+        [ set p_water p_water + errorToleranceThreshold * 1000 ]
+      ]
+    ]
+    set patchesWithExcess patches with [has-excess-water-depth]
+
+    set maxIterations maxIterations - 1
+  ]
+
+end
+
+to-report get-height
+
+  report elevation + p_water / 1000
+
+end
+
+;to-report has-most-excess-water-depth-in-neighborhood
+;
+;  if (p_water = 0) [ report false ]
+;
+;  let myHeight elevation + p_water / 1000
+;
+;  let isMaxAmongNeighborsWithWater true
+;  if (any? neighbors with [p_water > 0]) [ set isMaxAmongNeighborsWithWater myHeight > max [elevation + p_water / 1000] of neighbors with [p_water > 0] ]
+;
+;  report (
+;    myHeight > min [elevation + p_water / 1000] of neighbors and ;;; is not a local sink hole
+;    isMaxAmongNeighborsWithWater ;;; has the max height among neighbors with water
+;    )
+;
+;end
+
+to-report has-excess-water-depth
+
+  let sourceHeight get-height
+
+  report p_water > 0 and any? neighbors with [sourceHeight - get-height > errorToleranceThreshold]
+
+end
+
 to drain-soil-water
 
   ask patches
@@ -1257,12 +1334,14 @@ to drain-soil-water
 
     ; Calculate rate of change of state variable p_soil_waterContent
     set p_soil_waterContent p_soil_waterContent - deepDrainage - transpiration
-    if (p_soil_waterContent < 0)
+    if (p_soil_waterContent < 0)  ;;; this happens if p_soil_waterContent is less than WATfc or WATwp
     [
-      print self print p_soil_waterContent
+      ;print self print p_soil_waterContent
       set p_soil_waterContent 0
     ]
-    set p_soil_waterContentRatio p_soil_waterContent / p_ecol_rootZoneDepth
+    ifelse (p_ecol_rootZoneDepth > 0)
+    [ set p_soil_waterContentRatio p_soil_waterContent / p_ecol_rootZoneDepth ]
+    [ set p_soil_waterContentRatio 0]
 
     ; Calculate ARID coefficient or drought index
     set p_soil_ARID 0
@@ -1391,6 +1470,8 @@ to update-ecological-communities
 
   ask patches
   [
+    apply-inundation-effect
+
     apply-ecological-recolonisation
 
     advance-ecological-succession
@@ -1398,6 +1479,22 @@ to update-ecological-communities
     set-ecological-communities-biomass
 
     set-ecological-community-root-zone-depth
+  ]
+
+end
+
+to apply-inundation-effect
+
+  ;;; inundation (the expansion of water surface) will conquer the ecological components' area.
+  ;;; The effect is assumed to affect ecological components evenly.
+
+  let sum% p_ecol_%wood + p_ecol_%brush + p_ecol_%grass
+
+  if (p_ecol_%water > 0 and sum% > 0)
+  [
+    set p_ecol_%wood 100 * (p_ecol_%wood / sum%) * (1 - p_ecol_%water / 100)
+    set p_ecol_%brush 100 * (p_ecol_%brush / sum%) * (1 - p_ecol_%water / 100)
+    set p_ecol_%grass 100 * (p_ecol_%grass / sum%) * (1 - p_ecol_%water / 100)
   ]
 
 end
@@ -1437,21 +1534,21 @@ to advance-ecological-succession
   set p_ecol_%wood (p_ecol_%wood +
     recoveryRate_%wood *
     ((p_initEcol_%wood * (1 - p_soil_ARID * (get-water-stress-sensitivity-of-ecological-component "wood")) *
-      (100 - p_ecol_%water) / 100) - p_ecol_%wood
+      (1 - p_ecol_%water / 100)) - p_ecol_%wood
     )
   )
 
   set p_ecol_%brush (p_ecol_%brush +
     recoveryRate_%brush *
     ((p_initEcol_%brush * (1 - p_soil_ARID * (get-water-stress-sensitivity-of-ecological-component "brush")) *
-      (100 - p_ecol_%water) / 100) - p_ecol_%brush
+      (1 - p_ecol_%water / 100)) - p_ecol_%brush
     )
   )
 
   set p_ecol_%grass (p_ecol_%grass +
     recoveryRate_%grass *
     ((p_initEcol_%grass * (1 - p_soil_ARID * (get-water-stress-sensitivity-of-ecological-component "grass")) *
-      (100 - p_ecol_%water) / 100) - p_ecol_%grass
+      (1 - p_ecol_%water / 100)) - p_ecol_%grass
     )
   )
 
@@ -3856,7 +3953,7 @@ CHOOSER
 display-mode
 display-mode
 "elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "surface water width (%)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type" "albedo (%)" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "soil water content (ratio)" "ARID coefficient"
-21
+1
 
 BUTTON
 1117
@@ -4102,6 +4199,21 @@ precipitation_daily-cum_rate2_yearly-sd
 (default: 0.02)
 HORIZONTAL
 
+SLIDER
+98
+819
+424
+852
+precipitation_yearly-mean-bias
+precipitation_yearly-mean-bias
+-500
+500
+100.0
+1
+1
+mm/year
+HORIZONTAL
+
 MONITOR
 424
 830
@@ -4339,10 +4451,10 @@ true
 "set-plot-y-range -1 101" ""
 PENS
 "mean water (%)" 1.0 1 -14454117 true "" "plot 100"
-"mean wood (%)" 1.0 1 -14835848 true "" "plot 100 - mean [get-%water-surface p_water] of patches"
-"mean brush (%)" 1.0 1 -6459832 true "" "plot 100 - (mean [p_ecol_%wood] of patches + mean [get-%water-surface p_water] of patches)"
-"mean grass (%)" 1.0 1 -13840069 true "" "plot 100 - (mean [p_ecol_%brush] of patches + mean [p_ecol_%wood] of patches + mean [get-%water-surface p_water] of patches)"
-"mean bare soil (%)" 1.0 1 -16777216 true "" "plot 100 - (mean [p_ecol_%grass] of patches + mean [p_ecol_%brush] of patches + mean [p_ecol_%wood] of patches + mean [get-%water-surface p_water] of patches)"
+"mean wood (%)" 1.0 1 -14835848 true "" "plot 100 - mean [p_ecol_%water] of patches"
+"mean brush (%)" 1.0 1 -6459832 true "" "plot 100 - (mean [p_ecol_%wood] of patches + mean [p_ecol_%water] of patches)"
+"mean grass (%)" 1.0 1 -13840069 true "" "plot 100 - (mean [p_ecol_%brush] of patches + mean [p_ecol_%wood] of patches + mean [p_ecol_%water] of patches)"
+"mean bare soil (%)" 1.0 1 -16777216 true "" "plot 100 - (mean [p_ecol_%grass] of patches + mean [p_ecol_%brush] of patches + mean [p_ecol_%wood] of patches + mean [p_ecol_%water] of patches)"
 
 PLOT
 1561
