@@ -1,7 +1,7 @@
 ---
 title: "Testing R implementation of Soil Water Balance model"
 author: "Andreas Angourakis"
-date: "28 November 2019"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   pdf_document: default
   html_document:
