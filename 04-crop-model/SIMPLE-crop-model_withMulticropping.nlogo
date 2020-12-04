@@ -1901,10 +1901,10 @@ temperature_dailyUpperDeviation
 9
 
 PLOT
-850
-370
-1506
-490
+849
+427
+1505
+547
 Temperature
 days
 ºC
@@ -1987,10 +1987,10 @@ NIL
 1
 
 PLOT
-850
+849
 10
-1544
-130
+1543
+156
 Crops biomass (patch mean)
 days
 g/m2
@@ -2049,10 +2049,10 @@ MJ/m2 (default: 3.3)
 HORIZONTAL
 
 PLOT
-850
-491
-1463
-611
+849
+548
+1462
+668
 Solar radiation
 days
 MJ/m2
@@ -2464,10 +2464,10 @@ precipitation_dailyCum_rate2_yearlySd
 9
 
 PLOT
-850
-611
-1511
-731
+849
+668
+1510
+788
 precipitation
 days
 ppm
@@ -2483,10 +2483,10 @@ PENS
 "ETr" 1.0 0 -2674135 true "" "plot mean [ETr] of patches"
 
 PLOT
-1242
-851
-1475
-971
+1241
+908
+1474
+1028
 cumulative year precipitation
 NIL
 NIL
@@ -2501,10 +2501,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot-cumPrecipitation-table"
 
 PLOT
-1242
-731
-1475
-851
+1241
+788
+1474
+908
 year preciptation
 NIL
 NIL
@@ -2519,10 +2519,10 @@ PENS
 "default" 1.0 1 -16777216 true "" "plot-precipitation-table"
 
 MONITOR
-1161
-741
-1234
-786
+1387
+707
+1460
+752
 year total
 sum precipitation_yearSeries
 2
@@ -2530,10 +2530,10 @@ sum precipitation_yearSeries
 11
 
 PLOT
-850
-249
-1535
-369
+849
+306
+1534
+426
 Soil water content & ARID
 days
 NIL
@@ -2815,13 +2815,13 @@ OUTPUT
 13
 
 PLOT
-850
-130
-1535
-250
+849
+156
+1534
+307
 Crops yield (patch mean) and annual total precipitation
 years
-g/m2 | mm
+g / m2|mm
 0.0
 10.0
 0.0
