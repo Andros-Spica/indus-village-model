@@ -50,7 +50,7 @@ globals
 
   ;;;;; Field Capacity and Water Holding capacity table
   soil_fieldCapacity                   ; field capacity (fraction of soil volume) per texture type
-  soil_saturation                      ; saturation (fraction of soil volume) per texture type (not currently used)
+  soil_saturation                      ; saturation (fraction of soil volume) per texture type
   soil_intakeRate                      ; intake rate (mm/hour) per texture type
   soil_minWaterHoldingCapacity         ; minimum and maximum water holding capacity (in/ft) per texture type (not currently used)
   soil_maxWaterHoldingCapacity
@@ -997,7 +997,7 @@ to update-water
 
   solve-runoff-exchange
 
-  ;solve-inundation-exchange
+  solve-inundation-exchange
 
   drain-soil-water
 
@@ -1017,7 +1017,7 @@ end
 
 to add-river-water
 
-  ask patches with [flow_accumulation > flow_riverAccumulationAtStart] ; patches containing the river or only startin point: = flow_riverAccumulationAtStart + 1]
+  ask patches with [flow_accumulation > flow_riverAccumulationAtStart] ; patches containing the river or only starting point: = flow_riverAccumulationAtStart + 1]
   [
     set p_water flow_riverAccumulationAtStart * riverWaterPerFlowAccumulation ; no accumulation in river between one day to the other
   ]
@@ -1121,7 +1121,7 @@ to set-runoff
   if (p_water > initialAbstraction)
   [ set p_runoff ((p_water - 0.2 * maximumAbstraction) ^ 2) / (p_water + 0.8 * maximumAbstraction) ]
 
-  ; add incoming river water at river start
+  ; add incoming river water at river start to replace runoff
   if (flow_accumulation = flow_riverAccumulationAtStart + 1)
   [
     set p_water p_water + flow_riverAccumulationAtStart * riverWaterPerFlowAccumulation
@@ -1142,19 +1142,10 @@ to infiltrate-soil-water
     ; soil is or becomes saturated and water accumulates on surface adding to runoff
     set soilWaterChange WATst - p_soil_waterContent
     set p_runoff p_runoff + (potentialSoilWaterChange - soilWaterChange)
-
-    ; saturation sets the runnoffCurveNumber to maximum
-;    set p_soil_runOffCurveNumber 100
   ]
   [
     ; soil absorbes all water not running off
     set soilWaterChange potentialSoilWaterChange
-
-    ; desaturation recovers the original runnoffCurveNumber, if it has been set to maximum
-;    if (p_soil_runOffCurveNumber = 100)
-;    [
-;      set p_soil_runOffCurveNumber get-runOffCurveNumber p_soil_coverTreatmentAndHydrologicCondition p_soil_hydrologicSoilGroup
-;    ]
   ]
   ;print self print (word "p_runoff=" p_runoff)
   ;print self print (word p_water " = " (soilWaterChange + p_runoff) )
@@ -1285,22 +1276,6 @@ to-report get-height
   report elevation + p_water / 1000
 
 end
-
-;to-report has-most-excess-water-depth-in-neighborhood
-;
-;  if (p_water = 0) [ report false ]
-;
-;  let myHeight elevation + p_water / 1000
-;
-;  let isMaxAmongNeighborsWithWater true
-;  if (any? neighbors with [p_water > 0]) [ set isMaxAmongNeighborsWithWater myHeight > max [elevation + p_water / 1000] of neighbors with [p_water > 0] ]
-;
-;  report (
-;    myHeight > min [elevation + p_water / 1000] of neighbors and ;;; is not a local sink hole
-;    isMaxAmongNeighborsWithWater ;;; has the max height among neighbors with water
-;    )
-;
-;end
 
 to-report has-excess-water-depth
 
@@ -3953,7 +3928,7 @@ CHOOSER
 display-mode
 display-mode
 "elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "surface water width (%)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type" "albedo (%)" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "soil water content (ratio)" "ARID coefficient"
-1
+0
 
 BUTTON
 1117
@@ -3990,10 +3965,10 @@ NIL
 1
 
 SLIDER
-24
-831
-425
-864
+32
+867
+433
+900
 precipitation_yearly-mean
 precipitation_yearly-mean
 0
@@ -4005,10 +3980,10 @@ mm/year (default: 489)
 HORIZONTAL
 
 SLIDER
-552
-834
-954
-867
+560
+870
+962
+903
 precipitation_yearly-sd
 precipitation_yearly-sd
 0
@@ -4020,10 +3995,10 @@ mm/year (default: 142.2)
 HORIZONTAL
 
 SLIDER
-24
-882
-432
-915
+32
+918
+440
+951
 precipitation_daily-cum_n-samples
 precipitation_daily-cum_n-samples
 0
@@ -4035,10 +4010,10 @@ precipitation_daily-cum_n-samples
 HORIZONTAL
 
 SLIDER
-24
-919
-432
-952
+32
+955
+440
+988
 precipitation_daily-cum_max-sample-size
 precipitation_daily-cum_max-sample-size
 1
@@ -4050,10 +4025,10 @@ precipitation_daily-cum_max-sample-size
 HORIZONTAL
 
 SLIDER
-626
-885
-1235
-918
+634
+921
+1243
+954
 precipitation_daily-cum_plateau-value_yearly-mean
 precipitation_daily-cum_plateau-value_yearly-mean
 0.2
@@ -4065,10 +4040,10 @@ winter (mm)/summer (mm) (default: 0.25)
 HORIZONTAL
 
 SLIDER
-627
-917
-1235
-950
+635
+953
+1243
+986
 precipitation_daily-cum_plateau-value_yearly-sd
 precipitation_daily-cum_plateau-value_yearly-sd
 0
@@ -4080,10 +4055,10 @@ precipitation_daily-cum_plateau-value_yearly-sd
 HORIZONTAL
 
 SLIDER
-23
-973
-502
-1006
+31
+1009
+510
+1042
 precipitation_daily-cum_inflection1_yearly-mean
 precipitation_daily-cum_inflection1_yearly-mean
 40
@@ -4095,10 +4070,10 @@ day of year (default: 40)
 HORIZONTAL
 
 SLIDER
-26
-1009
-504
-1042
+34
+1045
+512
+1078
 precipitation_daily-cum_inflection1_yearly-sd
 precipitation_daily-cum_inflection1_yearly-sd
 20
@@ -4110,10 +4085,10 @@ days (default: 5)
 HORIZONTAL
 
 SLIDER
-28
-1047
-506
-1080
+36
+1083
+514
+1116
 precipitation_daily-cum_rate1_yearly-mean
 precipitation_daily-cum_rate1_yearly-mean
 0.01
@@ -4125,10 +4100,10 @@ precipitation_daily-cum_rate1_yearly-mean
 HORIZONTAL
 
 SLIDER
-28
-1084
-504
-1117
+36
+1120
+512
+1153
 precipitation_daily-cum_rate1_yearly-sd
 precipitation_daily-cum_rate1_yearly-sd
 0.004
@@ -4140,10 +4115,10 @@ precipitation_daily-cum_rate1_yearly-sd
 HORIZONTAL
 
 SLIDER
-663
-976
-1133
-1009
+671
+1012
+1141
+1045
 precipitation_daily-cum_inflection2_yearly-mean
 precipitation_daily-cum_inflection2_yearly-mean
 180
@@ -4155,10 +4130,10 @@ day of year (default: 240)
 HORIZONTAL
 
 SLIDER
-664
-1014
-1132
-1047
+672
+1050
+1140
+1083
 precipitation_daily-cum_inflection2_yearly-sd
 precipitation_daily-cum_inflection2_yearly-sd
 20
@@ -4170,10 +4145,10 @@ days (default: 20)
 HORIZONTAL
 
 SLIDER
-665
-1051
-1130
-1084
+673
+1087
+1138
+1120
 precipitation_daily-cum_rate2_yearly-mean
 precipitation_daily-cum_rate2_yearly-mean
 0.01
@@ -4185,10 +4160,10 @@ precipitation_daily-cum_rate2_yearly-mean
 HORIZONTAL
 
 SLIDER
-665
-1088
-1138
-1121
+673
+1124
+1146
+1157
 precipitation_daily-cum_rate2_yearly-sd
 precipitation_daily-cum_rate2_yearly-sd
 0.004
@@ -4200,10 +4175,10 @@ precipitation_daily-cum_rate2_yearly-sd
 HORIZONTAL
 
 SLIDER
-98
-819
-424
-852
+109
+821
+435
+854
 precipitation_yearly-mean-bias
 precipitation_yearly-mean-bias
 -500
@@ -4215,10 +4190,10 @@ mm/year
 HORIZONTAL
 
 MONITOR
-424
-830
-552
-867
+432
+866
+560
+903
 NIL
 precipitation_yearlyMean
 2
@@ -4226,10 +4201,10 @@ precipitation_yearlyMean
 9
 
 MONITOR
-954
-831
-1092
-868
+962
+867
+1100
+904
 NIL
 precipitation_yearlySd
 2
@@ -4237,10 +4212,10 @@ precipitation_yearlySd
 9
 
 MONITOR
-431
-880
-588
-917
+439
+916
+596
+953
 NIL
 precipitation_dailyCum_nSamples
 2
@@ -4248,10 +4223,10 @@ precipitation_dailyCum_nSamples
 9
 
 MONITOR
-430
-917
-611
-954
+438
+953
+619
+990
 NIL
 precipitation_dailyCum_maxSampleSize
 2
@@ -4259,10 +4234,10 @@ precipitation_dailyCum_maxSampleSize
 9
 
 MONITOR
-1234
-884
-1458
-921
+1242
+920
+1466
+957
 NIL
 precipitation_dailyCum_plateauValue_yearlyMean
 2
@@ -4270,10 +4245,10 @@ precipitation_dailyCum_plateauValue_yearlyMean
 9
 
 MONITOR
-1235
-919
-1457
-956
+1243
+955
+1465
+992
 NIL
 precipitation_dailyCum_plateauValue_yearlySd
 2
@@ -4281,10 +4256,10 @@ precipitation_dailyCum_plateauValue_yearlySd
 9
 
 MONITOR
-503
-973
-659
-1010
+511
+1009
+667
+1046
 NIL
 precipitation_dailyCum_inflection1_yearlyMean
 2
@@ -4292,10 +4267,10 @@ precipitation_dailyCum_inflection1_yearlyMean
 9
 
 MONITOR
-506
-1012
-660
-1049
+514
+1048
+668
+1085
 NIL
 precipitation_dailyCum_inflection1_yearlySd
 2
@@ -4303,10 +4278,10 @@ precipitation_dailyCum_inflection1_yearlySd
 9
 
 MONITOR
-503
-1048
-659
-1085
+511
+1084
+667
+1121
 NIL
 precipitation_dailyCum_rate1_yearlyMean
 2
@@ -4314,10 +4289,10 @@ precipitation_dailyCum_rate1_yearlyMean
 9
 
 MONITOR
-506
-1087
-660
-1124
+514
+1123
+668
+1160
 NIL
 precipitation_dailyCum_rate1_yearlySd
 2
@@ -4325,10 +4300,10 @@ precipitation_dailyCum_rate1_yearlySd
 9
 
 MONITOR
-1135
-975
-1291
-1012
+1143
+1011
+1299
+1048
 NIL
 precipitation_dailyCum_inflection2_yearlyMean
 2
@@ -4336,10 +4311,10 @@ precipitation_dailyCum_inflection2_yearlyMean
 9
 
 MONITOR
-1137
-1010
-1291
-1047
+1145
+1046
+1299
+1083
 NIL
 precipitation_dailyCum_inflection2_yearlySd
 2
@@ -4347,10 +4322,10 @@ precipitation_dailyCum_inflection2_yearlySd
 9
 
 MONITOR
-1135
-1045
-1291
-1082
+1143
+1081
+1299
+1118
 NIL
 precipitation_dailyCum_rate2_yearlyMean
 2
@@ -4358,10 +4333,10 @@ precipitation_dailyCum_rate2_yearlyMean
 9
 
 MONITOR
-1138
-1084
-1292
-1121
+1146
+1120
+1300
+1157
 NIL
 precipitation_dailyCum_rate2_yearlySd
 2
