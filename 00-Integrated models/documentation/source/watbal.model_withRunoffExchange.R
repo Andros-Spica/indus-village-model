@@ -14,27 +14,26 @@
 ################################################################################
 
 #' @title Solve runoff exchange
-#' @param grid : template matrix of land units
+#' @param elevation : nxn matrix (numeric) containing elevation per land unit. 
 #' @param flowDirection : 4xn data frame containing the flow directions of every patch in the grid (i.e. x1, y1, x2, y2) 
-#' @param waterLayers : List of three matrices (numeric), each corresponding to the amounts per land unit of surface water, runoff and soil water. 
+#' @param waterLayers : List of three nxn matrices (numeric), each corresponding to the amounts per land unit of surface water, runoff and soil water. 
 #' @param runOffCurveNumber : saturation (fraction of soil volume) (single value, numeric)
 #' @param soilWaterSaturation : saturation (fraction of soil volume) (single value, numeric)
 #' @param rootDepthZone : root zone depth (mm) (single value, numeric)
 #' @export
-solveRunoffExchange <- function(grid, flowDirection, 
+solveRunoffExchange <- function(elevation, 
+                                flowDirection, 
                                 waterLayers, 
                                 runoffCurveNumber = 65, 
                                 soilWaterSaturation, 
                                 rootDepthZone = 400)
 {
-  # get template grid
-  grid <- waterLayers$surfaceWater == -99
-  
   # identify patches that receive flow and those that do not (this makes the next step much easier)
-  patchState <- setInitialState(grid, flowDirection)
+  patchState <- setInitialState(grid = elevation, 
+                                flowDirection = flowDirection)
   
   # create a safety check to assure the algorithm will not get stuck in any loop
-  #patchIsFlowDirectionLoop <- isFlowDirectionLoop(grid, flowDirection)
+  #patchIsFlowDirectionLoop <- isFlowDirectionLoop(elevation, flowDirection)
 
   maxIterations = 100000
   
@@ -47,10 +46,14 @@ solveRunoffExchange <- function(grid, flowDirection,
     
     thisPatch <- patchesWithStart[sample(nrow(patchesWithStart), 1),]
     
+    waterLayers <- setRunoff(thisPatch = thisPatch, 
+                             waterLayers = waterLayers, 
+                             runoffCurveNumber = runoffCurveNumber)
     
-    waterLayers <- setRunoff(thisPatch, waterLayers, runoffCurveNumber)
-    
-    waterLayers <- infiltrateSoilWater(thisPatch, waterLayers, soilWaterSaturation, rootDepthZone)
+    waterLayers <- infiltrateSoilWater(thisPatch = thisPatch, 
+                                       waterLayers = waterLayers, 
+                                       soilWaterSaturation = soilWaterSaturation, 
+                                       rootDepthZone = rootDepthZone)
     
     patchState[thisPatch[1], thisPatch[2]] <- "done"
     
@@ -58,6 +61,11 @@ solveRunoffExchange <- function(grid, flowDirection,
     
     if (length(downstreamPatch) != 0)
     {
+      waterLayers <- tryToSendRunoff(thisPatch = thisPatch, 
+                                     downstreamPatch = downstreamPatch, 
+                                     elevation = elevation, 
+                                     waterLayers = waterLayers)
+      
       neighborsFlowingToDowstreamPatch <- flowDirection[flowDirection[,3] == downstreamPatch[1] & flowDirection[,4] == downstreamPatch[2], c(1, 2)]
       
       ifelse(length(neighborsFlowingToDowstreamPatch) > 2,
@@ -131,7 +139,7 @@ isFlowDirectionLoop <- function(grid, flowDirection)
 #' @title Calculate runoff in a land unit
 #' @description equations based on the first part of the WaterBalance model
 #' @param thisPatch : the grid coordinates of the land unit (vector of length 2, integer)
-#' @param waterLayers : List of three matrices (numeric), each corresponding to the amounts per land unit of surface water, runoff and soil water. 
+#' @param waterLayers : List of three nxn matrices (numeric), each corresponding to the amounts per land unit of surface water, runoff and soil water. 
 #' @param runoffCurveNumber : saturation (fraction of soil volume) (single value, numeric)
 #' @export
 setRunoff <- function(thisPatch, waterLayers, runoffCurveNumber)
@@ -144,7 +152,7 @@ setRunoff <- function(thisPatch, waterLayers, runoffCurveNumber)
   
   # Change in Water Before Drainage (p_water - p_runoff)
   waterLayers$runoff[thisPatch[1], thisPatch[2]] <- 0
-  
+  #print(paste(waterLayers$surfaceWater[thisPatch[1], thisPatch[2]], initialAbstraction, " = ", waterLayers$surfaceWater[thisPatch[1], thisPatch[2]] > initialAbstraction))
   if (waterLayers$surfaceWater[thisPatch[1], thisPatch[2]] > initialAbstraction)
   {
     waterLayers$runoff[thisPatch[1], thisPatch[2]] = 
@@ -158,7 +166,7 @@ setRunoff <- function(thisPatch, waterLayers, runoffCurveNumber)
 #' @title Infiltrate surface water to soil water in a land unit
 #' @description equations based on the second part of the WaterBalance model
 #' @param thisPatch : the grid coordinates of the land unit (vector of length 2, integer)
-#' @param waterLayers : List of three matrices (numeric), each corresponding to the amounts per land unit of surface water, runoff and soil water. 
+#' @param waterLayers : List of three nxn matrices (numeric), each corresponding to the amounts per land unit of surface water, runoff and soil water. 
 #' @param soilWaterSaturation : saturation (fraction of soil volume) (single value, numeric)
 #' @param rootDepthZone : root zone depth (mm) (single value, numeric)
 #' @export
@@ -197,3 +205,96 @@ infiltrateSoilWater <- function(thisPatch, waterLayers, soilWaterSaturation, roo
   return(waterLayers)
 }
 
+#' @title Try to send runoff from one land unit to another
+#' @description algorithm based on Yang et al. 2018 (http://link.springer.com/10.1007/s10666-018-9597-3)
+#' @param thisPatch : the grid coordinates of the land unit (vector of length 2, integer)
+#' @param downstreamPatch : the grid coordinates of the downstream land unit (vector of length 2, integer)
+#' @param elevation : matrix (numeric) containing elevation per land unit. 
+#' @param waterLayers : List of three nxn matrices (numeric), each corresponding to the amounts per land unit of surface water, runoff and soil water. 
+#' @export
+tryToSendRunoff <- function(thisPatch, downstreamPatch, elevation, waterLayers)
+{
+  ### schematics:
+  
+  #==== case 1: h1 of A is higher than (h2 of B) + (h2 - h1) of A
+  #
+  #----- h2 ----|
+  #----- h1 ----|                      |----- h1 ----|
+  #             |                --->  |             |----- h2 ----|
+  #             |----- h2 ----|        |             |             |
+  #             |----- h1 ----|        |             |----- h1 ----|
+  #______A______|______B______|        |______A______|______B______|
+  
+  #==== case 2: h1 of A is lower than (h2 of B) + (h2 - h1) of A
+  #
+  #----- h2 ----|                      _ _ _ _h2_ _ _ _ _ _ h2_ _ _
+  #             |----- h2 ----|        |             |             |
+  #----- h1 ----|             |  --->  |----- h1 ----|             |
+  #             |             |        |             |             |
+  #             |----- h1 ----|        |             |----- h1 ----|
+  #______A______|______B______|        |______A______|______B______|
+  
+  #==== case 3: next downstream patch (B) is already overflowed (h2 of B > h2 of A)
+  #
+  #             |----- h2 ----|
+  #             |             |        |----- h2 ----|----- h2 ----|
+  #----- h2 ----|             |  --->  |             |             |
+  #----- h1 ----|             |        |----- h1 ----|             |
+  #             |----- h1 ----|        |             |----- h1 ----|
+  #______A______|______B______|        |______A______|______B______|
+  
+  #print(thisPatch)
+  
+  thisPatch_h1 = elevation[thisPatch[1], thisPatch[2]]
+  thisPatch_h2 = waterLayers$runoff[thisPatch[1], thisPatch[2]] / 1000 # in m
+  
+  downstreamPatch_h1 = elevation[downstreamPatch[1], downstreamPatch[2]]
+  downstreamPatch_h2 = waterLayers$surfaceWater[downstreamPatch[1], downstreamPatch[2]] / 1000 # in m
+  
+  # print(paste("[", thisPatch[1], ", ", thisPatch[2], "]", ", h1=", thisPatch_h1, ", h2=", thisPatch_h2, 
+  #             " ||| ", "[", downstreamPatch[1], ", ", downstreamPatch[2], "]", ", h1=", downstreamPatch_h1, ", h2=", downstreamPatch_h2))
+  
+  ### case 1:
+    ### if the elevation with water of the downstream patch is lower, even after transferring all runoff
+  if (thisPatch_h1 > downstreamPatch_h1 + downstreamPatch_h2 + thisPatch_h2)
+  {#print("case 1")
+    ### all runoff is transfered downstream
+    ### update water downstream (receives all runoff)
+    waterLayers$surfaceWater[downstreamPatch[1], downstreamPatch[2]] <- 
+      waterLayers$surfaceWater[downstreamPatch[1], downstreamPatch[2]] +
+      thisPatch_h2 * 1000 # in mm
+    
+    # print(paste(waterLayers$surfaceWater[downstreamPatch[1], downstreamPatch[2]], 
+    #             " + ", 
+    #             thisPatch_h2, " * 1000 = ", waterLayers$surfaceWater[downstreamPatch[1], downstreamPatch[2]] + thisPatch_h2 * 1000))
+  }
+  else
+  {#print("case 2 & 3") 
+    ### case 2 & case 3
+    ### runoff is equaly distributed
+    ### ### update water downstream
+    waterLayers$surfaceWater[downstreamPatch[1], downstreamPatch[2]] <- 1000 * # in mm
+      (0.5 * (downstreamPatch_h1 + downstreamPatch_h2 + thisPatch_h1 + thisPatch_h2) - downstreamPatch_h1)
+    
+    # print(paste("downstreamPatch receives: 0.5 * (", thisPatch_h1, " + ", thisPatch_h2, " + ", downstreamPatch_h1, " + ", 
+    #             downstreamPatch_h2, ") - ", downstreamPatch_h1, " = ", waterLayers$surfaceWater[thisPatch[1], thisPatch[2]]))
+    
+    ### update (effective) runoff (this should be the last instance this patch runoff can be modified during a time step)
+    waterLayers$runoff[thisPatch[1], thisPatch[2]] <- 1000 * # in mm
+      (0.5 * (downstreamPatch_h1 + downstreamPatch_h2 + thisPatch_h1 + thisPatch_h2) - downstreamPatch_h1)
+    
+    ### update water after runoff substraction
+    waterLayers$surfaceWater[thisPatch[1], thisPatch[2]] <- 1000 * # in mm
+      (0.5 * (downstreamPatch_h1 + downstreamPatch_h2 + thisPatch_h1 + thisPatch_h2) - thisPatch_h1)
+    
+    # print(paste("thisPatch keeps: 0.5 * (", thisPatch_h1, " + ", thisPatch_h2, " + ", downstreamPatch_h1, " + ", 
+    #             downstreamPatch_h2, ") - ", thisPatch_h1, " = ", waterLayers$surfaceWater[thisPatch[1], thisPatch[2]] / 1000))
+    
+    # print(paste("total height (m): thisPatch = ", 
+    #             (elevation[thisPatch[1], thisPatch[2]] + waterLayers$surfaceWater[thisPatch[1], thisPatch[2]] / 1000), 
+    #             " ||| downstreamPatch = ", 
+    #             elevation[downstreamPatch[1], downstreamPatch[2]] + waterLayers$surfaceWater[downstreamPatch[1], downstreamPatch[2]] / 1000))
+  }
+  
+  return(waterLayers)
+}
