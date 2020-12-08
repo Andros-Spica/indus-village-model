@@ -194,8 +194,6 @@ to create-terrain
 
   set-parameters
 
-  reset-timer
-
   ;;; START - core procedures ;;;;;;;;;;;;;;;;;;;;;;;
 
   setup-elevations
