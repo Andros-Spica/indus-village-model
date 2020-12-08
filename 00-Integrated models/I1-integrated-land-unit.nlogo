@@ -2,7 +2,7 @@
 ;;; GNU GENERAL PUBLIC LICENSE ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;  Integrated Land Unit model
+;;  Integrated Land Unit model (I1)
 ;;  Copyright (C) Andreas Angourakis (andros.spica@gmail.com)
 ;;  available at https://www.github.com/Andros-Spica/indus-village-model
 ;;  This model includes a cleaner version of the Terrain Generator model v.2 (https://github.com/Andros-Spica/ProceduralMap-NetLogo)
@@ -1210,12 +1210,9 @@ to try-send-runoff-to [ downstreamPatch ]
     ask downstreamPatch
     [
       ;;; update water downstream (receives all runoff)
-      ;let p_water-temp p_water
+      ;print (word p_water " + " thisPatch_h2 " * 1000 = " p_water + thisPatch_h2 * 1000)
       set p_water p_water + thisPatch_h2 * 1000 ; in mm
-      ;print (word p_water-temp " + " thisPatch_h2 " * 1000 = " p_water)
     ]
-    ;;; update water after runoff substraction
-    ;set p_water p_water - thisPatch_h2 * 1000 ; in mm
   ]
   [;print "case 2 & 3" print (word self ", h1=" thisPatch_h1 ", h2=" thisPatch_h2 "; " downstreamPatch ", h1=" downstreamPatch_h1 ", h2=" downstreamPatch_h2 )
     ;;; case 2 & case 3
@@ -1245,26 +1242,58 @@ to solve-inundation-exchange
   ;;; case 3 in try-send-runoff-to can make water depth plus elevation to be uneven between neighbouring patches.
   ;;; particularly when the value of riverWaterPerFlowAccumulation is relatively high (>>1E-4)
 
+  ;;; get the (initial) set of patches with excess water depth
   let patchesWithExcess patches with [has-excess-water-depth]
 
-  let maxIterations 100000 ; just as a safety measure, to avoid infinite loop
+  let maxIterations 10000 ; just as a safety measure, to avoid infinite loop
+  ;;; iteratively solve each patch with excess water depth
   while [any? patchesWithExcess and maxIterations > 0]
   [
     ask one-of patchesWithExcess
     [
-      let sumNeighborhoodWaterDepth (p_water + sum [p_water] of neighbors) / 1000
+      ;;; get the entire neighborhood (neighbors + this patch)
       let neighborhood (patch-set self neighbors)
 
-      set p_water 0
-      ask neighbors [ set p_water 0 ]
+      ;;; get the sum of surface water depth (in m) for the entire neighborhood
+      let sumNeighborhoodWaterDepth sum [p_water / 1000] of neighborhood
 
+      ;;; set all water in neighborhood to zero
+      ask neighborhood [ set p_water 0 ]
+
+      ;;; iterate n times, where n is the neighborhood sum divided by errorToleranceThreshold (rounded value)
       repeat round (sumNeighborhoodWaterDepth / errorToleranceThreshold)
       [
+        ;;; get the lowest patch in the neighborhood
+        ;;; NOTE: height is elevation (m) + surfaceWater (mm) / 1000
         ask min-one-of neighborhood [get-height]
-        [ set p_water p_water + errorToleranceThreshold * 1000 ]
+        [
+          ;;; add errorToleranceThreshold * 1000 to the amount of surface water depth (mm)
+          set p_water p_water + errorToleranceThreshold * 1000
+        ]
+      ]
+
+      ;;; ask neighbors and neighbors of neighbors (excluding this patch) to update patchesWithExcess
+      ;;; NOTE: this piece of code is effective and much faster than asking all patches to update patchesWithExcess
+
+      ;;; exclude this patch from patchesWithExcess
+      set patchesWithExcess other patchesWithExcess
+
+      ;;; get extended neighborhood
+      let extendedNeighborhood other (patch-set neighbors ([neighbors] of neighbors))
+
+      ask extendedNeighborhood
+      [
+        ;;; check if this patch has excess water depth,
+        ;;; than add or exclude it from patchesWithExcess
+        ifelse (has-excess-water-depth)
+        [
+          set patchesWithExcess (patch-set self patchesWithExcess)
+        ]
+        [
+          set patchesWithExcess other patchesWithExcess
+        ]
       ]
     ]
-    set patchesWithExcess patches with [has-excess-water-depth]
 
     set maxIterations maxIterations - 1
   ]
@@ -1409,6 +1438,14 @@ end
 
 ;=======================================================================================================
 ;;; END of water flow and soil water algorithms (combined)
+;;; soil water balance model is based on:
+;;; 'Working with dynamic crop models: Methods, tools, and examples for agriculture and enviromnent'
+;;; Daniel Wallach, David Makowski, James W. Jones, François Brun (2006, 2014, 2019)
+;;; Model description in p. 24-28, R code example in p. 138-144.
+;;; see also https://github.com/cran/ZeBook/blob/master/R/watbal.model.r
+;;; Some additional info about run off at: https://engineering.purdue.edu/mapserve/LTHIA7/documentation/scs.htm
+;;; and at: https://en.wikipedia.org/wiki/Runoff_curve_number
+;;;
 ;;; flow algorithms are based on:
 ;;; Jenson, S. K., & Domingue, J. O. (1988).
 ;;; Extracting topographic structure from digital elevation data for geographic information system analysis.
@@ -1645,20 +1682,20 @@ end
 
 to-report get-runOffCurveNumber [ %grass %brush %wood %water hydrologicSoilGroup ]
 
-  let %crops 0 ; no crops present
+  let %crop 0 ; no crops present
   ; cropland should be broken down once crop model is integrated (I2 model)
 
   let treatment "" ; defaults to no specific treatment
   let condition "good" ; defaults to "good"
 
-  let %bareSoil (100 - %wood - %brush - %grass - %water - %crops)
+  let %bareSoil (100 - %wood - %brush - %grass - %water - %crop)
 
   report (
   ((get-runOffCurveNumber-of-cover-and-soil "free water" condition treatment hydrologicSoilGroup) * %water / 100) +
   ((get-runOffCurveNumber-of-cover-and-soil "woodland" condition treatment hydrologicSoilGroup) * %wood / 100) +
   ((get-runOffCurveNumber-of-cover-and-soil "shrubland" condition treatment hydrologicSoilGroup) * %brush / 100) +
   ((get-runOffCurveNumber-of-cover-and-soil "grassland" condition treatment hydrologicSoilGroup) * %grass / 100) +
-  ((get-runOffCurveNumber-of-cover-and-soil "cropland" condition treatment hydrologicSoilGroup) * %crops / 100) +
+  ((get-runOffCurveNumber-of-cover-and-soil "cropland" condition treatment hydrologicSoilGroup) * %crop / 100) +
   ((get-runOffCurveNumber-of-cover-and-soil "desert" condition treatment hydrologicSoilGroup) * %bareSoil / 100)
   )
 
@@ -1722,16 +1759,16 @@ to-report get-albedo [ %water %wood %brush %grass %sand waterContentRatio]
 
   ;;; declare variables only available in other models and set them as 0
   ;;; NOTE: these should be inputs, once integrated with other models
-  let %crops 0 ; no crops present
+  let %crop 0 ; no crops present
 
-  let %bareSoil (100 - %wood - %brush - %grass - %water - %crops)
+  let %bareSoil (100 - %wood - %brush - %grass - %water - %crop)
 
   report
   ((get-albedo-of-cover "inland water") * %water / 100) +
   ((get-albedo-of-cover "woodlands") * %wood / 100) +
   ((get-albedo-of-cover "shrublands") * %brush / 100) +
   ((get-albedo-of-cover "grasslands") * %grass / 100) +
-  ((get-albedo-of-cover "croplands") * %crops / 100) +
+  ((get-albedo-of-cover "croplands") * %crop / 100) +
   ((get-albedo-of-cover "wet bare not sandy soil") * (%bareSoil / 100) * (1 - %sand / 100) * waterContentRatio) +
   ((get-albedo-of-cover "dry bare not sandy soil") * (%bareSoil / 100) * (1 - %sand / 100) * (1 - waterContentRatio)) +
   ((get-albedo-of-cover "wet bare sandy soil") * (%bareSoil / 100) * (%sand / 100) * waterContentRatio) +
@@ -1997,6 +2034,20 @@ to refresh-to-display-mode
     ]
     set-legend-continuous-range maxDeepDrainageCoefficient minDeepDrainageCoefficient 108 102 6 true
   ]
+  if (display-mode = "soil water content (ratio)")
+  [
+    let minWaterContentRatio min [p_soil_waterContentRatio] of patches
+    let maxWaterContentRatio max [p_soil_waterContentRatio] of patches
+
+    let rangeWaterContentRatio maxWaterContentRatio - minWaterContentRatio
+    if (rangeWaterContentRatio = 0) [ set rangeWaterContentRatio 1 ]
+
+    ask patches
+    [
+      set pcolor 102 + 6 * (p_soil_waterContentRatio - minWaterContentRatio) / rangeWaterContentRatio
+    ]
+    set-legend-continuous-range maxWaterContentRatio minWaterContentRatio 108 102 6 true
+  ]
   if (display-mode = "ecological community composition")
   [
     ask patches
@@ -2005,6 +2056,19 @@ to refresh-to-display-mode
       set pcolor get-ecologicalCommunityComposition-color p_ecol_%grass p_ecol_%brush p_ecol_%wood
     ]
     set-legend-ecologicalCommunityComposition
+  ]
+  if (display-mode = "total ecological community biomass (Kg)")
+  [
+    let minBiomass 0.001 * patchArea * min [p_ecol_biomass] of patches
+    let maxBiomass 0.001 * patchArea * max [p_ecol_biomass] of patches
+
+    ask patches
+    [
+      ifelse (p_ecol_biomass > 0)
+      [ set pcolor 52 + 6 * (1 - ((0.001 * patchArea * p_ecol_biomass) - minBiomass) / (maxBiomass + 1E-6 - minBiomass)) ]
+      [ set pcolor 59 ]
+    ]
+    set-legend-continuous-range maxBiomass minBiomass 52 59 7 true
   ]
   if (display-mode = "cover type")
   [
@@ -2063,20 +2127,6 @@ to refresh-to-display-mode
       set pcolor 42 + 6 * (p_ecol_rootZoneDepth - minRootZoneDepth) / (maxRootZoneDepth - minRootZoneDepth)
     ]
     set-legend-continuous-range maxRootZoneDepth minRootZoneDepth 48 42 6 true
-  ]
-  if (display-mode = "soil water content (ratio)")
-  [
-    let minWaterContentRatio min [p_soil_waterContentRatio] of patches
-    let maxWaterContentRatio max [p_soil_waterContentRatio] of patches
-
-    let rangeWaterContentRatio maxWaterContentRatio - minWaterContentRatio
-    if (rangeWaterContentRatio = 0) [ set rangeWaterContentRatio 1 ]
-
-    ask patches
-    [
-      set pcolor 102 + 6 * (p_soil_waterContentRatio - minWaterContentRatio) / rangeWaterContentRatio
-    ]
-    set-legend-continuous-range maxWaterContentRatio minWaterContentRatio 108 102 6 true
   ]
   if (display-mode = "ARID coefficient")
   [
@@ -3927,8 +3977,8 @@ CHOOSER
 65
 display-mode
 display-mode
-"elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "surface water width (%)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "ecological community composition" "cover type" "albedo (%)" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "soil water content (ratio)" "ARID coefficient"
-0
+"elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "surface water width (%)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "soil water content (ratio)" "ecological community composition" "total ecological community biomass (Kg)" "cover type" "albedo (%)" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "ARID coefficient"
+16
 
 BUTTON
 1117
