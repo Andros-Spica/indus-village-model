@@ -1662,10 +1662,10 @@ type-of-experiment
 0
 
 MONITOR
-45
-236
-118
-281
+24
+238
+130
+283
 NIL
 sowingDay
 0
@@ -1723,10 +1723,10 @@ end-simulation-in-tick
 Number
 
 MONITOR
-119
-236
-217
-281
+131
+238
+245
+283
 NIL
 HarvestingDay
 0
@@ -1891,7 +1891,7 @@ CHOOSER
 display-mode
 display-mode
 "elevation (m)" "soil run off curve number" "soil water holding capacity" "soil water field capacity" "soil deep drainage coefficient" "albedo (%)" "reference evapotranspiration (ETr) (mm)" "soil water content (ratio)" "ARID coefficient" "crop type" "biomass (g/m2)" "mean yield (g/m2)"
-10
+9
 
 BUTTON
 374
@@ -2139,7 +2139,7 @@ precipitation_daily-cum_inflection1_yearly-mean
 precipitation_daily-cum_inflection1_yearly-mean
 40
 140
-0.0
+40.0
 1.0
 1
 day of year (default: 40)
@@ -2214,7 +2214,7 @@ precipitation_daily-cum_inflection2_yearly-sd
 precipitation_daily-cum_inflection2_yearly-sd
 20
 100
-0.0
+20.0
 1
 1
 days (default: 20)
