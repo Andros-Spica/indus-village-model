@@ -14,19 +14,21 @@
 ################################################################################
 
 #' @title Solve runoff exchange
-#' @param elevation : nxn matrix (numeric) containing elevation per land unit. 
+#' @param elevation : nxn matrix (m, numeric) containing elevation per land unit. 
 #' @param flowDirection : 4xn data frame containing the flow directions of every patch in the grid (i.e. x1, y1, x2, y2) 
-#' @param waterLayers : List of three nxn matrices (numeric), each corresponding to the amounts per land unit of surface water, runoff and soil water. 
+#' @param waterLayers : List of three nxn matrices (mm, numeric), each corresponding to the amounts per land unit of surface water, runoff and soil water. 
 #' @param runOffCurveNumber : saturation (fraction of soil volume) (single value, numeric)
 #' @param soilWaterSaturation : saturation (fraction of soil volume) (single value, numeric)
 #' @param rootDepthZone : root zone depth (mm) (single value, numeric)
+#' @param maxIterations : maximum number of while loop iterations set to avoid infinite loops (single value, numeric)
 #' @export
 solveRunoffExchange <- function(elevation, 
                                 flowDirection, 
                                 waterLayers, 
                                 runoffCurveNumber = 65, 
-                                soilWaterSaturation, 
-                                rootDepthZone = 400)
+                                soilWaterSaturation = 0.5, 
+                                rootDepthZone = 400,
+                                maxIterations = 100000)
 {
   # identify patches that receive flow and those that do not (this makes the next step much easier)
   patchState <- setInitialState(grid = elevation, 
@@ -35,8 +37,6 @@ solveRunoffExchange <- function(elevation,
   # create a safety check to assure the algorithm will not get stuck in any loop
   #patchIsFlowDirectionLoop <- isFlowDirectionLoop(elevation, flowDirection)
 
-  maxIterations = 100000
-  
   while (maxIterations > 0 & 
          any(patchState == "pending") & #!patchIsFlowDirectionLoop) & 
          any(patchState == "start")) 
@@ -139,7 +139,7 @@ isFlowDirectionLoop <- function(grid, flowDirection)
 #' @title Calculate runoff in a land unit
 #' @description equations based on the first part of the WaterBalance model
 #' @param thisPatch : the grid coordinates of the land unit (vector of length 2, integer)
-#' @param waterLayers : List of three nxn matrices (numeric), each corresponding to the amounts per land unit of surface water, runoff and soil water. 
+#' @param waterLayers : List of three nxn matrices (mm, numeric), each corresponding to the amounts per land unit of surface water, runoff and soil water. 
 #' @param runoffCurveNumber : saturation (fraction of soil volume) (single value, numeric)
 #' @export
 setRunoff <- function(thisPatch, waterLayers, runoffCurveNumber)
@@ -166,9 +166,9 @@ setRunoff <- function(thisPatch, waterLayers, runoffCurveNumber)
 #' @title Infiltrate surface water to soil water in a land unit
 #' @description equations based on the second part of the WaterBalance model
 #' @param thisPatch : the grid coordinates of the land unit (vector of length 2, integer)
-#' @param waterLayers : List of three nxn matrices (numeric), each corresponding to the amounts per land unit of surface water, runoff and soil water. 
+#' @param waterLayers : List of three nxn matrices (mm, numeric), each corresponding to the amounts per land unit of surface water, runoff and soil water. 
 #' @param soilWaterSaturation : saturation (fraction of soil volume) (single value, numeric)
-#' @param rootDepthZone : root zone depth (mm) (single value, numeric)
+#' @param rootDepthZone : root zone depth (mm, single value, numeric)
 #' @export
 infiltrateSoilWater <- function(thisPatch, waterLayers, soilWaterSaturation, rootDepthZone)
 {
@@ -209,8 +209,8 @@ infiltrateSoilWater <- function(thisPatch, waterLayers, soilWaterSaturation, roo
 #' @description algorithm based on Yang et al. 2018 (http://link.springer.com/10.1007/s10666-018-9597-3)
 #' @param thisPatch : the grid coordinates of the land unit (vector of length 2, integer)
 #' @param downstreamPatch : the grid coordinates of the downstream land unit (vector of length 2, integer)
-#' @param elevation : matrix (numeric) containing elevation per land unit. 
-#' @param waterLayers : List of three nxn matrices (numeric), each corresponding to the amounts per land unit of surface water, runoff and soil water. 
+#' @param elevation : matrix (m, numeric) containing elevation per land unit. 
+#' @param waterLayers : List of three nxn matrices (mm, numeric), each corresponding to the amounts per land unit of surface water, runoff and soil water. 
 #' @export
 tryToSendRunoff <- function(thisPatch, downstreamPatch, elevation, waterLayers)
 {

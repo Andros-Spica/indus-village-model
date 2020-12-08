@@ -77,9 +77,9 @@ tryToSendRunoff
 
 ## Setting up an example in R
 
-### Input: elevation, flow direction and flow accumulation
+### Input: elevation and flow direction
 
-See extended explanation at [HTML with R walkthrough](https://htmlpreview.github.io/?https://github.com/Andros-Spica/indus-village-model/blob/master/03-land-model/documentation/flowAccumulationOrder.html)
+See extended explanation at [HTML with R walkthrough](https://htmlpreview.github.io/?https://github.com/Andros-Spica/indus-village-model/blob/master/03-land-model/documentation/flowAccumulationOrder.html). Note that elevation values would be typically expressed in metres, though here we use values between 0 and 1 to ease the graphical representation. Also note that flow accumulation is only shown for illustrative purposes while it is not required by the runoff exchange algorithm.
 
 ```{r}
 elevation <- matrix( c(0.8,  0.6,  0.5,  0.6,  1,
@@ -282,7 +282,7 @@ weather <- list(
   T2M = 22,
   Tmax = 25,
   Tmin = 20,
-  RAIN = 40
+  RAIN = 50
 )
 ```
 
@@ -373,7 +373,7 @@ for (i in 1:nrow(flowDirection))
              color = "blue", lwd = 2)
 }
 
-waterCube <- cube3d(color = surfaceWaterColour, alpha = 0.2)  
+waterCube <- cube3d(color = surfaceWaterColour, alpha = 0.5)  
 
 for (x in 1:dim(elevation)[1])
 {
@@ -382,8 +382,8 @@ for (x in 1:dim(elevation)[1])
     if (waterLayers$surfaceWater[x, z] > 0)
     {
       thisWaterCube <- waterCube %>% 
-        scale3d(0.5, 0.005 * waterLayers$surfaceWater[x, z], 0.5) %>% 
-        translate3d(x + 0.5, elevation[x, z] + 0.005 * waterLayers$surfaceWater[x, z], -1 * z - 0.5)
+        scale3d(0.5, waterLayers$surfaceWater[x, z] / 1000, 0.5) %>% 
+        translate3d(x + 0.5, elevation[x, z] + waterLayers$surfaceWater[x, z] / 1000, -1 * z - 0.5)
       shade3d(thisWaterCube)
       points3d(t(thisWaterCube$vb), size=5, color = surfaceWaterColour)
       for (i in 1:6)
@@ -392,7 +392,7 @@ for (x in 1:dim(elevation)[1])
   }
 }
 
-waterCube <- cube3d(color = soilWaterColor, alpha = 0.2)  
+waterCube <- cube3d(color = soilWaterColor, alpha = 0.5)  
 
 for (x in 1:dim(elevation)[1])
 {
@@ -401,8 +401,8 @@ for (x in 1:dim(elevation)[1])
     if (waterLayers$soilWater[x, z] > 0)
     {
       thisWaterCube <- waterCube %>% 
-        scale3d(0.5, 0.001 * waterLayers$soilWater[x, z], 0.5) %>% 
-        translate3d(x + 0.5, elevation[x, z] - 0.001 * waterLayers$soilWater[x, z], -1 * z - 0.5)
+        scale3d(0.5, waterLayers$soilWater[x, z] / 1000, 0.5) %>% 
+        translate3d(x + 0.5, elevation[x, z] - waterLayers$soilWater[x, z] / 1000, -1 * z - 0.5)
       shade3d(thisWaterCube)
       points3d(t(thisWaterCube$vb), size=5, color = soilWaterColor)
       for (i in 1:6)
@@ -463,7 +463,7 @@ for (i in 1:nrow(flowDirection))
              color = "blue", lwd = 2)
 }
 
-waterCube <- cube3d(color = surfaceWaterColour, alpha = 0.2)  
+waterCube <- cube3d(color = surfaceWaterColour, alpha = 0.5)  
 
 for (x in 1:dim(elevation)[1])
 {
@@ -472,8 +472,8 @@ for (x in 1:dim(elevation)[1])
     if (waterLayers$surfaceWater[x, z] > 0)
     {
       thisWaterCube <- waterCube %>% 
-        scale3d(0.5, 0.005 * waterLayers$surfaceWater[x, z], 0.5) %>% 
-        translate3d(x + 0.5, elevation[x, z] + 0.005 * waterLayers$surfaceWater[x, z], -1 * z - 0.5)
+        scale3d(0.5, waterLayers$surfaceWater[x, z] / 1000, 0.5) %>% 
+        translate3d(x + 0.5, elevation[x, z] + waterLayers$surfaceWater[x, z] / 1000, -1 * z - 0.5)
       shade3d(thisWaterCube)
       points3d(t(thisWaterCube$vb), size=5, color = surfaceWaterColour)
       for (i in 1:6)
@@ -482,7 +482,7 @@ for (x in 1:dim(elevation)[1])
   }
 }
 
-waterCube <- cube3d(color = soilWaterColor, alpha = 0.2)  
+waterCube <- cube3d(color = soilWaterColor, alpha = 0.5)  
 
 for (x in 1:dim(elevation)[1])
 {
@@ -491,8 +491,8 @@ for (x in 1:dim(elevation)[1])
     if (waterLayers$soilWater[x, z] > 0)
     {
       thisWaterCube <- waterCube %>% 
-        scale3d(0.5, 0.001 * waterLayers$soilWater[x, z], 0.5) %>% 
-        translate3d(x + 0.5, elevation[x, z] - 0.001 * waterLayers$soilWater[x, z], -1 * z - 0.5)
+        scale3d(0.5, waterLayers$soilWater[x, z] / 1000, 0.5) %>% 
+        translate3d(x + 0.5, elevation[x, z] - waterLayers$soilWater[x, z] / 1000, -1 * z - 0.5)
       shade3d(thisWaterCube)
       points3d(t(thisWaterCube$vb), size=5, color = soilWaterColor)
       for (i in 1:6)
