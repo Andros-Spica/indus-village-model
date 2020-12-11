@@ -822,7 +822,7 @@ to update-crops
         ]
 
         ;;; reset biomass and auxiliary variables
-        reset-variables cropIndex
+        reset-crop-variables cropIndex
       ]
     ]
   ]
@@ -831,7 +831,7 @@ end
 
 ;;; PATCHES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-to reset-variables [ cropIndex ]
+to reset-crop-variables [ cropIndex ]
 
   set TT replace-item cropIndex TT 0
   set biomass replace-item cropIndex biomass 0
@@ -876,7 +876,7 @@ to update-biomass [ cropIndex ]
 
   update-f_Heat cropIndex
 
-  update-f__Water cropIndex
+  update-f_Water cropIndex
 
   set I_50Blocal replace-item cropIndex I_50Blocal ((item cropIndex I_50B) + (item cropIndex I_50maxW) * (1 - item cropIndex f_Water) + (item cropIndex I_50maxH) * (1 - item cropIndex f_Heat))
 
@@ -940,7 +940,7 @@ to update-f_Heat [ cropIndex ]
 
 end
 
-to update-f__Water [ cropIndex ]
+to update-f_Water [ cropIndex ]
 
   set f_Water replace-item cropIndex f_Water (1 - (item cropIndex S_Water) * ARID)
 
