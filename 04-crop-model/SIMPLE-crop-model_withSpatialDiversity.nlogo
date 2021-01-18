@@ -246,7 +246,7 @@ end
 to set-parameters
 
   ; set random seed
-  random-seed seed
+  random-seed randomSeed
 
   ; check parameters values
   parameters-check
@@ -403,7 +403,7 @@ end
 to parameters-to-default
 
   ;;; set parameters to a default value
-  set end-simulation-in-tick                     (5 * 365)
+  set end-simulation-in-year                                    5
 
   set temperature_annual-max-at-2m                             37
   set temperature_annual-min-at-2m                             12.8
@@ -502,7 +502,7 @@ to go
 
   ; --- stop conditions -------------------------
 
-  if (ticks = end-simulation-in-tick) [stop]
+  if (ticks = end-simulation-in-year * yearLengthInDays) [stop]
 
 end
 
@@ -812,7 +812,7 @@ to update-biomass [ cropIndex ]
 
   update-f_Solar cropIndex
 
-  set biomass_rate solarRadiation * (item cropIndex RUE) * f_Solar * f_Temp * min (list f_Heat f_Water)
+  set biomass_rate solarRadiation * (item cropIndex RUE) * f_Solar * f_Temp * (clampMin0 (min (list f_Heat f_Water)))
 
   set biomass biomass + biomass_rate
 
@@ -878,13 +878,11 @@ end
 
 to update-f_Solar [ cropIndex ]
 
-  ifelse (TT < item cropIndex T_sum)
-  [
-    set f_Solar f_Solar_max / (1 + e ^ (-0.01 * (TT - item cropIndex I_50A)))
-  ]
-  [
-    set f_Solar f_Solar_max / (1 + e ^ (-0.01 * (TT - I_50Blocal)))
-  ]
+  let f_Solar_early f_Solar_max / (1 + e ^ (-0.01 * (TT - item cropIndex I_50A)))
+
+  let f_Solar_late f_Solar_max / (1 + e ^ (-0.01 * (TT - I_50Blocal)))
+
+  set f_Solar min (list f_Solar_early f_Solar_late)
 
   ;;; drought effect
   if (f_Water < 0.1)
@@ -1300,6 +1298,123 @@ to update-plot-crop
 end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; EXPORT YIELD PERFORMANCES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to run-yield-performance-experiment-batch [ initRandomSeed numberOfBatches yearsPerBatch ]
+
+  set randomSeed initRandomSeed
+  set end-simulation-in-year yearsPerBatch
+
+  setup-yield-performance-data-file
+
+  repeat numberOfBatches
+  [
+    setup
+
+    repeat end-simulation-in-year
+    [
+      repeat yearLengthInDays
+      [ go ]
+      export-yield-performance
+    ]
+
+    set randomSeed randomSeed + 1
+  ]
+
+end
+
+to setup-yield-performance-data-file
+
+  ;;; build a unique file name according to the user setting
+  let filePath (word "output//yield//SIMPLE-crop-model_withSpatialDiversity_yield-exp_type-of-experiment=" type-of-experiment "_initRandomSeed=" randomSeed ".csv")
+
+  ;;; check that filePath does not exceed 100 (not common in this context)
+  if (length filePath > 120) [ print "WARNING: file path may be too long, depending on your current directory. Decrease length of file name or increase the limit." set filePath substring filePath 0 120 ]
+;print filePath
+  file-open filePath
+
+  file-print (word
+    "randomSeed,step,"
+    "temperature_annualMaxAt2m,temperature_annualMinAt2m,temperature_meanDailyFluctuation,temperature_dailyLowerDeviation,temperature_dailyUpperDeviation,"
+    "solar_annualMax,solar_annualMin,solar_meanDailyFluctuation,"
+    "precipitation_yearlyMean,precipitation_yearlySd,precipitation_dailyCum_nSamples,precipitation_dailyCum_maxSampleSize,"
+    "precipitation_dailyCum_plateauValue_yearlyMean,precipitation_dailyCum_plateauValue_yearlySd,"
+    "precipitation_dailyCum_inflection1_yearlyMean,precipitation_dailyCum_inflection1_yearlySd,precipitation_dailyCum_rate1_yearlyMean,precipitation_dailyCum_rate1_yearlySd,"
+    "precipitation_dailyCum_inflection2_yearlyMean,precipitation_dailyCum_inflection2_yearlySd,precipitation_dailyCum_rate2_yearlyMean,precipitation_dailyCum_rate2_yearlySd,"
+    "x,y,elevation,DC,z,CN,FC,WHC,albedo,"
+    "crop,sowingDay,harvestDay,yield"
+  )
+
+  file-close
+
+end
+
+to export-yield-performance
+
+  ;;; recover the unique file name according to the user setting
+  let filePath (word "output//yield//SIMPLE-crop-model_withSpatialDiversity_yield-exp_type-of-experiment=" type-of-experiment "_initRandomSeed=" randomSeed ".csv")
+
+  file-open filePath
+
+  foreach sort patches
+  [
+    aPatch ->
+    ask aPatch
+    [
+      ;;; randomSeed, step,
+      file-type randomSeed file-type ", "
+      file-type ticks file-type ", "
+      ;;; temperature parameters
+      file-type temperature_annualMaxAt2m file-type ", "
+      file-type temperature_annualMinAt2m file-type ", "
+      file-type temperature_meanDailyFluctuation file-type ", "
+      file-type temperature_dailyLowerDeviation file-type ", "
+      file-type temperature_dailyUpperDeviation file-type ", "
+      ;;; solar radiation parameters
+      file-type solar_annualMax file-type ", "
+      file-type solar_annualMin file-type ", "
+      file-type solar_meanDailyFluctuation file-type ", "
+      ;;; precipitation parameters
+      file-type precipitation_yearlyMean file-type ", "
+      file-type precipitation_yearlySd file-type ", "
+      file-type precipitation_dailyCum_nSamples file-type ", "
+      file-type precipitation_dailyCum_maxSampleSize file-type ", "
+      file-type precipitation_dailyCum_plateauValue_yearlyMean file-type ", "
+      file-type precipitation_dailyCum_plateauValue_yearlySd file-type ", "
+      file-type precipitation_dailyCum_inflection1_yearlyMean file-type ", "
+      file-type precipitation_dailyCum_inflection1_yearlySd file-type ", "
+      file-type precipitation_dailyCum_rate1_yearlyMean file-type ", "
+      file-type precipitation_dailyCum_rate1_yearlySd file-type ", "
+      file-type precipitation_dailyCum_inflection2_yearlyMean file-type ", "
+      file-type precipitation_dailyCum_inflection2_yearlySd file-type ", "
+      file-type precipitation_dailyCum_rate2_yearlyMean file-type ", "
+      file-type precipitation_dailyCum_rate2_yearlySd file-type ", "
+      ;;; x, y, elevation, DC, z, CN, FC, WHC, albedo
+      file-type pxcor file-type ", "
+      file-type pycor file-type ", "
+      file-type elevation file-type ", "
+      file-type DC file-type ", "
+      file-type z file-type ", "
+      file-type CN file-type ", "
+      file-type FC file-type ", "
+      file-type WHC file-type ", "
+      file-type albedo file-type ", "
+      ;;; crop, sowingDay, harvestDay, yield
+      file-type (word "'" crop "'") file-type ", "
+      let cropIndex position crop typesOfCrops
+      file-type (item cropIndex sowingDay) file-type ", "
+      file-type (item cropIndex harvestingDay) file-type ", "
+      file-type yield
+      file-print ""
+    ]
+  ]
+
+  file-close
+
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; LOAD DATA FROM TABLES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1401,7 +1516,7 @@ to generate-animation
 
   setup
   vid:start-recorder
-  repeat end-simulation-in-tick [ go vid:record-view ]
+  repeat (end-simulation-in-year * yearLengthInDays) [ go vid:record-view ]
   vid:save-recording  (word "run_" behaviorspace-run-number ".mov")
   vid:reset-recorder
 
@@ -1562,13 +1677,13 @@ to-report clampMinMax [ value minValue maxValue ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-275
+267
 10
-571
-307
+587
+331
 -1
 -1
-5.76
+6.24
 1
 10
 1
@@ -1645,7 +1760,7 @@ INPUTBOX
 68
 122
 128
-seed
+randomSeed
 0.0
 1
 0
@@ -1714,9 +1829,9 @@ temperature_annualMaxAt2m
 INPUTBOX
 124
 68
-237
+257
 128
-end-simulation-in-tick
+end-simulation-in-year
 0.0
 1
 0
@@ -1884,20 +1999,20 @@ currentDayOfYear
 11
 
 CHOOSER
-44
-296
-231
-341
+39
+295
+226
+340
 display-mode
 display-mode
 "elevation (m)" "soil run off curve number" "soil water holding capacity" "soil water field capacity" "soil deep drainage coefficient" "albedo (%)" "reference evapotranspiration (ETr) (mm)" "soil water content (ratio)" "ARID coefficient" "crop type" "biomass (g/m2)" "mean yield (g/m2)"
 9
 
 BUTTON
-374
-315
-464
-348
+84
+349
+174
+382
 refresh view
 refresh-view
 NIL
@@ -2528,7 +2643,7 @@ drainage-coefficient_min
 drainage-coefficient_min
 0
 drainage-coefficient_max
-0.2
+0.3
 0.01
 1
 NIL
@@ -2558,7 +2673,7 @@ runoff-curve_min
 runoff-curve_min
 0
 runoff-curve_max
-25.0
+50.0
 1
 1
 NIL
@@ -2686,7 +2801,7 @@ water-holding-capacity_max
 water-holding-capacity_max
 water-holding-capacity_min
 0.2
-0.15
+0.25
 1
 1
 cm3/cm3
@@ -2749,10 +2864,10 @@ southHemisphere?
 -1000
 
 OUTPUT
-14
-362
-850
-641
+11
+397
+847
+676
 13
 
 PLOT
@@ -2771,6 +2886,40 @@ true
 true
 "" ""
 PENS
+
+BUTTON
+209
+353
+381
+386
+run yield experiment (x1)
+run-yield-performance-experiment-batch randomSeed 1 end-simulation-in-year
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+385
+353
+569
+386
+run yield experiment (x100)
+run-yield-performance-experiment-batch 0 100 10
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
