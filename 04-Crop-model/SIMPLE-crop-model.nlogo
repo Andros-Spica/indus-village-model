@@ -77,6 +77,11 @@ globals
   precipitation_dailyCum_rate2_yearlyMean
   precipitation_dailyCum_rate2_yearlySd
 
+  ;;;; CO2 (ppm)
+  CO2_annualMin
+  CO2_annualMax
+  CO2_meanDailyFluctuation
+
   ;;;; Solar radiation (MJ/m2)
   solar_annualMax
   solar_annualMin
@@ -103,6 +108,7 @@ globals
   I_50maxW ; The maximum daily reduction in I50B due to drought stress (ºC d)
   T_heat ; Threshold temperature to start accelerating senescence from heat stress (ºC). In the Zhao et al. 2019, named as T_max
   T_extreme ; The extreme temperature threshold when RUE becomes 0 due to heat stress (ºC)
+  S_CO2 ; sensitivity of crop RUE (Relative increase in RUE) per ppm elevated CO2 above 350 ppm
   S_Water ; sensitivity of crop RUE to the ARID index (representing water shortage; see below)
   ;;;; Cultivar-specific
   T_sum ; Cumulative temperature requirement from sowing to maturity (ºC d)
@@ -123,6 +129,8 @@ globals
   T ; average temperature of current day (ºC)
   T_max ; maximum temperature of current day (ºC)
   T_min ; minimum temperature of current day (ºC)
+
+  CO2 ; average CO2 concentration of the current day (ppm)
 
   solarRadiation ; solar radiation of current day (MJ m-2)
   netSolarRadiation ; net solar radiation discount canopy reflection or albedo, assuming hypothetical grass reference crop (albedo = 0.23)
@@ -154,6 +162,8 @@ globals
   f_water ; drought stress
 
   ;;;; counters and final measures
+  ARID_yearSeries ; registers daily values of ARID of the current year (used to export data)
+  ARID_yearSeries_lastYear ; saves daily values of ARID of the last year (used to export data)
 ]
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -236,6 +246,10 @@ to set-parameters
     set temperature_dailyLowerDeviation temperature_daily-lower-deviation
     set temperature_dailyUpperDeviation temperature_daily-upper-deviation
 
+    set CO2_annualMin CO2-annual-min
+    set CO2_annualMax CO2-annual-max
+    set CO2_meanDailyFluctuation CO2-mean-daily-fluctuation
+
     set solar_annualMax solar_annual-max
     set solar_annualMin solar_annual-min
     set solar_meanDailyFluctuation solar_mean-daily-fluctuation
@@ -273,6 +287,10 @@ to set-parameters
     set temperature_meanDailyFluctuation random-float 5
     set temperature_dailyLowerDeviation random-float 10
     set temperature_dailyUpperDeviation random-float 10
+
+    set CO2_annualMin random-normal 250 20
+    set CO2_annualMax CO2_annualMin + random-float 10
+    set CO2_meanDailyFluctuation max (list 0 random-normal 2.5 0.5)
 
     set solar_annualMin 1.5 + random-float 15
     set solar_annualMax 20 + random-float 10
@@ -336,6 +354,10 @@ to parameters-check
   if (temperature_daily-lower-deviation = 0)                     [ set temperature_daily-lower-deviation                         6.8 ]
   if (temperature_daily-upper-deviation = 0)                     [ set temperature_daily-upper-deviation                         7.9 ]
 
+  if (CO2-annual-min = 0)                                        [ set CO2-annual-min                               245 ]
+  if (CO2-annual-max = 0)                                        [ set CO2-annual-max                               255 ]
+  if (CO2-mean-daily-fluctuation = 0)                            [ set CO2-mean-daily-fluctuation                     1 ]
+
   if (solar_annual-max = 0)                                      [ set solar_annual-max                                          24.2 ]
   if (solar_annual-min = 0)                                      [ set solar_annual-min                                          9.2 ]
   if (solar_mean-daily-fluctuation = 0)                          [ set solar_mean-daily-fluctuation                              3.3 ]
@@ -369,13 +391,17 @@ end
 to parameters-to-default
 
   ;;; set parameters to a default value
-  set end-simulation-in-year                     (5 * 365)
+  set end-simulation-in-year                                    5
 
   set temperature_annual-max-at-2m                             37
   set temperature_annual-min-at-2m                             12.8
   set temperature_mean-daily-fluctuation                        2.2
   set temperature_daily-lower-deviation                         6.8
   set temperature_daily-upper-deviation                         7.9
+
+  set CO2-annual-min                                          245
+  set CO2-annual-max                                          255
+  set CO2-mean-daily-fluctuation                                1
 
   set solar_annual-max                                          24.2
   set solar_annual-min                                          9.2
@@ -439,6 +465,8 @@ to go
 
   ; --- output handling ------------------------
 
+  update-ARID_yearSeries
+
   update-plot-crop
 
   ; -- time -------------------------------------
@@ -474,6 +502,8 @@ to update-weather
   update-temperature currentDayOfYear
 
   update-precipitation currentDayOfYear
+
+  set CO2 get-CO2 currentDayOfYear
 
   set solarRadiation get-solar-radiation currentDayOfYear
 
@@ -565,6 +595,20 @@ to-report get-solar-radiation [ dayOfYear ]
     southHemisphere?
   ))
   ;;; NOTE: it might be possible to decrease solar radiation depending on the current day precipitation. Additional info on precipitation effect on solar radiation is needed.
+
+end
+
+to-report get-CO2 [ dayOfYear ]
+
+  ;;; get CO2 atmospheric concentration for the current day (ppm)
+
+  report (get-annual-sinusoid-with-fluctuation
+    CO2_annualMin
+    CO2_annualMax
+    CO2_meanDailyFluctuation
+    dayOfYear
+    southHemisphere?
+  )
 
 end
 
@@ -714,6 +758,7 @@ to reset-crop-variables [ cropIndex ]
   set f_solar replace-item cropIndex f_solar 0
   set I_50Blocal replace-item cropIndex I_50Blocal 0
   set f_temp replace-item cropIndex f_temp 0
+  set f_CO2 replace-item cropIndex f_CO2 0
   set f_heat replace-item cropIndex f_heat 0
   set f_water replace-item cropIndex f_water 0
 
@@ -746,6 +791,8 @@ to update-biomass [ cropIndex ]
 
   update-TT cropIndex
 
+  update-f_CO2 cropIndex
+
   update-f_Temp cropIndex
 
   update-f_Heat cropIndex
@@ -756,7 +803,7 @@ to update-biomass [ cropIndex ]
 
   update-f_Solar cropIndex
 
-  set biomass_rate replace-item cropIndex biomass_rate (solarRadiation * (item cropIndex RUE) * item cropIndex f_Solar * item cropIndex f_Temp * (clampMin0 (min (list (item cropIndex f_Heat) (item cropIndex f_Water)))))
+  set biomass_rate replace-item cropIndex biomass_rate (solarRadiation * (item cropIndex RUE) * (item cropIndex f_Solar) * (item cropIndex f_CO2) * (item cropIndex f_Temp) * (clampMin0 (min (list (item cropIndex f_Heat) (item cropIndex f_Water)))))
 
   set biomass replace-item cropIndex biomass (item cropIndex biomass + item cropIndex biomass_rate)
 
@@ -775,6 +822,24 @@ to update-TT [ cropIndex ]
   ]
 
   set TT replace-item cropIndex TT (item cropIndex TT + deltaTT)
+
+end
+
+to update-f_CO2 [ cropIndex ]
+
+  ifelse ( CO2 <= 350 )
+  [
+    set f_CO2 replace-item cropIndex f_CO2 1 ; this is not specified in Zhao et al. 2019
+  ]
+  [
+    ifelse ( CO2 > 700 )
+    [
+      set f_CO2 replace-item cropIndex f_CO2 (1 + (item cropIndex S_CO2) * 350)
+    ]
+    [
+      set f_CO2 replace-item cropIndex f_CO2 (1 + (item cropIndex S_CO2) * (CO2 - 350))
+    ]
+  ]
 
 end
 
@@ -850,7 +915,20 @@ end
 ;;; COUNTERS AND MEASURES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+to update-ARID_yearSeries
 
+  ; if starting a new year
+  if (currentDayOfYear = 1)
+  [
+    ; save current year as last year
+    set ARID_yearSeries_lastYear ARID_yearSeries
+    ; reset ARID_yearSeries if starting a new year
+    set ARID_yearSeries (list)
+  ]
+  ; append this day ARID to ARID_yearSeries
+  set ARID_yearSeries lput ARID ARID_yearSeries
+
+end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; DISPLAY ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1010,8 +1088,10 @@ to run-yield-performance-experiment-batch [ initRandomSeed numberOfBatches years
     repeat end-simulation-in-year
     [
       repeat yearLengthInDays
-      [ go ]
-      export-yield-performance
+      [
+        go
+        if (currentDayOfYear = 365) [ export-yield-performance ]
+      ]
     ]
 
     set randomSeed randomSeed + 1
@@ -1022,7 +1102,7 @@ end
 to setup-yield-performance-data-file
 
   ;;; build a unique file name according to the user setting
-  let filePath (word "output//yield//SIMPLE-crop-model_withSpatialDiversity_yield-exp_type-of-experiment=" type-of-experiment "_initRandomSeed=" randomSeed ".csv")
+  let filePath (word "output//yield//SIMPLE-crop-model_yield-exp_type-of-experiment=" type-of-experiment "_initRandomSeed=" randomSeed ".csv")
 
   ;;; check that filePath does not exceed 100 (not common in this context)
   if (length filePath > 120) [ print "WARNING: file path may be too long, depending on your current directory. Decrease length of file name or increase the limit." set filePath substring filePath 0 120 ]
@@ -1030,15 +1110,17 @@ to setup-yield-performance-data-file
   file-open filePath
 
   file-print (word
-    "randomSeed,step,"
+    "randomSeed,currentYear,currentDayOfYear,"
     "temperature_annualMaxAt2m,temperature_annualMinAt2m,temperature_meanDailyFluctuation,temperature_dailyLowerDeviation,temperature_dailyUpperDeviation,"
     "solar_annualMax,solar_annualMin,solar_meanDailyFluctuation,"
+    "CO2_annualMin,CO2_annualMax,CO2_meanDailyFluctuation,"
     "precipitation_yearlyMean,precipitation_yearlySd,precipitation_dailyCum_nSamples,precipitation_dailyCum_maxSampleSize,"
     "precipitation_dailyCum_plateauValue_yearlyMean,precipitation_dailyCum_plateauValue_yearlySd,"
     "precipitation_dailyCum_inflection1_yearlyMean,precipitation_dailyCum_inflection1_yearlySd,precipitation_dailyCum_rate1_yearlyMean,precipitation_dailyCum_rate1_yearlySd,"
     "precipitation_dailyCum_inflection2_yearlyMean,precipitation_dailyCum_inflection2_yearlySd,precipitation_dailyCum_rate2_yearlyMean,precipitation_dailyCum_rate2_yearlySd,"
-    "x,y,elevation,DC,z,CN,FC,WHC,albedo,"
-    "crop,sowingDay,harvestDay,yield"
+    "precipitation_yearTotal,meanARID,"
+    "elevation,DC,z,CN,FC,WHC,albedo,"
+    "crop,sowingDay,harvestDay,meanARID_grow,yield"
   )
 
   file-close
@@ -1048,7 +1130,7 @@ end
 to export-yield-performance
 
   ;;; recover the unique file name according to the user setting
-  let filePath (word "output//yield//SIMPLE-crop-model_withSpatialDiversity_yield-exp_type-of-experiment=" type-of-experiment "_initRandomSeed=" randomSeed ".csv")
+  let filePath (word "output//yield//SIMPLE-crop-model_yield-exp_type-of-experiment=" type-of-experiment "_initRandomSeed=" randomSeed ".csv")
 
   file-open filePath
 
@@ -1058,9 +1140,10 @@ to export-yield-performance
 
     let cropIndex position crop typesOfCrops
 
-    ;;; randomSeed, step,
+    ;;; randomSeed, currentYear, currentDayOfYear,
     file-type randomSeed file-type ", "
-    file-type ticks file-type ", "
+    file-type currentYear file-type ", "
+    file-type currentDayOfYear file-type ", "
     ;;; temperature parameters
     file-type temperature_annualMaxAt2m file-type ", "
     file-type temperature_annualMinAt2m file-type ", "
@@ -1071,6 +1154,10 @@ to export-yield-performance
     file-type solar_annualMax file-type ", "
     file-type solar_annualMin file-type ", "
     file-type solar_meanDailyFluctuation file-type ", "
+    ;;; CO2 parameters
+    file-type CO2_annualMin file-type ", "
+    file-type CO2_annualMax file-type ", "
+    file-type CO2_meanDailyFluctuation file-type ", "
     ;;; precipitation parameters
     file-type precipitation_yearlyMean file-type ", "
     file-type precipitation_yearlySd file-type ", "
@@ -1086,9 +1173,11 @@ to export-yield-performance
     file-type precipitation_dailyCum_inflection2_yearlySd file-type ", "
     file-type precipitation_dailyCum_rate2_yearlyMean file-type ", "
     file-type precipitation_dailyCum_rate2_yearlySd file-type ", "
-    ;;; x, y, elevation, DC, z, CN, FC, WHC, albedo
-    file-type pxcor file-type ", "
-    file-type pycor file-type ", "
+    ;;; year total of precipitation
+    file-type (sum precipitation_yearSeries) file-type ", "
+    ;;; mean ARID in current year
+    file-type (mean ARID_yearSeries) file-type ", "
+    ;;; elevation, DC, z, CN, FC, WHC, albedo
     file-type elevation file-type ", "
     file-type DC file-type ", "
     file-type z file-type ", "
@@ -1100,6 +1189,23 @@ to export-yield-performance
     file-type (word "'" crop "'") file-type ", "
     file-type (item cropIndex sowingDay) file-type ", "
     file-type (item cropIndex harvestingDay) file-type ", "
+    ;;; mean ARID during grow season in year
+    ifelse ((item cropIndex sowingDay) < (item cropIndex harvestingDay))
+    [
+      ; growing season fits the current calendar year
+      file-type (mean sublist ARID_yearSeries (item cropIndex sowingDay) (item cropIndex harvestingDay)) file-type ", " ]
+
+    [
+      ; growing season spans also into last year
+      ifelse (currentYear = 0)
+      [
+        ; there is no last year
+        file-type "," ; these NA will be signaling the rows that should be ignored in analysis
+      ]
+      [
+        file-type (mean sentence (sublist ARID_yearSeries 1 (item cropIndex harvestingDay)) (sublist ARID_yearSeries_lastYear (item cropIndex sowingDay) yearLengthInDays)) file-type ", "
+      ]
+    ]
     file-type (item cropIndex yield)
     file-print ""
   ]
@@ -1156,7 +1262,7 @@ to load-crops-table
 
   let T_extColumn (item 27 (item 3 cropsTable)) - 1
 
-  ;let S_CO2Column (item 29 (item 3 cropsTable)) - 1
+  let S_CO2Column (item 29 (item 3 cropsTable)) - 1
 
   let S_waterColumn (item 31 (item 3 cropsTable)) - 1
 
@@ -1196,7 +1302,7 @@ to load-crops-table
 
   set T_extreme map [row -> item T_extColumn row ] cropsData
 
-  ;set S_CO2 map [row -> item S_CO2Column row ] cropsData
+  set S_CO2 map [row -> item S_CO2Column row ] cropsData
 
   set S_water map [row -> item S_waterColumn row ] cropsData
 
@@ -1214,7 +1320,7 @@ to generate-animation
 
   setup
   vid:start-recorder
-  repeat end-simulation-in-year [ go vid:record-view ]
+  repeat (end-simulation-in-year * yearLengthInDays) [ go vid:record-view ]
   vid:save-recording  (word "run_" behaviorspace-run-number ".mov")
   vid:reset-recorder
 
@@ -1259,7 +1365,7 @@ to-report get-cumulative-curve [ plateauValue inflection1 rate1 inflection2 rate
 
   ;;; NOTE: in some cases, the curve at this point might be too horizontal and fail to reach 1.
   ;;; This means that reaching 1 at the end of the curve (i.e. cumulative curve) takes precedence over the shape parameters
-  if ((last cumulativeCurve) < 1) [ print (word "Warning (precipitation): failed to generate a cumulative curve without re-scaling: " (last cumulativeCurve) " < 1" )]
+  ;if ((last cumulativeCurve) < 1) [ print (word "Warning (precipitation): failed to generate a cumulative curve without re-scaling: " (last cumulativeCurve) " < 1" )]
 
   ;;; re-scale the curve so it fits within 0 and 1
   set cumulativeCurve rescale-curve cumulativeCurve
@@ -1375,10 +1481,10 @@ to-report clampMinMax [ value minValue maxValue ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-23
-325
-81
-384
+16
+274
+74
+333
 -1
 -1
 1.0
@@ -1441,7 +1547,7 @@ INPUTBOX
 116
 122
 randomSeed
-0.0
+1.0
 1
 0
 Number
@@ -1457,21 +1563,10 @@ type-of-experiment
 0
 
 MONITOR
-40
-260
-113
-305
-NIL
-sowingDay
-0
-1
-11
-
-MONITOR
-1411
-536
-1593
-573
+1420
+958
+1602
+995
 NIL
 temperature_annualMinAt2m
 2
@@ -1496,10 +1591,10 @@ NIL
 1
 
 MONITOR
-1411
-502
-1596
-539
+1420
+924
+1605
+961
 NIL
 temperature_annualMaxAt2m
 2
@@ -1509,30 +1604,19 @@ temperature_annualMaxAt2m
 INPUTBOX
 118
 62
-231
+247
 122
 end-simulation-in-year
-0.0
+30.0
 1
 0
 Number
 
-MONITOR
-114
-260
-212
-305
-NIL
-HarvestingDay
-0
-1
-11
-
 SLIDER
-1040
-578
-1411
-611
+1049
+1000
+1420
+1033
 temperature_mean-daily-fluctuation
 temperature_mean-daily-fluctuation
 0
@@ -1544,10 +1628,10 @@ temperature_mean-daily-fluctuation
 HORIZONTAL
 
 SLIDER
-1040
-613
-1407
-646
+1049
+1035
+1416
+1068
 temperature_daily-lower-deviation
 temperature_daily-lower-deviation
 0
@@ -1559,10 +1643,10 @@ temperature_daily-lower-deviation
 HORIZONTAL
 
 SLIDER
-1041
-646
-1408
-679
+1050
+1068
+1417
+1101
 temperature_daily-upper-deviation
 temperature_daily-upper-deviation
 0
@@ -1574,10 +1658,10 @@ temperature_daily-upper-deviation
 HORIZONTAL
 
 SLIDER
-1040
-504
-1411
-537
+1049
+926
+1420
+959
 temperature_annual-max-at-2m
 temperature_annual-max-at-2m
 15
@@ -1589,10 +1673,10 @@ temperature_annual-max-at-2m
 HORIZONTAL
 
 SLIDER
-1042
-541
-1406
-574
+1051
+963
+1415
+996
 temperature_annual-min-at-2m
 temperature_annual-min-at-2m
 -15
@@ -1604,10 +1688,10 @@ temperature_annual-min-at-2m
 HORIZONTAL
 
 MONITOR
-1412
-576
-1592
-613
+1421
+998
+1601
+1035
 NIL
 temperature_meanDailyFluctuation
 2
@@ -1615,10 +1699,10 @@ temperature_meanDailyFluctuation
 9
 
 MONITOR
-1408
-612
-1582
-649
+1417
+1034
+1591
+1071
 NIL
 temperature_dailyLowerDeviation
 2
@@ -1626,10 +1710,10 @@ temperature_dailyLowerDeviation
 9
 
 MONITOR
-1410
-648
-1584
-685
+1419
+1070
+1593
+1107
 NIL
 temperature_dailyUpperDeviation
 2
@@ -1637,10 +1721,10 @@ temperature_dailyUpperDeviation
 9
 
 PLOT
-283
-975
-939
-1095
+282
+1020
+938
+1140
 Temperature
 days
 ºC
@@ -1657,10 +1741,10 @@ PENS
 "max" 1.0 0 -2674135 true "" "plot T_max"
 
 MONITOR
-33
-213
-112
-258
+31
+201
+110
+246
 NIL
 currentYear
 0
@@ -1668,10 +1752,10 @@ currentYear
 11
 
 MONITOR
-114
-213
-228
-258
+112
+201
+226
+246
 NIL
 currentDayOfYear
 0
@@ -1696,10 +1780,10 @@ NIL
 1
 
 PLOT
-281
+282
 10
-975
-425
+976
+387
 Crops biomass (patch mean)
 days
 g/m2
@@ -1713,10 +1797,10 @@ true
 PENS
 
 SLIDER
-1016
-410
-1411
-443
+1033
+1159
+1428
+1192
 solar_annual-max
 solar_annual-max
 solar_annual-min
@@ -1728,10 +1812,10 @@ MJ/m2 (default: 24.2)
 HORIZONTAL
 
 SLIDER
-1016
-371
-1413
-404
+1033
+1120
+1430
+1153
 solar_annual-min
 solar_annual-min
 1
@@ -1743,10 +1827,10 @@ MJ/m2 (default: 9.2)
 HORIZONTAL
 
 SLIDER
-1017
-448
-1410
-481
+1034
+1197
+1427
+1230
 solar_mean-daily-fluctuation
 solar_mean-daily-fluctuation
 0
@@ -1758,10 +1842,10 @@ MJ/m2 (default: 3.3)
 HORIZONTAL
 
 PLOT
-283
-1096
-896
-1216
+282
+1137
+895
+1257
 Solar radiation
 days
 MJ/m2
@@ -1776,10 +1860,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot solarRadiation"
 
 MONITOR
-1416
-367
-1528
-404
+1433
+1116
+1545
+1153
 NIL
 solar_annualMin
 3
@@ -1787,10 +1871,10 @@ solar_annualMin
 9
 
 MONITOR
-1414
-405
-1528
-442
+1431
+1154
+1545
+1191
 NIL
 solar_annualMax
 3
@@ -1798,10 +1882,10 @@ solar_annualMax
 9
 
 MONITOR
-1413
-445
-1571
-482
+1430
+1194
+1588
+1231
 NIL
 solar_meanDailyFluctuation
 3
@@ -1809,10 +1893,10 @@ solar_meanDailyFluctuation
 9
 
 SLIDER
-1018
-783
-1419
-816
+1036
+451
+1437
+484
 precipitation_yearly-mean
 precipitation_yearly-mean
 0
@@ -1824,10 +1908,10 @@ mm/year (default: 489)
 HORIZONTAL
 
 SLIDER
-1017
-815
-1419
-848
+1035
+483
+1437
+516
 precipitation_yearly-sd
 precipitation_yearly-sd
 0
@@ -1839,10 +1923,10 @@ mm/year (default: 142.2)
 HORIZONTAL
 
 SLIDER
-1010
-703
-1418
-736
+1028
+371
+1436
+404
 precipitation_daily-cum_n-samples
 precipitation_daily-cum_n-samples
 0
@@ -1854,10 +1938,10 @@ precipitation_daily-cum_n-samples
 HORIZONTAL
 
 SLIDER
-1013
-740
-1416
-773
+1031
+408
+1434
+441
 precipitation_daily-cum_max-sample-size
 precipitation_daily-cum_max-sample-size
 1
@@ -1869,10 +1953,10 @@ precipitation_daily-cum_max-sample-size
 HORIZONTAL
 
 SLIDER
-980
-861
-1532
-894
+998
+529
+1550
+562
 precipitation_daily-cum_plateau-value_yearly-mean
 precipitation_daily-cum_plateau-value_yearly-mean
 0.2
@@ -1884,10 +1968,10 @@ winter (mm)/summer (mm) (default: 0.25)
 HORIZONTAL
 
 SLIDER
-982
-893
-1532
-926
+1000
+561
+1550
+594
 precipitation_daily-cum_plateau-value_yearly-sd
 precipitation_daily-cum_plateau-value_yearly-sd
 0
@@ -1899,10 +1983,10 @@ precipitation_daily-cum_plateau-value_yearly-sd
 HORIZONTAL
 
 SLIDER
-981
-936
-1460
-969
+999
+604
+1478
+637
 precipitation_daily-cum_inflection1_yearly-mean
 precipitation_daily-cum_inflection1_yearly-mean
 40
@@ -1914,10 +1998,10 @@ day of year (default: 40)
 HORIZONTAL
 
 SLIDER
-1059
-972
-1462
-1005
+1077
+640
+1480
+673
 precipitation_daily-cum_inflection1_yearly-sd
 precipitation_daily-cum_inflection1_yearly-sd
 20
@@ -1929,10 +2013,10 @@ days (default: 5)
 HORIZONTAL
 
 SLIDER
-1059
-1010
-1464
-1043
+1077
+678
+1482
+711
 precipitation_daily-cum_rate1_yearly-mean
 precipitation_daily-cum_rate1_yearly-mean
 0.01
@@ -1944,10 +2028,10 @@ precipitation_daily-cum_rate1_yearly-mean
 HORIZONTAL
 
 SLIDER
-1059
-1047
-1462
-1080
+1077
+715
+1480
+748
 precipitation_daily-cum_rate1_yearly-sd
 precipitation_daily-cum_rate1_yearly-sd
 0.004
@@ -1959,10 +2043,10 @@ precipitation_daily-cum_rate1_yearly-sd
 HORIZONTAL
 
 SLIDER
-1055
-1087
-1465
-1120
+1073
+755
+1483
+788
 precipitation_daily-cum_inflection2_yearly-mean
 precipitation_daily-cum_inflection2_yearly-mean
 180
@@ -1974,10 +2058,10 @@ day of year (default: 240)
 HORIZONTAL
 
 SLIDER
-1056
-1125
-1459
-1158
+1074
+793
+1477
+826
 precipitation_daily-cum_inflection2_yearly-sd
 precipitation_daily-cum_inflection2_yearly-sd
 20
@@ -1989,10 +2073,10 @@ days (default: 20)
 HORIZONTAL
 
 SLIDER
-1057
-1162
-1462
-1195
+1075
+830
+1480
+863
 precipitation_daily-cum_rate2_yearly-mean
 precipitation_daily-cum_rate2_yearly-mean
 0.01
@@ -2004,10 +2088,10 @@ precipitation_daily-cum_rate2_yearly-mean
 HORIZONTAL
 
 SLIDER
-1057
-1199
-1460
-1232
+1075
+867
+1478
+900
 precipitation_daily-cum_rate2_yearly-sd
 precipitation_daily-cum_rate2_yearly-sd
 0.004
@@ -2019,10 +2103,10 @@ precipitation_daily-cum_rate2_yearly-sd
 HORIZONTAL
 
 MONITOR
-1418
-782
-1546
-819
+1436
+450
+1564
+487
 NIL
 precipitation_yearlyMean
 2
@@ -2030,10 +2114,10 @@ precipitation_yearlyMean
 9
 
 MONITOR
-1419
-817
-1557
-854
+1437
+485
+1575
+522
 NIL
 precipitation_yearlySd
 2
@@ -2041,10 +2125,10 @@ precipitation_yearlySd
 9
 
 MONITOR
-1417
-701
-1590
-738
+1435
+369
+1608
+406
 NIL
 precipitation_dailyCum_nSamples
 2
@@ -2052,10 +2136,10 @@ precipitation_dailyCum_nSamples
 9
 
 MONITOR
-1420
-740
-1574
-777
+1438
+408
+1592
+445
 NIL
 precipitation_dailyCum_maxSampleSize
 2
@@ -2063,10 +2147,10 @@ precipitation_dailyCum_maxSampleSize
 9
 
 MONITOR
-1531
-860
-1659
-897
+1549
+528
+1677
+565
 NIL
 precipitation_dailyCum_plateauValue_yearlyMean
 2
@@ -2074,10 +2158,10 @@ precipitation_dailyCum_plateauValue_yearlyMean
 9
 
 MONITOR
-1532
-895
-1670
-932
+1550
+563
+1688
+600
 NIL
 precipitation_dailyCum_plateauValue_yearlySd
 2
@@ -2085,10 +2169,10 @@ precipitation_dailyCum_plateauValue_yearlySd
 9
 
 MONITOR
-1461
-936
-1617
-973
+1479
+604
+1635
+641
 NIL
 precipitation_dailyCum_inflection1_yearlyMean
 2
@@ -2096,10 +2180,10 @@ precipitation_dailyCum_inflection1_yearlyMean
 9
 
 MONITOR
-1464
-975
-1618
-1012
+1482
+643
+1636
+680
 NIL
 precipitation_dailyCum_inflection1_yearlySd
 2
@@ -2107,10 +2191,10 @@ precipitation_dailyCum_inflection1_yearlySd
 9
 
 MONITOR
-1461
-1011
-1617
-1048
+1479
+679
+1635
+716
 NIL
 precipitation_dailyCum_rate1_yearlyMean
 2
@@ -2118,10 +2202,10 @@ precipitation_dailyCum_rate1_yearlyMean
 9
 
 MONITOR
-1464
-1050
-1618
-1087
+1482
+718
+1636
+755
 NIL
 precipitation_dailyCum_rate1_yearlySd
 2
@@ -2129,10 +2213,10 @@ precipitation_dailyCum_rate1_yearlySd
 9
 
 MONITOR
-1465
-1087
-1621
-1124
+1483
+755
+1639
+792
 NIL
 precipitation_dailyCum_inflection2_yearlyMean
 2
@@ -2140,10 +2224,10 @@ precipitation_dailyCum_inflection2_yearlyMean
 9
 
 MONITOR
-1461
-1128
-1615
-1165
+1479
+796
+1633
+833
 NIL
 precipitation_dailyCum_inflection2_yearlySd
 2
@@ -2151,10 +2235,10 @@ precipitation_dailyCum_inflection2_yearlySd
 9
 
 MONITOR
-1459
-1163
-1615
-1200
+1477
+831
+1633
+868
 NIL
 precipitation_dailyCum_rate2_yearlyMean
 2
@@ -2162,10 +2246,10 @@ precipitation_dailyCum_rate2_yearlyMean
 9
 
 MONITOR
-1462
-1202
-1616
-1239
+1480
+870
+1634
+907
 NIL
 precipitation_dailyCum_rate2_yearlySd
 2
@@ -2173,10 +2257,10 @@ precipitation_dailyCum_rate2_yearlySd
 9
 
 PLOT
-283
-1216
-944
-1336
+282
+901
+943
+1021
 precipitation
 days
 ppm
@@ -2192,10 +2276,10 @@ PENS
 "ETr" 1.0 0 -2674135 true "" "plot mean [ETr] of patches"
 
 PLOT
-23
-850
-256
-970
+27
+931
+260
+1051
 cumulative year precipitation
 NIL
 NIL
@@ -2210,10 +2294,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot-cumPrecipitation-table"
 
 PLOT
-21
-720
-254
-840
+25
+801
+258
+921
 year preciptation
 NIL
 NIL
@@ -2228,10 +2312,10 @@ PENS
 "default" 1.0 1 -16777216 true "" "plot-precipitation-table"
 
 MONITOR
-96
-659
-169
-704
+851
+950
+924
+995
 year total
 sum precipitation_yearSeries
 2
@@ -2239,10 +2323,10 @@ sum precipitation_yearSeries
 11
 
 PLOT
-283
-854
-968
-974
+282
+783
+967
+903
 Soil water content & ARID
 days
 NIL
@@ -2259,9 +2343,9 @@ PENS
 
 SLIDER
 10
-572
+627
 201
-605
+660
 par_elevation
 par_elevation
 0
@@ -2274,9 +2358,9 @@ HORIZONTAL
 
 SLIDER
 -4
-427
+482
 235
-460
+515
 water-holding-capacity
 water-holding-capacity
 0.01
@@ -2289,9 +2373,9 @@ HORIZONTAL
 
 SLIDER
 -5
-458
+513
 235
-491
+546
 drainage-coefficient
 drainage-coefficient
 0
@@ -2304,9 +2388,9 @@ HORIZONTAL
 
 SLIDER
 -5
-490
+545
 235
-523
+578
 root-zone-depth
 root-zone-depth
 0
@@ -2319,9 +2403,9 @@ HORIZONTAL
 
 SLIDER
 -6
-524
+579
 237
-557
+612
 runoff-curve
 runoff-curve
 50
@@ -2334,9 +2418,9 @@ HORIZONTAL
 
 MONITOR
 204
-571
+626
 274
-608
+663
 NIL
 elevation
 2
@@ -2345,9 +2429,9 @@ elevation
 
 MONITOR
 235
-426
+481
 285
-463
+518
 NIL
 WHC
 2
@@ -2356,9 +2440,9 @@ WHC
 
 MONITOR
 235
-458
+513
 285
-495
+550
 NIL
 DC
 2
@@ -2367,9 +2451,9 @@ DC
 
 MONITOR
 234
-486
+541
 302
-523
+578
 NIL
 z
 2
@@ -2378,9 +2462,9 @@ z
 
 MONITOR
 237
-523
+578
 287
-560
+615
 NIL
 CN
 2
@@ -2388,10 +2472,10 @@ CN
 9
 
 BUTTON
-101
-322
-255
-355
+96
+287
+250
+320
 NIL
 parameters-to-default
 NIL
@@ -2406,9 +2490,9 @@ NIL
 
 SLIDER
 11
-610
+665
 203
-643
+698
 par_albedo
 par_albedo
 0
@@ -2421,9 +2505,9 @@ HORIZONTAL
 
 MONITOR
 204
-611
+666
 270
-648
+703
 NIL
 albedo
 2
@@ -2431,10 +2515,10 @@ albedo
 9
 
 SWITCH
-106
-360
-245
-393
+66
+740
+221
+773
 southHemisphere?
 southHemisphere?
 1
@@ -2449,10 +2533,10 @@ OUTPUT
 13
 
 PLOT
-281
-423
-977
-854
+282
+385
+978
+783
 Crops yield (patch mean) and annual total precipitation
 years
 g/m2 | mm
@@ -2464,6 +2548,136 @@ true
 true
 "" ""
 PENS
+
+SLIDER
+1080
+1253
+1428
+1286
+CO2-annual-min
+CO2-annual-min
+200
+CO2-annual-max
+245.0
+0.01
+1
+ppm (default: 245)
+HORIZONTAL
+
+SLIDER
+1082
+1288
+1428
+1321
+CO2-annual-max
+CO2-annual-max
+CO2-annual-min
+270
+255.0
+0.01
+1
+ppm (default: 255)
+HORIZONTAL
+
+SLIDER
+1082
+1321
+1428
+1354
+CO2-mean-daily-fluctuation
+CO2-mean-daily-fluctuation
+0
+5
+1.0
+0.01
+1
+ppm (default:1)
+HORIZONTAL
+
+MONITOR
+1428
+1322
+1574
+1359
+NIL
+CO2_meanDailyFluctuation
+2
+1
+9
+
+MONITOR
+1430
+1287
+1523
+1324
+NIL
+CO2_annualMax
+2
+1
+9
+
+MONITOR
+1429
+1252
+1519
+1289
+NIL
+CO2_annualMin
+2
+1
+9
+
+PLOT
+284
+1257
+893
+1377
+CO2
+days
+ppm
+0.0
+10.0
+0.0
+10.0
+true
+false
+"set-plot-y-range (precision (CO2_annualMin - CO2_meanDailyFluctuation - 1) 2) (precision (CO2_annualMax + CO2_meanDailyFluctuation + 1) 2)" "set-plot-y-range (precision (CO2_annualMin - CO2_meanDailyFluctuation - 1) 2) (precision (CO2_annualMax + CO2_meanDailyFluctuation + 1) 2)"
+PENS
+"default" 1.0 0 -16777216 true "" "plot CO2"
+
+BUTTON
+48
+369
+219
+402
+run yield experiment (x1)
+run-yield-performance-experiment-batch randomSeed 1 end-simulation-in-year
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+41
+415
+226
+448
+run yield experiment (x100)
+run-yield-performance-experiment-batch 0 100 10
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
