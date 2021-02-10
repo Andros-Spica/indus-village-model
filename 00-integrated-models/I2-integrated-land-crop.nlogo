@@ -2,7 +2,7 @@
 ;;; GNU GENERAL PUBLIC LICENSE ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;  Integrated Land Unit model
+;;  Integrated Land Crop model (I2)
 ;;  Copyright (C) Andreas Angourakis (andros.spica@gmail.com)
 ;;  available at https://www.github.com/Andros-Spica/indus-village-model
 ;;  This model includes a cleaner version of the Terrain Generator model v.2 (https://github.com/Andros-Spica/ProceduralMap-NetLogo)
@@ -54,7 +54,7 @@ globals
 
   ;;;;; Field Capacity and Water Holding capacity table
   soil_fieldCapacity                   ; field capacity (fraction of soil volume) per texture type
-  soil_saturation                      ; saturation (fraction of soil volume) per texture type (not currently used)
+  soil_saturation                      ; saturation (fraction of soil volume) per texture type
   soil_intakeRate                      ; intake rate (mm/hour) per texture type
   soil_minWaterHoldingCapacity         ; minimum and maximum water holding capacity (in/ft) per texture type (not currently used)
   soil_maxWaterHoldingCapacity
@@ -250,6 +250,12 @@ globals
                                 ; and about stream types:
                                 ; https://cfpub.epa.gov/watertrain/moduleFrame.cfm?parent_object_id=1199
 
+  ;;; Inundation algorithm
+  errorToleranceThreshold       ; in metres
+                                ; NOTE: this is an arbitrary limit to the precision of the inundation algorithm.
+                                ; Differences in height (i.e. elevation + water depth) that amount to less than this value will be ignored.
+                                ; It also serves as the step used to redistribute the water depth among patches of a neighborhood.
+
   ;;; CROP ---------------------------------------------------------------------------------
   crop_intensity                 ; crop cover as percentage of patch area
   crop_selection                 ; list of crop common names to be cultivated in every patch
@@ -395,7 +401,7 @@ patches-own
   ;========= I2 variables ======================================================================
 
   ;;; main variables
-  p_crop_frequency                  ; frequency in % of patchArea of each crop in typesOfCrop
+  p_crop_frequency                  ; frequency in % of crop_intensity of each crop in typesOfCrop
   p_crop_TT                         ; cumulative mean temperature (ºC day)
   p_crop_biomass                    ; crop biomass (g)
   p_crop_totalBiomass               ; total crop biomass (g)
@@ -459,7 +465,7 @@ to setup
 
   update-soil-cover
 
-  ; ------------------------------------------
+  ; --- output handling ------------------------
 
   set-terrain-output-stats
 
@@ -477,6 +483,8 @@ to setup
 
   update-plot-crop
 
+  ; -- time -------------------------------------
+
   reset-ticks
 
 end
@@ -492,8 +500,20 @@ to set-constants
 
   set yearLengthInDays 365
 
+  ;;; Ordered list of soil texture types used for visualisation
+  ;;; this order corresponds to an approximation to the soil texture palette (red: sand, green: silt, blue: clay)
+  set soil_textureTypes_display (list
+    "Sand"             "Loamy sand"        "Sandy loam"     ; red         orange  brown
+    "Loam"             "Silt loam"         "Silt"           ; yellow      green   lime
+    "Silty clay loam"  "Silty clay"        "Clay"           ; turquoise   cyan    sky
+    "Clay loam"        "Sandy clay"        "Sandy clay loam"; blue        violet  magenta
+  )
+
   ; MUF : Water Uptake coefficient (mm^3 mm^-3)
   set soil_rootWaterUptakeCoefficient 0.096
+
+  ; inundation algorithm
+  set errorToleranceThreshold 1
 
   ; maximum fraction of radiation interception
   set crop_f_Solar_max 0.95
@@ -506,15 +526,6 @@ to set-parameters
   random-seed randomSeed
 
   set maxDist (sqrt (( (max-pxcor - min-pxcor) ^ 2) + ((max-pycor - min-pycor) ^ 2)) / 2)
-
-  ;;; Ordered list of soil texture types used for visualisation
-  ;;; this order corresponds to an approximation to the soil texture palette (red: sand, green: silt, blue: clay)
-  set soil_textureTypes_display (list
-    "Sand"             "Loamy sand"        "Sandy loam"     ; red         orange  brown
-    "Loam"             "Silt loam"         "Silt"           ; yellow      green   lime
-    "Silty clay loam"  "Silty clay"        "Clay"           ; turquoise   cyan    sky
-    "Clay loam"        "Sandy clay"        "Sandy clay loam"; blue        violet  magenta
-  )
 
   ; check parameters values
   parameters-check
@@ -599,6 +610,11 @@ to set-parameters
     ;;; and https://www.researchgate.net/publication/271722280_Solmap_Project_In_India%27s_Solar_Resource_Assessment
     ;;; see general info in http://www.physicalgeography.net/fundamentals/6i.html
   ]
+
+  ;;; scenario settings:
+
+  ;;; precipitation
+  set precipitation_yearlyMean precipitation_yearlyMean + precipitation_yearly-mean-bias
 
   ;;; crop management parameters (never not randomised)
   ;;; crop intensity on every patch
@@ -1104,6 +1120,8 @@ to update-water
 
   solve-runoff-exchange
 
+  solve-inundation-exchange
+
   drain-soil-water
 
   ask patches [ set p_ecol_%water (get-%water-surface p_water) ]
@@ -1122,7 +1140,7 @@ end
 
 to add-river-water
 
-  ask patches with [flow_accumulation > flow_riverAccumulationAtStart] ; patches containing the river or only startin point: = flow_riverAccumulationAtStart + 1]
+  ask patches with [flow_accumulation > flow_riverAccumulationAtStart] ; patches containing the river or only starting point: = flow_riverAccumulationAtStart + 1]
   [
     set p_water flow_riverAccumulationAtStart * riverWaterPerFlowAccumulation ; no accumulation in river between one day to the other
   ]
@@ -1226,7 +1244,7 @@ to set-runoff
   if (p_water > initialAbstraction)
   [ set p_runoff ((p_water - 0.2 * maximumAbstraction) ^ 2) / (p_water + 0.8 * maximumAbstraction) ]
 
-  ; add incoming river water at river start
+  ; add incoming river water at river start to replace runoff
   if (flow_accumulation = flow_riverAccumulationAtStart + 1)
   [
     set p_water p_water + flow_riverAccumulationAtStart * riverWaterPerFlowAccumulation
@@ -1247,19 +1265,10 @@ to infiltrate-soil-water
     ; soil is or becomes saturated and water accumulates on surface adding to runoff
     set soilWaterChange WATst - p_soil_waterContent
     set p_runoff p_runoff + (potentialSoilWaterChange - soilWaterChange)
-
-    ; saturation sets the runnoffCurveNumber to maximum
-;    set p_soil_runOffCurveNumber 100
   ]
   [
     ; soil absorbes all water not running off
     set soilWaterChange potentialSoilWaterChange
-
-    ; desaturation recovers the original runnoffCurveNumber, if it has been set to maximum
-;    if (p_soil_runOffCurveNumber = 100)
-;    [
-;      set p_soil_runOffCurveNumber get-runOffCurveNumber p_soil_coverTreatmentAndHydrologicCondition p_soil_hydrologicSoilGroup
-;    ]
   ]
   ;print self print (word "p_runoff=" p_runoff)
   ;print self print (word p_water " = " (soilWaterChange + p_runoff) )
@@ -1324,12 +1333,9 @@ to try-send-runoff-to [ downstreamPatch ]
     ask downstreamPatch
     [
       ;;; update water downstream (receives all runoff)
-      ;let p_water-temp p_water
+      ;print (word p_water " + " thisPatch_h2 " * 1000 = " p_water + thisPatch_h2 * 1000)
       set p_water p_water + thisPatch_h2 * 1000 ; in mm
-      ;print (word p_water-temp " + " thisPatch_h2 " * 1000 = " p_water)
     ]
-    ;;; update water after runoff substraction
-    ;set p_water p_water - thisPatch_h2 * 1000 ; in mm
   ]
   [;print "case 2 & 3" print (word self ", h1=" thisPatch_h1 ", h2=" thisPatch_h2 "; " downstreamPatch ", h1=" downstreamPatch_h1 ", h2=" downstreamPatch_h2 )
     ;;; case 2 & case 3
@@ -1352,6 +1358,83 @@ to try-send-runoff-to [ downstreamPatch ]
     ;print (word "total height (m): thisPatch = " (elevation + p_water / 1000) " ; downstreamPatch = " [(elevation + p_water / 1000)] of downstreamPatch)
   ]
 ;print "================================================"
+end
+
+to solve-inundation-exchange
+
+  ;;; case 3 in try-send-runoff-to can make water depth plus elevation to be uneven between neighbouring patches.
+  ;;; particularly when the value of riverWaterPerFlowAccumulation is relatively high (>>1E-4)
+
+  ;;; get the (initial) set of patches with excess water depth
+  let patchesWithExcess patches with [has-excess-water-depth]
+
+  let maxIterations 10000 ; just as a safety measure, to avoid infinite loop
+  ;;; iteratively solve each patch with excess water depth
+  while [any? patchesWithExcess and maxIterations > 0]
+  [
+    ask one-of patchesWithExcess
+    [
+      ;;; get the entire neighborhood (neighbors + this patch)
+      let neighborhood (patch-set self neighbors)
+
+      ;;; get the sum of surface water depth (in m) for the entire neighborhood
+      let sumNeighborhoodWaterDepth sum [p_water / 1000] of neighborhood
+
+      ;;; set all water in neighborhood to zero
+      ask neighborhood [ set p_water 0 ]
+
+      ;;; iterate n times, where n is the neighborhood sum divided by errorToleranceThreshold (rounded value)
+      repeat round (sumNeighborhoodWaterDepth / errorToleranceThreshold)
+      [
+        ;;; get the lowest patch in the neighborhood
+        ;;; NOTE: height is elevation (m) + surfaceWater (mm) / 1000
+        ask min-one-of neighborhood [get-height]
+        [
+          ;;; add errorToleranceThreshold * 1000 to the amount of surface water depth (mm)
+          set p_water p_water + errorToleranceThreshold * 1000
+        ]
+      ]
+
+      ;;; ask neighbors and neighbors of neighbors (excluding this patch) to update patchesWithExcess
+      ;;; NOTE: this piece of code is effective and much faster than asking all patches to update patchesWithExcess
+
+      ;;; exclude this patch from patchesWithExcess
+      set patchesWithExcess other patchesWithExcess
+
+      ;;; get extended neighborhood
+      let extendedNeighborhood other (patch-set neighbors ([neighbors] of neighbors))
+
+      ask extendedNeighborhood
+      [
+        ;;; check if this patch has excess water depth,
+        ;;; than add or exclude it from patchesWithExcess
+        ifelse (has-excess-water-depth)
+        [
+          set patchesWithExcess (patch-set self patchesWithExcess)
+        ]
+        [
+          set patchesWithExcess other patchesWithExcess
+        ]
+      ]
+    ]
+
+    set maxIterations maxIterations - 1
+  ]
+
+end
+
+to-report get-height
+
+  report elevation + p_water / 1000
+
+end
+
+to-report has-excess-water-depth
+
+  let sourceHeight get-height
+
+  report p_water > 0 and any? neighbors with [sourceHeight - get-height > errorToleranceThreshold]
+
 end
 
 to drain-soil-water
@@ -1378,12 +1461,14 @@ to drain-soil-water
 
     ; Calculate rate of change of state variable p_soil_waterContent
     set p_soil_waterContent p_soil_waterContent - deepDrainage - transpiration
-    if (p_soil_waterContent < 0)
+    if (p_soil_waterContent < 0)  ;;; this happens if p_soil_waterContent is less than WATfc or WATwp
     [
-      print self print p_soil_waterContent
+      ;print self print p_soil_waterContent
       set p_soil_waterContent 0
     ]
-    set p_soil_waterContentRatio p_soil_waterContent / p_ecol_rootZoneDepth
+    ifelse (p_ecol_rootZoneDepth > 0)
+    [ set p_soil_waterContentRatio p_soil_waterContent / p_ecol_rootZoneDepth ]
+    [ set p_soil_waterContentRatio 0]
 
     ; Calculate ARID coefficient or drought index
     set p_soil_ARID 0
@@ -1520,6 +1605,8 @@ to update-ecological-communities
 
   ask patches
   [
+    apply-inundation-effect
+
     apply-ecological-recolonisation
 
     advance-ecological-succession
@@ -1527,6 +1614,22 @@ to update-ecological-communities
     set-ecological-communities-biomass
 
     set-ecological-community-root-zone-depth
+  ]
+
+end
+
+to apply-inundation-effect
+
+  ;;; inundation (the expansion of water surface) will conquer the ecological components' area.
+  ;;; The effect is assumed to affect ecological components evenly.
+
+  let sum% p_ecol_%wood + p_ecol_%brush + p_ecol_%grass
+
+  if (p_ecol_%water > 0 and sum% > 0)
+  [
+    set p_ecol_%wood 100 * (p_ecol_%wood / sum%) * (1 - p_ecol_%water / 100)
+    set p_ecol_%brush 100 * (p_ecol_%brush / sum%) * (1 - p_ecol_%water / 100)
+    set p_ecol_%grass 100 * (p_ecol_%grass / sum%) * (1 - p_ecol_%water / 100)
   ]
 
 end
@@ -1566,21 +1669,21 @@ to advance-ecological-succession
   set p_ecol_%wood (p_ecol_%wood +
     recoveryRate_%wood *
     ((p_initEcol_%wood * (1 - p_soil_ARID * (get-water-stress-sensitivity-of-ecological-component "wood")) *
-      (100 - p_ecol_%water) / 100) - p_ecol_%wood
+      (1 - p_ecol_%water / 100)) - p_ecol_%wood
     )
   )
 
   set p_ecol_%brush (p_ecol_%brush +
     recoveryRate_%brush *
     ((p_initEcol_%brush * (1 - p_soil_ARID * (get-water-stress-sensitivity-of-ecological-component "brush")) *
-      (100 - p_ecol_%water) / 100) - p_ecol_%brush
+      (1 - p_ecol_%water / 100)) - p_ecol_%brush
     )
   )
 
   set p_ecol_%grass (p_ecol_%grass +
     recoveryRate_%grass *
     ((p_initEcol_%grass * (1 - p_soil_ARID * (get-water-stress-sensitivity-of-ecological-component "grass")) *
-      (100 - p_ecol_%water) / 100) - p_ecol_%grass
+      (1 - p_ecol_%water / 100)) - p_ecol_%grass
     )
   )
 
@@ -1588,24 +1691,34 @@ end
 
 to set-ecological-communities-biomass
 
-  set p_ecol_biomass (list
-    ((p_ecol_%wood / 100) * (get-biomass-of-ecological-component "wood") * patchArea)
-    ((p_ecol_%brush / 100) * (get-biomass-of-ecological-component "brush") * patchArea)
-    ((p_ecol_%grass / 100) * (get-biomass-of-ecological-component "grass") * patchArea)
-  )
+  set p_ecol_biomass get-ecological-communities-biomass p_ecol_%wood p_ecol_%brush p_ecol_%grass
+
+end
+
+to-report get-ecological-communities-biomass [ %wood %brush %grass ]
+
+  report
+  (%wood / 100) * (get-biomass-of-ecological-component "wood") +
+  (%brush / 100) * (get-biomass-of-ecological-component "brush") +
+  (%grass / 100) * (get-biomass-of-ecological-component "grass")
 
 end
 
 to set-ecological-community-root-zone-depth
 
-  set p_ecol_rootZoneDepth (
-    ((p_ecol_%wood / 100) * (get-max-root-depth-of-ecological-component "wood")) +
-    ((p_ecol_%brush / 100) * (get-max-root-depth-of-ecological-component "brush")) +
-    ((p_ecol_%grass / 100) * (get-max-root-depth-of-ecological-component "grass"))
-  )
+  set p_ecol_rootZoneDepth get-ecological-community-root-zone-depth p_ecol_%wood p_ecol_%brush p_ecol_%grass
 
   set p_ecol_rootZoneDepth min (list p_soil_depth p_ecol_rootZoneDepth) ;;; it cannot be deeper than the soil layer
   ;;; root zone depth will be 0 if there is no active (terrestrial) ecological community (100% bare soil or water)
+
+end
+
+to-report get-ecological-community-root-zone-depth [ %wood %brush %grass ]
+
+  report
+  (%wood / 100) * (get-max-root-depth-of-ecological-component "wood") +
+  (%brush / 100) * (get-max-root-depth-of-ecological-component "brush") +
+  (%grass / 100) * (get-max-root-depth-of-ecological-component "grass")
 
 end
 
@@ -1674,11 +1787,12 @@ to update-crops
         ]
         [
           set p_crop_yield replace-item cropIndex p_crop_yield 0
+
           set p_crop_totalYield replace-item cropIndex p_crop_totalYield 0
         ]
 
         ;;; reset biomass and auxiliary variables
-        reset-variables cropIndex
+        reset-crop-variables cropIndex
       ]
     ]
   ]
@@ -1687,7 +1801,7 @@ end
 
 ;;; PATCHES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-to reset-variables [ cropIndex ]
+to reset-crop-variables [ cropIndex ]
 
   set p_crop_TT replace-item cropIndex p_crop_TT 0
   set p_crop_biomass replace-item cropIndex p_crop_biomass 0
@@ -1732,13 +1846,13 @@ to update-biomass [ cropIndex ]
 
   update-f_Heat cropIndex
 
-  update-f__Water cropIndex
+  update-f_Water cropIndex
 
   set p_crop_I_50Blocal replace-item cropIndex p_crop_I_50Blocal ((item cropIndex crop_I_50B) + (item cropIndex crop_I_50maxW) * (1 - item cropIndex p_crop_f_Water) + (item cropIndex crop_I_50maxH) * (1 - item cropIndex p_crop_f_Heat))
 
   update-f_Solar cropIndex
 
-  set p_crop_biomass_rate replace-item cropIndex p_crop_biomass_rate (solarRadiation * (item cropIndex crop_RUE) * item cropIndex p_crop_f_Solar * item cropIndex p_crop_f_Temp * min (list (item cropIndex p_crop_f_Heat) (item cropIndex p_crop_f_Water)))
+  set p_crop_biomass_rate replace-item cropIndex p_crop_biomass_rate (solarRadiation * (item cropIndex crop_RUE) * item cropIndex p_crop_f_Solar * item cropIndex p_crop_f_Temp * (clampMin0 (min (list (item cropIndex p_crop_f_Heat) (item cropIndex p_crop_f_Water)))))
 
   set p_crop_biomass replace-item cropIndex p_crop_biomass (item cropIndex p_crop_biomass + item cropIndex p_crop_biomass_rate)
 
@@ -1796,7 +1910,7 @@ to update-f_Heat [ cropIndex ]
 
 end
 
-to update-f__Water [ cropIndex ]
+to update-f_Water [ cropIndex ]
 
   set p_crop_f_Water replace-item cropIndex p_crop_f_Water (1 - (item cropIndex crop_S_Water) * p_soil_ARID)
 
@@ -1804,13 +1918,11 @@ end
 
 to update-f_Solar [ cropIndex ]
 
-  ifelse (item cropIndex p_crop_TT < item cropIndex crop_T_sum)
-  [
-    set p_crop_f_Solar replace-item cropIndex p_crop_f_Solar (crop_f_Solar_max / (1 + e ^ (-0.01 * (item cropIndex p_crop_TT - item cropIndex crop_I_50A))))
-  ]
-  [
-    set p_crop_f_Solar replace-item cropIndex p_crop_f_Solar (crop_f_Solar_max / (1 + e ^ (-0.01 * (item cropIndex p_crop_TT - item cropIndex p_crop_I_50Blocal))))
-  ]
+  let f_Solar_early (crop_f_Solar_max / (1 + e ^ (-0.01 * (item cropIndex p_crop_TT - item cropIndex crop_I_50A))))
+
+  let f_Solar_late (crop_f_Solar_max / (1 + e ^ (-0.01 * (item cropIndex p_crop_TT - item cropIndex p_crop_I_50Blocal))))
+
+  set p_crop_f_Solar replace-item cropIndex p_crop_f_Solar min (list f_Solar_early f_Solar_late)
 
   ;;; drought effect
   if (item cropIndex p_crop_f_Water < 0.1)
@@ -2261,18 +2373,18 @@ to refresh-to-display-mode
     ]
     set-legend-ecologicalCommunityComposition
   ]
-  if (display-mode = "total ecological community biomass (Kg/patch)")
+  if (display-mode = "total ecological community biomass (Kg)")
   [
-    let minBiomass 0.001 * min [sum p_ecol_biomass] of patches
-    let maxBiomass 0.001 * max [sum p_ecol_biomass] of patches
+    let minBiomass 0.001 * patchArea * min [p_ecol_biomass] of patches
+    let maxBiomass 0.001 * patchArea * max [p_ecol_biomass] of patches
 
     ask patches
     [
-      ifelse (sum p_ecol_biomass > 0)
-      [ set pcolor 52 + 6 * (1 - ((0.001 * sum p_ecol_biomass) - minBiomass) / (maxBiomass + 1E-6 - minBiomass)) ]
+      ifelse (p_ecol_biomass > 0)
+      [ set pcolor 52 + 6 * (1 - ((0.001 * patchArea * p_ecol_biomass) - minBiomass) / (maxBiomass + 1E-6 - minBiomass)) ]
       [ set pcolor 59 ]
     ]
-    set-legend-continuous-range maxBiomass minBiomass 59 52 7 true
+    set-legend-continuous-range maxBiomass minBiomass 52 59 7 true
   ]
   if (display-mode = "cover type")
   [
@@ -2904,6 +3016,34 @@ end
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; FILE HANDLING ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; EXPORT YIELD PERFORMANCES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to setup-yield-performance-data-file
+
+  ;;; build a unique file name according to the user setting
+  let filePath (word "output//yield//terrain_random_w=" world-width "_h=" world-height "_a=" elev_algorithm-style "_fill-sinks=" flow_do-fill-sinks "_terrainSeed=" terrainRandomSeed "_seed=" randomSeed)
+
+  ;;; check that filePath does not exceed 100 (not common in this context)
+  if (length filePath > 100) [ print "WARNING: file path may be too long, depending on your current directory. Decrease length of file name or increase the limit." set filePath substring filePath 0 100 ]
+
+
+
+end
+
+to export-yield-performance
+
+
+
+end
+
+to export-yield-performance-of-patch [ aPatch ]
+
+
+
+end
+
+;;; IMPORT TERRAIN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 to import-terrain
 
@@ -3755,7 +3895,7 @@ INPUTBOX
 164
 312
 terrainRandomSeed
-35.0
+0.0
 1
 0
 Number
@@ -4013,7 +4153,7 @@ INPUTBOX
 394
 399
 par_riverWaterPerFlowAccumulation
-1.0E-4
+0.0
 1
 0
 Number
@@ -4260,9 +4400,9 @@ temperature_dailyUpperDeviation
 
 PLOT
 1566
-492
+513
 2116
-612
+633
 Temperature
 days
 ºC
@@ -4325,9 +4465,9 @@ HORIZONTAL
 
 PLOT
 1566
-613
+634
 2064
-733
+754
 Solar radiation
 days
 MJ/m2
@@ -4403,8 +4543,8 @@ CHOOSER
 55
 display-mode
 display-mode
-"elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "surface water width (%)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "soil water content (ratio)" "ecological community composition" "total ecological community biomass (Kg/patch)" "cover type" "albedo (%)" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "ARID coefficient" "crop-to-display frequency (%)" "total crop biomass (Kg/patch)" "total crop yield (Kg/patch)"
-16
+"elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "surface water width (%)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "soil water content (ratio)" "ecological community composition" "total ecological community biomass (Kg)" "cover type" "albedo (%)" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "ARID coefficient" "crop-to-display frequency (%)" "total crop biomass (Kg/patch)" "total crop yield (Kg/patch)"
+1
 
 BUTTON
 893
@@ -4441,10 +4581,10 @@ NIL
 1
 
 SLIDER
-24
-831
-425
-864
+22
+865
+423
+898
 precipitation_yearly-mean
 precipitation_yearly-mean
 0
@@ -4456,10 +4596,10 @@ mm/year (default: 489)
 HORIZONTAL
 
 SLIDER
-21
-871
-423
-904
+19
+905
+421
+938
 precipitation_yearly-sd
 precipitation_yearly-sd
 0
@@ -4471,10 +4611,10 @@ mm/year (default: 142.2)
 HORIZONTAL
 
 SLIDER
-21
-921
-429
-954
+19
+955
+427
+988
 precipitation_daily-cum_n-samples
 precipitation_daily-cum_n-samples
 0
@@ -4486,10 +4626,10 @@ precipitation_daily-cum_n-samples
 HORIZONTAL
 
 SLIDER
-21
-958
-429
-991
+19
+992
+427
+1025
 precipitation_daily-cum_max-sample-size
 precipitation_daily-cum_max-sample-size
 1
@@ -4501,10 +4641,10 @@ precipitation_daily-cum_max-sample-size
 HORIZONTAL
 
 SLIDER
-15
-1013
-499
-1046
+13
+1047
+497
+1080
 precipitation_daily-cum_plateau-value_yearly-mean
 precipitation_daily-cum_plateau-value_yearly-mean
 0.2
@@ -4516,10 +4656,10 @@ winter (mm)/summer (mm) (default: 0.25)
 HORIZONTAL
 
 SLIDER
-16
-1045
-499
-1078
+14
+1079
+497
+1112
 precipitation_daily-cum_plateau-value_yearly-sd
 precipitation_daily-cum_plateau-value_yearly-sd
 0
@@ -4531,25 +4671,25 @@ precipitation_daily-cum_plateau-value_yearly-sd
 HORIZONTAL
 
 SLIDER
-20
-1091
-499
-1124
+18
+1125
+497
+1158
 precipitation_daily-cum_inflection1_yearly-mean
 precipitation_daily-cum_inflection1_yearly-mean
 40
 140
-40.0
+0.0
 1.0
 1
 day of year (default: 40)
 HORIZONTAL
 
 SLIDER
-23
-1127
-501
-1160
+21
+1161
+499
+1194
 precipitation_daily-cum_inflection1_yearly-sd
 precipitation_daily-cum_inflection1_yearly-sd
 20
@@ -4561,10 +4701,10 @@ days (default: 5)
 HORIZONTAL
 
 SLIDER
-25
-1165
-503
-1198
+23
+1199
+501
+1232
 precipitation_daily-cum_rate1_yearly-mean
 precipitation_daily-cum_rate1_yearly-mean
 0.01
@@ -4576,10 +4716,10 @@ precipitation_daily-cum_rate1_yearly-mean
 HORIZONTAL
 
 SLIDER
-25
-1202
-501
-1235
+23
+1236
+499
+1269
 precipitation_daily-cum_rate1_yearly-sd
 precipitation_daily-cum_rate1_yearly-sd
 0.004
@@ -4591,10 +4731,10 @@ precipitation_daily-cum_rate1_yearly-sd
 HORIZONTAL
 
 SLIDER
-33
-1245
-503
-1278
+664
+1127
+1134
+1160
 precipitation_daily-cum_inflection2_yearly-mean
 precipitation_daily-cum_inflection2_yearly-mean
 180
@@ -4606,25 +4746,25 @@ day of year (default: 240)
 HORIZONTAL
 
 SLIDER
-34
-1283
-502
-1316
+665
+1165
+1133
+1198
 precipitation_daily-cum_inflection2_yearly-sd
 precipitation_daily-cum_inflection2_yearly-sd
 20
 100
-20.0
+0.0
 1
 1
 days (default: 20)
 HORIZONTAL
 
 SLIDER
-35
-1320
-500
-1353
+666
+1202
+1131
+1235
 precipitation_daily-cum_rate2_yearly-mean
 precipitation_daily-cum_rate2_yearly-mean
 0.01
@@ -4636,10 +4776,10 @@ precipitation_daily-cum_rate2_yearly-mean
 HORIZONTAL
 
 SLIDER
-35
-1357
-508
-1390
+666
+1239
+1139
+1272
 precipitation_daily-cum_rate2_yearly-sd
 precipitation_daily-cum_rate2_yearly-sd
 0.004
@@ -4650,11 +4790,26 @@ precipitation_daily-cum_rate2_yearly-sd
 (default: 0.02)
 HORIZONTAL
 
-MONITOR
+SLIDER
+98
+819
 424
-830
-552
-867
+852
+precipitation_yearly-mean-bias
+precipitation_yearly-mean-bias
+-500
+500
+100.0
+1
+1
+mm/year
+HORIZONTAL
+
+MONITOR
+422
+864
+550
+901
 NIL
 precipitation_yearlyMean
 2
@@ -4662,10 +4817,10 @@ precipitation_yearlyMean
 9
 
 MONITOR
-423
-868
-561
-905
+421
+902
+559
+939
 NIL
 precipitation_yearlySd
 2
@@ -4673,10 +4828,10 @@ precipitation_yearlySd
 9
 
 MONITOR
-428
-919
-585
-956
+426
+953
+583
+990
 NIL
 precipitation_dailyCum_nSamples
 2
@@ -4684,10 +4839,10 @@ precipitation_dailyCum_nSamples
 9
 
 MONITOR
-427
-956
-608
-993
+425
+990
+606
+1027
 NIL
 precipitation_dailyCum_maxSampleSize
 2
@@ -4695,10 +4850,10 @@ precipitation_dailyCum_maxSampleSize
 9
 
 MONITOR
-499
-1010
-723
-1047
+497
+1044
+721
+1081
 NIL
 precipitation_dailyCum_plateauValue_yearlyMean
 2
@@ -4706,10 +4861,10 @@ precipitation_dailyCum_plateauValue_yearlyMean
 9
 
 MONITOR
-500
-1045
-722
-1082
+498
+1079
+720
+1116
 NIL
 precipitation_dailyCum_plateauValue_yearlySd
 2
@@ -4717,10 +4872,10 @@ precipitation_dailyCum_plateauValue_yearlySd
 9
 
 MONITOR
-500
-1091
-656
-1128
+498
+1125
+654
+1162
 NIL
 precipitation_dailyCum_inflection1_yearlyMean
 2
@@ -4728,10 +4883,10 @@ precipitation_dailyCum_inflection1_yearlyMean
 9
 
 MONITOR
-503
-1130
-657
-1167
+501
+1164
+655
+1201
 NIL
 precipitation_dailyCum_inflection1_yearlySd
 2
@@ -4739,10 +4894,10 @@ precipitation_dailyCum_inflection1_yearlySd
 9
 
 MONITOR
-500
-1166
-656
-1203
+498
+1200
+654
+1237
 NIL
 precipitation_dailyCum_rate1_yearlyMean
 2
@@ -4750,10 +4905,10 @@ precipitation_dailyCum_rate1_yearlyMean
 9
 
 MONITOR
-503
-1205
-657
-1242
+501
+1239
+655
+1276
 NIL
 precipitation_dailyCum_rate1_yearlySd
 2
@@ -4761,10 +4916,10 @@ precipitation_dailyCum_rate1_yearlySd
 9
 
 MONITOR
-505
-1244
-661
-1281
+1136
+1126
+1292
+1163
 NIL
 precipitation_dailyCum_inflection2_yearlyMean
 2
@@ -4772,10 +4927,10 @@ precipitation_dailyCum_inflection2_yearlyMean
 9
 
 MONITOR
-507
-1279
-661
-1316
+1138
+1161
+1292
+1198
 NIL
 precipitation_dailyCum_inflection2_yearlySd
 2
@@ -4783,10 +4938,10 @@ precipitation_dailyCum_inflection2_yearlySd
 9
 
 MONITOR
-505
-1314
-661
-1351
+1136
+1196
+1292
+1233
 NIL
 precipitation_dailyCum_rate2_yearlyMean
 2
@@ -4794,10 +4949,10 @@ precipitation_dailyCum_rate2_yearlyMean
 9
 
 MONITOR
-508
-1353
-662
-1390
+1139
+1235
+1293
+1272
 NIL
 precipitation_dailyCum_rate2_yearlySd
 2
@@ -4806,9 +4961,9 @@ precipitation_dailyCum_rate2_yearlySd
 
 PLOT
 1566
-734
+755
 2157
-854
+875
 precipitation
 days
 mm
@@ -4825,9 +4980,9 @@ PENS
 
 PLOT
 1799
-855
+876
 2056
-975
+996
 cumulative year precipitation
 NIL
 NIL
@@ -4843,9 +4998,9 @@ PENS
 
 PLOT
 1566
-855
+876
 1799
-975
+996
 year preciptation
 NIL
 NIL
@@ -4861,9 +5016,9 @@ PENS
 
 MONITOR
 2059
-890
+911
 2132
-935
+956
 year total
 sum precipitation_yearSeries
 2
@@ -4874,7 +5029,7 @@ PLOT
 1566
 251
 2187
-371
+393
 Ecological communities
 days
 NIL
@@ -4887,16 +5042,17 @@ true
 "set-plot-y-range -1 101" ""
 PENS
 "mean water (%)" 1.0 1 -14454117 true "" "plot 100"
-"mean wood (%)" 1.0 1 -14835848 true "" "plot 100 - mean [get-%water-surface p_water] of patches"
-"mean brush (%)" 1.0 1 -6459832 true "" "plot 100 - (mean [p_ecol_%wood] of patches + mean [get-%water-surface p_water] of patches)"
-"mean grass (%)" 1.0 1 -13840069 true "" "plot 100 - (mean [p_ecol_%brush] of patches + mean [p_ecol_%wood] of patches + mean [get-%water-surface p_water] of patches)"
-"mean bare soil (%)" 1.0 1 -16777216 true "" "plot 100 - (mean [p_ecol_%grass] of patches + mean [p_ecol_%brush] of patches + mean [p_ecol_%wood] of patches + mean [get-%water-surface p_water] of patches)"
+"mean wood (%)" 1.0 1 -14835848 true "" "plot 100 - mean [p_ecol_%water] of patches"
+"mean brush (%)" 1.0 1 -6459832 true "" "plot 100 - (mean [p_ecol_%wood] of patches + mean [p_ecol_%water] of patches)"
+"mean grass (%)" 1.0 1 -13840069 true "" "plot 100 - (mean [p_ecol_%brush] of patches + mean [p_ecol_%wood] of patches + mean [p_ecol_%water] of patches)"
+"crop (%)" 1.0 1 -4079321 true "" "plot 100 - (mean [p_ecol_%grass] of patches + mean [p_ecol_%brush] of patches + mean [p_ecol_%wood] of patches + mean [p_ecol_%water] of patches)"
+"mean bare soil (%)" 1.0 1 -16777216 true "" "plot 100 - (crop_intensity + mean [p_ecol_%grass] of patches + mean [p_ecol_%brush] of patches + mean [p_ecol_%wood] of patches + mean [p_ecol_%water] of patches)"
 
 PLOT
 1566
-372
+393
 2229
-492
+513
 Soil water content & ARID
 days
 NIL
@@ -5152,7 +5308,7 @@ INPUTBOX
 1258
 909
 crop-selection
-[\"wheat\" \"rice\" \"barley\" \"pearl millet\"]
+0
 1
 0
 String
@@ -5163,7 +5319,7 @@ INPUTBOX
 1546
 70
 crop-to-display
-wheat
+0
 1
 0
 String
@@ -5177,7 +5333,7 @@ crop-intensity
 crop-intensity
 0
 100
-60.0
+50.0
 1
 1
 % of patch area
@@ -5559,6 +5715,47 @@ NetLogo 6.0.4
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
+<experiments>
+  <experiment name="noRiver_dry" repetitions="1" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <metric>count turtles</metric>
+    <enumeratedValueSet variable="type-of-experiment">
+      <value value="&quot;random&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="randomSeed">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="elev_algorithm-style">
+      <value value="&quot;C#&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="flow_do-fill-sinks">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="terrainRandomSeed" first="0" step="1" last="100"/>
+    <enumeratedValueSet variable="par_elev_seaLevelReferenceShift">
+      <value value="-1000"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="southHemisphere?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="precipitation_yearly-mean">
+      <value value="489"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="precipitation_yearly-sd">
+      <value value="142.2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="crop-intensity">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="crop-selection">
+      <value value="&quot;[\&quot;wheat\&quot; \&quot;rice\&quot; \&quot;barley\&quot; \&quot;pearl millet\&quot;]&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="end-simulation-in-tick">
+      <value value="3650"/>
+    </enumeratedValueSet>
+  </experiment>
+</experiments>
 @#$#@#$#@
 @#$#@#$#@
 default
