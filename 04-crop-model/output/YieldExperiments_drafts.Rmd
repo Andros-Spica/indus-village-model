@@ -1,0 +1,269 @@
+---
+title: "Simple crop model - analysis of yield experiments"
+author: "Andreas Angourakis"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+```{r}
+
+```
+
+## Load data
+
+Load all experiment output files in the "yield" folder, generated with this version ("Simple crop model").
+
+```{r}
+file_names <- paste0("yield/", list.files("yield"))
+
+isThisVersion <- grepl("SIMPLE-crop-model_yield", file_names)
+
+yieldData <- do.call(rbind, lapply(file_names[isThisVersion], read.csv))
+```
+
+Preview the data structure
+
+```{r}
+knitr::kable(head(yieldData))
+```
+
+## All crops
+
+Visualise simulation results for all crops included in Zhao et al. 2019 (except those taking more than a year to reach maturity; i.e. banana, cotton, peanut and cassava). NOTE: banana is already not used for simulations.
+
+## Preparations
+
+Reconstruct cropTable content:
+
+```{r}
+cropTableNames <- c("crop", "T_sum", "HI", "I_50A", "I_50B", "T_base", "T_opt", "RUE", "I_50maxH", "I_50maxW", "T_heat", "T_extreme", "S_CO2", "S_water", "sowingDay", "harvestDay")
+
+cropTable <- data.frame(matrix(ncol=length(cropTableNames),nrow=0, dimnames=list(NULL, cropTableNames)))
+
+for (aCrop in levels(yieldData$crop))
+{
+  cropTable <- rbind(cropTable, yieldData[match(aCrop, yieldData$crop), cropTableNames])
+}
+```
+
+Filter out cassava, cotton and peanut:
+
+```{r}
+notAnnualCrops <- c(" 'cassava'", " 'cotton'", " 'peanut'")
+notAnnual <- yieldData$crop == " 'cassava'" | yieldData$crop == " 'cotton'" | yieldData$crop == " 'peanut'"
+
+yieldData <- yieldData[!notAnnual,]
+
+# crop factor variable needs resetting levels
+yieldData$crop <- factor(yieldData$crop)
+```
+
+Get vector of colours to represent crops:
+
+```{r}
+cropColours <- rainbow(nlevels(yieldData$crop), s = 0.8, end = 0.9)
+```
+
+## Impact of weather variables
+
+### Temperature
+
+```{r}
+temperatureParNames <- c("temperature_annualMaxAt2m","temperature_annualMinAt2m",
+                         "temperature_meanDailyFluctuation",
+                         "temperature_dailyLowerDeviation","temperature_dailyUpperDeviation")
+temperatureParUnits <- c("(C)", "(C)", "(C)", "(C)", "(C)")
+
+plotName = "plots/yieldVsTemperaturePars.png"
+
+grScale = 2
+fontRescale = 0
+fontRescaleDay = 0
+
+nPlotRows = nlevels(yieldData$crop)
+nPlotColumns = length(temperatureParNames)
+
+png(plotName, width = grScale * 500, height = grScale * 500)
+
+layout(matrix(1:((nPlotRows + 1) * (nPlotColumns + 1)), ncol = nPlotColumns + 1, byrow = T),
+       widths = c(3, rep(10, nPlotColumns)),
+       heights = c(rep(10, nPlotRows), 3))
+
+# plot rows
+
+for (aCrop in levels(yieldData$crop))
+{
+  # row title
+  par(mar = c(0, 0, 0, 0))
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  text(x = 0.5, y = 0.5, font = 4, 
+       cex = grScale * (0.6 + fontRescale), srt = 90,
+       labels = aCrop)
+  # plots
+  par(mar = c(1, 1, 0.1, 0.1), 
+      cex.axis = grScale * (0.6 + fontRescale))
+  for (aParName in temperatureParNames)
+  {
+    xaxt = ifelse(aParName == temperatureParNames[1],'s', 'n')
+    yaxt = ifelse(aCrop == nlevels(yieldData$crop),'s', 'n')
+    plot(yieldData[yieldData$crop == aCrop, aParName], yieldData$yield[yieldData$crop == aCrop],
+         xlab = "", xaxt = xaxt, ylab = "", yaxt = yaxt)
+  }
+}
+
+# last row
+par(mar = c(0, 0, 0, 0))
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+for (aParName in temperatureParNames)
+{
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  text(x = 0.5, y = 0.5, font = 4, 
+     cex = grScale * (0.6 + fontRescale), 
+     labels = paste(aParName, temperatureParUnits[match(aParName, temperatureParNames)]))
+}
+
+dev.off()
+
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+### Solar radiation
+
+```{r}
+solarParNames <- c("solar_annualMax", "solar_annualMin", "solar_meanDailyFluctuation")
+solarParUnits <- rep(expression(paste("    Solar\nRadiation (", MJ/m^-2, ")")), 3)
+
+plotName = "plots/yieldVsSolarPars.png"
+
+grScale = 2
+fontRescale = 0
+fontRescaleDay = 0
+
+nPlotRows = nlevels(yieldData$crop)
+nPlotColumns = length(solarParNames)
+
+png(plotName, width = grScale * 500, height = grScale * 500)
+
+layout(matrix(1:((nPlotRows + 1) * (nPlotColumns + 1)), ncol = nPlotColumns + 1, byrow = T),
+       widths = c(3, rep(10, nPlotColumns)),
+       heights = c(rep(10, nPlotRows), 3))
+
+# plot rows
+
+for (aCrop in levels(yieldData$crop))
+{
+  # row title
+  par(mar = c(0, 0, 0, 0))
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  text(x = 0.5, y = 0.5, font = 4, 
+       cex = grScale * (0.6 + fontRescale), srt = 90,
+       labels = aCrop)
+  # plots
+  par(mar = c(1, 1, 0.1, 0.1), 
+      cex.axis = grScale * (0.6 + fontRescale))
+  for (aParName in solarParNames)
+  {
+    xaxt = ifelse(aParName == solarParNames[1],'s', 'n')
+    yaxt = ifelse(aCrop == nlevels(yieldData$crop),'s', 'n')
+    plot(yieldData[yieldData$crop == aCrop, aParName], yieldData$yield[yieldData$crop == aCrop],
+         xlab = "", xaxt = xaxt, ylab = "", yaxt = yaxt)
+  }
+}
+
+# last row
+par(mar = c(0, 0, 0, 0))
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+for (aParName in solarParNames)
+{
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  text(x = 0.5, y = 0.5, font = 4, 
+     cex = grScale * (0.6 + fontRescale), 
+     labels = paste(aParName, solarParUnits[match(aParName, solarParNames)]))
+}
+
+dev.off()
+
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+### Precipitation
+
+```{r}
+precipitationParNames <- c(
+  "precipitation_yearlyMean", "precipitation_yearlySd",
+  "precipitation_dailyCum_plateauValue_yearlyMean", "precipitation_dailyCum_plateauValue_yearlySd",
+  "precipitation_dailyCum_inflection1_yearlyMean", "precipitation_dailyCum_inflection1_yearlySd", 
+  "precipitation_dailyCum_rate1_yearlyMean", "precipitation_dailyCum_rate1_yearlySd",
+  "precipitation_dailyCum_inflection2_yearlyMean", "precipitation_dailyCum_inflection2_yearlySd", 
+  "precipitation_dailyCum_rate2_yearlyMean", "precipitation_dailyCum_rate2_yearlySd"
+  )
+precipitationParUnits <- c("(mm)", "(mm)", rep("", length(precipitationParNames) - 2))
+
+plotName = "plots/yieldVsPrecipitation.png"
+
+grScale = 2
+fontRescale = 0
+fontRescaleDay = 0
+
+nPlotRows = nlevels(yieldData$crop)
+nPlotColumns = length(precipitationParNames)
+
+png(plotName, width = grScale * 500, height = grScale * 500)
+
+layout(matrix(1:((nPlotRows + 1) * (nPlotColumns + 1)), ncol = nPlotColumns + 1, byrow = T),
+       widths = c(3, rep(10, nPlotColumns)),
+       heights = c(rep(10, nPlotRows), 3))
+
+# plot rows
+
+for (aCrop in levels(yieldData$crop))
+{
+  # row title
+  par(mar = c(0, 0, 0, 0))
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  text(x = 0.5, y = 0.5, font = 4, 
+       cex = grScale * (0.6 + fontRescale), srt = 90,
+       labels = aCrop)
+  # plots
+  par(mar = c(1, 1, 0.1, 0.1), 
+      cex.axis = grScale * (0.6 + fontRescale))
+  for (aParName in precipitationParNames)
+  {
+    xaxt = ifelse(aParName == precipitationParNames[1],'s', 'n')
+    yaxt = ifelse(aCrop == nlevels(yieldData$crop),'s', 'n')
+    plot(yieldData[yieldData$crop == aCrop, aParName], yieldData$yield[yieldData$crop == aCrop],
+         xlab = "", xaxt = xaxt, ylab = "", yaxt = yaxt)
+  }
+}
+
+# last row
+par(mar = c(0, 0, 0, 0))
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+for (aParName in precipitationParNames)
+{
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  text(x = 0.5, y = 0.5, font = 4, 
+     cex = grScale * (0.6 + fontRescale), 
+     labels = paste(aParName, precipitationParUnits[match(aParName, precipitationParNames)]))
+}
+
+dev.off()
+
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
