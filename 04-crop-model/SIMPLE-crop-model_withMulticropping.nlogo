@@ -538,8 +538,8 @@ to parameters-to-default
   set runoff-curve_min                                         50
   set runoff-curve_max                                         80
 
-  set crops-selected                   (word (map [i -> (word "\"" i "\"")] typesOfCrops))
-  set crop-to-display                               (first typesOfCrops)
+  ;set crops-selected                   (word (map [i -> (word "\"" i "\"")] typesOfCrops))
+  ;set crop-to-display                               (first typesOfCrops)
 
 end
 
@@ -2016,7 +2016,7 @@ INPUTBOX
 122
 128
 randomSeed
-15.0
+10.0
 1
 0
 Number
@@ -3293,7 +3293,7 @@ INPUTBOX
 401
 438
 experiment-initRandomSeed
-10.0
+8.0
 1
 0
 Number
@@ -3304,7 +3304,7 @@ INPUTBOX
 560
 438
 experiment-numberOfRuns
-5.0
+2.0
 1
 0
 Number
