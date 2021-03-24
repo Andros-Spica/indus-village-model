@@ -848,22 +848,22 @@ for (aCrop in levels(yieldData$crop))
 knitr::kable(linearModels.table)
 ```
 
-## Indus-related crops
+## Wheat vs rice
 
 ### Preparations
 
-Create filter for Indus crops:
+Create filter for wheat and rice:
 
 ```{r}
-indusCrops <- c(" 'wheat 1'", " 'wheat 2'", " 'rice'", " 'dry bean'", " 'greenbean'")
+wheatAndRice <- c(" 'wheat 1'", " 'wheat 2'", " 'rice'")
 
-isIndusCrop <- yieldData$crop == " 'wheat 1'" | yieldData$crop == " 'wheat 2'" | yieldData$crop == " 'rice'" | yieldData$crop == " 'dry bean'" | yieldData$crop == " 'greenbean'"
+isWheatAndRice <- yieldData$crop == " 'wheat 1'" | yieldData$crop == " 'wheat 2'" | yieldData$crop == " 'rice'"
 ```
 
-Apply filter (optional):
+Apply filter:
 
 ```{r}
-yieldData <- yieldData[isIndusCrop,]
+yieldData <- yieldData[isWheatAndRice,]
 
 # crop factor variable needs resetting levels
 yieldData$crop <- factor(yieldData$crop)
@@ -907,7 +907,7 @@ knitr::kable(yieldData_summary)
 ```
 
 ```{r}
-plotName = "plots/SIMPLE-crop-model/yieldPerCrop_indus.png"
+plotName = "plots/SIMPLE-crop-model/yieldPerCrop_wheatVsRice.png"
 
 grScale = 2
 fontRescale = 0
@@ -930,7 +930,7 @@ knitr::include_graphics(plotName)
 ```
 
 ```{r}
-plotName = "plots/SIMPLE-crop-model/yield_scaledPerCrop_indus.png"
+plotName = "plots/SIMPLE-crop-model/yield_scaledPerCrop_wheatVsRice.png"
 
 grScale = 2
 fontRescale = 0
@@ -957,7 +957,7 @@ knitr::include_graphics(plotName)
 Plotting ARID vs precipitation yearly mean:
 
 ```{r}
-plotName = "plots/SIMPLE-crop-model/ARIDvsPrecipitation_yearlyMean_indus.png"
+plotName = "plots/SIMPLE-crop-model/ARIDvsPrecipitation_yearlyMean_wheatVsRice.png"
 
 grScale = 2
 fontRescale = 0.5
@@ -1007,7 +1007,7 @@ knitr::include_graphics(plotName)
 Plotting ARID vs precipitation seasonal balance (plateau value):
 
 ```{r}
-plotName = "plots/SIMPLE-crop-model/ARIDvsPrecipitation_dailyCum_plateauValue_yearlyMean_indus.png"
+plotName = "plots/SIMPLE-crop-model/ARIDvsPrecipitation_dailyCum_plateauValue_yearlyMean_wheatVsRice.png"
 
 grScale = 2
 fontRescale = 0.5
@@ -1070,7 +1070,7 @@ maxYield = max(yieldData$yield)
 Plotting absolute values of yield vs ARID:
 
 ```{r}
-plotName = "plots/SIMPLE-crop-model/yieldVsARID_indus.png"
+plotName = "plots/SIMPLE-crop-model/yieldVsARID_wheatVsRice.png"
 
 grScale = 2
 fontRescale = 0
@@ -1122,7 +1122,7 @@ par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
 plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
 
 legend(x = 0, y = 1, 
-       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% indusCrops], " (", levels(yieldData$crop), ")"), 
+       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% wheatAndRice], " (", levels(yieldData$crop), ")"), 
        title = "S_water (Crop-cultivar)", 
        fill = cropColours)
 
@@ -1171,7 +1171,7 @@ knitr::kable(linearModels.table)
 Plotting scaled values of yield vs ARID:
 
 ```{r}
-plotName = "plots/SIMPLE-crop-model/yieldVsARID_scaled_indus.png"
+plotName = "plots/SIMPLE-crop-model/yieldVsARID_scaled_wheatVsRice.png"
 
 grScale = 2
 fontRescale = 0
@@ -1230,7 +1230,7 @@ par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
 plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
 
 legend(x = 0, y = 1, 
-       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% indusCrops], " (", levels(yieldData$crop), ")"), 
+       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% wheatAndRice], " (", levels(yieldData$crop), ")"), 
        title = "S_water (Crop-cultivar)", 
        fill = cropColours)
 
@@ -1280,7 +1280,7 @@ knitr::kable(linearModels.table)
 Plotting absolute values of yield vs precipitation yearly mean:
 
 ```{r}
-plotName = "plots/SIMPLE-crop-model/yieldVsprecipitation_yearlyMean_indus.png"
+plotName = "plots/SIMPLE-crop-model/yieldVsprecipitation_yearlyMean_wheatVsRice.png"
 
 grScale = 2
 fontRescale = 0
@@ -1315,7 +1315,7 @@ par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
 plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
 
 legend(x = 0, y = 1, 
-       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% indusCrops], " (", levels(yieldData$crop), ")"), 
+       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% wheatAndRice], " (", levels(yieldData$crop), ")"), 
        title = "S_water (Crop-cultivar)", 
        fill = cropColours)
 
@@ -1363,7 +1363,7 @@ knitr::kable(linearModels.table)
 Plotting scaled values of yield vs precipitation yearly mean:
 
 ```{r}
-plotName = "plots/SIMPLE-crop-model/yield_scaledByCropVsprecipitation_yearlyMean_indus.png"
+plotName = "plots/SIMPLE-crop-model/yield_scaledByCropVsprecipitation_yearlyMean_wheatVsRice.png"
 
 grScale = 2
 fontRescale = 0
@@ -1398,7 +1398,7 @@ par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
 plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
 
 legend(x = 0, y = 1, 
-       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% indusCrops], " (", levels(yieldData$crop), ")"), 
+       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% wheatAndRice], " (", levels(yieldData$crop), ")"), 
        title = "S_water (Crop-cultivar)", 
        fill = cropColours)
 
@@ -1446,7 +1446,7 @@ knitr::kable(linearModels.table)
 Plotting absolute values of yield vs precipitation seasonal balance (plateau value):
 
 ```{r}
-plotName = "plots/SIMPLE-crop-model/yieldVsprecipitation_dailyCum_plateauValue_yearlyMean_indus.png"
+plotName = "plots/SIMPLE-crop-model/yieldVsprecipitation_dailyCum_plateauValue_yearlyMean_wheatVsRice.png"
 
 grScale = 2
 fontRescale = 0
@@ -1529,7 +1529,7 @@ knitr::kable(linearModels.table)
 Plotting scaled values of yield vs precipitation yearly mean:
 
 ```{r}
-plotName = "plots/SIMPLE-crop-model/yield_scaledByCropVsprecipitation_dailyCum_plateauValue_yearlyMean_indus.png"
+plotName = "plots/SIMPLE-crop-model/yield_scaledByCropVsprecipitation_dailyCum_plateauValue_yearlyMean_wheatVsRice.png"
 
 grScale = 2
 fontRescale = 0

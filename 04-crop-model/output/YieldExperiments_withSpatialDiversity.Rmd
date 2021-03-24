@@ -652,22 +652,22 @@ for (aCrop in levels(yieldData$crop))
 knitr::kable(linearModels.table)
 ```
 
-## Indus-related crops
+## Wheat vs rice
 
 ### Preparations
 
-Create filter for Indus crops:
+Create filter for wheat and rice:
 
 ```{r}
-indusCrops <- c(" 'wheat 1'", " 'wheat 2'", " 'rice'", " 'dry bean'", " 'greenbean'")
+wheatAndRice <- c(" 'wheat 1'", " 'wheat 2'", " 'rice'")
 
-isIndusCrop <- yieldData$crop == " 'wheat 1'" | yieldData$crop == " 'wheat 2'" | yieldData$crop == " 'rice'" | yieldData$crop == " 'dry bean'" | yieldData$crop == " 'greenbean'"
+isWheatAndRice <- yieldData$crop == " 'wheat 1'" | yieldData$crop == " 'wheat 2'" | yieldData$crop == " 'rice'"
 ```
 
-Apply filter (optional):
+Apply filter:
 
 ```{r}
-yieldData <- yieldData[isIndusCrop,]
+yieldData <- yieldData[isWheatAndRice,]
 
 # crop factor variable needs resetting levels
 yieldData$crop <- factor(yieldData$crop)
@@ -714,7 +714,7 @@ knitr::kable(yieldData_summary)
 ```
 
 ```{r}
-plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/yieldPerCrop_indus.png"
+plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/yieldPerCrop_wheatVsRice.png"
 
 grScale = 2
 fontRescale = 0
@@ -741,7 +741,7 @@ knitr::include_graphics(plotName)
 Plotting ARID vs elevation:
 
 ```{r}
-plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/ARIDvsElevation_indus.png"
+plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/ARIDvsElevation_wheatVsRice.png"
 
 grScale = 2
 fontRescale = 0.5
@@ -804,7 +804,7 @@ par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
 plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
 
 legend(x = 0, y = 1, 
-       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% indusCrops], " (", levels(yieldData$crop), ")"), 
+       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% wheatAndRice], " (", levels(yieldData$crop), ")"), 
        title = "S_water (Crop-cultivar)", 
        fill = cropColours)
 
@@ -854,7 +854,7 @@ knitr::kable(linearModels.table)
 Plotting ARID vs drainage coefficient:
 
 ```{r}
-plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/ARIDvsDC_indus.png"
+plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/ARIDvsDC_wheatVsRice.png"
 
 grScale = 2
 fontRescale = 0.5
@@ -917,7 +917,7 @@ par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
 plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
 
 legend(x = 0, y = 1, 
-       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% indusCrops], " (", levels(yieldData$crop), ")"), 
+       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% wheatAndRice], " (", levels(yieldData$crop), ")"), 
        title = "S_water (Crop-cultivar)", 
        fill = cropColours)
 
@@ -967,7 +967,7 @@ knitr::kable(linearModels.table)
 Plotting ARID vs water holding capacity:
 
 ```{r}
-plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/ARIDvsWHC_indus.png"
+plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/ARIDvsWHC_wheatVsRice.png"
 
 grScale = 2
 fontRescale = 0.5
@@ -1030,7 +1030,7 @@ par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
 plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
 
 legend(x = 0, y = 1, 
-       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% indusCrops], " (", levels(yieldData$crop), ")"), 
+       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% wheatAndRice], " (", levels(yieldData$crop), ")"), 
        title = "S_water (Crop-cultivar)", 
        fill = cropColours)
 
@@ -1080,7 +1080,7 @@ knitr::kable(linearModels.table)
 Plotting ARID vs albedo:
 
 ```{r}
-plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/ARIDvsAlbedo_indus.png"
+plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/ARIDvsAlbedo_wheatVsRice.png"
 
 grScale = 2
 fontRescale = 0.5
@@ -1143,7 +1143,7 @@ par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
 plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
 
 legend(x = 0, y = 1, 
-       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% indusCrops], " (", levels(yieldData$crop), ")"), 
+       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% wheatAndRice], " (", levels(yieldData$crop), ")"), 
        title = "S_water (Crop-cultivar)", 
        fill = cropColours)
 
@@ -1193,7 +1193,7 @@ knitr::kable(linearModels.table)
 Plotting yield vs albedo:
 
 ```{r}
-plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/yieldvsAlbedo_indus.png"
+plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/yieldvsAlbedo_wheatVsRice.png"
 
 grScale = 2
 fontRescale = 0.5
@@ -1226,7 +1226,7 @@ par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
 plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
 
 legend(x = 0, y = 1, 
-       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% indusCrops], " (", levels(yieldData$crop), ")"), 
+       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% wheatAndRice], " (", levels(yieldData$crop), ")"), 
        title = "S_water (Crop-cultivar)", 
        fill = cropColours)
 
