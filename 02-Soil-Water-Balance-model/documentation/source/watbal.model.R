@@ -171,15 +171,14 @@ watbal.weather = function(working.year=NULL, working.site=NULL)
 #' @return data.frame with daily weather data extracted from file, plus estimated ETr
 #' @export
 # Reading Weather data function
-watbal.weather.file = function(fileName, year = NULL)
+watbal.weather.file = function(fileName, year = NULL, linesToSkip = 18)
 {
   #day month year R Tmax Tmin rain ETP
   # R : solar radiation (MJ)
   # Tmax : maximum temperature (degC)
   # Tmin : minimum temperature (degC)
   # assuming file downloaded in NASA POWER (power.larc.nasa.gov/data-access-viewer/)
-  weather <- read.csv(fileName, skip = 17) 
-  
+  weather <- read.csv(fileName, skip = linesToSkip) 
   
   names(weather)[names(weather)=="DOY"]= "day"
   names(weather)[names(weather)=="YEAR"]= "year"
