@@ -11,46 +11,44 @@
 
 ################################################################################
 #' @title Get a day's value in an annual sinusoidal curve
-#' @description Calculate the value for a given day in an annual sinusoidal curve defined by maximum and minimum values, the length of the year in days, and the angle making the day with the lowest value in an year
+#' @description Calculate the value for a given day in an annual sinusoidal curve defined by maximum and minimum values, the length of the year in days, and the the day with the lowest value in an year
 #' @param minValue,maxValue : minimum and maximum values of the sinusoidal curve within the year
 #' @param dayOfYear : the day of year of the value to be returned
 #' @param yearLengthInDays : the number of days in the given year
-#' @param angleAtLowestValue : the angle in degrees making the day with the lowest value in an year
+#' @param dayOfYearWithLowestValue : the day with the lowest value in an year
 #' @return point value for the day of year (same units of minValue and maxValue)
 #' @export
 getDayValueInAnnualSinusoid <- function(dayOfYear,
                                         minValue, 
                                         maxValue,  
                                         yearLengthInDays, 
-                                        angleAtLowestValue)
+                                        dayOfYearWithLowestValue)
 {
   amplitude = (maxValue - minValue) / 2
-  angleAtLowestValueInRadians = angleAtLowestValue * pi / 180
   
   return(
-    minValue + amplitude * (1 + sin(angleAtLowestValueInRadians + 2*pi * dayOfYear / yearLengthInDays))
+    minValue + amplitude * (1 + sin(2*pi * ((dayOfYear - (dayOfYearWithLowestValue - yearLengthInDays)) / yearLengthInDays) - pi/2))
   )
 }
 
 ################################################################################
-#' @title Get angle at lowest value in annual sinusoidal curve
-#' @description Calculate the angle making the day with the lowest value in annual sinusoidal curve according to whether it refers to Earth's southern hemisphere
+#' @title Get day of year with lowest value in annual sinusoidal curve
+#' @description get the day of year with the lowest value in annual sinusoidal curve according to whether it refers to Earth's southern hemisphere
 #' @param southHemisphere : whether the annual curve corresponds to values in the southern or the northern hemisphere; depending on this, winter and summer solstices, as the days with minimum and maximum values, are timed differently)
 #' @param yearLengthInDays : the number of days in the given year
-#' @return values for each day of year describing an annual sinusoidal curve (same units of minValue and maxValue)
+#' @return day of year with the lowest value in the annual sinusoidal curve
 #' @export
-getAngleAtLowestValue <- function(southHemisphere,  
-                              yearLengthInDays)
+getDayOfYearWithLowestValue <- function(southHemisphere)
 {
-  angleAtLowestValue = (360 * (31+28+31+30+31+30+31+31+30+31+30+21) / yearLengthInDays) - 90 
+  dayOfYearWithLowestValue = (31+28+31+30+31+30+31+31+30+31+30+21)
   # assuming northern hemisphere, winter solstice in 21st December
   if (southHemisphere)
   {
-    angleAtLowestValue = (360 * (31+28+31+30+31+21) / yearLengthInDays) - 90
+    dayOfYearWithLowestValue = (31+28+31+30+31+21)
   }
   # assuming southern hemisphere, winter solstice in 21st June
   
-  return(angleAtLowestValue)
+  return(dayOfYearWithLowestValue)
 }
 
 ################################################################################
@@ -74,15 +72,14 @@ getDayValueInAnnualSinusoidWithFluctuation <- function(dayOfYear,
 {
   set.seed(seed = seed)
   
-  angleAtLowestValue = getAngleAtLowestValue(southHemisphere,
-                                             yearLengthInDays)
+  dayOfYearWithLowestValue = getDayOfYearWithLowestValue(southHemisphere)
   
   return(
     rnorm(1, 
           getDayValueInAnnualSinusoid(
             dayOfYear,
             minValue, maxValue,
-            yearLengthInDays, angleAtLowestValue), 
+            yearLengthInDays, dayOfYearWithLowestValue), 
           fluctuation)
   )
 }
@@ -100,8 +97,7 @@ getAnnualSinusoid <- function(minValue,
                               yearLengthInDays, 
                               southHemisphere = FALSE)
 {
-  angleAtLowestValue = getAngleAtLowestValue(southHemisphere,
-                                             yearLengthInDays)
+  dayOfYearWithLowestValue = getDayOfYearWithLowestValue(southHemisphere)
   
   curve <- c()
   
@@ -113,41 +109,7 @@ getAnnualSinusoid <- function(minValue,
                  minValue = minValue, 
                  maxValue = maxValue,
                  yearLengthInDays = yearLengthInDays, 
-                 angleAtLowestValue = angleAtLowestValue
-               )
-    )
-  }
-  
-  return(curve)
-}
-
-################################################################################
-#' @title Get an annual sinusoidal curve
-#' @description Calculate an annual sinusoidal curve defined by maximum and minimum values, the length of the year in days, and whether it refers to Earth's southern hemisphere
-#' @param minValue,maxValue : minimum and maximum values of the sinusoidal curve within the year
-#' @param yearLengthInDays : the number of days in the given year
-#' @param southHemisphere : whether the annual curve corresponds to values in the southern or the northern hemisphere; depending on this, winter and summer solstices, as the days with minimum and maximum values, are timed differently)
-#' @return values for each day of year describing an annual sinusoidal curve (same units of minValue and maxValue)
-#' @export
-getAnnualSinusoid <- function(minValue, 
-                              maxValue,  
-                              yearLengthInDays, 
-                              southHemisphere = FALSE)
-{
-  angleAtLowestValue = getAngleAtLowestValue(southHemisphere,
-                                             yearLengthInDays)
-  
-  curve <- c()
-  
-  for (dayOfYear in 1:yearLengthInDays)
-  {
-    curve <- c(curve, 
-               getDayValueInAnnualSinusoid(
-                 dayOfYear = dayOfYear,
-                 minValue = minValue, 
-                 maxValue = maxValue,
-                 yearLengthInDays = yearLengthInDays, 
-                 angleAtLowestValue = angleAtLowestValue
+                 dayOfYearWithLowestValue = dayOfYearWithLowestValue
                )
     )
   }
@@ -292,7 +254,7 @@ rescaleCurve <- function(curve)
 {
   # cover special case where the curve is a horizontal line (first = last)
   # solution: interpolate 0-1 with a line
-  if (curve[1] = curve[length(curve)]) 
+  if (curve[1] == curve[length(curve)]) 
   { 
     curve <- 1:length(curve) * 1 / length(curve)
   }
@@ -318,6 +280,9 @@ getIncrementsFromCumulativeCurve <- function(cumulativeCurve)
   # {
   #   incrementCurve[i] <- cumulativeCurve[i] - cumulativeCurve[i - 1]
   # }
+  
+  # correct negative values (in rare occasions, very small negative numbers appear at this stage)
+  incrementCurve <- sapply(incrementCurve, function(x) max(c(0, x)))
   
   return(incrementCurve)
 }
@@ -378,6 +343,16 @@ getPrecipitationOfYear <- function(plateauValue,
   return(precipitationOfYear)
 }
 
+################################################################################
+#' @title Get daily proportion to annual sum of precipitation of one year
+#' @description Get daily proportion to annual sum of precipitation of one year 
+#' @param dailyPrecipitationYear : daily values of precipitation for a length of one year
+#' @return daily proportion of annual precipitation (numeric vector, mm/mm)
+#' @export
+getProportionPrecipitationOfYear <- function(dailyPrecipitationYear)
+{
+  return(dailyPrecipitationYear / sum(dailyPrecipitationYear))
+}
 
 ################################################################################
 #' @title Get daily proportion to annual sum of precipitation of multiple years
@@ -400,14 +375,14 @@ getProportionPrecipitation <- function(dailyPrecipitation, years)
 }
 
 ################################################################################
-#' @title Get daily proportion to annual sum of precipitation of one year
-#' @description Get daily proportion to annual sum of precipitation of one year 
+#' @title Get daily cumulative sum of precipitation of one year
+#' @description Get daily cumulative sum of precipitation of one year 
 #' @param dailyPrecipitationYear : daily values of precipitation for a length of one year
-#' @return daily proportion of annual precipitation (numeric vector, mm/mm)
+#' @return daily cumulative sum of annual precipitation (numeric vector, mm/mm)
 #' @export
-getProportionPrecipitationOfYear <- function(dailyPrecipitationYear)
+getCumulativePrecipitationOfYear <- function(dailyPrecipitationYear)
 {
-  return(dailyPrecipitationYear / sum(dailyPrecipitationYear))
+  return(cumsum(dailyPrecipitationYear) / sum(dailyPrecipitationYear))
 }
 
 ################################################################################
@@ -428,17 +403,6 @@ getCumulativePrecipitation <- function(dailyPrecipitation, years)
   }
   
   return(cumulativeProportionSeries)
-}
-
-################################################################################
-#' @title Get daily cumulative sum of precipitation of one year
-#' @description Get daily cumulative sum of precipitation of one year 
-#' @param dailyPrecipitationYear : daily values of precipitation for a length of one year
-#' @return daily cumulative sum of annual precipitation (numeric vector, mm/mm)
-#' @export
-getCumulativePrecipitationOfYear <- function(dailyPrecipitationYear)
-{
-  return(cumsum(dailyPrecipitationYear) / sum(dailyPrecipitationYear))
 }
 
 #=======================================================================

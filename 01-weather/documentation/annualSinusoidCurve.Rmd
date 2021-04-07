@@ -159,10 +159,10 @@ text(x = yearLengthInDays_sim * 0.75, y = maxMaxValue * 1.2,
      expression(paste(
        "output = minValue + ", frac(maxValue - minValue, 2) * 
          bgroup("(", 1 + "sin" * 
-                  bgroup("(", angleAtLowestValue + 360 * frac(dayOfYear, yearLengthInDays), ")"), 
+                  bgroup("(", 360 * frac(dayOfYear - (dayOfYearWithLowestValue - yearLengthInDays), yearLengthInDays) - 90, ")"), 
                 ")") 
      ))
-     , cex = grScale * 0.5)
+     , cex = grScale * 0.4)
 dev.off()
 ```
 

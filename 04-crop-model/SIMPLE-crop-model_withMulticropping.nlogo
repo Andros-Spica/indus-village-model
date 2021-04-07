@@ -1574,75 +1574,75 @@ to export-yield-performance
         let cropIndex position aCrop typesOfCrops
 
         ;;; randomSeed,
-        file-type randomSeed file-type ", "
+        file-type randomSeed file-type ","
         ;;; temperature parameters
-        file-type temperature_annualMaxAt2m file-type ", "
-        file-type temperature_annualMinAt2m file-type ", "
-        file-type temperature_meanDailyFluctuation file-type ", "
-        file-type temperature_dailyLowerDeviation file-type ", "
-        file-type temperature_dailyUpperDeviation file-type ", "
+        file-type temperature_annualMaxAt2m file-type ","
+        file-type temperature_annualMinAt2m file-type ","
+        file-type temperature_meanDailyFluctuation file-type ","
+        file-type temperature_dailyLowerDeviation file-type ","
+        file-type temperature_dailyUpperDeviation file-type ","
         ;;; solar radiation parameters
-        file-type solar_annualMax file-type ", "
-        file-type solar_annualMin file-type ", "
-        file-type solar_meanDailyFluctuation file-type ", "
+        file-type solar_annualMax file-type ","
+        file-type solar_annualMin file-type ","
+        file-type solar_meanDailyFluctuation file-type ","
         ;;; CO2 parameters
-        file-type CO2_annualMin file-type ", "
-        file-type CO2_annualMax file-type ", "
-        file-type CO2_meanDailyFluctuation file-type ", "
+        file-type CO2_annualMin file-type ","
+        file-type CO2_annualMax file-type ","
+        file-type CO2_meanDailyFluctuation file-type ","
         ;;; precipitation parameters
-        file-type precipitation_yearlyMean file-type ", "
-        file-type precipitation_yearlySd file-type ", "
-        file-type precipitation_dailyCum_nSamples file-type ", "
-        file-type precipitation_dailyCum_maxSampleSize file-type ", "
-        file-type precipitation_dailyCum_plateauValue_yearlyMean file-type ", "
-        file-type precipitation_dailyCum_plateauValue_yearlySd file-type ", "
-        file-type precipitation_dailyCum_inflection1_yearlyMean file-type ", "
-        file-type precipitation_dailyCum_inflection1_yearlySd file-type ", "
-        file-type precipitation_dailyCum_rate1_yearlyMean file-type ", "
-        file-type precipitation_dailyCum_rate1_yearlySd file-type ", "
-        file-type precipitation_dailyCum_inflection2_yearlyMean file-type ", "
-        file-type precipitation_dailyCum_inflection2_yearlySd file-type ", "
-        file-type precipitation_dailyCum_rate2_yearlyMean file-type ", "
-        file-type precipitation_dailyCum_rate2_yearlySd file-type ", "
+        file-type precipitation_yearlyMean file-type ","
+        file-type precipitation_yearlySd file-type ","
+        file-type precipitation_dailyCum_nSamples file-type ","
+        file-type precipitation_dailyCum_maxSampleSize file-type ","
+        file-type precipitation_dailyCum_plateauValue_yearlyMean file-type ","
+        file-type precipitation_dailyCum_plateauValue_yearlySd file-type ","
+        file-type precipitation_dailyCum_inflection1_yearlyMean file-type ","
+        file-type precipitation_dailyCum_inflection1_yearlySd file-type ","
+        file-type precipitation_dailyCum_rate1_yearlyMean file-type ","
+        file-type precipitation_dailyCum_rate1_yearlySd file-type ","
+        file-type precipitation_dailyCum_inflection2_yearlyMean file-type ","
+        file-type precipitation_dailyCum_inflection2_yearlySd file-type ","
+        file-type precipitation_dailyCum_rate2_yearlyMean file-type ","
+        file-type precipitation_dailyCum_rate2_yearlySd file-type ","
         ;;; currentYear, currentDayOfYear,
-        file-type currentYear file-type ", "
-        file-type currentDayOfYear file-type ", "
+        file-type currentYear file-type ","
+        file-type currentDayOfYear file-type ","
         ;;; year total of precipitation
-        file-type (sum precipitation_yearSeries) file-type ", "
+        file-type (sum precipitation_yearSeries) file-type ","
         ;;; mean ARID in current year
-        file-type (mean ARID_yearSeries) file-type ", "
+        file-type (mean ARID_yearSeries) file-type ","
         ;;; x, y, elevation, DC, z, CN, FC, WHC, albedo
-        file-type pxcor file-type ", "
-        file-type pycor file-type ", "
-        file-type elevation file-type ", "
-        file-type DC file-type ", "
-        file-type z file-type ", "
-        file-type CN file-type ", "
-        file-type FC file-type ", "
-        file-type WHC file-type ", "
-        file-type albedo file-type ", "
+        file-type pxcor file-type ","
+        file-type pycor file-type ","
+        file-type elevation file-type ","
+        file-type DC file-type ","
+        file-type z file-type ","
+        file-type CN file-type ","
+        file-type FC file-type ","
+        file-type WHC file-type ","
+        file-type albedo file-type ","
         ;;; crop, sowingDay, harvestDay
-        file-type (word "'" aCrop "'") file-type ", "
-        file-type (item cropIndex T_sum) file-type ", "
-        file-type (item cropIndex HI) file-type ", "
-        file-type (item cropIndex I_50A) file-type ", "
-        file-type (item cropIndex I_50B) file-type ", "
-        file-type (item cropIndex T_base) file-type ", "
-        file-type (item cropIndex T_opt) file-type ", "
-        file-type (item cropIndex RUE) file-type ", "
-        file-type (item cropIndex I_50maxH) file-type ", "
-        file-type (item cropIndex I_50maxW) file-type ", "
-        file-type (item cropIndex T_heat) file-type ", "
-        file-type (item cropIndex T_extreme) file-type ", "
-        file-type (item cropIndex S_CO2) file-type ", "
-        file-type (item cropIndex S_water) file-type ", "
-        file-type (item cropIndex sowingDay) file-type ", "
-        file-type (item cropIndex harvestingDay) file-type ", "
+        file-type aCrop file-type ","
+        file-type (item cropIndex T_sum) file-type ","
+        file-type (item cropIndex HI) file-type ","
+        file-type (item cropIndex I_50A) file-type ","
+        file-type (item cropIndex I_50B) file-type ","
+        file-type (item cropIndex T_base) file-type ","
+        file-type (item cropIndex T_opt) file-type ","
+        file-type (item cropIndex RUE) file-type ","
+        file-type (item cropIndex I_50maxH) file-type ","
+        file-type (item cropIndex I_50maxW) file-type ","
+        file-type (item cropIndex T_heat) file-type ","
+        file-type (item cropIndex T_extreme) file-type ","
+        file-type (item cropIndex S_CO2) file-type ","
+        file-type (item cropIndex S_water) file-type ","
+        file-type (item cropIndex sowingDay) file-type ","
+        file-type (item cropIndex harvestingDay) file-type ","
         ;;; mean ARID during grow season in year
         ifelse ((item cropIndex sowingDay) < (item cropIndex harvestingDay))
         [
           ; growing season fits the current calendar year
-          file-type (mean sublist ARID_yearSeries (item cropIndex sowingDay) (item cropIndex harvestingDay)) file-type ", " ]
+          file-type (mean sublist ARID_yearSeries (item cropIndex sowingDay) (item cropIndex harvestingDay)) file-type "," ]
         [
           ; growing season spans also into last year
           ifelse (currentYear = 0)
@@ -1651,7 +1651,7 @@ to export-yield-performance
             file-type "," ; these NA will be signaling the rows that should be ignored in analysis
           ]
           [
-            file-type (mean sentence (sublist ARID_yearSeries 1 (item cropIndex harvestingDay)) (sublist ARID_yearSeries_lastYear (item cropIndex sowingDay) yearLengthInDays)) file-type ", "
+            file-type (mean sentence (sublist ARID_yearSeries 1 (item cropIndex harvestingDay)) (sublist ARID_yearSeries_lastYear (item cropIndex sowingDay) yearLengthInDays)) file-type ","
           ]
         ]
         ;;; yield
@@ -1789,17 +1789,31 @@ end
 
 to-report get-annual-sinusoid [ minValue maxValue dayOfYear southHemisphere ]
 
-  ;;; assuming northern hemisphere, winter solstice in 21st December
-  let angleAtLowestValue (360 * (31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 21) / yearLengthInDays) - 90
-  ;;; assuming southern hemisphere, winter solstice in 21st June
-  if (southHemisphere)
-  [ set angleAtLowestValue (360 * (31 + 28 + 31 + 30 + 31 + 21) / yearLengthInDays) - 90 ]
-
+  let dayOfYearWithLowestValue get-dayOfYear-with-lowest-value southHemisphere
+  
   let amplitude (maxValue - minValue) / 2
 
-  report minValue + amplitude * (1 + sin (angleAtLowestValue + 360 * dayOfYear / yearLengthInDays))
+  report minValue + amplitude * (1 + sin ((360 * (dayOfYear - (dayOfYearWithLowestValue - yearLengthInDays)) / yearLengthInDays) - 90))
 
-  ; NOTE: sin function in NetLogo needs angle in degrees. 270º equivalent to 3 * pi / 2 and 360º equivalent to 2 * pi
+  ; NOTE: sin function in NetLogo needs angle in degrees. 360º equivalent to 2 * pi
+
+end
+
+to-report get-dayOfYear-with-lowest-value [ southHemisphere ]
+
+let value -1
+
+  ifelse (southHemisphere)
+  [
+    ;;; assuming southern hemisphere, winter solstice in 21st June (not leap year)
+    set value (31 + 28 + 31 + 30 + 31 + 21) ]
+  ]
+  [
+    ;;; assuming northern hemisphere, winter solstice in 21st December (not leap year)
+    set value (31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 21)
+  ]
+
+  report value
 
 end
 
@@ -1911,7 +1925,7 @@ to-report get-incremets-from-curve [ curve ]
     i ->
     if (i > 0) ; do not iterate for the first (0) element
     [
-      set incrementsCurve replace-item i incrementsCurve ((item i curve) - (item (i - 1) curve))
+set incrementsCurve replace-item i incrementsCurve (max (list 0 ((item i curve) - (item (i - 1) curve))))
     ]
   ]
 

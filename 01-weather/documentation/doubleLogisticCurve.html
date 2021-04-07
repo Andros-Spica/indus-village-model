@@ -377,7 +377,7 @@ summary {
 
 <h1 class="title toc-ignore">Demostration of double logistic curve of the Weather model</h1>
 <h4 class="author">Andreas Angourakis</h4>
-<h4 class="date">26 October, 2020</h4>
+<h4 class="date">07 April, 2021</h4>
 
 </div>
 
@@ -449,6 +449,9 @@ summary {
 <pre class="r"><code>rescaleCurve</code></pre>
 <pre><code>## function (curve) 
 ## {
+##     if (curve[1] == curve[length(curve)]) {
+##         curve &lt;- 1:length(curve) * 1/length(curve)
+##     }
 ##     return((curve - curve[1])/(curve[length(curve)] - curve[1]))
 ## }</code></pre>
 <pre class="r"><code>getIncrementsFromCumulativeCurve</code></pre>
@@ -457,6 +460,8 @@ summary {
 ##     incrementCurve &lt;- c()
 ##     incrementCurve[1] = cumulativeCurve[1]
 ##     incrementCurve &lt;- c(incrementCurve, diff(cumulativeCurve))
+##     incrementCurve &lt;- sapply(incrementCurve, function(x) max(c(0, 
+##         x)))
 ##     return(incrementCurve)
 ## }</code></pre>
 </div>

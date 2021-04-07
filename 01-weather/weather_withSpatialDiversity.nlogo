@@ -561,17 +561,31 @@ end
 
 to-report get-annual-sinusoid [ minValue maxValue dayOfYear southHemisphere ]
 
-  ;;; assuming northern hemisphere, winter solstice in 21st December
-  let angleAtLowestValue (360 * (31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 21) / yearLengthInDays) - 90
-  ;;; assuming southern hemisphere, winter solstice in 21st June
-  if (southHemisphere)
-  [ set angleAtLowestValue (360 * (31 + 28 + 31 + 30 + 31 + 21) / yearLengthInDays) - 90 ]
-
+  let dayOfYearWithLowestValue get-dayOfYear-with-lowest-value southHemisphere
+  
   let amplitude (maxValue - minValue) / 2
 
-  report minValue + amplitude * (1 + sin (angleAtLowestValue + 360 * dayOfYear / yearLengthInDays))
+  report minValue + amplitude * (1 + sin ((360 * (dayOfYear - (dayOfYearWithLowestValue - yearLengthInDays)) / yearLengthInDays) - 90))
 
-  ; NOTE: sin function in NetLogo needs angle in degrees. 270º equivalent to 3 * pi / 2 and 360º equivalent to 2 * pi
+  ; NOTE: sin function in NetLogo needs angle in degrees. 360º equivalent to 2 * pi
+
+end
+
+to-report get-dayOfYear-with-lowest-value [ southHemisphere ]
+
+let value -1
+
+  ifelse (southHemisphere)
+  [
+    ;;; assuming southern hemisphere, winter solstice in 21st June (not leap year)
+    set value (31 + 28 + 31 + 30 + 31 + 21) ]
+  ]
+  [
+    ;;; assuming northern hemisphere, winter solstice in 21st December (not leap year)
+    set value (31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 21)
+  ]
+
+  report value
 
 end
 
@@ -683,7 +697,7 @@ to-report get-incremets-from-curve [ curve ]
     i ->
     if (i > 0) ; do not iterate for the first (0) element
     [
-      set incrementsCurve replace-item i incrementsCurve ((item i curve) - (item (i - 1) curve))
+set incrementsCurve replace-item i incrementsCurve (max (list 0 ((item i curve) - (item (i - 1) curve))))
     ]
   ]
 
