@@ -189,7 +189,6 @@ globals
 
   ;;;; derived measures
   landRatio                            ; the ratio of land units above seaLevel.
-  elevationDistribution                ; the set or list containing the elevation of all land units
   minElevation                         ; statistics on the elevation of land units.
   sdElevation
   maxElevation
@@ -352,6 +351,8 @@ patches-own
   p_ETr                             ; reference evapotranspiration ( mm (height) / m^2 (area) )
 
   p_soil_ARID                       ; ARID index after Woli et al. 2012, ranging form 0 (no water shortage) to 1 (extreme water shortage)
+  p_soil_ARID_yearSeries            ; registers daily values of ARID of the current year (used to export data)
+  p_soil_ARID_yearSeries_lastYear   ; saves daily values of ARID of the last year (used to export data)
 
   ;======= I1 variables ======================================================================================
 
@@ -609,6 +610,42 @@ to set-parameters
     ;;; See approx. values in https://globalsolaratlas.info/
     ;;; and https://www.researchgate.net/publication/271722280_Solmap_Project_In_India%27s_Solar_Resource_Assessment
     ;;; see general info in http://www.physicalgeography.net/fundamentals/6i.html
+  ]
+  if (type-of-experiment = "precipitation-variation")
+  [
+    ;;; load parameters from user interface
+
+    ;;; set sea level (no more just a display issue; it is relevant for ETr and limiting coastlines)
+    set elev_seaLevelReferenceShift par_elev_seaLevelReferenceShift
+
+    ;;; weather generation
+    set temperature_annualMaxAt2m temperature_annual-max-at-2m
+    set temperature_annualMinAt2m temperature_annual-min-at-2m
+    set temperature_meanDailyFluctuation temperature_mean-daily-fluctuation
+    set temperature_dailyLowerDeviation temperature_daily-lower-deviation
+    set temperature_dailyUpperDeviation temperature_daily-upper-deviation
+
+    set solar_annualMax solar_annual-max
+    set solar_annualMin solar_annual-min
+    set solar_meanDailyFluctuation solar_mean-daily-fluctuation
+
+    set precipitation_yearlyMean 200 + random-float 800
+    set precipitation_yearlySd precipitation_yearly-sd
+    set precipitation_dailyCum_nSamples precipitation_daily-cum_n-samples
+    set precipitation_dailyCum_maxSampleSize precipitation_daily-cum_max-sample-size
+    set precipitation_dailyCum_plateauValue_yearlyMean 0.2 + random-float 0.6
+    set precipitation_dailyCum_plateauValue_yearlySd precipitation_daily-cum_plateau-value_yearly-sd
+    set precipitation_dailyCum_inflection1_yearlyMean precipitation_daily-cum_inflection1_yearly-mean
+    set precipitation_dailyCum_inflection1_yearlySd precipitation_daily-cum_inflection1_yearly-sd
+    set precipitation_dailyCum_rate1_yearlyMean precipitation_daily-cum_rate1_yearly-mean
+    set precipitation_dailyCum_rate1_yearlySd precipitation_daily-cum_rate1_yearly-sd
+    set precipitation_dailyCum_inflection2_yearlyMean precipitation_daily-cum_inflection2_yearly-mean
+    set precipitation_dailyCum_inflection2_yearlySd precipitation_daily-cum_inflection2_yearly-sd
+    set precipitation_dailyCum_rate2_yearlyMean precipitation_daily-cum_rate2_yearly-mean
+    set precipitation_dailyCum_rate2_yearlySd precipitation_daily-cum_rate2_yearly-sd
+
+    ;;; River water (dependent on flow_riverAccumulationAtStart, which is set by Land model)
+    set riverWaterPerFlowAccumulation par_riverWaterPerFlowAccumulation
   ]
 
   ;;; scenario settings:
@@ -900,6 +937,8 @@ to go
 
   ; --- output handling ------------------------
 
+  update-output-stats
+
   refresh-to-display-mode
 
   update-plot-crop
@@ -912,7 +951,7 @@ to go
 
   ; --- stop conditions -------------------------
 
-  if (ticks = end-simulation-in-tick) [stop]
+  if (ticks = (end-simulation-in-year * yearLengthInDays)) [stop]
 
 end
 
@@ -2105,8 +2144,6 @@ end
 
 to set-terrain-output-stats
 
-  set elevationDistribution [elevation] of patches
-
   set minElevation min [elevation] of patches
 
   set maxElevation max [elevation] of patches
@@ -2117,15 +2154,37 @@ to set-terrain-output-stats
 
   set landWithRiver count patches with [flow_accumulation >= flow_riverAccumulationAtStart]
 
+  ;;; soil water properties (dependent only on soil texture)
+  set meanWaterHoldingCapacity mean [p_soil_waterHoldingCapacity] of patches
+  set meanDeepDrainageCoefficient mean [p_soil_deepDrainageCoefficient] of patches
+
 end
 
 to update-output-stats
 
   set meanRunOffCurveNumber mean [p_soil_runOffCurveNumber] of patches
-  set meanWaterHoldingCapacity mean [p_soil_waterHoldingCapacity] of patches
-  set meanDeepDrainageCoefficient mean [p_soil_deepDrainageCoefficient] of patches
 
   set mostCommonCoverType modes [p_ecol_coverType] of patches
+
+  ask patches
+  [
+    update-ARID_yearSeries
+  ]
+
+end
+
+to update-ARID_yearSeries
+
+  ; if starting a new year
+  if (currentDayOfYear = 1)
+  [
+    ; save current year as last year
+    set p_soil_ARID_yearSeries_lastYear p_soil_ARID_yearSeries
+    ; reset p_soil_ARID_yearSeries if starting a new year
+    set p_soil_ARID_yearSeries (list)
+  ]
+  ; append this day ARID to ARID_yearSeries
+  set p_soil_ARID_yearSeries lput p_soil_ARID p_soil_ARID_yearSeries
 
 end
 
@@ -3019,27 +3078,317 @@ end
 
 ;;; EXPORT YIELD PERFORMANCES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+to run-yield-performance-experiment-batch
+
+  ;;; Every yield experiment batch can create up to four files:
+  ;;; - crop table (if not already created),
+  ;;; - terrain data (if not already created),
+  ;;; - parameters per run (if already created, parameters are added as new rows), and
+  ;;; - variables per crop/patch/year/run (one file created per batch)
+
+  ;;; a first setup is required to be able to export cropTable and terrain data
+  setup
+
+  ;;; the same cropTable applies to all runs in a batch
+  ;;; so cropTable data are exported in a separate file
+  ;;; NOTE: data can be retraced using crops names, initial random seed, and terrain random seed
+  export-cropTable-of-yield-experiment
+
+  ;;; a batch runs multiple random seeds on the same terrain
+  ;;; so terrain data are exported as a separate table to minimise file size
+  ;;; NOTE: data can be retraced using the terrainRandomSeed (assuming that the terrain parameters not controled by random seed are
+  ;;; not varying; i.e. which could produce multiple terrains using the same terrain seed)
+  export-terrain-of-yield-experiment
+
+  setup-yield-performance-data-file
+
+  set randomSeed experiment-initRandomSeed
+
+  repeat experiment-numberOfRuns
+  [
+    setup
+
+    ;;; a run has a single configuration of parameters
+    ;;; so parameters are exported as a separate table to minimise file size
+    ;;; NOTE: data can be retraced using the randomSeed
+    export-parameters-of-yield-experiment
+
+    repeat end-simulation-in-year
+    [
+      repeat yearLengthInDays
+      [
+        go
+        if (currentDayOfYear = 365) [ export-yield-performance ]
+      ]
+    ]
+
+    set randomSeed randomSeed + 1
+  ]
+
+end
+
 to setup-yield-performance-data-file
 
+  ;;; parameters file
   ;;; build a unique file name according to the user setting
-  let filePath (word "output//yield//terrain_random_w=" world-width "_h=" world-height "_a=" elev_algorithm-style "_fill-sinks=" flow_do-fill-sinks "_terrainSeed=" terrainRandomSeed "_seed=" randomSeed)
+  let filePath (word "output//yield//I2_yield-exp_pars_terrainRandomSeed=" terrainRandomSeed "_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name ".csv")
+
+  ;;; do not repeat the setup if file already exists
+  if (not file-exists? filePath)
+  [
+    file-open filePath
+
+    file-print (word
+      "terrainRandomSeed,randomSeed,"
+      "temperature_annualMaxAt2m,temperature_annualMinAt2m,temperature_meanDailyFluctuation,temperature_dailyLowerDeviation,temperature_dailyUpperDeviation,"
+      "solar_annualMax,solar_annualMin,solar_meanDailyFluctuation,"
+      "precipitation_yearlyMean,precipitation_yearlySd,precipitation_dailyCum_nSamples,precipitation_dailyCum_maxSampleSize,"
+      "precipitation_dailyCum_plateauValue_yearlyMean,precipitation_dailyCum_plateauValue_yearlySd,"
+      "precipitation_dailyCum_inflection1_yearlyMean,precipitation_dailyCum_inflection1_yearlySd,precipitation_dailyCum_rate1_yearlyMean,precipitation_dailyCum_rate1_yearlySd,"
+      "precipitation_dailyCum_inflection2_yearlyMean,precipitation_dailyCum_inflection2_yearlySd,precipitation_dailyCum_rate2_yearlyMean,precipitation_dailyCum_rate2_yearlySd,"
+      "elev_seaLevelReferenceShift,riverWaterPerFlowAccumulation,errorToleranceThreshold,"
+      "crop_selection,crop_intensity"
+    )
+
+    file-close
+  ]
+
+  ;;; yield and other variables file
+  ;;; build a unique file name according to the user setting
+  set filePath (word "output//yield//I2_yield-exp_terrainRandomSeed=" terrainRandomSeed "_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
 
   ;;; check that filePath does not exceed 100 (not common in this context)
-  if (length filePath > 100) [ print "WARNING: file path may be too long, depending on your current directory. Decrease length of file name or increase the limit." set filePath substring filePath 0 100 ]
+  ;if (length filePath > 120) [ print "WARNING: file path may be too long, depending on your current directory. Decrease length of file name or increase the limit." set filePath substring filePath 0 120 ]
+;print filePath
+  file-open filePath
 
+  file-print (word
+    "terrainRandomSeed,randomSeed,"
+    "currentYear,currentDayOfYear,"
+    "precipitation_yearTotal,p_soil_meanARID,"
+    "x,y,p_water,p_ecol_rootZoneDepth,p_soil_runOffCurveNumber,p_ecol_albedo,p_ecol_biomass,"
+    "crop,p_soil_meanARID_grow,yield"
+  )
 
+  file-close
 
 end
 
 to export-yield-performance
 
+  ;;; recover the unique file name according to the user setting
+  let filePath (word "output//yield//I2_yield-exp_terrainRandomSeed=" terrainRandomSeed "_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
 
+  file-open filePath
+
+  foreach sort patches
+  [
+    aPatch ->
+    ask aPatch
+    [
+      foreach crop_selection
+      [
+        aCrop ->
+
+        let cropIndex position aCrop crop_typesOfCrops
+
+        ;;; terrainRandomSeed,randomSeed,
+        file-type terrainRandomSeed file-type ","
+        file-type randomSeed file-type ","
+        ;;; currentYear, currentDayOfYear,
+        file-type currentYear file-type ","
+        file-type currentDayOfYear file-type ","
+        ;;; year total of precipitation
+        file-type (sum precipitation_yearSeries) file-type ","
+        ;;; mean ARID in current year
+        file-type (mean p_soil_ARID_yearSeries) file-type ","
+        ;;; x, y, p_water, p_ecol_rootZoneDepth, p_soil_runOffCurveNumber, p_ecol_albedo, p_ecol_biomass,
+        file-type pxcor file-type ","
+        file-type pycor file-type ","
+        file-type p_water file-type ","
+        file-type p_ecol_rootZoneDepth file-type ","
+        file-type p_soil_runOffCurveNumber file-type ","
+        file-type p_ecol_albedo file-type ","
+        file-type p_ecol_biomass file-type ","
+        ;;; crop
+        file-type aCrop file-type ","
+        ;;; mean ARID during grow season in year
+        ifelse ((item cropIndex crop_sowingDay) < (item cropIndex crop_harvestingDay))
+        [
+          ; growing season fits the current calendar year
+          file-type (mean sublist p_soil_ARID_yearSeries (item cropIndex crop_sowingDay) (item cropIndex crop_harvestingDay)) file-type "," ]
+        [
+          ; growing season spans also into last year
+          ifelse (currentYear = 0)
+          [
+            ; there is no last year
+            file-type "," ; these NA will be signaling the rows that should be ignored in analysis
+          ]
+          [
+            file-type (mean sentence (sublist p_soil_ARID_yearSeries 1 (item cropIndex crop_harvestingDay)) (sublist p_soil_ARID_yearSeries_lastYear (item cropIndex crop_sowingDay) yearLengthInDays)) file-type ","
+          ]
+        ]
+        ;;; yield
+        file-type (item cropIndex p_crop_yield)
+        file-print ""
+      ]
+    ]
+  ]
+
+  file-close
 
 end
 
-to export-yield-performance-of-patch [ aPatch ]
+to export-parameters-of-yield-experiment
 
+  let filePath (word "output//yield//I2_yield-exp_pars_terrainRandomSeed=" terrainRandomSeed "_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name ".csv")
 
+  file-open filePath
+
+  ;;; terrainRandomSeed,randomSeed,
+  file-type terrainRandomSeed file-type ","
+  file-type randomSeed file-type ","
+  ;;; temperature parameters
+  file-type temperature_annualMaxAt2m file-type ","
+  file-type temperature_annualMinAt2m file-type ","
+  file-type temperature_meanDailyFluctuation file-type ","
+  file-type temperature_dailyLowerDeviation file-type ","
+  file-type temperature_dailyUpperDeviation file-type ","
+  ;;; solar radiation parameters
+  file-type solar_annualMax file-type ","
+  file-type solar_annualMin file-type ","
+  file-type solar_meanDailyFluctuation file-type ","
+  ;;; precipitation parameters
+  file-type precipitation_yearlyMean file-type ","
+  file-type precipitation_yearlySd file-type ","
+  file-type precipitation_dailyCum_nSamples file-type ","
+  file-type precipitation_dailyCum_maxSampleSize file-type ","
+  file-type precipitation_dailyCum_plateauValue_yearlyMean file-type ","
+  file-type precipitation_dailyCum_plateauValue_yearlySd file-type ","
+  file-type precipitation_dailyCum_inflection1_yearlyMean file-type ","
+  file-type precipitation_dailyCum_inflection1_yearlySd file-type ","
+  file-type precipitation_dailyCum_rate1_yearlyMean file-type ","
+  file-type precipitation_dailyCum_rate1_yearlySd file-type ","
+  file-type precipitation_dailyCum_inflection2_yearlyMean file-type ","
+  file-type precipitation_dailyCum_inflection2_yearlySd file-type ","
+  file-type precipitation_dailyCum_rate2_yearlyMean file-type ","
+  file-type precipitation_dailyCum_rate2_yearlySd file-type ","
+  ;;; terrain and hydrology parameters
+  file-type elev_seaLevelReferenceShift file-type ","
+  file-type riverWaterPerFlowAccumulation file-type ","
+  file-type errorToleranceThreshold file-type ","
+  ;;; cropping parameters
+  file-type (map [i -> (word "'" i "'")] crop_selection) file-type ","
+  file-type crop_intensity
+
+  file-print ""
+
+  file-close
+
+end
+
+to export-cropTable-of-yield-experiment
+
+  ;;; build a unique file name according to the user setting
+  let filePath (word "output//yield//I2_yield-exp_cropTable.csv")
+
+  ;;; do not repeat the export if file already exists
+  if (not file-exists? filePath)
+  [
+    file-open filePath
+
+    file-print (word
+      "terrainRandomSeed,initRandomSeed,"
+      "crop,T_sum,HI,I_50A,I_50B,T_base,T_opt,RUE,I_50maxH,I_50maxW,T_heat,T_extreme,S_water,sowingDay,harvestDay"
+    )
+
+    foreach crop_selection
+    [
+      aCrop ->
+
+      let cropIndex position aCrop crop_typesOfCrops
+
+      ;;; terrainRandomSeed,randomSeed,
+      file-type terrainRandomSeed file-type ","
+      file-type randomSeed file-type "," ;;; this will be equivalent to experiment-initRandomSeed
+      ;;; crop, sowingDay, harvestDay
+      file-type (word aCrop) file-type ","
+      file-type (item cropIndex crop_T_sum) file-type ","
+      file-type (item cropIndex crop_HI) file-type ","
+      file-type (item cropIndex crop_I_50A) file-type ","
+      file-type (item cropIndex crop_I_50B) file-type ","
+      file-type (item cropIndex crop_T_base) file-type ","
+      file-type (item cropIndex crop_T_opt) file-type ","
+      file-type (item cropIndex crop_RUE) file-type ","
+      file-type (item cropIndex crop_I_50maxH) file-type ","
+      file-type (item cropIndex crop_I_50maxW) file-type ","
+      file-type (item cropIndex crop_T_heat) file-type ","
+      file-type (item cropIndex crop_T_extreme) file-type ","
+      file-type (item cropIndex crop_S_water) file-type ","
+      file-type (item cropIndex crop_sowingDay) file-type ","
+      file-type (item cropIndex crop_harvestingDay)
+      file-print ""
+    ]
+
+    file-close
+  ]
+
+end
+
+to export-terrain-of-yield-experiment
+
+  ;;; this function extracts patch information to a csv file that can be easily accessed when analysing yield experiments in R
+
+  ;;; build another unique file name to be created at output/yield/ directory, together with the yield experiment data
+  let filePath (word "output//yield//I2_yield-exp_terrainRandomSeed=" terrainRandomSeed ".csv")
+
+  ;;; do not repeat the export if file already exists
+  if (not file-exists? filePath)
+  [
+    file-open filePath
+
+    ;;; header
+    file-print (word
+      "terrainRandomSeed,"
+      "x,y,elevation,flow_direction,flow_receive,flow_accumulation,"
+      "p_soil_formativeErosion,p_soil_depth,p_soil_%sand,p_soil_%silt,p_soil_%clay,p_soil_textureType,"
+      "p_initEcol_%grass,p_initEcol_%brush,p_initEcol_%wood,p_ecol_coverType,"
+      "p_soil_saturation,p_soil_fieldCapacity,p_soil_waterHoldingCapacity,p_soil_wiltingPoint,p_soil_deepDrainageCoefficient"
+    )
+
+    foreach sort patches
+    [
+      aPatch ->
+      ask aPatch
+      [
+        file-type terrainRandomSeed file-type ","
+        file-type pxcor file-type ","
+        file-type pycor file-type ","
+        file-type elevation file-type ","
+        file-type flow_direction file-type ","
+        file-type flow_receive file-type ","
+        file-type flow_accumulation file-type ","
+        file-type p_soil_formativeErosion file-type ","
+        file-type p_soil_depth file-type ","
+        file-type p_soil_%sand file-type ","
+        file-type p_soil_%silt file-type ","
+        file-type p_soil_%clay file-type ","
+        file-type p_soil_textureType file-type ","
+        file-type p_initEcol_%grass file-type ","
+        file-type p_initEcol_%brush file-type ","
+        file-type p_initEcol_%wood file-type ","
+        file-type p_ecol_coverType file-type ","
+        file-type p_soil_saturation file-type ","
+        file-type p_soil_fieldCapacity file-type ","
+        file-type p_soil_waterHoldingCapacity file-type ","
+        file-type p_soil_wiltingPoint file-type ","
+        file-type p_soil_deepDrainageCoefficient
+      ]
+      file-print ""
+    ]
+
+    file-close
+  ]
 
 end
 
@@ -3056,7 +3405,7 @@ to import-terrain
   let filePath (word "terrains//terrain_random_w=" world-width "_h=" world-height "_a=" elev_algorithm-style "_fill-sinks=" flow_do-fill-sinks "_seed=" terrainRandomSeed)
 
   ;;; check that filePath does not exceed 100 (not common in this context)
-  if (length filePath > 100) [ print "WARNING: file path may be too long, depending on your current directory. Decrease length of file name or increase the limit." set filePath substring filePath 0 100 ]
+  ;if (length filePath > 100) [ print "WARNING: file path may be too long, depending on your current directory. Decrease length of file name or increase the limit." set filePath substring filePath 0 100 ]
 
   set filePath (word filePath ".csv")
 
@@ -3675,7 +4024,7 @@ to generate-animation
 
   setup
   vid:start-recorder
-  repeat end-simulation-in-tick [ go vid:record-view ]
+  repeat (end-simulation-in-year * yearLengthInDays) [ go vid:record-view ]
   vid:save-recording  (word "run_" behaviorspace-run-number ".mov")
   vid:reset-recorder
 
@@ -3693,17 +4042,31 @@ end
 
 to-report get-annual-sinusoid [ minValue maxValue dayOfYear southHemisphere ]
 
-  ;;; assuming northern hemisphere, winter solstice in 21st December
-  let angleAtLowestValue (360 * (31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 21) / yearLengthInDays) - 90
-  ;;; assuming southern hemisphere, winter solstice in 21st June
-  if (southHemisphere)
-  [ set angleAtLowestValue (360 * (31 + 28 + 31 + 30 + 31 + 21) / yearLengthInDays) - 90 ]
-
+  let dayOfYearWithLowestValue get-dayOfYear-with-lowest-value southHemisphere
+  
   let amplitude (maxValue - minValue) / 2
 
-  report minValue + amplitude * (1 + sin (angleAtLowestValue + 360 * dayOfYear / yearLengthInDays))
+  report minValue + amplitude * (1 + sin ((360 * (dayOfYear - (dayOfYearWithLowestValue - yearLengthInDays)) / yearLengthInDays) - 90))
 
-  ; NOTE: sin function in NetLogo needs angle in degrees. 270º equivalent to 3 * pi / 2 and 360º equivalent to 2 * pi
+  ; NOTE: sin function in NetLogo needs angle in degrees. 360º equivalent to 2 * pi
+
+end
+
+to-report get-dayOfYear-with-lowest-value [ southHemisphere ]
+
+let value -1
+
+  ifelse (southHemisphere)
+  [
+    ;;; assuming southern hemisphere, winter solstice in 21st June (not leap year)
+    set value (31 + 28 + 31 + 30 + 31 + 21) ]
+  ]
+  [
+    ;;; assuming northern hemisphere, winter solstice in 21st December (not leap year)
+    set value (31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 21)
+  ]
+
+  report value
 
 end
 
@@ -3720,7 +4083,7 @@ to-report get-cumulative-curve [ plateauValue inflection1 rate1 inflection2 rate
 
   ;;; NOTE: in some cases, the curve at this point might be too horizontal and fail to reach 1.
   ;;; This means that reaching 1 at the end of the curve (i.e. cumulative curve) takes precedence over the shape parameters
-  if ((last cumulativeCurve) < 1) [ print (word "Warning (precipitation): failed to generate a cumulative curve without re-scaling: " (last cumulativeCurve) " < 1" )]
+  ;if ((last cumulativeCurve) < 1) [ print (word "Warning (precipitation): failed to generate a cumulative curve without re-scaling: " (last cumulativeCurve) " < 1" )]
 
   ;;; re-scale the curve so it fits within 0 and 1
   set cumulativeCurve rescale-curve cumulativeCurve
@@ -3815,7 +4178,7 @@ to-report get-incremets-from-curve [ curve ]
     i ->
     if (i > 0) ; do not iterate for the first (0) element
     [
-      set incrementsCurve replace-item i incrementsCurve ((item i curve) - (item (i - 1) curve))
+      set incrementsCurve replace-item i incrementsCurve (max (list 0 ((item i curve) - (item (i - 1) curve))))
     ]
   ]
 
@@ -3890,10 +4253,10 @@ PENS
 "              Patch color legend                " 1.0 0 -1 true "" "plot 1"
 
 INPUTBOX
-58
-252
-164
-312
+48
+325
+154
+385
 terrainRandomSeed
 0.0
 1
@@ -3912,10 +4275,10 @@ landRatio
 11
 
 SLIDER
-222
-228
-500
-261
+218
+333
+496
+366
 par_elev_seaLevelReferenceShift
 par_elev_seaLevelReferenceShift
 -1000
@@ -3960,10 +4323,10 @@ precision maxElevation 4
 11
 
 BUTTON
-344
-263
-552
-296
+340
+368
+548
+401
 refresh after changing sea level
 refresh-view-after-seaLevel-change
 NIL
@@ -4018,10 +4381,10 @@ PENS
 "pen-1" 1.0 1 -2674135 true "" "histogram n-values plot-y-max [j -> 0]"
 
 CHOOSER
-33
-319
-199
-364
+23
+392
+189
+437
 elev_algorithm-style
 elev_algorithm-style
 "NetLogo" "C#"
@@ -4137,10 +4500,10 @@ show-transects
 -1000
 
 SWITCH
-46
-368
-193
-401
+36
+441
+183
+474
 flow_do-fill-sinks
 flow_do-fill-sinks
 0
@@ -4148,25 +4511,25 @@ flow_do-fill-sinks
 -1000
 
 INPUTBOX
-209
-339
-394
-399
+203
+425
+388
+485
 par_riverWaterPerFlowAccumulation
-0.0
+1.0E-4
 1
 0
 Number
 
 CHOOSER
-48
+24
 125
-182
+215
 170
 type-of-experiment
 type-of-experiment
-"random" "user-defined" "defined by expNumber"
-1
+"random" "user-defined" "precipitation-variation"
+2
 
 BUTTON
 11
@@ -4203,11 +4566,11 @@ NIL
 1
 
 TEXTBOX
-84
-229
-149
-247
-TERRAIN
+93
+298
+567
+317
+==================TERRAIN==================
 14
 0.0
 1
@@ -4218,7 +4581,7 @@ INPUTBOX
 99
 118
 randomSeed
-0.0
+10.0
 1
 0
 Number
@@ -4241,10 +4604,10 @@ NIL
 1
 
 MONITOR
-385
-525
-519
-562
+384
+593
+518
+630
 NIL
 temperature_annualMinAt2m
 2
@@ -4269,10 +4632,10 @@ NIL
 1
 
 MONITOR
-384
-488
-520
-525
+383
+556
+519
+593
 NIL
 temperature_annualMaxAt2m
 2
@@ -4282,19 +4645,19 @@ temperature_annualMaxAt2m
 INPUTBOX
 102
 58
-215
+228
 118
-end-simulation-in-tick
-0.0
+end-simulation-in-year
+5.0
 1
 0
 Number
 
 SLIDER
-15
-561
-386
-594
+14
+629
+385
+662
 temperature_mean-daily-fluctuation
 temperature_mean-daily-fluctuation
 0
@@ -4306,10 +4669,10 @@ temperature_mean-daily-fluctuation
 HORIZONTAL
 
 SLIDER
-19
-600
-386
-633
+18
+668
+385
+701
 temperature_daily-lower-deviation
 temperature_daily-lower-deviation
 0
@@ -4321,10 +4684,10 @@ temperature_daily-lower-deviation
 HORIZONTAL
 
 SLIDER
-19
-639
-386
-672
+18
+707
+385
+740
 temperature_daily-upper-deviation
 temperature_daily-upper-deviation
 0
@@ -4336,10 +4699,10 @@ temperature_daily-upper-deviation
 HORIZONTAL
 
 SLIDER
-13
-490
-384
-523
+12
+558
+383
+591
 temperature_annual-max-at-2m
 temperature_annual-max-at-2m
 15
@@ -4351,10 +4714,10 @@ temperature_annual-max-at-2m
 HORIZONTAL
 
 SLIDER
-14
-526
-385
-559
+13
+594
+384
+627
 temperature_annual-min-at-2m
 temperature_annual-min-at-2m
 -15
@@ -4366,10 +4729,10 @@ temperature_annual-min-at-2m
 HORIZONTAL
 
 MONITOR
-387
-559
-544
-596
+386
+627
+543
+664
 NIL
 temperature_meanDailyFluctuation
 2
@@ -4377,10 +4740,10 @@ temperature_meanDailyFluctuation
 9
 
 MONITOR
-387
-599
-539
-636
+386
+667
+538
+704
 NIL
 temperature_dailyLowerDeviation
 2
@@ -4388,10 +4751,10 @@ temperature_dailyLowerDeviation
 9
 
 MONITOR
-388
-636
-542
-673
+387
+704
+541
+741
 NIL
 temperature_dailyUpperDeviation
 2
@@ -4419,10 +4782,10 @@ PENS
 "max" 1.0 0 -2674135 true "" "plot maxTemperature"
 
 SLIDER
-20
-731
-419
-764
+19
+799
+418
+832
 solar_annual-max
 solar_annual-max
 solar_annual-min
@@ -4434,10 +4797,10 @@ MJ/m2 (default: 24.2)
 HORIZONTAL
 
 SLIDER
-20
-696
-417
-729
+19
+764
+416
+797
 solar_annual-min
 solar_annual-min
 1
@@ -4449,10 +4812,10 @@ MJ/m2 (default: 9.2)
 HORIZONTAL
 
 SLIDER
-22
-767
-419
-800
+21
+835
+418
+868
 solar_mean-daily-fluctuation
 solar_mean-daily-fluctuation
 0
@@ -4482,10 +4845,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot solarRadiation"
 
 MONITOR
-420
-692
-503
-729
+419
+760
+502
+797
 NIL
 solar_annualMin
 3
@@ -4493,10 +4856,10 @@ solar_annualMin
 9
 
 MONITOR
-419
-730
-501
-767
+418
+798
+500
+835
 NIL
 solar_annualMax
 3
@@ -4504,10 +4867,10 @@ solar_annualMax
 9
 
 MONITOR
-420
-764
-551
-801
+419
+832
+550
+869
 NIL
 solar_meanDailyFluctuation
 3
@@ -4581,10 +4944,10 @@ NIL
 1
 
 SLIDER
-22
-865
-423
-898
+21
+933
+422
+966
 precipitation_yearly-mean
 precipitation_yearly-mean
 0
@@ -4596,10 +4959,10 @@ mm/year (default: 489)
 HORIZONTAL
 
 SLIDER
-19
-905
-421
-938
+18
+973
+420
+1006
 precipitation_yearly-sd
 precipitation_yearly-sd
 0
@@ -4611,10 +4974,10 @@ mm/year (default: 142.2)
 HORIZONTAL
 
 SLIDER
-19
-955
-427
-988
+18
+1023
+426
+1056
 precipitation_daily-cum_n-samples
 precipitation_daily-cum_n-samples
 0
@@ -4626,10 +4989,10 @@ precipitation_daily-cum_n-samples
 HORIZONTAL
 
 SLIDER
-19
-992
-427
-1025
+18
+1060
+426
+1093
 precipitation_daily-cum_max-sample-size
 precipitation_daily-cum_max-sample-size
 1
@@ -4641,10 +5004,10 @@ precipitation_daily-cum_max-sample-size
 HORIZONTAL
 
 SLIDER
-13
-1047
-497
-1080
+12
+1115
+496
+1148
 precipitation_daily-cum_plateau-value_yearly-mean
 precipitation_daily-cum_plateau-value_yearly-mean
 0.2
@@ -4656,10 +5019,10 @@ winter (mm)/summer (mm) (default: 0.25)
 HORIZONTAL
 
 SLIDER
-14
-1079
-497
-1112
+13
+1147
+496
+1180
 precipitation_daily-cum_plateau-value_yearly-sd
 precipitation_daily-cum_plateau-value_yearly-sd
 0
@@ -4671,25 +5034,25 @@ precipitation_daily-cum_plateau-value_yearly-sd
 HORIZONTAL
 
 SLIDER
-18
-1125
-497
-1158
+17
+1193
+496
+1226
 precipitation_daily-cum_inflection1_yearly-mean
 precipitation_daily-cum_inflection1_yearly-mean
 40
 140
-0.0
+40.0
 1.0
 1
 day of year (default: 40)
 HORIZONTAL
 
 SLIDER
-21
-1161
-499
-1194
+20
+1229
+498
+1262
 precipitation_daily-cum_inflection1_yearly-sd
 precipitation_daily-cum_inflection1_yearly-sd
 20
@@ -4701,10 +5064,10 @@ days (default: 5)
 HORIZONTAL
 
 SLIDER
-23
-1199
-501
-1232
+22
+1267
+500
+1300
 precipitation_daily-cum_rate1_yearly-mean
 precipitation_daily-cum_rate1_yearly-mean
 0.01
@@ -4716,10 +5079,10 @@ precipitation_daily-cum_rate1_yearly-mean
 HORIZONTAL
 
 SLIDER
-23
-1236
-499
-1269
+22
+1304
+498
+1337
 precipitation_daily-cum_rate1_yearly-sd
 precipitation_daily-cum_rate1_yearly-sd
 0.004
@@ -4731,10 +5094,10 @@ precipitation_daily-cum_rate1_yearly-sd
 HORIZONTAL
 
 SLIDER
-664
-1127
-1134
-1160
+663
+1195
+1133
+1228
 precipitation_daily-cum_inflection2_yearly-mean
 precipitation_daily-cum_inflection2_yearly-mean
 180
@@ -4746,25 +5109,25 @@ day of year (default: 240)
 HORIZONTAL
 
 SLIDER
-665
-1165
-1133
-1198
+664
+1233
+1132
+1266
 precipitation_daily-cum_inflection2_yearly-sd
 precipitation_daily-cum_inflection2_yearly-sd
 20
 100
-0.0
+20.0
 1
 1
 days (default: 20)
 HORIZONTAL
 
 SLIDER
-666
-1202
-1131
-1235
+665
+1270
+1130
+1303
 precipitation_daily-cum_rate2_yearly-mean
 precipitation_daily-cum_rate2_yearly-mean
 0.01
@@ -4776,10 +5139,10 @@ precipitation_daily-cum_rate2_yearly-mean
 HORIZONTAL
 
 SLIDER
-666
-1239
-1139
-1272
+665
+1307
+1138
+1340
 precipitation_daily-cum_rate2_yearly-sd
 precipitation_daily-cum_rate2_yearly-sd
 0.004
@@ -4791,25 +5154,25 @@ precipitation_daily-cum_rate2_yearly-sd
 HORIZONTAL
 
 SLIDER
-98
-819
-424
-852
+97
+887
+423
+920
 precipitation_yearly-mean-bias
 precipitation_yearly-mean-bias
 -500
 500
-100.0
+0.0
 1
 1
 mm/year
 HORIZONTAL
 
 MONITOR
-422
-864
-550
-901
+421
+932
+549
+969
 NIL
 precipitation_yearlyMean
 2
@@ -4817,10 +5180,10 @@ precipitation_yearlyMean
 9
 
 MONITOR
-421
-902
-559
-939
+420
+970
+558
+1007
 NIL
 precipitation_yearlySd
 2
@@ -4828,10 +5191,10 @@ precipitation_yearlySd
 9
 
 MONITOR
-426
-953
-583
-990
+425
+1021
+582
+1058
 NIL
 precipitation_dailyCum_nSamples
 2
@@ -4839,10 +5202,10 @@ precipitation_dailyCum_nSamples
 9
 
 MONITOR
-425
-990
-606
-1027
+424
+1058
+605
+1095
 NIL
 precipitation_dailyCum_maxSampleSize
 2
@@ -4850,10 +5213,10 @@ precipitation_dailyCum_maxSampleSize
 9
 
 MONITOR
-497
-1044
-721
-1081
+496
+1112
+720
+1149
 NIL
 precipitation_dailyCum_plateauValue_yearlyMean
 2
@@ -4861,10 +5224,10 @@ precipitation_dailyCum_plateauValue_yearlyMean
 9
 
 MONITOR
-498
-1079
-720
-1116
+497
+1147
+719
+1184
 NIL
 precipitation_dailyCum_plateauValue_yearlySd
 2
@@ -4872,10 +5235,10 @@ precipitation_dailyCum_plateauValue_yearlySd
 9
 
 MONITOR
-498
-1125
-654
-1162
+497
+1193
+653
+1230
 NIL
 precipitation_dailyCum_inflection1_yearlyMean
 2
@@ -4883,10 +5246,10 @@ precipitation_dailyCum_inflection1_yearlyMean
 9
 
 MONITOR
-501
-1164
-655
-1201
+500
+1232
+654
+1269
 NIL
 precipitation_dailyCum_inflection1_yearlySd
 2
@@ -4894,10 +5257,10 @@ precipitation_dailyCum_inflection1_yearlySd
 9
 
 MONITOR
-498
-1200
-654
-1237
+497
+1268
+653
+1305
 NIL
 precipitation_dailyCum_rate1_yearlyMean
 2
@@ -4905,10 +5268,10 @@ precipitation_dailyCum_rate1_yearlyMean
 9
 
 MONITOR
-501
-1239
-655
-1276
+500
+1307
+654
+1344
 NIL
 precipitation_dailyCum_rate1_yearlySd
 2
@@ -4916,10 +5279,10 @@ precipitation_dailyCum_rate1_yearlySd
 9
 
 MONITOR
-1136
-1126
-1292
-1163
+1135
+1194
+1291
+1231
 NIL
 precipitation_dailyCum_inflection2_yearlyMean
 2
@@ -4927,10 +5290,10 @@ precipitation_dailyCum_inflection2_yearlyMean
 9
 
 MONITOR
-1138
-1161
-1292
-1198
+1137
+1229
+1291
+1266
 NIL
 precipitation_dailyCum_inflection2_yearlySd
 2
@@ -4938,10 +5301,10 @@ precipitation_dailyCum_inflection2_yearlySd
 9
 
 MONITOR
-1136
-1196
-1292
-1233
+1135
+1264
+1291
+1301
 NIL
 precipitation_dailyCum_rate2_yearlyMean
 2
@@ -4949,10 +5312,10 @@ precipitation_dailyCum_rate2_yearlyMean
 9
 
 MONITOR
-1139
-1235
-1293
-1272
+1138
+1303
+1292
+1340
 NIL
 precipitation_dailyCum_rate2_yearlySd
 2
@@ -5068,30 +5431,30 @@ PENS
 "mean water content ratio" 1.0 0 -13345367 true "" "plot mean [p_soil_waterContentRatio] of patches"
 
 TEXTBOX
-15
-426
-667
-444
+14
+494
+666
+512
 =============================WEATHER=============================
 14
 0.0
 1
 
 TEXTBOX
-316
-312
-603
-344
+306
+407
+593
+439
 ========= RIVER =========
 14
 0.0
 1
 
 MONITOR
-402
-349
-555
-386
+396
+435
+549
+472
 NIL
 riverWaterPerFlowAccumulation
 7
@@ -5099,10 +5462,10 @@ riverWaterPerFlowAccumulation
 9
 
 MONITOR
-501
-227
-651
-264
+497
+332
+647
+369
 NIL
 elev_seaLevelReferenceShift
 2
@@ -5121,10 +5484,10 @@ show-seaLevel-in-transects
 -1000
 
 MONITOR
-549
-345
-670
-390
+543
+431
+664
+476
 land units with river
 landWithRiver
 0
@@ -5197,10 +5560,10 @@ TEXTBOX
 1
 
 SWITCH
-14
-452
-179
-485
+13
+520
+178
+553
 southHemisphere?
 southHemisphere?
 1
@@ -5230,10 +5593,10 @@ mean [p_ecol_albedo] of patches
 11
 
 OUTPUT
-747
-923
-1533
-1124
+744
+963
+1530
+1164
 9
 
 PLOT
@@ -5271,10 +5634,10 @@ true
 PENS
 
 MONITOR
-1404
-862
-1559
-907
+1401
+902
+1556
+947
 NIL
 crop_HarvestingDay
 0
@@ -5282,10 +5645,10 @@ crop_HarvestingDay
 11
 
 MONITOR
-1267
-862
-1405
-907
+1264
+902
+1402
+947
 NIL
 crop_sowingDay
 0
@@ -5293,42 +5656,42 @@ crop_sowingDay
 11
 
 TEXTBOX
-819
-827
-1451
-854
+816
+867
+1448
+894
 =============================CROPS=============================
 14
 0.0
 1
 
 INPUTBOX
-1015
-849
-1258
-909
+1012
+889
+1255
+949
 crop-selection
-0
+[\"wheat 1\" \"wheat 2\" \"rice\" \"barley\" \"pearl millet\" \"proso millet\"]
 1
 0
 String
 
 INPUTBOX
-1327
+1339
 10
-1546
+1558
 70
 crop-to-display
-0
+wheat 1
 1
 0
 String
 
 SLIDER
-724
-862
-983
-895
+721
+902
+980
+935
 crop-intensity
 crop-intensity
 0
@@ -5356,6 +5719,56 @@ false
 "" ""
 PENS
 "default" 1.0 0 -16777216 true "" "plot count turtles"
+
+BUTTON
+485
+240
+664
+273
+run yield experiment batch
+run-yield-performance-experiment-batch
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+INPUTBOX
+160
+229
+315
+289
+experiment-initRandomSeed
+8.0
+1
+0
+Number
+
+INPUTBOX
+319
+229
+474
+289
+experiment-numberOfRuns
+2.0
+1
+0
+Number
+
+INPUTBOX
+5
+229
+159
+289
+experiment-name
+defaultSetting
+1
+0
+String
 
 @#$#@#$#@
 ## WHAT IS IT?
