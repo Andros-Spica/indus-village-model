@@ -3080,11 +3080,12 @@ end
 
 to run-yield-performance-experiment-batch
 
-  ;;; Every yield experiment batch can create up to four files:
+  ;;; Every yield experiment batch can create up to five files:
   ;;; - crop table (if not already created),
   ;;; - terrain data (if not already created),
   ;;; - parameters per run (if already created, parameters are added as new rows), and
   ;;; - variables per crop/patch/year/run (one file created per batch)
+  ;;; - weather variables per day (one file created per batch)
 
   ;;; a first setup is required to be able to export cropTable and terrain data
   setup
@@ -3102,6 +3103,8 @@ to run-yield-performance-experiment-batch
 
   setup-yield-performance-data-file
 
+  setup-weather-data-file
+
   set randomSeed experiment-initRandomSeed
 
   repeat experiment-numberOfRuns
@@ -3113,11 +3116,16 @@ to run-yield-performance-experiment-batch
     ;;; NOTE: data can be retraced using the randomSeed
     export-parameters-of-yield-experiment
 
+    export-weather-of-yield-experiment
+
     repeat end-simulation-in-year
     [
       repeat yearLengthInDays
       [
         go
+
+        export-weather-of-yield-experiment
+
         if (currentDayOfYear = 365) [ export-yield-performance ]
       ]
     ]
@@ -3389,6 +3397,55 @@ to export-terrain-of-yield-experiment
 
     file-close
   ]
+
+end
+
+to setup-weather-data-file
+
+  ;;; build a unique file name according to the user setting
+  let filePath (word "output//yield//I2_yield-exp_weather_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
+
+  ;;; check that filePath does not exceed 100 (not common in this context)
+  ;if (length filePath > 120) [ print "WARNING: file path may be too long, depending on your current directory. Decrease length of file name or increase the limit." set filePath substring filePath 0 120 ]
+;print filePath
+  file-open filePath
+
+  file-print (word
+    "randomSeed,"
+    "currentYear,currentDayOfYear,"
+    "temperature,maxTemperature,minTemperature,"
+    "solarRadiation,"
+    "precipitation"
+  )
+
+  file-close
+
+end
+
+to export-weather-of-yield-experiment
+
+  ;;; recover the unique file name according to the user setting
+  let filePath (word "output//yield//I2_yield-exp_weather_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
+
+  file-open filePath
+
+  ;;; randomSeed,
+  file-type randomSeed file-type ","
+  ;;; currentYear, currentDayOfYear,
+  file-type currentYear file-type ","
+  file-type currentDayOfYear file-type ","
+  ;;; tempetature,temperature_max,temperature_min,
+  file-type temperature file-type ","
+  file-type maxTemperature file-type ","
+  file-type minTemperature file-type ","
+  ;;; solarRadiation,
+  file-type solarRadiation file-type ","
+  ;;; RAIN
+  file-type precipitation
+
+  file-print ""
+
+  file-close
 
 end
 
@@ -4043,7 +4100,7 @@ end
 to-report get-annual-sinusoid [ minValue maxValue dayOfYear southHemisphere ]
 
   let dayOfYearWithLowestValue get-dayOfYear-with-lowest-value southHemisphere
-  
+
   let amplitude (maxValue - minValue) / 2
 
   report minValue + amplitude * (1 + sin ((360 * (dayOfYear - (dayOfYearWithLowestValue - yearLengthInDays)) / yearLengthInDays) - 90))
@@ -4059,7 +4116,7 @@ let value -1
   ifelse (southHemisphere)
   [
     ;;; assuming southern hemisphere, winter solstice in 21st June (not leap year)
-    set value (31 + 28 + 31 + 30 + 31 + 21) ]
+    set value (31 + 28 + 31 + 30 + 31 + 21)
   ]
   [
     ;;; assuming northern hemisphere, winter solstice in 21st December (not leap year)
@@ -4283,7 +4340,7 @@ par_elev_seaLevelReferenceShift
 par_elev_seaLevelReferenceShift
 -1000
 round max (list maxElevation elev_rangeHeight)
--1000.0
+0.0
 1
 1
 m
@@ -4516,7 +4573,7 @@ INPUTBOX
 388
 485
 par_riverWaterPerFlowAccumulation
-1.0E-4
+0.0
 1
 0
 Number
@@ -4581,7 +4638,7 @@ INPUTBOX
 99
 118
 randomSeed
-10.0
+0.0
 1
 0
 Number
@@ -4648,7 +4705,7 @@ INPUTBOX
 228
 118
 end-simulation-in-year
-5.0
+0.0
 1
 0
 Number
@@ -4662,7 +4719,7 @@ temperature_mean-daily-fluctuation
 temperature_mean-daily-fluctuation
 0
 5
-2.2
+0.0
 0.1
 1
 ºC  (default: 2.2)
@@ -4677,7 +4734,7 @@ temperature_daily-lower-deviation
 temperature_daily-lower-deviation
 0
 10
-6.8
+0.0
 0.1
 1
 ºC  (default: 6.8)
@@ -4692,7 +4749,7 @@ temperature_daily-upper-deviation
 temperature_daily-upper-deviation
 0
 10
-7.9
+0.0
 0.1
 1
 ºC  (default: 7.9)
@@ -4707,7 +4764,7 @@ temperature_annual-max-at-2m
 temperature_annual-max-at-2m
 15
 40
-37.0
+0.0
 0.1
 1
 ºC  (default: 37)
@@ -4722,7 +4779,7 @@ temperature_annual-min-at-2m
 temperature_annual-min-at-2m
 -15
 15
-12.8
+0.0
 0.1
 1
 ºC  (default: 12.8)
@@ -4790,7 +4847,7 @@ solar_annual-max
 solar_annual-max
 solar_annual-min
 30
-24.2
+0.0
 0.01
 1
 MJ/m2 (default: 24.2)
@@ -4820,7 +4877,7 @@ solar_mean-daily-fluctuation
 solar_mean-daily-fluctuation
 0
 6
-3.3
+0.0
 0.01
 1
 MJ/m2 (default: 3.3)
@@ -4952,7 +5009,7 @@ precipitation_yearly-mean
 precipitation_yearly-mean
 0
 1000
-489.0
+0.0
 1.0
 1
 mm/year (default: 489)
@@ -4967,7 +5024,7 @@ precipitation_yearly-sd
 precipitation_yearly-sd
 0
 250
-142.2
+0.0
 0.1
 1
 mm/year (default: 142.2)
@@ -4982,7 +5039,7 @@ precipitation_daily-cum_n-samples
 precipitation_daily-cum_n-samples
 0
 300
-200.0
+0.0
 1.0
 1
 (default: 200)
@@ -4997,7 +5054,7 @@ precipitation_daily-cum_max-sample-size
 precipitation_daily-cum_max-sample-size
 1
 20
-10.0
+0.0
 1.0
 1
 (default: 10)
@@ -5012,7 +5069,7 @@ precipitation_daily-cum_plateau-value_yearly-mean
 precipitation_daily-cum_plateau-value_yearly-mean
 0.2
 0.8
-0.25
+0.0
 0.01
 1
 winter (mm)/summer (mm) (default: 0.25)
@@ -5027,7 +5084,7 @@ precipitation_daily-cum_plateau-value_yearly-sd
 precipitation_daily-cum_plateau-value_yearly-sd
 0
 0.4
-0.1
+0.0
 0.001
 1
 (default: 0.1)
@@ -5042,7 +5099,7 @@ precipitation_daily-cum_inflection1_yearly-mean
 precipitation_daily-cum_inflection1_yearly-mean
 40
 140
-40.0
+0.0
 1.0
 1
 day of year (default: 40)
@@ -5072,7 +5129,7 @@ precipitation_daily-cum_rate1_yearly-mean
 precipitation_daily-cum_rate1_yearly-mean
 0.01
 0.07
-0.07
+0.0
 0.001
 1
 (default: 0.07)
@@ -5087,7 +5144,7 @@ precipitation_daily-cum_rate1_yearly-sd
 precipitation_daily-cum_rate1_yearly-sd
 0.004
 0.03
-0.02
+0.0
 0.001
 1
 (default: 0.02)
@@ -5102,7 +5159,7 @@ precipitation_daily-cum_inflection2_yearly-mean
 precipitation_daily-cum_inflection2_yearly-mean
 180
 366
-240.0
+0.0
 1.0
 1
 day of year (default: 240)
@@ -5117,7 +5174,7 @@ precipitation_daily-cum_inflection2_yearly-sd
 precipitation_daily-cum_inflection2_yearly-sd
 20
 100
-20.0
+0.0
 1
 1
 days (default: 20)
@@ -5132,7 +5189,7 @@ precipitation_daily-cum_rate2_yearly-mean
 precipitation_daily-cum_rate2_yearly-mean
 0.01
 0.08
-0.08
+0.0
 0.001
 1
 (default: 0.08)
@@ -5147,7 +5204,7 @@ precipitation_daily-cum_rate2_yearly-sd
 precipitation_daily-cum_rate2_yearly-sd
 0.004
 0.03
-0.02
+0.0
 0.001
 1
 (default: 0.02)
@@ -5671,7 +5728,7 @@ INPUTBOX
 1255
 949
 crop-selection
-[\"wheat 1\" \"wheat 2\" \"rice\" \"barley\" \"pearl millet\" \"proso millet\"]
+0
 1
 0
 String
@@ -5682,7 +5739,7 @@ INPUTBOX
 1558
 70
 crop-to-display
-wheat 1
+0
 1
 0
 String
@@ -5696,7 +5753,7 @@ crop-intensity
 crop-intensity
 0
 100
-50.0
+0.0
 1
 1
 % of patch area
@@ -5743,7 +5800,7 @@ INPUTBOX
 315
 289
 experiment-initRandomSeed
-8.0
+0.0
 1
 0
 Number
@@ -5754,7 +5811,7 @@ INPUTBOX
 474
 289
 experiment-numberOfRuns
-2.0
+0.0
 1
 0
 Number
@@ -5765,7 +5822,7 @@ INPUTBOX
 159
 289
 experiment-name
-defaultSetting
+0
 1
 0
 String

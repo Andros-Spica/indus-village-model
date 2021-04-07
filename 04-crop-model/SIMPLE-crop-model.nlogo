@@ -435,7 +435,7 @@ end
 to parameters-to-default
 
   ;;; set parameters to a default value
-  set end-simulation-in-year                                    5
+  ;set end-simulation-in-year                                    5
 
   set temperature_annual-max-at-2m                             37
   set temperature_annual-min-at-2m                             12.8
@@ -1128,17 +1128,24 @@ to run-yield-performance-experiment-batch
 
   setup-yield-performance-data-file
 
+  setup-weather-data-file
+
   set randomSeed experiment-initRandomSeed
 
   repeat experiment-numberOfRuns
   [
     setup
 
+    export-weather-of-yield-experiment
+
     repeat end-simulation-in-year
     [
       repeat yearLengthInDays
       [
         go
+
+        export-weather-of-yield-experiment
+
         if (currentDayOfYear = 365) [ export-yield-performance ]
       ]
     ]
@@ -1279,6 +1286,62 @@ to export-yield-performance
 
 end
 
+to setup-weather-data-file
+
+  ;;; build a unique file name according to the user setting
+  let filePath (word "output//yield//SIMPLE-crop-model_yield-exp_weather_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
+
+  ;;; check that filePath does not exceed 100 (not common in this context)
+  ;if (length filePath > 120) [ print "WARNING: file path may be too long, depending on your current directory. Decrease length of file name or increase the limit." set filePath substring filePath 0 120 ]
+;print filePath
+  file-open filePath
+
+  file-print (word
+    "randomSeed,"
+    "currentYear,currentDayOfYear,"
+    "temperature,temperature_max,temperature_min,"
+    "CO2,solarRadiation,netSolarRadiation,"
+    "ETr,RAIN,ARID"
+  )
+
+  file-close
+
+end
+
+to export-weather-of-yield-experiment
+
+  ;;; recover the unique file name according to the user setting
+  let filePath (word "output//yield//SIMPLE-crop-model_yield-exp_weather_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
+
+  file-open filePath
+
+  ;;; randomSeed,
+  file-type randomSeed file-type ","
+  ;;; currentYear, currentDayOfYear,
+  file-type currentYear file-type ","
+  file-type currentDayOfYear file-type ","
+  ;;; tempetature,temperature_max,temperature_min,
+  file-type T file-type ","
+  file-type T_max file-type ","
+  file-type T_min file-type ","
+  ;;; CO2,
+  file-type CO2 file-type ","
+  ;;; solarRadiation,
+  file-type solarRadiation file-type ","
+  file-type netSolarRadiation file-type ","
+  ;;; ETr
+  file-type ETr file-type ","
+  ;;; RAIN
+  file-type RAIN file-type ","
+  ;;; ARID
+  file-type ARID
+
+  file-print ""
+
+  file-close
+
+end
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; LOAD DATA FROM TABLES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1404,7 +1467,7 @@ end
 to-report get-annual-sinusoid [ minValue maxValue dayOfYear southHemisphere ]
 
   let dayOfYearWithLowestValue get-dayOfYear-with-lowest-value southHemisphere
-  
+
   let amplitude (maxValue - minValue) / 2
 
   report minValue + amplitude * (1 + sin ((360 * (dayOfYear - (dayOfYearWithLowestValue - yearLengthInDays)) / yearLengthInDays) - 90))
@@ -1415,12 +1478,12 @@ end
 
 to-report get-dayOfYear-with-lowest-value [ southHemisphere ]
 
-let value -1
+  let value -1
 
   ifelse (southHemisphere)
   [
     ;;; assuming southern hemisphere, winter solstice in 21st June (not leap year)
-    set value (31 + 28 + 31 + 30 + 31 + 21) ]
+    set value (31 + 28 + 31 + 30 + 31 + 21)
   ]
   [
     ;;; assuming northern hemisphere, winter solstice in 21st December (not leap year)
@@ -1539,7 +1602,7 @@ to-report get-incremets-from-curve [ curve ]
     i ->
     if (i > 0) ; do not iterate for the first (0) element
     [
-set incrementsCurve replace-item i incrementsCurve (max (list 0 ((item i curve) - (item (i - 1) curve))))
+      set incrementsCurve replace-item i incrementsCurve (max (list 0 ((item i curve) - (item (i - 1) curve))))
     ]
   ]
 
@@ -1626,7 +1689,7 @@ INPUTBOX
 116
 122
 randomSeed
-500.0
+0.0
 1
 0
 Number
@@ -1686,7 +1749,7 @@ INPUTBOX
 247
 122
 end-simulation-in-year
-5.0
+0.0
 1
 0
 Number
@@ -1700,7 +1763,7 @@ temperature_mean-daily-fluctuation
 temperature_mean-daily-fluctuation
 0
 5
-2.2
+0.0
 0.1
 1
 ºC  (default: 2.2)
@@ -1715,7 +1778,7 @@ temperature_daily-lower-deviation
 temperature_daily-lower-deviation
 0
 10
-6.8
+0.0
 0.1
 1
 ºC  (default: 6.8)
@@ -1730,7 +1793,7 @@ temperature_daily-upper-deviation
 temperature_daily-upper-deviation
 0
 10
-7.9
+0.0
 0.1
 1
 ºC  (default: 7.9)
@@ -1745,7 +1808,7 @@ temperature_annual-max-at-2m
 temperature_annual-max-at-2m
 15
 40
-37.0
+0.0
 0.1
 1
 ºC  (default: 37)
@@ -1760,7 +1823,7 @@ temperature_annual-min-at-2m
 temperature_annual-min-at-2m
 -15
 15
-12.8
+0.0
 0.1
 1
 ºC  (default: 12.8)
@@ -1884,7 +1947,7 @@ solar_annual-max
 solar_annual-max
 solar_annual-min
 30
-24.2
+0.0
 0.01
 1
 MJ/m2 (default: 24.2)
@@ -1914,7 +1977,7 @@ solar_mean-daily-fluctuation
 solar_mean-daily-fluctuation
 0
 6
-3.3
+0.0
 0.01
 1
 MJ/m2 (default: 3.3)
@@ -1980,7 +2043,7 @@ precipitation_yearly-mean
 precipitation_yearly-mean
 0
 1000
-489.0
+0.0
 1.0
 1
 mm/year (default: 489)
@@ -1995,7 +2058,7 @@ precipitation_yearly-sd
 precipitation_yearly-sd
 0
 250
-142.2
+0.0
 0.1
 1
 mm/year (default: 142.2)
@@ -2010,7 +2073,7 @@ precipitation_daily-cum_n-samples
 precipitation_daily-cum_n-samples
 0
 300
-200.0
+0.0
 1.0
 1
 (default: 200)
@@ -2025,7 +2088,7 @@ precipitation_daily-cum_max-sample-size
 precipitation_daily-cum_max-sample-size
 1
 20
-10.0
+0.0
 1.0
 1
 (default: 10)
@@ -2040,7 +2103,7 @@ precipitation_daily-cum_plateau-value_yearly-mean
 precipitation_daily-cum_plateau-value_yearly-mean
 0.2
 0.8
-0.25
+0.0
 0.01
 1
 winter (mm)/summer (mm) (default: 0.25)
@@ -2055,7 +2118,7 @@ precipitation_daily-cum_plateau-value_yearly-sd
 precipitation_daily-cum_plateau-value_yearly-sd
 0
 0.4
-0.1
+0.0
 0.001
 1
 (default: 0.1)
@@ -2070,7 +2133,7 @@ precipitation_daily-cum_inflection1_yearly-mean
 precipitation_daily-cum_inflection1_yearly-mean
 40
 140
-40.0
+0.0
 1.0
 1
 day of year (default: 40)
@@ -2100,7 +2163,7 @@ precipitation_daily-cum_rate1_yearly-mean
 precipitation_daily-cum_rate1_yearly-mean
 0.01
 0.07
-0.07
+0.0
 0.001
 1
 (default: 0.07)
@@ -2115,7 +2178,7 @@ precipitation_daily-cum_rate1_yearly-sd
 precipitation_daily-cum_rate1_yearly-sd
 0.004
 0.03
-0.02
+0.0
 0.001
 1
 (default: 0.02)
@@ -2130,7 +2193,7 @@ precipitation_daily-cum_inflection2_yearly-mean
 precipitation_daily-cum_inflection2_yearly-mean
 180
 366
-240.0
+0.0
 1.0
 1
 day of year (default: 240)
@@ -2145,7 +2208,7 @@ precipitation_daily-cum_inflection2_yearly-sd
 precipitation_daily-cum_inflection2_yearly-sd
 20
 100
-20.0
+0.0
 1
 1
 days (default: 20)
@@ -2160,7 +2223,7 @@ precipitation_daily-cum_rate2_yearly-mean
 precipitation_daily-cum_rate2_yearly-mean
 0.01
 0.08
-0.08
+0.0
 0.001
 1
 (default: 0.08)
@@ -2175,7 +2238,7 @@ precipitation_daily-cum_rate2_yearly-sd
 precipitation_daily-cum_rate2_yearly-sd
 0.004
 0.03
-0.02
+0.0
 0.001
 1
 (default: 0.02)
@@ -2429,7 +2492,7 @@ par_elevation
 par_elevation
 0
 2500
-200.0
+0.0
 1
 1
 m a.s.l.
@@ -2444,7 +2507,7 @@ water-holding-capacity
 water-holding-capacity
 0.01
 0.5
-0.15
+0.0
 0.01
 1
 cm3/cm3
@@ -2459,7 +2522,7 @@ drainage-coefficient
 drainage-coefficient
 0
 1
-0.55
+0.0
 0.01
 1
 NIL
@@ -2474,7 +2537,7 @@ root-zone-depth
 root-zone-depth
 0
 2000
-400.0
+0.0
 1
 1
 mm
@@ -2489,7 +2552,7 @@ runoff-curve
 runoff-curve
 50
 80
-65.0
+0.0
 1
 1
 NIL
@@ -2576,7 +2639,7 @@ par_albedo
 par_albedo
 0
 0.7
-0.23
+0.0
 0.01
 1
 NIL
@@ -2652,7 +2715,7 @@ CO2-annual-max
 CO2-annual-max
 CO2-annual-min
 270
-255.0
+0.0
 0.01
 1
 ppm (default: 255)
@@ -2667,7 +2730,7 @@ CO2-mean-daily-fluctuation
 CO2-mean-daily-fluctuation
 0
 5
-1.0
+0.0
 0.01
 1
 ppm (default:1)
@@ -2758,7 +2821,7 @@ INPUTBOX
 250
 387
 experiment-numberOfRuns
-100.0
+0.0
 1
 0
 Number
@@ -2769,7 +2832,7 @@ INPUTBOX
 251
 454
 experiment-name
-defaultSetting
+0
 1
 0
 String
