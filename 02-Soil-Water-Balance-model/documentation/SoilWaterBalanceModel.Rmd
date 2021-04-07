@@ -3,9 +3,9 @@ title: "Testing R implementation of Soil Water Balance model"
 author: "Andreas Angourakis"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
-  pdf_document: default
   html_document:
     number_sections: yes
+  pdf_document: default
 ---
 
 ## Preparation
@@ -75,7 +75,8 @@ We selected the ICASA Format's parameters:
 Loading data:
 
 ```{r}
-weather <- watbal.weather.file("data/POWER_SinglePoint_Daily_19840101_20181231_029d17N_076d70E_0bd5f9c2.csv", year = 1984:2018)
+weather <- watbal.weather.file("data/POWER_SinglePoint_Daily_19840101_20181231_029d17N_076d70E_0bd5f9c2.csv", 
+                               year = 1984:2018, linesToSkip = 17)
 
 # convert missing data in all sky insolation (I) from -99.0 to Na
 weather$I[weather$I == -99] <- NA
