@@ -3553,7 +3553,7 @@ to export-cropTable-of-yield-experiment
 
     file-print (word
       "terrainRandomSeed,initRandomSeed,"
-      "crop,T_sum,HI,I_50A,I_50B,T_base,T_opt,RUE,I_50maxH,I_50maxW,T_heat,T_extreme,S_water,sowingDay,harvestDay"
+      "crop,T_sum,HI,I_50A,I_50B,T_base,T_opt,RUE,I_50maxH,I_50maxW,T_heat,T_extreme,S_water,sowingDay,harvestDay,rootZoneDepth"
     )
 
     foreach crop_selection
@@ -3580,7 +3580,8 @@ to export-cropTable-of-yield-experiment
       file-type (item cropIndex crop_T_extreme) file-type ","
       file-type (item cropIndex crop_S_water) file-type ","
       file-type (item cropIndex crop_sowingDay) file-type ","
-      file-type (item cropIndex crop_harvestingDay)
+      file-type (item cropIndex crop_harvestingDay) file-type ","
+      file-type (item cropIndex crop_rootZoneDepth)
       file-print ""
     ]
 
