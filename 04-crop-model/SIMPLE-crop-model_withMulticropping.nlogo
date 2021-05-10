@@ -127,6 +127,8 @@ globals
   ;;;; management
   sugSowingDay ; sowing day (day of year)
   sugHarvestingDay ; harvesting day (day of year)
+  ;;;; root
+  rootZoneDepth ; root zone depth (mm)
 
   ;;; variables
   ;;;; time tracking
@@ -319,8 +321,6 @@ to set-parameters
     set WHC_max water-holding-capacity_max
     set DC_min drainage-coefficient_min
     set DC_max drainage-coefficient_max
-    set z_min root-zone-depth_min
-    set z_max root-zone-depth_max
     set CN_min runoff-curve_min
     set CN_max runoff-curve_max
   ]
@@ -365,8 +365,6 @@ to set-parameters
     set WHC_max WHC_min + random-float 0.1
     set DC_min 1E-6 + random-float 0.45
     set DC_max DC_min + random-float 0.45
-    set z_min random-float 1000
-    set z_max z_min + random-float 1000
     set CN_min random-float 40
     set CN_max CN_min + random-float 50
 
@@ -420,8 +418,6 @@ to set-parameters
     set WHC_max water-holding-capacity_max
     set DC_min drainage-coefficient_min
     set DC_max drainage-coefficient_max
-    set z_min root-zone-depth_min
-    set z_max root-zone-depth_max
     set CN_min runoff-curve_min
     set CN_max runoff-curve_max
   ]
@@ -480,8 +476,6 @@ to parameters-check
   if (water-holding-capacity_max = 0)                            [ set water-holding-capacity_max                    0.25 ]
   if (drainage-coefficient_min = 0)                              [ set drainage-coefficient_min                      0.3 ]
   if (drainage-coefficient_max = 0)                              [ set drainage-coefficient_max                      0.7 ]
-  if (root-zone-depth_min = 0)                                   [ set root-zone-depth_min                         200 ]
-  if (root-zone-depth_max = 0)                                   [ set root-zone-depth_max                        2000 ]
   if (runoff-curve_min = 0)                                      [ set runoff-curve_min                             50 ]
   if (runoff-curve_max = 0)                                      [ set runoff-curve_max                             80 ]
 
@@ -533,8 +527,6 @@ to parameters-to-default
   set water-holding-capacity_max                                0.25
   set drainage-coefficient_min                                  0.3
   set drainage-coefficient_max                                  0.7
-  set root-zone-depth_min                                     200
-  set root-zone-depth_max                                    2000
   set runoff-curve_min                                         50
   set runoff-curve_max                                         80
 
@@ -554,8 +546,7 @@ to setup-patches
     set WHC WHC_min + random-float (WHC_max - WHC_min)
     ; DC :  Drainage coefficient (mm^3 mm^-3)
     set DC DC_min + random-float (DC_max - DC_min)
-    ; z : root zone depth (mm)
-    set z z_min + random (z_max - z_min)
+
     ; CN : Runoff curve number
     set CN CN_min + random (CN_max - CN_max)
 
@@ -589,6 +580,9 @@ to setup-crops
   let cropFrequencyTotal sum cropFrequency
   ;;; rescale values
   set cropFrequency map [i -> 100 * i / cropFrequencyTotal] cropFrequency
+
+  ;;; set root zone depth as weighted mean of crops
+  set z sum (map [ [i j] -> (i / 100) * j ] cropFrequency rootZoneDepth)
 
   ;;; initialise all crop related variables as list where items correspond to crops
   set TT n-values (length typesOfCrops) [ j -> 0 ]
@@ -1413,7 +1407,7 @@ end
 
 to print-crop-table
 
-  output-print (word " | typesOfCrops | T_sum | HI | I_50A | I_50B | T_base | T_opt | RUE | I_50maxH | I_50maxW | T_heat | T_ext | S_water | sugSowingDay | sugHarvestingDay | ")
+  output-print (word " | typesOfCrops | T_sum | HI | I_50A | I_50B | T_base | T_opt | RUE | I_50maxH | I_50maxW | T_heat | T_ext | S_water | sugSowingDay | sugHarvestingDay | rootZoneDepth |")
 
   foreach n-values (length typesOfCrops) [j -> j]
   [
@@ -1434,6 +1428,7 @@ to print-crop-table
       " | " (item cropIndex S_water)
       " | " (item cropIndex sugSowingDay)
       " | " (item cropIndex sugHarvestingDay)
+      " | " (item cropIndex rootZoneDepth)
       " | ")
   ]
 
@@ -1554,7 +1549,7 @@ to setup-yield-performance-data-file
     "currentYear,currentDayOfYear,"
     "precipitation_yearTotal,meanARID,"
     "x,y,elevation,DC,z,CN,FC,WHC,albedo,"
-    "crop,T_sum,HI,I_50A,I_50B,T_base,T_opt,RUE,I_50maxH,I_50maxW,T_heat,T_extreme,S_CO2,S_water,sowingDay,harvestDay,"
+    "crop,T_sum,HI,I_50A,I_50B,T_base,T_opt,RUE,I_50maxH,I_50maxW,T_heat,T_extreme,S_CO2,S_water,sowingDay,harvestDay,rootZoneDepth"
     "meanARID_grow,yield"
   )
 
@@ -1645,6 +1640,7 @@ to export-yield-performance
         file-type (item cropIndex S_water) file-type ","
         file-type (item cropIndex sowingDay) file-type ","
         file-type (item cropIndex harvestingDay) file-type ","
+        file-type (item cropIndex rootZoneDepth) file-type ","
         ;;; mean ARID during grow season in year
         ifelse ((item cropIndex sowingDay) < (item cropIndex harvestingDay))
         [
@@ -1779,6 +1775,8 @@ to load-crops-table
 
   let sugHarvestingDayColumn (item 35 (item 3 cropsTable)) - 1
 
+  let rootZoneDepthColumn (item 37 (item 3 cropsTable)) - 1
+
   ;;;==================================================================================================================
   ;;; extract data---------------------------------------------------------------------------------------
 
@@ -1818,6 +1816,8 @@ to load-crops-table
   set sugSowingDay map [row -> item sugSowingDayColumn row ] cropsData
 
   set sugHarvestingDay map [row -> item sugHarvestingDayColumn row ] cropsData
+
+  set rootZoneDepth map [row -> item rootZoneDepthColumn row ] cropsData
 
 end
 
@@ -2184,7 +2184,7 @@ temperature_mean-daily-fluctuation
 temperature_mean-daily-fluctuation
 0
 5
-0.0
+2.2
 0.1
 1
 ºC  (default: 2.2)
@@ -2199,7 +2199,7 @@ temperature_daily-lower-deviation
 temperature_daily-lower-deviation
 0
 10
-0.0
+6.8
 0.1
 1
 ºC  (default: 6.8)
@@ -2214,7 +2214,7 @@ temperature_daily-upper-deviation
 temperature_daily-upper-deviation
 0
 10
-0.0
+7.9
 0.1
 1
 ºC  (default: 7.9)
@@ -2229,7 +2229,7 @@ temperature_annual-max-at-2m
 temperature_annual-max-at-2m
 15
 40
-0.0
+37.0
 0.1
 1
 ºC  (default: 37)
@@ -2244,7 +2244,7 @@ temperature_annual-min-at-2m
 temperature_annual-min-at-2m
 -15
 15
-0.0
+12.8
 0.1
 1
 ºC  (default: 12.8)
@@ -2333,7 +2333,7 @@ CHOOSER
 display-mode
 display-mode
 "elevation (m)" "soil run off curve number" "soil water holding capacity" "soil water field capacity" "soil deep drainage coefficient" "albedo (%)" "reference evapotranspiration (ETr) (mm)" "soil water content (ratio)" "ARID coefficient" "crop-to-display frequency (%)" "total biomass (g/m2)" "total yield (g/m2)"
-11
+8
 
 BUTTON
 480
@@ -2395,7 +2395,7 @@ solar_annual-max
 solar_annual-max
 solar_annual-min
 30
-0.0
+24.2
 0.01
 1
 MJ/m2 (default: 24.2)
@@ -2425,7 +2425,7 @@ solar_mean-daily-fluctuation
 solar_mean-daily-fluctuation
 0
 6
-0.0
+3.3
 0.01
 1
 MJ/m2 (default: 3.3)
@@ -2491,7 +2491,7 @@ precipitation_yearly-mean
 precipitation_yearly-mean
 0
 1000
-0.0
+489.0
 1.0
 1
 mm/year (default: 489)
@@ -2506,7 +2506,7 @@ precipitation_yearly-sd
 precipitation_yearly-sd
 0
 250
-0.0
+142.2
 0.1
 1
 mm/year (default: 142.2)
@@ -2521,7 +2521,7 @@ precipitation_daily-cum_n-samples
 precipitation_daily-cum_n-samples
 0
 300
-0.0
+200.0
 1.0
 1
 (default: 200)
@@ -2536,7 +2536,7 @@ precipitation_daily-cum_max-sample-size
 precipitation_daily-cum_max-sample-size
 1
 20
-0.0
+10.0
 1.0
 1
 (default: 10)
@@ -2551,7 +2551,7 @@ precipitation_daily-cum_plateau-value_yearly-mean
 precipitation_daily-cum_plateau-value_yearly-mean
 0.2
 0.8
-0.0
+0.25
 0.01
 1
 winter (mm)/summer (mm) (default: 0.25)
@@ -2566,7 +2566,7 @@ precipitation_daily-cum_plateau-value_yearly-sd
 precipitation_daily-cum_plateau-value_yearly-sd
 0
 0.4
-0.0
+0.1
 0.001
 1
 (default: 0.1)
@@ -2581,7 +2581,7 @@ precipitation_daily-cum_inflection1_yearly-mean
 precipitation_daily-cum_inflection1_yearly-mean
 40
 140
-0.0
+40.0
 1.0
 1
 day of year (default: 40)
@@ -2611,7 +2611,7 @@ precipitation_daily-cum_rate1_yearly-mean
 precipitation_daily-cum_rate1_yearly-mean
 0.01
 0.07
-0.0
+0.07
 0.001
 1
 (default: 0.07)
@@ -2626,7 +2626,7 @@ precipitation_daily-cum_rate1_yearly-sd
 precipitation_daily-cum_rate1_yearly-sd
 0.004
 0.03
-0.0
+0.02
 0.001
 1
 (default: 0.02)
@@ -2641,7 +2641,7 @@ precipitation_daily-cum_inflection2_yearly-mean
 precipitation_daily-cum_inflection2_yearly-mean
 180
 366
-0.0
+240.0
 1.0
 1
 day of year (default: 240)
@@ -2656,7 +2656,7 @@ precipitation_daily-cum_inflection2_yearly-sd
 precipitation_daily-cum_inflection2_yearly-sd
 20
 100
-0.0
+20.0
 1
 1
 days (default: 20)
@@ -2671,7 +2671,7 @@ precipitation_daily-cum_rate2_yearly-mean
 precipitation_daily-cum_rate2_yearly-mean
 0.01
 0.08
-0.0
+0.08
 0.001
 1
 (default: 0.08)
@@ -2686,7 +2686,7 @@ precipitation_daily-cum_rate2_yearly-sd
 precipitation_daily-cum_rate2_yearly-sd
 0.004
 0.03
-0.0
+0.02
 0.001
 1
 (default: 0.02)
@@ -2940,7 +2940,7 @@ par_elevation_mean
 par_elevation_mean
 0
 2500
-0.0
+200.0
 1
 1
 m a.s.l.
@@ -2977,25 +2977,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-35
-947
-265
-980
-root-zone-depth_min
-root-zone-depth_min
-0
-root-zone-depth_max
-200.0
-1
-1
-mm
-HORIZONTAL
-
-SLIDER
-35
-979
-265
-1012
+36
+968
+266
+1001
 runoff-curve_min
 runoff-curve_min
 0
@@ -3041,20 +3026,9 @@ DC [min, max]
 
 MONITOR
 467
-942
-551
-979
-z [min, max]
-(list (precision z_min 2) (precision z_max 2))
-2
-1
-9
-
-MONITOR
-466
-977
-551
-1014
+966
+552
+1003
 CN [min, max]
 (list (precision CN_min 2) (precision CN_max 2))
 2
@@ -3113,7 +3087,7 @@ par_albedo_max
 par_albedo_max
 par_albedo_min
 1
-0.0
+0.5
 0.01
 1
 NIL
@@ -3150,30 +3124,15 @@ NIL
 HORIZONTAL
 
 SLIDER
-263
-946
-469
-979
-root-zone-depth_max
-root-zone-depth_max
-root-zone-depth_min
-2000
-0.0
-1
-1
-mm
-HORIZONTAL
-
-SLIDER
-264
-979
-466
-1012
+265
+968
+467
+1001
 runoff-curve_max
 runoff-curve_max
 runoff-curve_min
 100
-0.0
+80.0
 1
 1
 NIL
@@ -3220,7 +3179,7 @@ INPUTBOX
 835
 873
 crops-selected
-0
+[\"wheat 1\" \"wheat 2\" \"rice\" \"maize\" \"soybean 1\" \"soybean 2\" \"dry bean\" \"peanut\" \"potato 1\" \"potato 2\" \"potato 3\" \"potato 4\" \"potato 5\" \"potato 6\" \"cassava\" \"tomato 1\" \"tomato 2\" \"sweetcorn\" \"greenbean\" \"carrot\" \"cotton\"]
 1
 0
 String
@@ -3231,7 +3190,7 @@ INPUTBOX
 465
 366
 crop-to-display
-0
+wheat 1
 1
 0
 String
@@ -3260,7 +3219,7 @@ CO2-annual-max
 CO2-annual-max
 CO2-annual-min
 270
-0.0
+255.0
 0.01
 1
 ppm (default: 255)
@@ -3275,7 +3234,7 @@ CO2-mean-daily-fluctuation
 CO2-mean-daily-fluctuation
 0
 5
-0.0
+1.0
 0.01
 1
 ppm (default:1)

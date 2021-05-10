@@ -97,8 +97,8 @@ globals
   WHC_max
   DC_min ;  Drainage coefficient (mm^3.mm^-3).
   DC_max
-  z_min ; root zone depth (mm).
-  z_max
+  ;z_min ; root zone depth (mm).
+  ;z_max
   CN_min ; Runoff curve number.
   CN_max
 
@@ -122,6 +122,8 @@ globals
   ;;;; management
   sugSowingDay ; sowing day (day of year)
   sugHarvestingDay ; harvesting day (day of year)
+  ;;;; root
+  rootZoneDepth                  ; root zone depth (mm)
 
   ;;; variables
   ;;;; time tracking
@@ -308,8 +310,6 @@ to set-parameters
     set WHC_max water-holding-capacity_max
     set DC_min drainage-coefficient_min
     set DC_max drainage-coefficient_max
-    set z_min root-zone-depth_min
-    set z_max root-zone-depth_max
     set CN_min runoff-curve_min
     set CN_max runoff-curve_max
   ]
@@ -354,8 +354,6 @@ to set-parameters
     set WHC_max WHC_min + random-float 0.1
     set DC_min 1E-6 + random-float 0.45
     set DC_max DC_min + random-float 0.45
-    set z_min random-float 1000
-    set z_max z_min + random-float 1000
     set CN_min random-float 40
     set CN_max CN_min + random-float 50
 
@@ -409,8 +407,6 @@ to set-parameters
     set WHC_max water-holding-capacity_max
     set DC_min drainage-coefficient_min
     set DC_max drainage-coefficient_max
-    set z_min root-zone-depth_min
-    set z_max root-zone-depth_max
     set CN_min runoff-curve_min
     set CN_max runoff-curve_max
   ]
@@ -466,8 +462,6 @@ to parameters-check
   if (water-holding-capacity_max = 0)                            [ set water-holding-capacity_max                    0.25 ]
   if (drainage-coefficient_min = 0)                              [ set drainage-coefficient_min                      0.3 ]
   if (drainage-coefficient_max = 0)                              [ set drainage-coefficient_max                      0.7 ]
-  if (root-zone-depth_min = 0)                                   [ set root-zone-depth_min                         200 ]
-  if (root-zone-depth_max = 0)                                   [ set root-zone-depth_max                        2000 ]
   if (runoff-curve_min = 0)                                      [ set runoff-curve_min                             50 ]
   if (runoff-curve_max = 0)                                      [ set runoff-curve_max                             80 ]
 
@@ -516,8 +510,6 @@ to parameters-to-default
   set water-holding-capacity_max                                0.25
   set drainage-coefficient_min                                  0.3
   set drainage-coefficient_max                                  0.7
-  set root-zone-depth_min                                     200
-  set root-zone-depth_max                                    2000
   set runoff-curve_min                                         50
   set runoff-curve_max                                         80
 
@@ -532,12 +524,14 @@ to setup-patches
     set elevation random-poisson elevation_mean ; this is only a temporal approach to test this submodel (elevation should be given by the Land model)
     set albedo albedo_min + random-float (albedo_max - albedo_min)
 
+    ; z : root zone depth (mm)
+    set z item (position crop typesOfCrops) rootZoneDepth
+
     ; Water Holding Capacity of the soil (cm^3 cm^-3).
     set WHC WHC_min + random-float (WHC_max - WHC_min)
     ; DC :  Drainage coefficient (mm^3 mm^-3)
     set DC DC_min + random-float (DC_max - DC_min)
-    ; z : root zone depth (mm)
-    set z z_min + random (z_max - z_min)
+
     ; CN : Runoff curve number
     set CN CN_min + random (CN_max - CN_max)
 
@@ -1374,6 +1368,7 @@ to print-crop-table
       " | " (item cropIndex S_water)
       " | " (item cropIndex sugSowingDay)
       " | " (item cropIndex sugHarvestingDay)
+      " | " (item cropIndex rootZoneDepth)
       " | ")
   ]
 
@@ -1714,6 +1709,8 @@ to load-crops-table
 
   let sugHarvestingDayColumn (item 35 (item 3 cropsTable)) - 1
 
+  let rootZoneDepthColumn (item 37 (item 3 cropsTable)) - 1
+
   ;;;==================================================================================================================
   ;;; extract data---------------------------------------------------------------------------------------
 
@@ -1753,6 +1750,8 @@ to load-crops-table
   set sugSowingDay map [row -> item sugSowingDayColumn row ] cropsData
 
   set sugHarvestingDay map [row -> item sugHarvestingDayColumn row ] cropsData
+
+  set rootZoneDepth map [row -> item rootZoneDepthColumn row ] cropsData
 
 end
 
@@ -2119,7 +2118,7 @@ temperature_mean-daily-fluctuation
 temperature_mean-daily-fluctuation
 0
 5
-0.0
+2.2
 0.1
 1
 ºC  (default: 2.2)
@@ -2134,7 +2133,7 @@ temperature_daily-lower-deviation
 temperature_daily-lower-deviation
 0
 10
-0.0
+6.8
 0.1
 1
 ºC  (default: 6.8)
@@ -2149,7 +2148,7 @@ temperature_daily-upper-deviation
 temperature_daily-upper-deviation
 0
 10
-0.0
+7.9
 0.1
 1
 ºC  (default: 7.9)
@@ -2164,7 +2163,7 @@ temperature_annual-max-at-2m
 temperature_annual-max-at-2m
 15
 40
-0.0
+37.0
 0.1
 1
 ºC  (default: 37)
@@ -2179,7 +2178,7 @@ temperature_annual-min-at-2m
 temperature_annual-min-at-2m
 -15
 15
-0.0
+12.8
 0.1
 1
 ºC  (default: 12.8)
@@ -2330,7 +2329,7 @@ solar_annual-max
 solar_annual-max
 solar_annual-min
 30
-0.0
+24.2
 0.01
 1
 MJ/m2 (default: 24.2)
@@ -2360,7 +2359,7 @@ solar_mean-daily-fluctuation
 solar_mean-daily-fluctuation
 0
 6
-0.0
+3.3
 0.01
 1
 MJ/m2 (default: 3.3)
@@ -2426,7 +2425,7 @@ precipitation_yearly-mean
 precipitation_yearly-mean
 0
 1000
-0.0
+489.0
 1.0
 1
 mm/year (default: 489)
@@ -2441,7 +2440,7 @@ precipitation_yearly-sd
 precipitation_yearly-sd
 0
 250
-0.0
+142.2
 0.1
 1
 mm/year (default: 142.2)
@@ -2456,7 +2455,7 @@ precipitation_daily-cum_n-samples
 precipitation_daily-cum_n-samples
 0
 300
-0.0
+200.0
 1.0
 1
 (default: 200)
@@ -2471,7 +2470,7 @@ precipitation_daily-cum_max-sample-size
 precipitation_daily-cum_max-sample-size
 1
 20
-0.0
+10.0
 1.0
 1
 (default: 10)
@@ -2486,7 +2485,7 @@ precipitation_daily-cum_plateau-value_yearly-mean
 precipitation_daily-cum_plateau-value_yearly-mean
 0.2
 0.8
-0.0
+0.25
 0.01
 1
 winter (mm)/summer (mm) (default: 0.25)
@@ -2501,7 +2500,7 @@ precipitation_daily-cum_plateau-value_yearly-sd
 precipitation_daily-cum_plateau-value_yearly-sd
 0
 0.4
-0.0
+0.1
 0.001
 1
 (default: 0.1)
@@ -2516,7 +2515,7 @@ precipitation_daily-cum_inflection1_yearly-mean
 precipitation_daily-cum_inflection1_yearly-mean
 40
 140
-0.0
+40.0
 1.0
 1
 day of year (default: 40)
@@ -2546,7 +2545,7 @@ precipitation_daily-cum_rate1_yearly-mean
 precipitation_daily-cum_rate1_yearly-mean
 0.01
 0.07
-0.0
+0.07
 0.001
 1
 (default: 0.07)
@@ -2561,7 +2560,7 @@ precipitation_daily-cum_rate1_yearly-sd
 precipitation_daily-cum_rate1_yearly-sd
 0.004
 0.03
-0.0
+0.02
 0.001
 1
 (default: 0.02)
@@ -2576,7 +2575,7 @@ precipitation_daily-cum_inflection2_yearly-mean
 precipitation_daily-cum_inflection2_yearly-mean
 180
 366
-0.0
+240.0
 1.0
 1
 day of year (default: 240)
@@ -2591,7 +2590,7 @@ precipitation_daily-cum_inflection2_yearly-sd
 precipitation_daily-cum_inflection2_yearly-sd
 20
 100
-0.0
+20.0
 1
 1
 days (default: 20)
@@ -2606,7 +2605,7 @@ precipitation_daily-cum_rate2_yearly-mean
 precipitation_daily-cum_rate2_yearly-mean
 0.01
 0.08
-0.0
+0.08
 0.001
 1
 (default: 0.08)
@@ -2621,7 +2620,7 @@ precipitation_daily-cum_rate2_yearly-sd
 precipitation_daily-cum_rate2_yearly-sd
 0.004
 0.03
-0.0
+0.02
 0.001
 1
 (default: 0.02)
@@ -2875,17 +2874,17 @@ par_elevation_mean
 par_elevation_mean
 0
 2500
-0.0
+200.0
 1
 1
 m a.s.l.
 HORIZONTAL
 
 SLIDER
-42
-798
-273
-831
+41
+815
+272
+848
 water-holding-capacity_min
 water-holding-capacity_min
 0.01
@@ -2897,10 +2896,10 @@ cm3/cm3
 HORIZONTAL
 
 SLIDER
-43
-831
-274
-864
+42
+848
+273
+881
 drainage-coefficient_min
 drainage-coefficient_min
 0
@@ -2912,25 +2911,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-44
-866
-274
-899
-root-zone-depth_min
-root-zone-depth_min
-0
-root-zone-depth_max
-200.0
-1
-1
-mm
-HORIZONTAL
-
-SLIDER
-44
-898
-274
-931
+48
+888
+278
+921
 runoff-curve_min
 runoff-curve_min
 0
@@ -2953,10 +2937,10 @@ elevation_mean
 9
 
 MONITOR
-497
-798
-590
-835
+499
+816
+592
+853
 WHC [min, max]
 (list (precision WHC_min 2) (precision WHC_max 2))
 2
@@ -2964,10 +2948,10 @@ WHC [min, max]
 9
 
 MONITOR
-476
-830
-559
-867
+478
+848
+561
+885
 DC [min, max]
 (list (precision DC_min 2) (precision DC_max 2))
 2
@@ -2975,21 +2959,10 @@ DC [min, max]
 9
 
 MONITOR
-476
-861
-560
-898
-z [min, max]
-(list (precision z_min 2) (precision z_max 2))
-2
-1
-9
-
-MONITOR
-475
-896
-560
-933
+477
+886
+562
+923
 CN [min, max]
 (list (precision CN_min 2) (precision CN_max 2))
 2
@@ -3048,17 +3021,17 @@ par_albedo_max
 par_albedo_max
 par_albedo_min
 1
-0.0
+0.5
 0.01
 1
 NIL
 HORIZONTAL
 
 SLIDER
-271
-797
-499
-830
+273
+815
+501
+848
 water-holding-capacity_max
 water-holding-capacity_max
 water-holding-capacity_min
@@ -3070,10 +3043,10 @@ cm3/cm3
 HORIZONTAL
 
 SLIDER
-271
-830
-476
-863
+273
+848
+478
+881
 drainage-coefficient_max
 drainage-coefficient_max
 drainage-coefficient_min
@@ -3085,30 +3058,15 @@ NIL
 HORIZONTAL
 
 SLIDER
-272
-865
-478
-898
-root-zone-depth_max
-root-zone-depth_max
-root-zone-depth_min
-2000
-0.0
-1
-1
-mm
-HORIZONTAL
-
-SLIDER
-273
-898
-475
-931
+275
+888
+477
+921
 runoff-curve_max
 runoff-curve_max
 runoff-curve_min
 100
-0.0
+80.0
 1
 1
 NIL
@@ -3173,7 +3131,7 @@ CO2-annual-max
 CO2-annual-max
 CO2-annual-min
 270
-0.0
+255.0
 0.01
 1
 ppm (default: 255)
@@ -3188,7 +3146,7 @@ CO2-mean-daily-fluctuation
 CO2-mean-daily-fluctuation
 0
 5
-0.0
+1.0
 0.01
 1
 ppm (default:1)
