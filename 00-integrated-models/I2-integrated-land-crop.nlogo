@@ -88,6 +88,8 @@ globals
   ;;;; management
   crop_sugSowingDay                   ; sowing day (day of year)
   crop_sugHarvestingDay               ; harvesting day (day of year)
+  ;;;; root
+  crop_rootZoneDepth                  ; root zone depth (mm)
 
   ;*****************************************************************************************************************
   ;*** LAND model
@@ -236,7 +238,7 @@ globals
 
   ;;; RIVER -------------------------------------------------------------------------------
   riverWaterPerFlowAccumulation ; average river stage increment per flow accumulation at the river's starting land unit ( mm (height) / m^2 (area) ).
-                                ; Because there are many factors subtracting river flow (assumin that the catchment area is large enough,
+                                ; Because there are many factors subtracting river flow (assuming that the catchment area is large enough,
                                 ; this parameter should be always very small; for the Indus Basin it would be between 1E-3 and 1E-5
                                 ; (near their mounths, this value would be around 5.66E-5 for the Indus (av. discharge 800.6 m^3/s, basin area 2,615,500 ha)
                                 ; and 3.061E-4 for the Chenab (av. discharge 6,600 m^3/s, basin area 116,500,000 ha).
@@ -389,6 +391,8 @@ patches-own
   p_ecol_%brush                     ; percentage of brush/shrub vegetation (surface cover) in ecological community
   p_ecol_%wood                      ; percentage of wood vegetation (surface cover) in ecological community
 
+  p_ecol_%crop                      ; percentage of crop cultivation in ecological community
+
   p_ecol_%water                     ; percentage of water (surface cover) in ecological community
 
   p_ecol_coverType                  ; cover type summarising the composition of vegetation types in ecological community.
@@ -402,7 +406,7 @@ patches-own
   ;========= I2 variables ======================================================================
 
   ;;; main variables
-  p_crop_frequency                  ; frequency in % of crop_intensity of each crop in typesOfCrop
+  p_crop_frequency                  ; frequency in % of p_ecol_%crop of each crop in typesOfCrop
   p_crop_TT                         ; cumulative mean temperature (ºC day)
   p_crop_biomass                    ; crop biomass (g)
   p_crop_totalBiomass               ; total crop biomass (g)
@@ -459,6 +463,8 @@ to setup
   update-weather
 
   update-water
+
+  update-crop-extension
 
   rescale-ecological-communities
 
@@ -629,7 +635,7 @@ to set-parameters
     set solar_annualMin solar_annual-min
     set solar_meanDailyFluctuation solar_mean-daily-fluctuation
 
-    set precipitation_yearlyMean 200 + random-float 800
+    set precipitation_yearlyMean 50 + random-float 950
     set precipitation_yearlySd precipitation_yearly-sd
     set precipitation_dailyCum_nSamples precipitation_daily-cum_n-samples
     set precipitation_dailyCum_maxSampleSize precipitation_daily-cum_max-sample-size
@@ -646,6 +652,122 @@ to set-parameters
 
     ;;; River water (dependent on flow_riverAccumulationAtStart, which is set by Land model)
     set riverWaterPerFlowAccumulation par_riverWaterPerFlowAccumulation
+
+    set randomise-crop-frequencies? false
+  ]
+  if (type-of-experiment = "river-variation")
+  [
+    ;;; load parameters from user interface
+
+    ;;; set sea level (no more just a display issue; it is relevant for ETr and limiting coastlines)
+    set elev_seaLevelReferenceShift par_elev_seaLevelReferenceShift
+
+    ;;; weather generation
+    set temperature_annualMaxAt2m temperature_annual-max-at-2m
+    set temperature_annualMinAt2m temperature_annual-min-at-2m
+    set temperature_meanDailyFluctuation temperature_mean-daily-fluctuation
+    set temperature_dailyLowerDeviation temperature_daily-lower-deviation
+    set temperature_dailyUpperDeviation temperature_daily-upper-deviation
+
+    set solar_annualMax solar_annual-max
+    set solar_annualMin solar_annual-min
+    set solar_meanDailyFluctuation solar_mean-daily-fluctuation
+
+    set precipitation_yearlyMean precipitation_yearly-mean
+    set precipitation_yearlySd precipitation_yearly-sd
+    set precipitation_dailyCum_nSamples precipitation_daily-cum_n-samples
+    set precipitation_dailyCum_maxSampleSize precipitation_daily-cum_max-sample-size
+    set precipitation_dailyCum_plateauValue_yearlyMean precipitation_daily-cum_plateau-value_yearly-mean
+    set precipitation_dailyCum_plateauValue_yearlySd precipitation_daily-cum_plateau-value_yearly-sd
+    set precipitation_dailyCum_inflection1_yearlyMean precipitation_daily-cum_inflection1_yearly-mean
+    set precipitation_dailyCum_inflection1_yearlySd precipitation_daily-cum_inflection1_yearly-sd
+    set precipitation_dailyCum_rate1_yearlyMean precipitation_daily-cum_rate1_yearly-mean
+    set precipitation_dailyCum_rate1_yearlySd precipitation_daily-cum_rate1_yearly-sd
+    set precipitation_dailyCum_inflection2_yearlyMean precipitation_daily-cum_inflection2_yearly-mean
+    set precipitation_dailyCum_inflection2_yearlySd precipitation_daily-cum_inflection2_yearly-sd
+    set precipitation_dailyCum_rate2_yearlyMean precipitation_daily-cum_rate2_yearly-mean
+    set precipitation_dailyCum_rate2_yearlySd precipitation_daily-cum_rate2_yearly-sd
+
+    ;;; River water (dependent on flow_riverAccumulationAtStart, which is set by Land model)
+    set riverWaterPerFlowAccumulation 0.00001 + random-float 0.00099
+
+    set randomise-crop-frequencies? false
+  ]
+  if (type-of-experiment = "water-variation")
+  [
+    ;;; load parameters from user interface
+
+    ;;; set sea level (no more just a display issue; it is relevant for ETr and limiting coastlines)
+    set elev_seaLevelReferenceShift par_elev_seaLevelReferenceShift
+
+    ;;; weather generation
+    set temperature_annualMaxAt2m temperature_annual-max-at-2m
+    set temperature_annualMinAt2m temperature_annual-min-at-2m
+    set temperature_meanDailyFluctuation temperature_mean-daily-fluctuation
+    set temperature_dailyLowerDeviation temperature_daily-lower-deviation
+    set temperature_dailyUpperDeviation temperature_daily-upper-deviation
+
+    set solar_annualMax solar_annual-max
+    set solar_annualMin solar_annual-min
+    set solar_meanDailyFluctuation solar_mean-daily-fluctuation
+
+    set precipitation_yearlyMean 50 + random-float 950
+    set precipitation_yearlySd precipitation_yearly-sd
+    set precipitation_dailyCum_nSamples precipitation_daily-cum_n-samples
+    set precipitation_dailyCum_maxSampleSize precipitation_daily-cum_max-sample-size
+    set precipitation_dailyCum_plateauValue_yearlyMean precipitation_daily-cum_plateau-value_yearly-mean
+    set precipitation_dailyCum_plateauValue_yearlySd precipitation_daily-cum_plateau-value_yearly-sd
+    set precipitation_dailyCum_inflection1_yearlyMean precipitation_daily-cum_inflection1_yearly-mean
+    set precipitation_dailyCum_inflection1_yearlySd precipitation_daily-cum_inflection1_yearly-sd
+    set precipitation_dailyCum_rate1_yearlyMean precipitation_daily-cum_rate1_yearly-mean
+    set precipitation_dailyCum_rate1_yearlySd precipitation_daily-cum_rate1_yearly-sd
+    set precipitation_dailyCum_inflection2_yearlyMean precipitation_daily-cum_inflection2_yearly-mean
+    set precipitation_dailyCum_inflection2_yearlySd precipitation_daily-cum_inflection2_yearly-sd
+    set precipitation_dailyCum_rate2_yearlyMean precipitation_daily-cum_rate2_yearly-mean
+    set precipitation_dailyCum_rate2_yearlySd precipitation_daily-cum_rate2_yearly-sd
+
+    ;;; River water (dependent on flow_riverAccumulationAtStart, which is set by Land model)
+    set riverWaterPerFlowAccumulation 0.00001 + random-float 0.00099
+
+    set randomise-crop-frequencies? false
+  ]
+  if (type-of-experiment = "randomised-crop-frequencies")
+  [
+    ;;; load parameters from user interface
+
+    ;;; set sea level (no more just a display issue; it is relevant for ETr and limiting coastlines)
+    set elev_seaLevelReferenceShift par_elev_seaLevelReferenceShift
+
+    ;;; weather generation
+    set temperature_annualMaxAt2m temperature_annual-max-at-2m
+    set temperature_annualMinAt2m temperature_annual-min-at-2m
+    set temperature_meanDailyFluctuation temperature_mean-daily-fluctuation
+    set temperature_dailyLowerDeviation temperature_daily-lower-deviation
+    set temperature_dailyUpperDeviation temperature_daily-upper-deviation
+
+    set solar_annualMax solar_annual-max
+    set solar_annualMin solar_annual-min
+    set solar_meanDailyFluctuation solar_mean-daily-fluctuation
+
+    set precipitation_yearlyMean precipitation_yearly-mean
+    set precipitation_yearlySd precipitation_yearly-sd
+    set precipitation_dailyCum_nSamples precipitation_daily-cum_n-samples
+    set precipitation_dailyCum_maxSampleSize precipitation_daily-cum_max-sample-size
+    set precipitation_dailyCum_plateauValue_yearlyMean precipitation_daily-cum_plateau-value_yearly-mean
+    set precipitation_dailyCum_plateauValue_yearlySd precipitation_daily-cum_plateau-value_yearly-sd
+    set precipitation_dailyCum_inflection1_yearlyMean precipitation_daily-cum_inflection1_yearly-mean
+    set precipitation_dailyCum_inflection1_yearlySd precipitation_daily-cum_inflection1_yearly-sd
+    set precipitation_dailyCum_rate1_yearlyMean precipitation_daily-cum_rate1_yearly-mean
+    set precipitation_dailyCum_rate1_yearlySd precipitation_daily-cum_rate1_yearly-sd
+    set precipitation_dailyCum_inflection2_yearlyMean precipitation_daily-cum_inflection2_yearly-mean
+    set precipitation_dailyCum_inflection2_yearlySd precipitation_daily-cum_inflection2_yearly-sd
+    set precipitation_dailyCum_rate2_yearlyMean precipitation_daily-cum_rate2_yearly-mean
+    set precipitation_dailyCum_rate2_yearlySd precipitation_daily-cum_rate2_yearly-sd
+
+    ;;; River water (dependent on flow_riverAccumulationAtStart, which is set by Land model)
+    set riverWaterPerFlowAccumulation par_riverWaterPerFlowAccumulation
+
+    set randomise-crop-frequencies? true
   ]
 
   ;;; scenario settings:
@@ -743,6 +865,7 @@ to parameters-to-default
   set par_riverWaterPerFlowAccumulation                        1E-4
 
   set crop-intensity                                            50
+  set randomise-crop-frequencies?                               false
   set crop-selection                   (word (map [i -> (word "\"" i "\"")] crop_typesOfCrops))
   set crop-to-display                               (first crop_typesOfCrops)
 
@@ -758,13 +881,13 @@ to setup-patches
     ;;; use table input data to set up soil water properties
     setup-soil-soilWaterProperties
 
+    setup-crops
+
     ;;; root zone depth (mm) given initial ecological communities
     set-ecological-community-root-zone-depth
 
     ;;; Initial water content (mm) given initial ecological communities
     set p_soil_waterContent  p_ecol_rootZoneDepth * p_soil_fieldCapacity
-
-    setup-crops
   ]
 
   setup-river-water
@@ -854,18 +977,30 @@ to-report get-deepDrainageCoefficient [ textureType ]
 
 end
 
+to update-crop-extension
+
+  ask patches
+  [
+    ;;; assumes that water takes preference over crops
+    set p_ecol_%crop min (list (100 - p_ecol_%water) crop_intensity)
+  ]
+
+end
+
 to rescale-ecological-communities
 
-  ask patches with [ p_water > 0 ]
+  ;;; assumes that water and crops takes preference over other natural ecological communities
+
+  ask patches ;with [ p_ecol_%water > 0 or p_ecol_%crop > 0 ]
   [
-    ;;; scale the final percentage to account for acquatic ecological communities
-    let newTotal p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water
+    ;;; scale the final percentage to account for acquatic ecological communities and crops
+    let newTotal p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water + p_ecol_%crop
 
     if (newTotal > 100)
     [
-      set p_ecol_%wood p_ecol_%wood * (100 - p_ecol_%water) / 100
-      set p_ecol_%brush p_ecol_%brush * (100 - p_ecol_%water) / 100
-      set p_ecol_%grass p_ecol_%grass * (100 - p_ecol_%water) / 100
+      set p_ecol_%wood p_ecol_%wood * (100 - p_ecol_%water - p_ecol_%crop) / 100
+      set p_ecol_%brush p_ecol_%brush * (100 - p_ecol_%water - p_ecol_%crop) / 100
+      set p_ecol_%grass p_ecol_%grass * (100 - p_ecol_%water - p_ecol_%crop) / 100
     ]
   ]
 
@@ -883,22 +1018,33 @@ end
 to setup-crops
 
   ;;; crop assignment
-  ;;; all patches have a varying proportion of all crops-selected
   ;;; NOTE: this is a temporary aspect to be replaced by agent decision-making
+
   set p_crop_frequency []
+
   foreach crop_typesOfCrops
   [
     cropName ->
+
     ifelse (member? cropName crop_typesOfCrops)
     [
-      set p_crop_frequency lput (random 100) p_crop_frequency
+      ifelse (randomise-crop-frequencies?)
+      [
+        ;;; patches have a random proportion of each crops selected
+        set p_crop_frequency lput (random 100) p_crop_frequency
+      ]
+      [
+        ;;; assign equal frequencies to each crops selected
+        set p_crop_frequency lput 100 p_crop_frequency
+      ]
     ]
     [
       set p_crop_frequency lput 0 p_crop_frequency
     ]
   ]
-  let cropFrequencyTotal sum p_crop_frequency
+
   ;;; rescale values
+  let cropFrequencyTotal sum p_crop_frequency
   set p_crop_frequency map [i -> 100 * i / cropFrequencyTotal] p_crop_frequency
 
   ;;; initialise all crop related variables as list where items correspond to crops
@@ -928,6 +1074,8 @@ to go
   update-weather
 
   update-water
+
+  update-crop-extension
 
   update-ecological-communities
 
@@ -1644,7 +1792,7 @@ to update-ecological-communities
 
   ask patches
   [
-    apply-inundation-effect
+    apply-inundation-and-crop-effect
 
     apply-ecological-recolonisation
 
@@ -1657,18 +1805,18 @@ to update-ecological-communities
 
 end
 
-to apply-inundation-effect
+to apply-inundation-and-crop-effect
 
-  ;;; inundation (the expansion of water surface) will conquer the ecological components' area.
+  ;;; inundation (the expansion of water surface) and crop cultivation will conquer the ecological components' area.
   ;;; The effect is assumed to affect ecological components evenly.
 
   let sum% p_ecol_%wood + p_ecol_%brush + p_ecol_%grass
 
-  if (p_ecol_%water > 0 and sum% > 0)
+  if (p_ecol_%water + p_ecol_%crop > 0 and sum% > 0)
   [
-    set p_ecol_%wood 100 * (p_ecol_%wood / sum%) * (1 - p_ecol_%water / 100)
-    set p_ecol_%brush 100 * (p_ecol_%brush / sum%) * (1 - p_ecol_%water / 100)
-    set p_ecol_%grass 100 * (p_ecol_%grass / sum%) * (1 - p_ecol_%water / 100)
+    set p_ecol_%wood 100 * (p_ecol_%wood / sum%) * (1 - (p_ecol_%water + p_ecol_%crop) / 100)
+    set p_ecol_%brush 100 * (p_ecol_%brush / sum%) * (1 - (p_ecol_%water + p_ecol_%crop) / 100)
+    set p_ecol_%grass 100 * (p_ecol_%grass / sum%) * (1 - (p_ecol_%water + p_ecol_%crop) / 100)
   ]
 
 end
@@ -1678,7 +1826,7 @@ to apply-ecological-recolonisation
   ;;; if this patch has 0 of a component,
   ;;; a very small amount of that component will be added in order to activate the logistic growth
 
-  if (get-%water-surface p_water < 100) ;;; not completely covered by water
+  if (p_ecol_%water + p_ecol_%crop < 100) ;;; not completely covered by water or crops
   [
     ;;; wood
     if (p_ecol_%wood = 0)
@@ -1701,6 +1849,8 @@ to advance-ecological-succession
   ;;; all ecological components (based on vegetation) are assumed to grow towards the initial ecological community configuration, minus the influence of water stress.
   ;;; The logistic growth model is used, where the reproductive rate (growth slope) is regulated by the frequency of the component and its proportion to a carrying capacity (here, the initial value)
 
+  let proportionOfAvailableArea (1 - (p_ecol_%water + p_ecol_%crop) / 100)
+
   let recoveryRate_%wood 1 / (get-recovery-lag-of-ecological-component "wood")
   let recoveryRate_%brush 1 / (get-recovery-lag-of-ecological-component "brush")
   let recoveryRate_%grass 1 / (get-recovery-lag-of-ecological-component "grass")
@@ -1708,21 +1858,21 @@ to advance-ecological-succession
   set p_ecol_%wood (p_ecol_%wood +
     recoveryRate_%wood *
     ((p_initEcol_%wood * (1 - p_soil_ARID * (get-water-stress-sensitivity-of-ecological-component "wood")) *
-      (1 - p_ecol_%water / 100)) - p_ecol_%wood
+      proportionOfAvailableArea) - p_ecol_%wood
     )
   )
 
   set p_ecol_%brush (p_ecol_%brush +
     recoveryRate_%brush *
     ((p_initEcol_%brush * (1 - p_soil_ARID * (get-water-stress-sensitivity-of-ecological-component "brush")) *
-      (1 - p_ecol_%water / 100)) - p_ecol_%brush
+      proportionOfAvailableArea) - p_ecol_%brush
     )
   )
 
   set p_ecol_%grass (p_ecol_%grass +
     recoveryRate_%grass *
     ((p_initEcol_%grass * (1 - p_soil_ARID * (get-water-stress-sensitivity-of-ecological-component "grass")) *
-      (1 - p_ecol_%water / 100)) - p_ecol_%grass
+      proportionOfAvailableArea) - p_ecol_%grass
     )
   )
 
@@ -1745,14 +1895,24 @@ end
 
 to set-ecological-community-root-zone-depth
 
-  set p_ecol_rootZoneDepth get-ecological-community-root-zone-depth p_ecol_%wood p_ecol_%brush p_ecol_%grass
+  ;;; root zone depth is set to be the weighted mean of the maximum root zone depth of each crop and ecological component (water ecological community is ignored)
+
+  let cropsRootZoneDepth (p_ecol_%crop / 100) * get-mean-max-root-depth-of-crops p_crop_frequency
+
+  set p_ecol_rootZoneDepth cropsRootZoneDepth + get-ecological-community-root-zone-depth p_ecol_%crop p_ecol_%wood p_ecol_%brush p_ecol_%grass
 
   set p_ecol_rootZoneDepth min (list p_soil_depth p_ecol_rootZoneDepth) ;;; it cannot be deeper than the soil layer
   ;;; root zone depth will be 0 if there is no active (terrestrial) ecological community (100% bare soil or water)
 
 end
 
-to-report get-ecological-community-root-zone-depth [ %wood %brush %grass ]
+to-report get-mean-max-root-depth-of-crops [ cropFrequencies ]
+
+  report sum (map [ [i j] -> (i / 100) * j ] cropFrequencies crop_rootZoneDepth)
+
+end
+
+to-report get-ecological-community-root-zone-depth [ %crop %wood %brush %grass ]
 
   report
   (%wood / 100) * (get-max-root-depth-of-ecological-component "wood") +
@@ -1813,7 +1973,7 @@ to update-crops
       [
         update-biomass cropIndex
 
-        set p_crop_totalBiomass replace-item cropIndex p_crop_totalBiomass ((item cropIndex p_crop_biomass) * (crop_intensity / 100) * patchArea * (item cropIndex p_crop_frequency) / 100)
+        set p_crop_totalBiomass replace-item cropIndex p_crop_totalBiomass ((item cropIndex p_crop_biomass) * (p_ecol_%crop / 100) * patchArea * (item cropIndex p_crop_frequency) / 100)
       ]
 
       if ( is-ripe cropIndex )
@@ -1822,7 +1982,7 @@ to update-crops
         ifelse (item cropIndex p_crop_TT >= item cropIndex crop_T_sum)
         [
           set p_crop_yield replace-item cropIndex p_crop_yield (item cropIndex p_crop_biomass * item cropIndex crop_HI)
-          set p_crop_totalYield replace-item cropIndex p_crop_totalYield ((item cropIndex p_crop_yield) * (crop_intensity / 100) * patchArea * (item cropIndex p_crop_frequency) / 100)
+          set p_crop_totalYield replace-item cropIndex p_crop_totalYield ((item cropIndex p_crop_yield) * (p_ecol_%crop / 100) * patchArea * (item cropIndex p_crop_frequency) / 100)
         ]
         [
           set p_crop_yield replace-item cropIndex p_crop_yield 0
@@ -1990,7 +2150,7 @@ to update-soil-cover
       p_ecol_%brush
       p_ecol_%wood
       p_ecol_%water
-      crop_intensity
+      p_ecol_%crop
       )
 
     set p_soil_runOffCurveNumber (get-runOffCurveNumber
@@ -1998,7 +2158,7 @@ to update-soil-cover
       p_ecol_%brush
       p_ecol_%wood
       p_ecol_%water
-      crop_intensity
+      p_ecol_%crop
       p_soil_hydrologicSoilGroup
       )
 
@@ -2007,7 +2167,7 @@ to update-soil-cover
       p_ecol_%brush
       p_ecol_%wood
       p_ecol_%water
-      crop_intensity
+      p_ecol_%crop
       p_soil_%sand
       p_soil_waterContentRatio
      )
@@ -2988,7 +3148,7 @@ end
 
 to print-crop-table
 
-  output-print (word " | typesOfCrops | T_sum | HI | I_50A | I_50B | T_base | T_opt | RUE | I_50maxH | I_50maxW | T_heat | T_ext | S_water | sugSowingDay | sugHarvestingDay | ")
+  output-print (word " | typesOfCrops | T_sum | HI | I_50A | I_50B | T_base | T_opt | RUE | I_50maxH | I_50maxW | T_heat | T_ext | S_water | sugSowingDay | sugHarvestingDay | rootZoneDepth |")
 
   foreach n-values (length crop_typesOfCrops) [j -> j]
   [
@@ -3009,6 +3169,7 @@ to print-crop-table
       " | " (item cropIndex crop_S_water)
       " | " (item cropIndex crop_sugSowingDay)
       " | " (item cropIndex crop_sugHarvestingDay)
+      " | " (item cropIndex crop_rootZoneDepth)
       " | ")
   ]
 
@@ -3078,6 +3239,81 @@ end
 
 ;;; EXPORT YIELD PERFORMANCES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+to experiment-3
+
+  let numberOfBatches 5
+
+  set experiment-name "exp3"
+
+  set type-of-experiment "user-defined"
+
+  parameters-to-default
+
+  set experiment-numberOfRuns 2
+
+  set experiment-initRandomSeed 0
+
+  set end-simulation-in-year 5
+
+  repeat numberOfBatches
+  [
+    run-yield-performance-experiment-batch
+
+    set experiment-initRandomSeed randomSeed
+  ]
+
+end
+
+to experiment-4
+
+  let numberOfBatches 5
+
+  set experiment-name "exp4"
+
+  set type-of-experiment "river-variation"
+
+  parameters-to-default
+
+  set experiment-numberOfRuns 2
+
+  set experiment-initRandomSeed 0
+
+  set end-simulation-in-year 5
+
+  repeat numberOfBatches
+  [
+    run-yield-performance-experiment-batch
+
+    set experiment-initRandomSeed randomSeed
+  ]
+
+end
+
+to experiment-5
+
+  let numberOfBatches 5
+
+  set experiment-name "exp5"
+
+  set type-of-experiment "randomised-crop-frequencies"
+
+  parameters-to-default
+
+  set experiment-numberOfRuns 2
+
+  set experiment-initRandomSeed 0
+
+  set end-simulation-in-year 5
+
+  repeat numberOfBatches
+  [
+    run-yield-performance-experiment-batch
+
+    set experiment-initRandomSeed randomSeed
+  ]
+
+end
+
 to run-yield-performance-experiment-batch
 
   ;;; Every yield experiment batch can create up to five files:
@@ -3139,7 +3375,7 @@ to setup-yield-performance-data-file
 
   ;;; parameters file
   ;;; build a unique file name according to the user setting
-  let filePath (word "output//yield//I2_yield-exp_pars_terrainRandomSeed=" terrainRandomSeed "_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name ".csv")
+  let filePath (word "output//I2_yield-exp_pars_terrainRandomSeed=" terrainRandomSeed "_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name ".csv")
 
   ;;; do not repeat the setup if file already exists
   if (not file-exists? filePath)
@@ -3163,7 +3399,7 @@ to setup-yield-performance-data-file
 
   ;;; yield and other variables file
   ;;; build a unique file name according to the user setting
-  set filePath (word "output//yield//I2_yield-exp_terrainRandomSeed=" terrainRandomSeed "_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
+  set filePath (word "output//I2_yield-exp_terrainRandomSeed=" terrainRandomSeed "_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
 
   ;;; check that filePath does not exceed 100 (not common in this context)
   ;if (length filePath > 120) [ print "WARNING: file path may be too long, depending on your current directory. Decrease length of file name or increase the limit." set filePath substring filePath 0 120 ]
@@ -3174,8 +3410,10 @@ to setup-yield-performance-data-file
     "terrainRandomSeed,randomSeed,"
     "currentYear,currentDayOfYear,"
     "precipitation_yearTotal,p_soil_meanARID,"
-    "x,y,p_water,p_ecol_rootZoneDepth,p_soil_runOffCurveNumber,p_ecol_albedo,p_ecol_biomass,"
-    "crop,p_soil_meanARID_grow,yield"
+    "x,y,"
+    "p_water,p_ecol_rootZoneDepth,p_soil_runOffCurveNumber,p_ecol_albedo,p_ecol_biomass,"
+    "p_ecol_%water,p_ecol_%crop,p_ecol_%wood,p_ecol_%brush,p_ecol_%grass,"
+    "crop,p_crop_frequency,p_soil_meanARID_grow,p_crop_yield,p_crop_totalYield"
   )
 
   file-close
@@ -3185,7 +3423,7 @@ end
 to export-yield-performance
 
   ;;; recover the unique file name according to the user setting
-  let filePath (word "output//yield//I2_yield-exp_terrainRandomSeed=" terrainRandomSeed "_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
+  let filePath (word "output//I2_yield-exp_terrainRandomSeed=" terrainRandomSeed "_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
 
   file-open filePath
 
@@ -3210,16 +3448,24 @@ to export-yield-performance
         file-type (sum precipitation_yearSeries) file-type ","
         ;;; mean ARID in current year
         file-type (mean p_soil_ARID_yearSeries) file-type ","
-        ;;; x, y, p_water, p_ecol_rootZoneDepth, p_soil_runOffCurveNumber, p_ecol_albedo, p_ecol_biomass,
+        ;;; x, y,
         file-type pxcor file-type ","
         file-type pycor file-type ","
+        ;;; p_water, p_ecol_rootZoneDepth, p_soil_runOffCurveNumber, p_ecol_albedo, p_ecol_biomass,
         file-type p_water file-type ","
         file-type p_ecol_rootZoneDepth file-type ","
         file-type p_soil_runOffCurveNumber file-type ","
         file-type p_ecol_albedo file-type ","
         file-type p_ecol_biomass file-type ","
-        ;;; crop
+        ;;; p_ecol_%water, p_ecol_%crop, p_ecol_%wood, p_ecol_%brush, p_ecol_%grass,
+        file-type p_ecol_%water file-type ","
+        file-type p_ecol_%crop file-type ","
+        file-type p_ecol_%wood file-type ","
+        file-type p_ecol_%brush file-type ","
+        file-type p_ecol_%grass file-type ","
+        ;;; crop, p_crop_frequency
         file-type aCrop file-type ","
+        file-type (item cropIndex p_crop_frequency) file-type ","
         ;;; mean ARID during grow season in year
         ifelse ((item cropIndex crop_sowingDay) < (item cropIndex crop_harvestingDay))
         [
@@ -3237,7 +3483,8 @@ to export-yield-performance
           ]
         ]
         ;;; yield
-        file-type (item cropIndex p_crop_yield)
+        file-type (item cropIndex p_crop_yield) file-type ","
+        file-type (item cropIndex p_crop_totalYield)
         file-print ""
       ]
     ]
@@ -3249,7 +3496,7 @@ end
 
 to export-parameters-of-yield-experiment
 
-  let filePath (word "output//yield//I2_yield-exp_pars_terrainRandomSeed=" terrainRandomSeed "_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name ".csv")
+  let filePath (word "output//I2_yield-exp_pars_terrainRandomSeed=" terrainRandomSeed "_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name ".csv")
 
   file-open filePath
 
@@ -3288,7 +3535,6 @@ to export-parameters-of-yield-experiment
   ;;; cropping parameters
   file-type (map [i -> (word "'" i "'")] crop_selection) file-type ","
   file-type crop_intensity
-
   file-print ""
 
   file-close
@@ -3298,7 +3544,7 @@ end
 to export-cropTable-of-yield-experiment
 
   ;;; build a unique file name according to the user setting
-  let filePath (word "output//yield//I2_yield-exp_cropTable.csv")
+  let filePath (word "output//I2_yield-exp_cropTable.csv")
 
   ;;; do not repeat the export if file already exists
   if (not file-exists? filePath)
@@ -3348,7 +3594,7 @@ to export-terrain-of-yield-experiment
   ;;; this function extracts patch information to a csv file that can be easily accessed when analysing yield experiments in R
 
   ;;; build another unique file name to be created at output/yield/ directory, together with the yield experiment data
-  let filePath (word "output//yield//I2_yield-exp_terrainRandomSeed=" terrainRandomSeed ".csv")
+  let filePath (word "output//I2_yield-exp_terrainRandomSeed=" terrainRandomSeed ".csv")
 
   ;;; do not repeat the export if file already exists
   if (not file-exists? filePath)
@@ -3403,7 +3649,7 @@ end
 to setup-weather-data-file
 
   ;;; build a unique file name according to the user setting
-  let filePath (word "output//yield//I2_yield-exp_weather_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
+  let filePath (word "output//I2_yield-exp_weather_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
 
   ;;; check that filePath does not exceed 100 (not common in this context)
   ;if (length filePath > 120) [ print "WARNING: file path may be too long, depending on your current directory. Decrease length of file name or increase the limit." set filePath substring filePath 0 120 ]
@@ -3425,7 +3671,7 @@ end
 to export-weather-of-yield-experiment
 
   ;;; recover the unique file name according to the user setting
-  let filePath (word "output//yield//I2_yield-exp_weather_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
+  let filePath (word "output//I2_yield-exp_weather_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
 
   file-open filePath
 
@@ -4019,6 +4265,8 @@ to load-crops-table
 
   let sugHarvestingDayColumn (item 35 (item 3 cropsTable)) - 1
 
+  let rootZoneDepthColumn (item 37 (item 3 cropsTable)) - 1
+
   ;;;==================================================================================================================
   ;;; extract data---------------------------------------------------------------------------------------
 
@@ -4056,6 +4304,8 @@ to load-crops-table
   set crop_sugSowingDay map [row -> item sugSowingDayColumn row ] cropsData
 
   set crop_sugHarvestingDay map [row -> item sugHarvestingDayColumn row ] cropsData
+
+  set crop_rootZoneDepth map [row -> item rootZoneDepthColumn row ] cropsData
 
 end
 
@@ -4340,7 +4590,7 @@ par_elev_seaLevelReferenceShift
 par_elev_seaLevelReferenceShift
 -1000
 round max (list maxElevation elev_rangeHeight)
-0.0
+-1000.0
 1
 1
 m
@@ -4573,7 +4823,7 @@ INPUTBOX
 388
 485
 par_riverWaterPerFlowAccumulation
-0.0
+1.0E-4
 1
 0
 Number
@@ -4581,12 +4831,12 @@ Number
 CHOOSER
 24
 125
-215
+234
 170
 type-of-experiment
 type-of-experiment
-"random" "user-defined" "precipitation-variation"
-2
+"random" "user-defined" "precipitation-variation" "river-variation" "water-variation" "randomised-crop-frequencies"
+3
 
 BUTTON
 11
@@ -4638,7 +4888,7 @@ INPUTBOX
 99
 118
 randomSeed
-0.0
+5.0
 1
 0
 Number
@@ -4705,7 +4955,7 @@ INPUTBOX
 228
 118
 end-simulation-in-year
-0.0
+5.0
 1
 0
 Number
@@ -4719,7 +4969,7 @@ temperature_mean-daily-fluctuation
 temperature_mean-daily-fluctuation
 0
 5
-0.0
+2.2
 0.1
 1
 ºC  (default: 2.2)
@@ -4734,7 +4984,7 @@ temperature_daily-lower-deviation
 temperature_daily-lower-deviation
 0
 10
-0.0
+6.8
 0.1
 1
 ºC  (default: 6.8)
@@ -4749,7 +4999,7 @@ temperature_daily-upper-deviation
 temperature_daily-upper-deviation
 0
 10
-0.0
+7.9
 0.1
 1
 ºC  (default: 7.9)
@@ -4764,7 +5014,7 @@ temperature_annual-max-at-2m
 temperature_annual-max-at-2m
 15
 40
-0.0
+37.0
 0.1
 1
 ºC  (default: 37)
@@ -4779,7 +5029,7 @@ temperature_annual-min-at-2m
 temperature_annual-min-at-2m
 -15
 15
-0.0
+12.8
 0.1
 1
 ºC  (default: 12.8)
@@ -4847,7 +5097,7 @@ solar_annual-max
 solar_annual-max
 solar_annual-min
 30
-0.0
+24.2
 0.01
 1
 MJ/m2 (default: 24.2)
@@ -4877,7 +5127,7 @@ solar_mean-daily-fluctuation
 solar_mean-daily-fluctuation
 0
 6
-0.0
+3.3
 0.01
 1
 MJ/m2 (default: 3.3)
@@ -5009,7 +5259,7 @@ precipitation_yearly-mean
 precipitation_yearly-mean
 0
 1000
-0.0
+489.0
 1.0
 1
 mm/year (default: 489)
@@ -5024,7 +5274,7 @@ precipitation_yearly-sd
 precipitation_yearly-sd
 0
 250
-0.0
+142.2
 0.1
 1
 mm/year (default: 142.2)
@@ -5039,7 +5289,7 @@ precipitation_daily-cum_n-samples
 precipitation_daily-cum_n-samples
 0
 300
-0.0
+200.0
 1.0
 1
 (default: 200)
@@ -5054,7 +5304,7 @@ precipitation_daily-cum_max-sample-size
 precipitation_daily-cum_max-sample-size
 1
 20
-0.0
+10.0
 1.0
 1
 (default: 10)
@@ -5069,7 +5319,7 @@ precipitation_daily-cum_plateau-value_yearly-mean
 precipitation_daily-cum_plateau-value_yearly-mean
 0.2
 0.8
-0.0
+0.25
 0.01
 1
 winter (mm)/summer (mm) (default: 0.25)
@@ -5084,7 +5334,7 @@ precipitation_daily-cum_plateau-value_yearly-sd
 precipitation_daily-cum_plateau-value_yearly-sd
 0
 0.4
-0.0
+0.1
 0.001
 1
 (default: 0.1)
@@ -5099,7 +5349,7 @@ precipitation_daily-cum_inflection1_yearly-mean
 precipitation_daily-cum_inflection1_yearly-mean
 40
 140
-0.0
+40.0
 1.0
 1
 day of year (default: 40)
@@ -5129,7 +5379,7 @@ precipitation_daily-cum_rate1_yearly-mean
 precipitation_daily-cum_rate1_yearly-mean
 0.01
 0.07
-0.0
+0.07
 0.001
 1
 (default: 0.07)
@@ -5144,7 +5394,7 @@ precipitation_daily-cum_rate1_yearly-sd
 precipitation_daily-cum_rate1_yearly-sd
 0.004
 0.03
-0.0
+0.02
 0.001
 1
 (default: 0.02)
@@ -5159,7 +5409,7 @@ precipitation_daily-cum_inflection2_yearly-mean
 precipitation_daily-cum_inflection2_yearly-mean
 180
 366
-0.0
+240.0
 1.0
 1
 day of year (default: 240)
@@ -5174,7 +5424,7 @@ precipitation_daily-cum_inflection2_yearly-sd
 precipitation_daily-cum_inflection2_yearly-sd
 20
 100
-0.0
+20.0
 1
 1
 days (default: 20)
@@ -5189,7 +5439,7 @@ precipitation_daily-cum_rate2_yearly-mean
 precipitation_daily-cum_rate2_yearly-mean
 0.01
 0.08
-0.0
+0.08
 0.001
 1
 (default: 0.08)
@@ -5204,7 +5454,7 @@ precipitation_daily-cum_rate2_yearly-sd
 precipitation_daily-cum_rate2_yearly-sd
 0.004
 0.03
-0.0
+0.02
 0.001
 1
 (default: 0.02)
@@ -5462,11 +5712,11 @@ true
 "set-plot-y-range -1 101" ""
 PENS
 "mean water (%)" 1.0 1 -14454117 true "" "plot 100"
-"mean wood (%)" 1.0 1 -14835848 true "" "plot 100 - mean [p_ecol_%water] of patches"
-"mean brush (%)" 1.0 1 -6459832 true "" "plot 100 - (mean [p_ecol_%wood] of patches + mean [p_ecol_%water] of patches)"
-"mean grass (%)" 1.0 1 -13840069 true "" "plot 100 - (mean [p_ecol_%brush] of patches + mean [p_ecol_%wood] of patches + mean [p_ecol_%water] of patches)"
-"crop (%)" 1.0 1 -4079321 true "" "plot 100 - (mean [p_ecol_%grass] of patches + mean [p_ecol_%brush] of patches + mean [p_ecol_%wood] of patches + mean [p_ecol_%water] of patches)"
-"mean bare soil (%)" 1.0 1 -16777216 true "" "plot 100 - (crop_intensity + mean [p_ecol_%grass] of patches + mean [p_ecol_%brush] of patches + mean [p_ecol_%wood] of patches + mean [p_ecol_%water] of patches)"
+"mean crop (%)" 1.0 1 -4079321 true "" "plot 100 - mean [p_ecol_%water] of patches"
+"mean wood (%)" 1.0 1 -14835848 true "" "plot 100 - (mean [p_ecol_%crop] of patches + mean [p_ecol_%water] of patches)"
+"mean brush (%)" 1.0 1 -6459832 true "" "plot 100 - (mean [p_ecol_%wood] of patches + mean [p_ecol_%crop] of patches + mean [p_ecol_%water] of patches)"
+"mean grass (%)" 1.0 1 -13840069 true "" "plot 100 - (mean [p_ecol_%brush] of patches + mean [p_ecol_%wood] of patches + mean [p_ecol_%crop] of patches + mean [p_ecol_%water] of patches)"
+"mean bare soil (%)" 1.0 1 -16777216 true "" "plot 100 - (mean [p_ecol_%grass] of patches + mean [p_ecol_%brush] of patches + mean [p_ecol_%wood] of patches + mean [p_ecol_%crop] of patches + mean [p_ecol_%water] of patches)"
 
 PLOT
 1566
@@ -5728,7 +5978,7 @@ INPUTBOX
 1255
 949
 crop-selection
-0
+[\"wheat 1\" \"wheat 2\" \"rice\" \"barley\" \"pearl millet\" \"proso millet\"]
 1
 0
 String
@@ -5739,21 +5989,21 @@ INPUTBOX
 1558
 70
 crop-to-display
-0
+wheat 1
 1
 0
 String
 
 SLIDER
-721
-902
-980
-935
+735
+888
+994
+921
 crop-intensity
 crop-intensity
 0
 100
-0.0
+50.0
 1
 1
 % of patch area
@@ -5779,9 +6029,9 @@ PENS
 
 BUTTON
 485
-240
+229
 664
-273
+262
 run yield experiment batch
 run-yield-performance-experiment-batch
 NIL
@@ -5800,7 +6050,7 @@ INPUTBOX
 315
 289
 experiment-initRandomSeed
-0.0
+4.0
 1
 0
 Number
@@ -5811,7 +6061,7 @@ INPUTBOX
 474
 289
 experiment-numberOfRuns
-0.0
+2.0
 1
 0
 Number
@@ -5822,10 +6072,72 @@ INPUTBOX
 159
 289
 experiment-name
-0
+exp4
 1
 0
 String
+
+BUTTON
+479
+265
+542
+298
+exp3
+experiment-3
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+544
+265
+607
+298
+exp4
+experiment-4
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+SWITCH
+738
+925
+987
+958
+randomise-crop-frequencies?
+randomise-crop-frequencies?
+1
+1
+-1000
+
+BUTTON
+610
+265
+673
+298
+exp5
+experiment-5
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
