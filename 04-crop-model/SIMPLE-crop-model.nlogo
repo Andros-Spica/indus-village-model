@@ -347,7 +347,7 @@ to set-parameters
     set solar_annualMin solar_annual-min
     set solar_meanDailyFluctuation solar_mean-daily-fluctuation
 
-    set precipitation_yearlyMean 200 + random-float 800
+    set precipitation_yearlyMean 50 + random-float 950
     set precipitation_yearlySd precipitation_yearly-sd
     set precipitation_dailyCum_nSamples precipitation_daily-cum_n-samples
     set precipitation_dailyCum_maxSampleSize precipitation_daily-cum_max-sample-size
@@ -1124,6 +1124,56 @@ end
 ;;; EXPORT YIELD PERFORMANCES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+to experiment-1
+
+  let numberOfBatches 2
+
+  set experiment-name "exp1"
+
+  set type-of-experiment "user-defined"
+
+  parameters-to-default
+
+  set experiment-numberOfRuns 25
+
+  set experiment-initRandomSeed 0
+
+  set end-simulation-in-year 30
+
+  repeat numberOfBatches
+  [
+    run-yield-performance-experiment-batch
+
+    set experiment-initRandomSeed randomSeed
+  ]
+
+end
+
+to experiment-2
+
+  let numberOfBatches 2
+
+  set experiment-name "exp2"
+
+  set type-of-experiment "precipitation-variation"
+
+  parameters-to-default
+
+  set experiment-numberOfRuns 25
+
+  set experiment-initRandomSeed 0
+
+  set end-simulation-in-year 30
+
+  repeat numberOfBatches
+  [
+    run-yield-performance-experiment-batch
+
+    set experiment-initRandomSeed randomSeed
+  ]
+
+end
+
 to run-yield-performance-experiment-batch
 
   setup-yield-performance-data-file
@@ -1158,7 +1208,7 @@ end
 to setup-yield-performance-data-file
 
   ;;; build a unique file name according to the user setting
-  let filePath (word "output//yield//SIMPLE-crop-model_yield-exp_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
+  let filePath (word "output//SIMPLE-crop-model_yield-exp_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
 
   ;;; check that filePath does not exceed 100 (not common in this context)
   ;if (length filePath > 120) [ print "WARNING: file path may be too long, depending on your current directory. Decrease length of file name or increase the limit." set filePath substring filePath 0 120 ]
@@ -1176,7 +1226,7 @@ to setup-yield-performance-data-file
     "precipitation_dailyCum_inflection2_yearlyMean,precipitation_dailyCum_inflection2_yearlySd,precipitation_dailyCum_rate2_yearlyMean,precipitation_dailyCum_rate2_yearlySd,"
     "currentYear,currentDayOfYear,"
     "precipitation_yearTotal,meanARID,"
-    "elevation,DC,z,CN,FC,WHC,albedo,"
+    "elevation,DC,z,CN,FC,WHC,WP,MUF,albedo,"
     "crop,T_sum,HI,I_50A,I_50B,T_base,T_opt,RUE,I_50maxH,I_50maxW,T_heat,T_extreme,S_CO2,S_water,sowingDay,harvestDay,"
     "meanARID_grow,yield"
   )
@@ -1188,7 +1238,7 @@ end
 to export-yield-performance
 
   ;;; recover the unique file name according to the user setting
-  let filePath (word "output//yield//SIMPLE-crop-model_yield-exp_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
+  let filePath (word "output//SIMPLE-crop-model_yield-exp_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
 
   file-open filePath
 
@@ -1236,13 +1286,15 @@ to export-yield-performance
     file-type (sum precipitation_yearSeries) file-type ","
     ;;; mean ARID in current year
     file-type (mean ARID_yearSeries) file-type ","
-    ;;; elevation, DC, z, CN, FC, WHC, albedo
+    ;;; elevation, DC, z, CN, FC, WHC, WP, MUF, albedo
     file-type elevation file-type ","
     file-type DC file-type ","
     file-type z file-type ","
     file-type CN file-type ","
     file-type FC file-type ","
     file-type WHC file-type ","
+    file-type WP file-type ","
+    file-type MUF file-type ","
     file-type albedo file-type ","
     ;;; crop, sowingDay, harvestDay,
     file-type crop file-type ","
@@ -1289,7 +1341,7 @@ end
 to setup-weather-data-file
 
   ;;; build a unique file name according to the user setting
-  let filePath (word "output//yield//SIMPLE-crop-model_yield-exp_weather_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
+  let filePath (word "output//SIMPLE-crop-model_yield-exp_weather_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
 
   ;;; check that filePath does not exceed 100 (not common in this context)
   ;if (length filePath > 120) [ print "WARNING: file path may be too long, depending on your current directory. Decrease length of file name or increase the limit." set filePath substring filePath 0 120 ]
@@ -1311,7 +1363,7 @@ end
 to export-weather-of-yield-experiment
 
   ;;; recover the unique file name according to the user setting
-  let filePath (word "output//yield//SIMPLE-crop-model_yield-exp_weather_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
+  let filePath (word "output//SIMPLE-crop-model_yield-exp_weather_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
 
   file-open filePath
 
@@ -1355,7 +1407,7 @@ to load-crops-table
   ;;;   3. the header of the table with the names of variables
   ;;;   4. remaining rows containing row name and values
 
-  let cropsTable csv:from-file "cropsTable_SIMPLEmodel.csv"
+  let cropsTable csv:from-file "cropsTable.csv"
 
   ;;;==================================================================================================================
   ;;; mapping coordinates (row or columns) in lines 3 and 4 (= index 2 and 3) -----------------------------------------
@@ -1689,7 +1741,7 @@ INPUTBOX
 116
 122
 randomSeed
-0.0
+20.0
 1
 0
 Number
@@ -1702,7 +1754,7 @@ CHOOSER
 type-of-experiment
 type-of-experiment
 "user-defined" "random" "precipitation-variation"
-0
+2
 
 MONITOR
 1420
@@ -1749,7 +1801,7 @@ INPUTBOX
 247
 122
 end-simulation-in-year
-0.0
+30.0
 1
 0
 Number
@@ -1763,7 +1815,7 @@ temperature_mean-daily-fluctuation
 temperature_mean-daily-fluctuation
 0
 5
-0.0
+2.2
 0.1
 1
 ºC  (default: 2.2)
@@ -1778,7 +1830,7 @@ temperature_daily-lower-deviation
 temperature_daily-lower-deviation
 0
 10
-0.0
+6.8
 0.1
 1
 ºC  (default: 6.8)
@@ -1793,7 +1845,7 @@ temperature_daily-upper-deviation
 temperature_daily-upper-deviation
 0
 10
-0.0
+7.9
 0.1
 1
 ºC  (default: 7.9)
@@ -1808,7 +1860,7 @@ temperature_annual-max-at-2m
 temperature_annual-max-at-2m
 15
 40
-0.0
+37.0
 0.1
 1
 ºC  (default: 37)
@@ -1823,7 +1875,7 @@ temperature_annual-min-at-2m
 temperature_annual-min-at-2m
 -15
 15
-0.0
+12.8
 0.1
 1
 ºC  (default: 12.8)
@@ -1947,7 +1999,7 @@ solar_annual-max
 solar_annual-max
 solar_annual-min
 30
-0.0
+24.2
 0.01
 1
 MJ/m2 (default: 24.2)
@@ -1977,7 +2029,7 @@ solar_mean-daily-fluctuation
 solar_mean-daily-fluctuation
 0
 6
-0.0
+3.3
 0.01
 1
 MJ/m2 (default: 3.3)
@@ -2043,7 +2095,7 @@ precipitation_yearly-mean
 precipitation_yearly-mean
 0
 1000
-0.0
+489.0
 1.0
 1
 mm/year (default: 489)
@@ -2058,7 +2110,7 @@ precipitation_yearly-sd
 precipitation_yearly-sd
 0
 250
-0.0
+142.2
 0.1
 1
 mm/year (default: 142.2)
@@ -2073,7 +2125,7 @@ precipitation_daily-cum_n-samples
 precipitation_daily-cum_n-samples
 0
 300
-0.0
+200.0
 1.0
 1
 (default: 200)
@@ -2088,7 +2140,7 @@ precipitation_daily-cum_max-sample-size
 precipitation_daily-cum_max-sample-size
 1
 20
-0.0
+10.0
 1.0
 1
 (default: 10)
@@ -2103,7 +2155,7 @@ precipitation_daily-cum_plateau-value_yearly-mean
 precipitation_daily-cum_plateau-value_yearly-mean
 0.2
 0.8
-0.0
+0.25
 0.01
 1
 winter (mm)/summer (mm) (default: 0.25)
@@ -2118,7 +2170,7 @@ precipitation_daily-cum_plateau-value_yearly-sd
 precipitation_daily-cum_plateau-value_yearly-sd
 0
 0.4
-0.0
+0.1
 0.001
 1
 (default: 0.1)
@@ -2133,7 +2185,7 @@ precipitation_daily-cum_inflection1_yearly-mean
 precipitation_daily-cum_inflection1_yearly-mean
 40
 140
-0.0
+40.0
 1.0
 1
 day of year (default: 40)
@@ -2163,7 +2215,7 @@ precipitation_daily-cum_rate1_yearly-mean
 precipitation_daily-cum_rate1_yearly-mean
 0.01
 0.07
-0.0
+0.07
 0.001
 1
 (default: 0.07)
@@ -2178,7 +2230,7 @@ precipitation_daily-cum_rate1_yearly-sd
 precipitation_daily-cum_rate1_yearly-sd
 0.004
 0.03
-0.0
+0.02
 0.001
 1
 (default: 0.02)
@@ -2193,7 +2245,7 @@ precipitation_daily-cum_inflection2_yearly-mean
 precipitation_daily-cum_inflection2_yearly-mean
 180
 366
-0.0
+240.0
 1.0
 1
 day of year (default: 240)
@@ -2208,7 +2260,7 @@ precipitation_daily-cum_inflection2_yearly-sd
 precipitation_daily-cum_inflection2_yearly-sd
 20
 100
-0.0
+20.0
 1
 1
 days (default: 20)
@@ -2223,7 +2275,7 @@ precipitation_daily-cum_rate2_yearly-mean
 precipitation_daily-cum_rate2_yearly-mean
 0.01
 0.08
-0.0
+0.08
 0.001
 1
 (default: 0.08)
@@ -2238,7 +2290,7 @@ precipitation_daily-cum_rate2_yearly-sd
 precipitation_daily-cum_rate2_yearly-sd
 0.004
 0.03
-0.0
+0.02
 0.001
 1
 (default: 0.02)
@@ -2492,7 +2544,7 @@ par_elevation
 par_elevation
 0
 2500
-0.0
+200.0
 1
 1
 m a.s.l.
@@ -2507,7 +2559,7 @@ water-holding-capacity
 water-holding-capacity
 0.01
 0.5
-0.0
+0.15
 0.01
 1
 cm3/cm3
@@ -2522,7 +2574,7 @@ drainage-coefficient
 drainage-coefficient
 0
 1
-0.0
+0.55
 0.01
 1
 NIL
@@ -2537,7 +2589,7 @@ root-zone-depth
 root-zone-depth
 0
 2000
-0.0
+400.0
 1
 1
 mm
@@ -2552,7 +2604,7 @@ runoff-curve
 runoff-curve
 50
 80
-0.0
+65.0
 1
 1
 NIL
@@ -2614,9 +2666,9 @@ CN
 9
 
 BUTTON
-47
+10
 516
-201
+164
 549
 NIL
 parameters-to-default
@@ -2639,7 +2691,7 @@ par_albedo
 par_albedo
 0
 0.7
-0.0
+0.23
 0.01
 1
 NIL
@@ -2715,7 +2767,7 @@ CO2-annual-max
 CO2-annual-max
 CO2-annual-min
 270
-0.0
+255.0
 0.01
 1
 ppm (default: 255)
@@ -2730,7 +2782,7 @@ CO2-mean-daily-fluctuation
 CO2-mean-daily-fluctuation
 0
 5
-0.0
+1.0
 0.01
 1
 ppm (default:1)
@@ -2788,9 +2840,9 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot CO2"
 
 BUTTON
-46
+9
 468
-225
+188
 501
 run yield experiment batch
 run-yield-performance-experiment-batch
@@ -2821,7 +2873,7 @@ INPUTBOX
 250
 387
 experiment-numberOfRuns
-0.0
+25.0
 1
 0
 Number
@@ -2832,10 +2884,44 @@ INPUTBOX
 251
 454
 experiment-name
-0
+exp2
 1
 0
 String
+
+BUTTON
+204
+468
+267
+501
+exp1
+experiment-1
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+204
+508
+267
+541
+exp2
+experiment-2
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
