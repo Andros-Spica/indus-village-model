@@ -3404,19 +3404,24 @@ to setup-yield-performance-data-file
   ;;; check that filePath does not exceed 100 (not common in this context)
   ;if (length filePath > 120) [ print "WARNING: file path may be too long, depending on your current directory. Decrease length of file name or increase the limit." set filePath substring filePath 0 120 ]
 ;print filePath
-  file-open filePath
 
-  file-print (word
-    "terrainRandomSeed,randomSeed,"
-    "currentYear,currentDayOfYear,"
-    "precipitation_yearTotal,p_soil_meanARID,"
-    "x,y,"
-    "p_water,p_ecol_rootZoneDepth,p_soil_runOffCurveNumber,p_ecol_albedo,p_ecol_biomass,"
-    "p_ecol_%water,p_ecol_%crop,p_ecol_%wood,p_ecol_%brush,p_ecol_%grass,"
-    "crop,p_crop_frequency,p_soil_meanARID_grow,p_crop_yield,p_crop_totalYield"
-  )
+  ;;; do not repeat the setup if file already exists
+  if (not file-exists? filePath)
+  [
+    file-open filePath
 
-  file-close
+    file-print (word
+      "terrainRandomSeed,randomSeed,"
+      "currentYear,currentDayOfYear,"
+      "precipitation_yearTotal,p_soil_meanARID,"
+      "x,y,"
+      "p_water,p_ecol_rootZoneDepth,p_soil_runOffCurveNumber,p_ecol_albedo,p_ecol_biomass,"
+      "p_ecol_%water,p_ecol_%crop,p_ecol_%wood,p_ecol_%brush,p_ecol_%grass,"
+      "crop,p_crop_frequency,p_soil_meanARID_grow,p_crop_yield,p_crop_totalYield"
+    )
+
+    file-close
+  ]
 
 end
 
