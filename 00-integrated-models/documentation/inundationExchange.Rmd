@@ -121,9 +121,9 @@ barplot3d(rows = 5, cols = 5,
           alpha = 0.4,
           theta = 40, phi = 30,
           topcolors = inputdataColours,
-          xlabels = 1:5, ylabels = 1:5,
+          xlabels = 1:5, ylabels = 1:5, zlabels = FALSE,
           #xsub = "rows", ysub = "columns", zsub = "elevation"
-          gridlines = F
+          gridlines = FALSE
 )
 
 waterCube <- cube3d(color = surfaceWaterColour, alpha = 0.5)  
@@ -181,9 +181,9 @@ barplot3d(rows = 5, cols = 5,
           alpha = 0.4,
           theta = 40, phi = 30,
           topcolors = inputdataColours,
-          xlabels = 1:5, ylabels = 1:5,
+          xlabels = 1:5, ylabels = 1:5, zlabels = FALSE,
           #xsub = "rows", ysub = "columns", zsub = "elevation"
-          gridlines = F
+          gridlines = FALSE
 )
 
 waterCube <- cube3d(color = surfaceWaterColour, alpha = 0.5)  
