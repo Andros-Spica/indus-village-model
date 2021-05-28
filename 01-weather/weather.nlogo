@@ -517,7 +517,7 @@ end
 to-report get-annual-sinusoid [ minValue maxValue dayOfYear southHemisphere ]
 
   let dayOfYearWithLowestValue get-dayOfYear-with-lowest-value southHemisphere
-  
+
   let amplitude (maxValue - minValue) / 2
 
   report minValue + amplitude * (1 + sin ((360 * (dayOfYear - (dayOfYearWithLowestValue - yearLengthInDays)) / yearLengthInDays) - 90))
@@ -528,12 +528,12 @@ end
 
 to-report get-dayOfYear-with-lowest-value [ southHemisphere ]
 
-let value -1
+  let value -1
 
   ifelse (southHemisphere)
   [
     ;;; assuming southern hemisphere, winter solstice in 21st June (not leap year)
-    set value (31 + 28 + 31 + 30 + 31 + 21) ]
+    set value (31 + 28 + 31 + 30 + 31 + 21)
   ]
   [
     ;;; assuming northern hemisphere, winter solstice in 21st December (not leap year)
