@@ -52,20 +52,25 @@ $$\textit{p_soil_saturation}=`r round(sat.lm$coefficients[1], 4)`+`r round(sat.l
 In NetLogo, we use the rounded coefficients to up to four decimal digits, considering the lost in precision to be negligible, particularly given the limited data used. The same approach would become more reliable with the inclusion of more data.
 
 ```{r}
-png("linearEstimationOfSoilWaterHorizons.png", width = 600, height = 600)
+grScale = 2
+pch = 21
+
+png("linearEstimationOfSoilWaterHorizons.png", width = grScale * 600, height = grScale * 600)
 
 layout((matrix(1:2, nrow = 2)), heights = c(10, 1))
 
+par(mar = c(5, 6, 1, 1), cex = grScale * 1.2, cex.lab = grScale * 1, cex.axis = grScale * 1)
+
 # 1. plot
-plot(0:100, seq(0, 1, length.out = 101), type = "n", cex = 1.2,
+plot(0:100, seq(0, 1, length.out = 101), type = "n",
      xlab = "clay (%)", ylab = "soil water fraction")
 # mark compositional limits
 abline(v = 0, col = "grey")
 abline(v = 100, col = "grey")
 # mark point data
-points(input$clay, input$sat, col = "darkred")
-points(input$clay, input$fc, col = "darkgreen")
-points(input$clay, input$wp, col = "darkblue")
+points(input$clay, input$sat, col = "darkred", bg = "red", pch = pch)
+points(input$clay, input$fc, col = "darkgreen", bg = "green", pch = pch)
+points(input$clay, input$wp, col = "darkblue", bg = "blue", pch = pch)
 # draw integral linear model
 abline(sat.lm, col = "red")
 abline(wp.lm, col = "blue")
@@ -73,20 +78,20 @@ abline(wp.lm, col = "blue")
 lines(0:100, sat, col = "darkred", lty = 2)
 lines(0:100, wp, col = "darkblue", lty = 2)
 # write equations
-text(35, 0.8, col = "red", cex = 1.2,
+text(45, 0.8, col = "red",
      label = paste("p_soil_saturation =", round(sat.lm$coefficients[1], 4),
            "+", round(sat.lm$coefficients[2], 4), "· p_soil_%clay"))
-text(50, 0.5, col = "green", cex = 1.2,
+text(50, 0.4, col = "green",
      labels = "p_soil_fieldCapacity")
-text(65, 0.08, col = "blue", cex = 1.2,
+text(65, 0.08, col = "blue",
      label = paste("p_soil_wiltingPoint =", round(wp.lm$coefficients[1], 4),
            "+", round(wp.lm$coefficients[2], 4), "· p_soil_%clay"))
 
 # 2. legend
 par(mar = rep(0, 4))
 plot(0:1, 0:1, type = "n", axes = FALSE, ann = FALSE)
-legend(0.1, 1, lty = c(1, 2), legend = c("integral linear model", "adapted linear model"), cex = 0.8, horiz = TRUE)
-legend(0.8, 1, pch = c(1), legend = c("input data"), cex = 0.8, horiz = TRUE)
+legend(0.1, 1, lty = c(1, 2), legend = c("integral linear model", "adapted linear model"), horiz = TRUE)
+legend(0.8, 1, pch = c(pch), pt.bg = c("gray"), legend = c("input data"), horiz = TRUE)
 
 dev.off()
 ```
@@ -95,10 +100,10 @@ dev.off()
 knitr::include_graphics("linearEstimationOfSoilWaterHorizons.png")
 ```
 
-OBS: Data on field capacity per soil texture types is already available from other sources, and used instead of an equation. 
+OBS: Data on field capacity (`p_soil_fieldCapacity`) per soil texture types is already available from other sources, and used instead of an equation. 
 
 ## References {-}
 
->SWAT theoretical documentation 2009, p. 149, https://swat.tamu.edu/media/99192/swat2009-theory.pdf
+> SWAT theoretical documentation 2009, p. 149, https://swat.tamu.edu/media/99192/swat2009-theory.pdf
 
 > Daniel Wallach, David Makowski, James W. Jones, François Brun (2006, 2014, 2019), 'Working with dynamic crop models: Methods, tools, and examples for agriculture and enviromnent'. Soil Water Balance model described in p. 24-28, R code example in p. 138-144.
