@@ -164,6 +164,8 @@ globals
   ;;;; counters and final measures
   ARID_yearSeries ; registers daily values of ARID of the current year (used to export data)
   ARID_yearSeries_lastYear ; saves daily values of ARID of the last year (used to export data)
+  T_max_yearSeries ; registers daily values of T_max of the current year (used to export data)
+  T_max_yearSeries_lastYear ; saves daily values of T_max of the last year (used to export data)
 ]
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -963,6 +965,8 @@ to update-output-stats
 
   update-ARID_yearSeries
 
+  update-T_max_yearSeries
+
 end
 
 to update-ARID_yearSeries
@@ -977,6 +981,21 @@ to update-ARID_yearSeries
   ]
   ; append this day ARID to ARID_yearSeries
   set ARID_yearSeries lput ARID ARID_yearSeries
+
+end
+
+to update-T_max_yearSeries
+
+  ; if starting a new year
+  if (currentDayOfYear = 1)
+  [
+    ; save current year as last year
+    set T_max_yearSeries_lastYear T_max_yearSeries
+    ; reset ARID_yearSeries if starting a new year
+    set T_max_yearSeries (list)
+  ]
+  ; append this day T_max to T_max_yearSeries
+  set T_max_yearSeries lput T_max T_max_yearSeries
 
 end
 
@@ -1228,7 +1247,7 @@ to setup-yield-performance-data-file
     "precipitation_yearTotal,meanARID,"
     "elevation,DC,z,CN,FC,WHC,WP,MUF,albedo,"
     "crop,T_sum,HI,I_50A,I_50B,T_base,T_opt,RUE,I_50maxH,I_50maxW,T_heat,T_extreme,S_CO2,S_water,sowingDay,harvestDay,"
-    "meanARID_grow,yield"
+    "meanARID_grow,meanT_max_grow,yield"
   )
 
   file-close
@@ -1313,20 +1332,24 @@ to export-yield-performance
     file-type (item cropIndex S_water) file-type ","
     file-type (item cropIndex sowingDay) file-type ","
     file-type (item cropIndex harvestingDay) file-type ","
-    ;;; mean ARID during grow season in year
+    ;;; mean ARID and T_max during grow season in year
     ifelse ((item cropIndex sowingDay) < (item cropIndex harvestingDay))
     [
       ; growing season fits the current calendar year
-      file-type (mean sublist ARID_yearSeries (item cropIndex sowingDay) (item cropIndex harvestingDay)) file-type "," ]
+      file-type (mean sublist ARID_yearSeries (item cropIndex sowingDay) (item cropIndex harvestingDay)) file-type ","
+      file-type (mean sublist T_max_yearSeries (item cropIndex sowingDay) (item cropIndex harvestingDay)) file-type ","
+    ]
     [
       ; growing season spans also into last year
       ifelse (currentYear = 0)
       [
         ; there is no last year
         file-type "," ; these NA will be signaling the rows that should be ignored in analysis
+        file-type "," ; these NA will be signaling the rows that should be ignored in analysis
       ]
       [
         file-type (mean sentence (sublist ARID_yearSeries 1 (item cropIndex harvestingDay)) (sublist ARID_yearSeries_lastYear (item cropIndex sowingDay) yearLengthInDays)) file-type ","
+        file-type (mean sentence (sublist T_max_yearSeries 1 (item cropIndex harvestingDay)) (sublist T_max_yearSeries_lastYear (item cropIndex sowingDay) yearLengthInDays)) file-type ","
       ]
     ]
     ;;; yield
