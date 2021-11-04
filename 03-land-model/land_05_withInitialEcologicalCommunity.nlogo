@@ -109,7 +109,7 @@ globals
   soil_max%clay                          ; maximum percentage of clay (within the represented area)
   soil_textureNoise                      ; normal random variation in the proportion of sand/silt/clay (standard deviation of every component previous to normalisation)
 
-  soil_textureTypes_display              ; Texture types ordered specifically for display (i.e. meaninful fixed colour pallete)
+  soil_textureType_display              ; Texture types ordered specifically for display (i.e. meaninful fixed colour pallete)
 
   ;;;; ecological community
   ecol_grassFrequencyInflection          ; flow accumulation required for having 50% of grass coverage (inflection point of the logistic curve)
@@ -131,7 +131,7 @@ globals
   landWithRiver               ; count of land units with passing river
   maxFlowAccumulation
 
-  mostCommonTextureType       ; the most common of texture type, see soil_textureTypes
+  mostCommonTextureType       ; the most common of texture type, see soil_textureType
 
   mostCommonCoverType        ; the most common of cover type, see p_ecol_coverType
 ]
@@ -228,7 +228,7 @@ to set-parameters
 
   ;;; Ordered list of soil texture types used for visualisation
   ;;; this order corresponds to an approximation to the soil texture palette (red: sand, green: silt, blue: clay)
-  set soil_textureTypes_display (list
+  set soil_textureType_display (list
     "Sand"             "Loamy sand"        "Sandy loam"     ; red         orange  brown
     "Loam"             "Silt loam"         "Silt"           ; yellow      green   lime
     "Silty clay loam"  "Silty clay"        "Clay"           ; turquoise   cyan    sky
@@ -1292,7 +1292,7 @@ end
 
 to-report get-textureType-color [ textureTypeName ]
 
-  report 15 + 10 * (position textureTypeName soil_textureTypes_display)
+  report 15 + 10 * (position textureTypeName soil_textureType_display)
 
 end
 
@@ -1370,7 +1370,7 @@ end
 
 to set-legend-soil-textureType
 
-  foreach soil_textureTypes_display
+  foreach soil_textureType_display
   [
     textureTypeName ->
     create-temporary-plot-pen textureTypeName
@@ -1869,7 +1869,7 @@ to import-terrain
 
           if (item globalIndex globalNames = "soil_texturenoise") [ set soil_textureNoise item globalIndex globalValues ]
 
-          if (item globalIndex globalNames = "soil_texturetypes_display") [ set soil_textureTypes_display read-from-string item globalIndex globalValues ]
+          if (item globalIndex globalNames = "soil_textureType_display") [ set soil_textureType_display read-from-string item globalIndex globalValues ]
 
           if (item globalIndex globalNames = "ecol_brushfrequencyinflection") [ set ecol_brushFrequencyInflection item globalIndex globalValues ]
           if (item globalIndex globalNames = "ecol_brushfrequencyrate") [ set ecol_brushFrequencyRate item globalIndex globalValues ]
@@ -2489,7 +2489,7 @@ CHOOSER
 111
 display-mode
 display-mode
-"elevation (m)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "ecological community composition" "cover type"
+"elevation (m)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture type" "ecological community composition" "cover type"
 0
 
 SLIDER

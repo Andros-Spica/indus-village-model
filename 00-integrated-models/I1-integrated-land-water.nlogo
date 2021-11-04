@@ -42,7 +42,7 @@ globals
   ;*****************************************************************************************************************
   ;;; imported table inputs
   ;;;;; hydrologic Soil Groups table
-  soil_textureTypes                           ; Types of soil according to % of sand, silt and clay (ternary diagram) established by USDA
+  soil_textureType                           ; Types of soil according to % of sand, silt and clay (ternary diagram) established by USDA
   soil_hydrologicSoilGroups                   ; USDA classification of soils according to water infiltration (A, B, C, and D) per each texture type
 
   ;;;;; run off curve number table
@@ -154,7 +154,7 @@ globals
   soil_max%clay                          ; maximum percentage of clay (within the represented area)
   soil_textureNoise                      ; normal random variation in the proportion of sand/silt/clay (standard deviation of every component previous to normalisation)
 
-  soil_textureTypes_display              ; Texture types ordered specifically for display (i.e. meaninful fixed colour pallete)
+  soil_textureType_display              ; Texture types ordered specifically for display (i.e. meaninful fixed colour pallete)
 
   ;;;; ecological community
   ecol_grassFrequencyInflection          ; flow accumulation required for having 50% of grass coverage (inflection point of the logistic curve)
@@ -174,7 +174,7 @@ globals
   landWithRiver                        ; count of land units with passing river
   maxFlowAccumulation
 
-  mostCommonTextureType       ; the most common of texture type, see soil_textureTypes
+  mostCommonTextureType       ; the most common of texture type, see soil_textureType
 
   ;*****************************************************************************************************************
 
@@ -445,7 +445,7 @@ to set-constants
 
   ;;; Ordered list of soil texture types used for visualisation
   ;;; this order corresponds to an approximation to the soil texture palette (red: sand, green: silt, blue: clay)
-  set soil_textureTypes_display (list
+  set soil_textureType_display (list
     "Sand"             "Loamy sand"        "Sandy loam"     ; red         orange  brown
     "Loam"             "Silt loam"         "Silt"           ; yellow      green   lime
     "Silty clay loam"  "Silty clay"        "Clay"           ; turquoise   cyan    sky
@@ -662,7 +662,7 @@ end
 
 to setup-soil-soilWaterProperties
 
-  set p_soil_hydrologicSoilGroup item (position p_soil_textureType soil_textureTypes) soil_hydrologicSoilGroups
+  set p_soil_hydrologicSoilGroup item (position p_soil_textureType soil_textureType) soil_hydrologicSoilGroups
 
   set p_soil_runOffCurveNumber (get-runOffCurveNumber
       p_ecol_%grass
@@ -686,7 +686,7 @@ end
 
 to-report get-fieldCapacity [ textureType ]
 
-  report item (position textureType soil_textureTypes) soil_fieldCapacity
+  report item (position textureType soil_textureType) soil_fieldCapacity
 
 end
 
@@ -713,8 +713,8 @@ to-report get-waterHoldingCapacity ;[ textureType ]
   report (p_soil_fieldCapacity - p_soil_wiltingPoint)
 
   ; alternative using input data water holding capacity x soil texture type
-  ;let minWHC (item (position textureType soil_textureTypes) soil_minWaterHoldingCapacity)
-  ;let maxWHC (item (position textureType soil_textureTypes) soil_maxWaterHoldingCapacity)
+  ;let minWHC (item (position textureType soil_textureType) soil_minWaterHoldingCapacity)
+  ;let maxWHC (item (position textureType soil_textureType) soil_maxWaterHoldingCapacity)
 
   ;report (minWHC + random-float (maxWHC - minWHC)) * 2.54 / 30.48 ; converted from in/ft to cm/cm
 
@@ -723,7 +723,7 @@ end
 to-report get-deepDrainageCoefficient [ textureType ]
 
   ; get intake rate (mm/hour) of the given texture type
-  let intakeRate item (position textureType soil_textureTypes) soil_intakeRate
+  let intakeRate item (position textureType soil_textureType) soil_intakeRate
 
   ; return daily intake rate divided by the volume of soil above field capacity (intake/drainage rate at saturation) as approximation of deep drainage coefficient
   ; TO-DO: ideally, data on deep drainage coefficient should be used instead.
@@ -2186,7 +2186,7 @@ end
 
 to-report get-textureType-color [ textureTypeName ]
 
-  report 15 + 10 * (position textureTypeName soil_textureTypes_display)
+  report 15 + 10 * (position textureTypeName soil_textureType_display)
 
 end
 
@@ -2275,7 +2275,7 @@ end
 
 to set-legend-soil-textureType
 
-  foreach soil_textureTypes_display
+  foreach soil_textureType_display
   [
     textureTypeName ->
     create-temporary-plot-pen textureTypeName
@@ -2659,7 +2659,7 @@ to import-terrain
 
           if (item globalIndex globalNames = "soil_texturenoise") [ set soil_textureNoise item globalIndex globalValues ]
 
-          if (item globalIndex globalNames = "soil_texturetypes_display") [ set soil_textureTypes_display read-from-string item globalIndex globalValues ]
+          if (item globalIndex globalNames = "soil_textureType_display") [ set soil_textureType_display read-from-string item globalIndex globalValues ]
 
           if (item globalIndex globalNames = "ecol_brushfrequencyinflection") [ set ecol_brushFrequencyInflection item globalIndex globalValues ]
           if (item globalIndex globalNames = "ecol_brushfrequencyrate") [ set ecol_brushFrequencyRate item globalIndex globalValues ]
@@ -2818,7 +2818,7 @@ to load-hydrologic-soil-groups-table
   let hydrologicSoilGroupsData sublist hydrologicSoilGroupTable (item 0 textureTypesRowRange) (item 1 textureTypesRowRange + 1)
 
   ;;; extract type of texture
-  set soil_textureTypes map [row -> item textureTypeColumn row ] hydrologicSoilGroupsData
+  set soil_textureType map [row -> item textureTypeColumn row ] hydrologicSoilGroupsData
 
   ;;; extract hydrologic soil group
   set soil_hydrologicSoilGroups map [row -> item HydrologycSoilGroupsColumn row ] hydrologicSoilGroupsData
@@ -3993,7 +3993,7 @@ CHOOSER
 65
 display-mode
 display-mode
-"elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "surface water width (%)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture types" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "soil water content (ratio)" "ecological community composition" "total ecological community biomass (Kg)" "cover type" "albedo (%)" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "ARID coefficient"
+"elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "surface water width (%)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture type" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "soil water content (ratio)" "ecological community composition" "total ecological community biomass (Kg)" "cover type" "albedo (%)" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "ARID coefficient"
 16
 
 BUTTON
