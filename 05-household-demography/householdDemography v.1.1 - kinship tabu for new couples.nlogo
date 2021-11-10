@@ -2,11 +2,10 @@
 ;;; GNU GENERAL PUBLIC LICENSE ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;  <MODEL NAME>
-;;  Copyright (C) <YEAR> <AUTHORS (EMAIL)>
-;;  Based on the 'Household Demography' template by Andreas Angourakis (andros.spica@gmail.com)
-;;  last update Feb 2019
-;;  available at https://www.github.com/Andros-Spica/abm-templates
+;;  Household Demography
+;;  Copyright (C) 2021 Andreas Angourakis (andros.spica@gmail.com)
+;;  last update Nov 2021
+;;  available at https://www.github.com/Andros-Spica/indus-village-model
 ;;
 ;;  This program is free software: you can redistribute it and/or modify
 ;;  it under the terms of the GNU General Public License as published by
@@ -43,7 +42,7 @@ globals
   initialNumHouseholds
   householdInitialAgeDistribution ; (list minimum maximum)
   maxCoupleCountDistribution      ; (list minimum maximum)
-  ;acceptable-kinship-degree-for-couples ; degree of kinship acceptable between two individuals forming a new couple (1 = same household, 0.5 = level one relationship, etc.)
+  acceptableKinshipDegreeForCouples ; degree of kinship acceptable between two individuals forming a new couple (1 = same household, 0.5 = level one relationship, etc.)
 
   ;;; variables
   ;;;; auxiliar
@@ -130,6 +129,8 @@ to set-parameters
   [
     ;;; load parameters from user interface
     set initialNumHouseholds initial-num-households
+
+    set acceptableKinshipDegreeForCouples acceptable-kinship-degree-for-couples
   ]
   if (type-of-experiment = "random")
   [
@@ -159,7 +160,7 @@ to set-parameters
     set sigma1-fert max (list 1E-6 (random-float (mu-fert - maturityAge)))
     set sigma2-fert max (list 1E-6 (random-float ((30 + maturityAge) - mu-fert)))
     set residence-rule item random 2 (list "patrilocal-patrilineal" "matrilocal-matrilineal")
-    set acceptable-kinship-degree-for-couples random 10
+    set acceptableKinshipDegreeForCouples random 10
     set c1-women max (list 1E-6 (random-float 1))
     set c1-men max (list 1E-6 (random-float 1))
     set mu-women random 40
@@ -478,7 +479,7 @@ to-report couple-is-acceptable [ womanHousehold manHousehold ]
 
   ; case 2 (complex, more flexible/general, includes case 1):
   ; woman and man share the same lineage (greater risk of inbreeding)
-  report (get-kinship-degree womanHousehold manHousehold > acceptable-kinship-degree-for-couples)
+  report (get-kinship-degree womanHousehold manHousehold > acceptableKinshipDegreeForCouples)
 
 end
 
@@ -1502,11 +1503,11 @@ PENS
 "couples" 1.0 0 -7500403 true "" "plot sum [hh_count-couples] of households"
 
 PLOT
-628
-569
-1098
-689
-Age structure
+630
+571
+1034
+691
+Age structure (population)
 NIL
 NIL
 0.0
@@ -1521,15 +1522,33 @@ PENS
 "men" 1.0 1 -13345367 true "" "histogram menAgeStructure"
 
 MONITOR
-1019
-623
-1092
-668
+955
+625
+1028
+670
 NIL
 femaleRatio
 4
 1
 11
+
+PLOT
+1142
+567
+1323
+748
+Household structure
+members count
+mean members age
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" "clear-plot"
+PENS
+"" 1.0 2 -16777216 true "" "ask households [ plotxy (length hh_membersAge) (mean hh_membersAge) ]"
 
 PLOT
 626
@@ -1667,7 +1686,7 @@ cdmlt-level
 cdmlt-level
 1
 25
-8.0
+6.0
 1
 1
 levels from 1 to 25
@@ -1765,13 +1784,13 @@ CHOOSER
 residence-rule
 residence-rule
 "patrilocal-patrilineal" "matrilocal-matrilineal"
-0
+1
 
 MONITOR
-1103
-599
-1203
-644
+1039
+601
+1139
+646
 % 0-4 (women)
 100 * womenFirstAgeGroup / totalWomen
 2
@@ -1779,10 +1798,10 @@ MONITOR
 11
 
 MONITOR
-1103
-643
-1203
-688
+1039
+645
+1139
+690
 % 0-4 (men)
 100 * menFirstAgeGroup / totalMen
 2
@@ -1824,7 +1843,7 @@ sigma1-women
 sigma1-women
 0
 2 * 5
-5.0
+4.971
 0.001
 1
 (default: 5)
@@ -1839,7 +1858,7 @@ mu-women
 mu-women
 0
 40
-15.0
+19.518
 0.001
 1
 (default: 15)
@@ -1869,7 +1888,7 @@ mu-men
 mu-men
 0
 2 * 20
-20.0
+25.15
 0.001
 1
 (default: 20)
@@ -1914,7 +1933,7 @@ sigma1-fert
 sigma1-fert
 0
 2 * 5
-5.0
+5.136
 0.001
 1
 (default: 5)
@@ -1928,8 +1947,8 @@ SLIDER
 sigma2-fert
 sigma2-fert
 0
-2 * 5
-9.041
+3 * 5
+10.685
 0.001
 1
 (default: 10)
@@ -1944,7 +1963,7 @@ mu-fert
 mu-fert
 0
 40
-15.0
+22.176
 0.001
 1
 (default: 25)
@@ -2073,7 +2092,7 @@ sigma2-women
 sigma2-women
 0
 2 * 5
-2.0
+2.011
 0.001
 1
 (default: 5)
@@ -2103,7 +2122,7 @@ acceptable-kinship-degree-for-couples
 acceptable-kinship-degree-for-couples
 0
 10
-10.0
+9.0
 1
 1
 NIL
