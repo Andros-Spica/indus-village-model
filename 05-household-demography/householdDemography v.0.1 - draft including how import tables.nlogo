@@ -116,6 +116,9 @@ to set-parameters
   ; set random seed
   random-seed SEED
 
+  ; check parameters values
+  parameters-check1
+
   ;;; setup parameters depending on the type of experiment
   set householdInitialAge read-from-string ( word "[" household-initial-age "]")
   set maxCoupleCountDistribution read-from-string ( word "[" max-couple-count-distribution "]")
@@ -148,11 +151,35 @@ to set-parameters
   ]
 
   ; check parameters values
-  parameters-check
+  parameters-check2
 
 end
 
-to parameters-check
+to parameters-check1
+
+  ;;; check if values were reset to 0
+  ;;; and set default values
+  if (initial-num-households = 0)               [ set initial-num-households               25 ]
+
+  if (coale-demeny-life-expectancy-level = 0)   [ set coale-demeny-life-expectancy-level                           8 ]
+  if (cde-alpha = 0)                            [ set cde-alpha                               0.1946 ]
+  if (cde-beta = 0)                             [ set cde-beta                               -0.174 ]
+  if (cde-gamma = 0)                            [ set cde-gamma                              -0.2881 ]
+  if (cde-delta = 0)                            [ set cde-delta                               6.06 ]
+
+  if (ct-level-natural-fertility = 0)           [ set ct-level-natural-fertility              1 ]
+  if (ct-level-fertility-control = 0)           [ set ct-level-fertility-control              0.5 ]
+  if (betaDist-av-num-offspring = 0)            [ set betaDist-av-num-offspring               5 ]
+
+  ;;; string type inputs (vector of values)
+  if (household-initial-age = 0 or
+    length household-initial-age = 1)   [ set household-initial-age   "0 30" ]
+  if (max-couple-count-distribution = 0 or
+    length max-couple-count-distribution = 1)        [ set max-couple-count-distribution        "1 6" ]
+
+end
+
+to parameters-check2
 
   ;;; initial parameter check (e.g., avoiding division per zero error)
   check-par-is-positive "initialNumHouseholds" initialNumHouseholds
@@ -886,10 +913,10 @@ to load-demography-tables
     set womenFertilityTable convert-to-single-age womenFertilityTable "fertility"
   ]
 
-  if (input-fertility-table = "Beta distribution model")
-  [
-    set womenFertilityTable load-table-betaDist
-  ]
+;  if (input-fertility-table = "Beta distribution model")
+;  [
+;    set womenFertilityTable load-table-betaDist
+;  ]
 
   ;=======NUPTIALITY========================================================
 
@@ -1258,18 +1285,18 @@ to-report load-table-cdemodel
   foreach cohorts
   [
     i ->
-;    let term1 i - cde-delta
-;    let term2 exp(cde-gamma * term1)
-;
-;    set demoTable lput (
-;      cde-alpha * exp(cde-beta * term1 - term2)
-;    ) demoTable
+    let term1 i - cde-delta
+    let term2 exp(cde-gamma * term1)
 
-    let term1 cde-E / cde-sigma
-    let term2 ((i - cde-mu) / cde-sigma) + 0.805
     set demoTable lput (
-      term1 * 1.2813 * exp (-1.145 * term2 - exp (-1.896 * term2) )
+      cde-alpha * exp(cde-beta * term1 - term2)
     ) demoTable
+
+;    let term1 cde-E / cde-sigma
+;    let term2 ((i - cde-mu) / cde-sigma) + 0.805
+;    set demoTable lput (
+;      term1 * 1.2813 * exp (-1.145 * term2 - exp (-1.896 * term2) )
+;    ) demoTable
   ]
 
   set nuptialityMinMax (list 0 100)
@@ -1352,7 +1379,7 @@ NIL
 T
 OBSERVER
 NIL
-NIL
+1
 NIL
 NIL
 1
@@ -1369,7 +1396,7 @@ NIL
 T
 OBSERVER
 NIL
-NIL
+2
 NIL
 NIL
 1
@@ -1401,7 +1428,7 @@ INPUTBOX
 135
 238
 initial-num-households
-0.0
+25.0
 1
 0
 Number
@@ -1423,7 +1450,7 @@ INPUTBOX
 122
 347
 household-initial-age
-0
+0 30
 1
 0
 String
@@ -1434,7 +1461,7 @@ INPUTBOX
 132
 412
 max-couple-count-distribution
-0
+1 6
 1
 0
 String
@@ -1610,7 +1637,7 @@ T
 T
 OBSERVER
 NIL
-NIL
+3
 NIL
 NIL
 1
@@ -1634,7 +1661,7 @@ coale-demeny-life-expectancy-level
 coale-demeny-life-expectancy-level
 1
 25
-0.0
+1.0
 1
 1
 NIL
@@ -1668,7 +1695,7 @@ CHOOSER
 input-fertility-table
 input-fertility-table
 "1970-1972 India" "Coale-Trussell model" "Beta distribution model"
-2
+1
 
 SLIDER
 797
@@ -1679,7 +1706,7 @@ cde-alpha
 cde-alpha
 0.01
 0.3
-0.0
+0.01
 0.0001
 1
 dft: 0.1946
@@ -1694,7 +1721,7 @@ cde-beta
 cde-beta
 -1
 0
-0.0
+-0.174
 0.0001
 1
 dft: -0.174
@@ -1709,7 +1736,7 @@ cde-gamma
 cde-gamma
 -0.4
 0
-0.0
+-0.2881
 0.0001
 1
 dft: -0.2881
@@ -1724,7 +1751,7 @@ ct-level-natural-fertility
 ct-level-natural-fertility
 0
 1.5
-0.0
+1.0
 0.001
 1
 NIL
@@ -1739,7 +1766,7 @@ ct-level-fertility-control
 ct-level-fertility-control
 -1
 1
-0.0
+0.5
 0.001
 1
 NIL
@@ -1810,7 +1837,7 @@ betaDist-av-num-offspring
 betaDist-av-num-offspring
 0
 30
-0.0
+5.0
 0.001
 1
 NIL
@@ -1853,7 +1880,7 @@ cde-delta
 cde-delta
 0
 10
-0.0
+6.06
 .01
 1
 dft: 6.06
