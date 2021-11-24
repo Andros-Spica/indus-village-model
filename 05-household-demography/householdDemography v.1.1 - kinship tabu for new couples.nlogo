@@ -2,7 +2,7 @@
 ;;; GNU GENERAL PUBLIC LICENSE ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;  Household Demography
+;;  Household Demography v1.1
 ;;  Copyright (C) 2021 Andreas Angourakis (andros.spica@gmail.com)
 ;;  last update Nov 2021
 ;;  available at https://www.github.com/Andros-Spica/indus-village-model

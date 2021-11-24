@@ -2,11 +2,10 @@
 ;;; GNU GENERAL PUBLIC LICENSE ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;  <MODEL NAME>
-;;  Copyright (C) <YEAR> <AUTHORS (EMAIL)>
-;;  Based on the 'Household Demography' template by Andreas Angourakis (andros.spica@gmail.com)
-;;  last update Feb 2019
-;;  available at https://www.github.com/Andros-Spica/abm-templates
+;;  Household Demography v1.0
+;;  Copyright (C) 2021 Andreas Angourakis (andros.spica@gmail.com)
+;;  last update Nov 2021
+;;  available at https://www.github.com/Andros-Spica/indus-village-model
 ;;
 ;;  This program is free software: you can redistribute it and/or modify
 ;;  it under the terms of the GNU General Public License as published by
