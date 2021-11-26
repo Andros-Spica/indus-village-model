@@ -32,13 +32,15 @@ breed [ households household ]
 
 globals
 [
+  ;;; constants
+  maturityAge                     ; defaults to 15 years old; it affects the minimum age acceptable for individuals to keep a household without older individuals
+
   ;;; demography tables
   fertilityTable
   nuptialityTable-women nuptialityTable-men
   mortalityTable-women mortalityTable-men
 
   ;;; modified parameters
-  maturityAge                     ; defaults to 15 years old; it affects the minimum age acceptable for individuals to keep a household without older individuals
   initialNumHouseholds
   householdInitialAgeDistribution ; (list minimum maximum)
   maxCoupleCountDistribution      ; (list minimum maximum)
@@ -76,14 +78,14 @@ globals
 
 households-own
 [
-  hh_householdAge ; number of years during which the household existed (integer)
-  hh_maxCoupleCount ; max. number of couples accepted within a household (integer)
-  hh_membersAge ; ages of every household member (list of integer)
-  hh_membersSex ; sex of every household member (list of true/false, i.e. is female?)
-  hh_membersMarriage ; couple index of every member (list of integers; 0-Inf: couple index, -1: member is single)
+  hh_age                         ; number of years during which the household existed (integer)
+  hh_maxCoupleCount              ; max. number of couples accepted within a household (integer)
+  hh_membersAge                  ; ages of every household member (list of integer)
+  hh_membersSex                  ; sex of every household member (list of true/false, i.e. is female?)
+  hh_membersMarriage             ; couple index of every member (list of integers; 0-Inf: couple index, -1: member is single)
 
   ;;; auxiliar
-  hh_memberDataToDelete
+  hh_memberIndexesToDelete
 ]
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -151,19 +153,19 @@ to set-parameters
 
     set cdmlt-level 1 + random 25
     set coale-demeny-region item random 4 (list "west" "east" "south" "north")
-    set c1-fert 1E-6 + random-float 1
-    set mu-fert maturityAge + random 30
-    set sigma1-fert 1E-6 + random-float (mu-fert - maturityAge)
-    set sigma2-fert 1E-6 + random-float (30 - mu-fert)
+    set c1-fert max (list 1E-6 (random-float 1))
+    set mu-fert maturityAge + (random 40 - maturityAge)
+    set sigma1-fert max (list 1E-6 (random-float (mu-fert - maturityAge)))
+    set sigma2-fert max (list 1E-6 (random-float ((30 + maturityAge) - mu-fert)))
     set residence-rule item random 2 (list "patrilocal-patrilineal" "matrilocal-matrilineal")
-    set c1-women 1E-6 + random-float 1
-    set c1-men 1E-6 + random-float 1
-    set mu-women maturityAge + random 30
-    set mu-men maturityAge + random 30
-    set sigma1-women 1E-6 + random-float (mu-women - maturityAge)
-    set sigma1-men 1E-6 + random-float (mu-men - maturityAge)
-    set sigma2-women 1E-6 + random-float (30 - mu-women)
-    set sigma2-men 1E-6 + random-float (30 - mu-men)
+    set c1-women max (list 1E-6 (random-float 1))
+    set c1-men max (list 1E-6 (random-float 1))
+    set mu-women random 40
+    set mu-men random 40
+    set sigma1-women max (list 1E-6 (random-float mu-women))
+    set sigma1-men max (list 1E-6 (random-float mu-men))
+    set sigma2-women max (list 1E-6 (random-float (40 - mu-women)))
+    set sigma2-men max (list 1E-6 (random-float (40 - mu-men)))
   ]
 
   ; check parameters values
@@ -196,6 +198,35 @@ to parameters-check1
     length household-initial-age-distribution = 1)   [ set household-initial-age-distribution   "0 30" ]
   if (max-couple-count-distribution = 0 or
     length max-couple-count-distribution = 1)        [ set max-couple-count-distribution        "1 6" ]
+
+end
+
+to parameters-to-default
+
+  ;;; set parameters to a default value
+  set max-iterations                     2000
+  set max-population                     5000
+
+  set initial-num-households               25
+
+  set cdmlt-level                           8
+
+  set c1-fert                               0.9
+  set mu-fert                              15
+  set sigma1-fert                           5
+
+  set c1-women                              0.9
+  set mu-women                             15
+  set sigma2-women                          2
+  set sigma1-women                          5
+
+  set c1-men                                0.85
+  set mu-men                               20
+  set sigma1-men                            2
+  set sigma2-men                           10
+
+  set household-initial-age-distribution   "0 30"
+  set max-couple-count-distribution        "1 6"
 
 end
 
@@ -256,7 +287,13 @@ to go
 
   update-counters
 
-  if (totalHouseholds = 0 or ticks = max-iterations) [ stop ]
+  if (totalHouseholds = 0 or
+    ticks = max-iterations or
+    totalIndividuals > max-population)
+  [
+    ;if (length behaviorspace-experiment-name > 0 and count households > 0) [ export-households ]
+    stop
+  ]
 ;print "-------tick----"
   tick
 
@@ -265,94 +302,120 @@ end
 ;;; GLOBAL ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 to update-households
-;print "-------apply-mortality----"
+
+  ;print "-------apply-mortality----"
+  age-households
+
+  ;print "-------apply-mortality----"
   apply-mortality
-;print "-------apply-nuptiality----"
+
+  ;print "-------apply-nuptiality----"
   apply-nuptiality
-;print "-------apply-fertility----"
+
+  ;print "-------apply-fertility----"
   apply-fertility
+
+  ;print "-------manage-orphanhood----"
+  manage-orphanhood
 
 end
 
-to apply-mortality
-
-  ; initialize population lists of orphan children for this year
-  set orphanList (list)
+to age-households
 
   ask households
   [
     hh_aging
   ]
 
-  if (any? households) ; do it only in case there is any household left
-  [
-    ; distribute orphans randomly among surviving households
-    foreach n-values length orphanList [ j -> j ]
-    [
-      i ->
+end
 
-      ask one-of households
-      [
-        hh_add-orphan (item i orphanList)
-      ]
-    ]
+to apply-mortality
+
+  ask households
+  [
+    hh_update-members-survival
   ]
 
 end
 
 to apply-nuptiality
 
+  build-lists-to-marry
+
+  try-to-form-couples
+
+  clear-former-memberships
+
+end
+
+to build-lists-to-marry
+
   ; initialize population lists of marrying candidates for this year
   set womenToMarry (list)
   set menToMarry (list)
 
-  ; fill lists
+  ; fill lists (random order)
   ask households
   [
     ; add to the womenToMarry/menToMarry any women/men that should be marrying, accordint to the nuptiality model
     hh_set-members-to-marry
-
-    ; its important to reset the content of this list,
-    ; so that the next procedures account only for individuals moving out because they are forming couples
-    set hh_memberDataToDelete (list)
   ]
 
-  ; identify internal and external matches
-  let internalMatchIndex 0
-  let externalMatchIndex 0
-  let womenWithoutMatch (length womenToMarry > length menToMarry)
-  ifelse (womenWithoutMatch)
+  ;print (word "womenToMarry: " womenToMarry)
+  ;print (word "menToMarry: " menToMarry)
+
+end
+
+to try-to-form-couples
+
+  ; iterate for every women and men to marry until all form couples
+  ; or are included in the womenWithoutMatch/menWithoutMatch lists
+
+  ; iterate for every women to marry
+  foreach n-values (length womenToMarry) [i -> i]
   [
-    set internalMatchIndex (n-values length menToMarry [ i -> i ])
-    set externalMatchIndex (n-values (length womenToMarry - length menToMarry) [ i -> i + length menToMarry])
-    ;print "There are extra women to marry"
-    ; EXAMPLE:
-    ; for length menToMarry = 10 and length womenToMarry = 15
-    ; internalMatchIndex = [ 0 1 2 3 4 5 6 7 8 9 ]
-    ; externalMatchIndex = [ 10 11 12 13 14 ]
-  ]
-  [
-    set internalMatchIndex (n-values length womenToMarry [ i -> i ])
-    set externalMatchIndex (n-values (length menToMarry - length womenToMarry) [ i -> i + length womenToMarry])
-    ;print "There are extra men to marry"
+    womanIndex ->
+
+    ; initialise this women as single (null husband index in menToMarry)
+    let husbandIndex -1
+
+    ; iterate for every men still to marry (this loop is skipped if there is no menToMarry)
+    foreach n-values (length menToMarry) [i -> i]
+    [
+      manIndex ->
+
+      ; try to create couple if still did not found husband
+      if (husbandIndex = -1)
+      [
+        ; create-couple returns true only if the procedure could form the couple
+        if (create-couple (item womanIndex womenToMarry) (item manIndex menToMarry))
+        [
+          set husbandIndex manIndex
+        ]
+      ]
+    ]
+
+    ifelse (husbandIndex = -1)
+    [
+      ; if no husband was found within this population, create the new couple with this woman and an external man
+      create-couple-external (item womanIndex womenToMarry)
+    ]
+    [
+      ; if husband was found within this population, remove him from menToMarry list
+      set menToMarry remove-item husbandIndex menToMarry
+    ]
   ]
 
-  ;print (word "internal" internalMatchIndex)
-  ;print (word "external" externalMatchIndex)
-
-  ; match every women to marry with a men to marry internally
-  foreach internalMatchIndex
+  ; iterate for every men still to marry, creating new couples with external women
+  foreach n-values (length menToMarry) [i -> i]
   [
-    i ->
-    create-couple i
+    manIndex ->
+    create-couple-external (item manIndex menToMarry)
   ]
 
-  ; iterate for every women or men with no match internally, "searching" for an external match
-  foreach externalMatchIndex
-  [
-    i ->
-    create-couple-external i womenWithoutMatch
-  ]
+end
+
+to clear-former-memberships
 
   ; delete recently married individuals from their parent household
   ask households
@@ -362,28 +425,15 @@ to apply-nuptiality
 
 end
 
-to apply-fertility
-
-  ask households
-  [
-    hh_reproduction
-  ]
-
-end
-
-to create-couple [ indexInSinglesList ]
-
-  ; load woman and man data according to index of the womenToMarry or menToMarry lists
-  let womanData item indexInSinglesList womenToMarry ; list holding the household and member index
-  let manData item indexInSinglesList menToMarry
+to-report create-couple [ womanData manData ]
 
   let womanHousehold item 0 womanData
   let womanIndex item 1 womanData
   let manHousehold item 0 manData
   let manIndex item 1 manData
 
-  ;print (word "index " womanIndex " in " [hh_membersAge] of womanHousehold ", female, " womanHousehold)
-  ;print (word "index " manIndex " in " [hh_membersAge] of manHousehold ", male, " manHousehold)
+;  print (word "index " womanIndex " in " [hh_membersAge] of womanHousehold ", female, " womanHousehold)
+;  print (word "index " manIndex " in " [hh_membersAge] of manHousehold ", male, " manHousehold)
 
   if (residence-rule = "patrilocal-patrilineal")
   [
@@ -399,28 +449,20 @@ to create-couple [ indexInSinglesList ]
       hh_try-to-add-couple womanIndex manData
     ]
   ]
+  ;;; Other residence rules can be added here
+;    print "couple is acceptable."
+
+  report true
 
 end
 
-to create-couple-external [ indexInSinglesList singleSex ]
-
-  let singleData 0  ; list holding the household and member index
-
-  ; load single woman or man data according to index of the womenToMarry or menToMarry lists
-  ifelse (singleSex)
-  [
-    ; there are extra women to marry
-    set singleData item indexInSinglesList womenToMarry
-  ]
-  [
-    ; there are extra men to marry
-    set singleData item indexInSinglesList menToMarry
-  ]
+to create-couple-external [ singleData ]
 
   let singleHousehold item 0 singleData
   let singleIndex item 1 singleData
+  let singleSex [item singleIndex hh_membersSex] of singleHousehold
 
-  ;print (word "Member " singleIndex " in " singleHousehold " (ages = " [hh_membersAge] of singleHousehold ", sex = " [hh_membersSex] of singleHousehold ") is marring outside the system."  )
+;  print (word "Member " singleIndex " in " singleHousehold " (ages = " [hh_membersAge] of singleHousehold ", sex = " [hh_membersSex] of singleHousehold ") is marring outside the system."  )
 
   ; find out if the new couple imply a new individual to be entering the system
   let newIndividualIn
@@ -455,27 +497,24 @@ to create-couple-external [ indexInSinglesList singleSex ]
   [
     ; the single individual is the one moving, so exiting the system...
 
-    ;print (word "individual from " singleHousehold " moving out the system: is female = " singleSex ", age = " (item singleIndex [hh_membersAge] of singleHousehold) )
+;    print (word "individual from " singleHousehold " moving out the system: is female = " singleSex ", age = " (item singleIndex [hh_membersAge] of singleHousehold) )
 
     ; add the single individual (and any children left alone) to the deletion queue of singleHousehold
     let childrenMovingOut 0
     ask singleHousehold
     [
-      ; add the single individual to the deletion queue
-      set hh_memberDataToDelete lput singleIndex hh_memberDataToDelete
-
-      ; since children can be left in a household without adults AND be set to marry to an individual outside the system in the same time step,
-      ; we need to remove duplicated indexes before using hh_memberDataToDelete in hh_check-infant-only
-      set hh_memberDataToDelete remove-duplicates hh_memberDataToDelete
-
-      if (hh_check-infant-only)
-      [
-        ;print (word "all remaining individuals in " singleHousehold " are children: ages including single adult = " hh_membersAge )
-        ; add all members to deletion queue since the household would have only children (assuming they are moving out with the single individual)
-        set hh_memberDataToDelete n-values (length hh_membersAge) [ i -> i ]
-
-        set childrenMovingOut hh_count-children
-      ]
+;      ifelse (hh_is-infants-only)
+;      [
+;        ;print (word "all remaining individuals in " singleHousehold " are children: ages including single adult = " hh_membersAge )
+;        ; add all members to deletion queue since the household would have only children (assuming they are moving out with the single individual)
+;        set hh_memberIndexesToDelete hh_membersIndexes
+;
+;        set childrenMovingOut hh_count-children
+;      ]
+;      [
+        ; add the single individual to the deletion queue, avoiding duplicates
+        set hh_memberIndexesToDelete remove-duplicates (lput singleIndex hh_memberIndexesToDelete)
+;      ]
     ]
 
     ; account for the single individual going out
@@ -490,17 +529,238 @@ to create-couple-external [ indexInSinglesList singleSex ]
 
 end
 
+;;; older version, before splitting procedures
+;to apply-nuptiality
+;
+;  ; initialize population lists of marrying candidates for this year
+;  set womenToMarry (list)
+;  set menToMarry (list)
+;
+;  ; fill lists
+;  ask households
+;  [
+;    ; add to the womenToMarry/menToMarry any women/men that should be marrying, accordint to the nuptiality model
+;    hh_set-members-to-marry
+;
+;    ; its important to reset the content of this list,
+;    ; so that the next procedures account only for individuals moving out because they are forming couples
+;    set hh_memberIndexesToDelete (list)
+;  ]
+;
+;  ; identify internal and external matches
+;  let internalMatchIndex 0
+;  let externalMatchIndex 0
+;  let womenWithoutMatch (length womenToMarry > length menToMarry)
+;  ifelse (womenWithoutMatch)
+;  [
+;    set internalMatchIndex (n-values length menToMarry [ i -> i ])
+;    set externalMatchIndex (n-values (length womenToMarry - length menToMarry) [ i -> i + length menToMarry])
+;    ;print "There are extra women to marry"
+;    ; EXAMPLE:
+;    ; for length menToMarry = 10 and length womenToMarry = 15
+;    ; internalMatchIndex = [ 0 1 2 3 4 5 6 7 8 9 ]
+;    ; externalMatchIndex = [ 10 11 12 13 14 ]
+;  ]
+;  [
+;    set internalMatchIndex (n-values length womenToMarry [ i -> i ])
+;    set externalMatchIndex (n-values (length menToMarry - length womenToMarry) [ i -> i + length womenToMarry])
+;    ;print "There are extra men to marry"
+;  ]
+;
+;  ;print (word "internal" internalMatchIndex)
+;  ;print (word "external" externalMatchIndex)
+;
+;  ; match every women to marry with a men to marry internally
+;  foreach internalMatchIndex
+;  [
+;    i ->
+;    create-couple i
+;  ]
+;
+;  ; iterate for every women or men with no match internally, "searching" for an external match
+;  foreach externalMatchIndex
+;  [
+;    i ->
+;    create-couple-external i womenWithoutMatch
+;  ]
+;
+;  ; delete recently married individuals from their parent household
+;  ask households
+;  [
+;    hh_delete-members-in-queue
+;  ]
+;
+;end
+;
+;to create-couple [ indexInSinglesList ]
+;
+;  ; load woman and man data according to index of the womenToMarry or menToMarry lists
+;  let womanData item indexInSinglesList womenToMarry ; list holding the household and member index
+;  let manData item indexInSinglesList menToMarry
+;
+;  let womanHousehold item 0 womanData
+;  let womanIndex item 1 womanData
+;  let manHousehold item 0 manData
+;  let manIndex item 1 manData
+;
+;  ;print (word "index " womanIndex " in " [hh_membersAge] of womanHousehold ", female, " womanHousehold)
+;  ;print (word "index " manIndex " in " [hh_membersAge] of manHousehold ", male, " manHousehold)
+;
+;  if (residence-rule = "patrilocal-patrilineal")
+;  [
+;    ask manHousehold
+;    [
+;      hh_try-to-add-couple manIndex womanData
+;    ]
+;  ]
+;  if (residence-rule = "matrilocal-matrilineal")
+;  [
+;    ask womanHousehold
+;    [
+;      hh_try-to-add-couple womanIndex manData
+;    ]
+;  ]
+;
+;end
+;
+;to create-couple-external [ indexInSinglesList singleSex ]
+;
+;  let singleData 0  ; list holding the household and member index
+;
+;  ; load single woman or man data according to index of the womenToMarry or menToMarry lists
+;  ifelse (singleSex)
+;  [
+;    ; there are extra women to marry
+;    set singleData item indexInSinglesList womenToMarry
+;  ]
+;  [
+;    ; there are extra men to marry
+;    set singleData item indexInSinglesList menToMarry
+;  ]
+;
+;  let singleHousehold item 0 singleData
+;  let singleIndex item 1 singleData
+;
+;  ;print (word "Member " singleIndex " in " singleHousehold " (ages = " [hh_membersAge] of singleHousehold ", sex = " [hh_membersSex] of singleHousehold ") is marring outside the system."  )
+;
+;  ; find out if the new couple imply a new individual to be entering the system
+;  let newIndividualIn
+;  (
+;    ; a new individual comes in either when...
+;    ; ...the single is a woman and the residence rule is matrilocal (husband comes in)
+;    (singleSex and residence-rule = "matrilocal-matrilineal")
+;    or
+;    ; ...the single is a men and the residence rule is patrilocal (wife comes in)
+;    ((not singleSex) and residence-rule = "patrilocal-patrilineal")
+;  )
+;
+;  ifelse (newIndividualIn)
+;  [
+;    ; a new individual is entering the system...
+;
+;    ; try to add a new couple in singleHousehold
+;    ask singleHousehold
+;    [
+;      hh_try-to-add-couple singleIndex [ -1 -1 ] ; pass spouse data as a NULL value (messaging it should be generated)
+;    ]
+;
+;    ; account for the new individual coming in
+;    ifelse (not singleSex)
+;    [
+;      set womenIn womenIn + 1 ; if single is male, the new individual is female
+;    ]
+;    [
+;      set menIn menIn + 1
+;    ]
+;  ]
+;  [
+;    ; the single individual is the one moving, so exiting the system...
+;
+;    ;print (word "individual from " singleHousehold " moving out the system: is female = " singleSex ", age = " (item singleIndex [hh_membersAge] of singleHousehold) )
+;
+;    ; add the single individual (and any children left alone) to the deletion queue of singleHousehold
+;    let childrenMovingOut 0
+;    ask singleHousehold
+;    [
+;      ; add the single individual to the deletion queue
+;      set hh_memberIndexesToDelete lput singleIndex hh_memberIndexesToDelete
+;
+;      ; since children can be left in a household without adults AND be set to marry to an individual outside the system in the same time step,
+;      ; we need to remove duplicated indexes before using hh_memberIndexesToDelete in hh_check-infant-only
+;      set hh_memberIndexesToDelete remove-duplicates hh_memberIndexesToDelete
+;
+;      if (hh_check-infant-only)
+;      [
+;        ;print (word "all remaining individuals in " singleHousehold " are children: ages including single adult = " hh_membersAge )
+;        ; add all members to deletion queue since the household would have only children (assuming they are moving out with the single individual)
+;        set hh_memberIndexesToDelete n-values (length hh_membersAge) [ i -> i ]
+;
+;        set childrenMovingOut hh_count-children
+;      ]
+;    ]
+;
+;    ; account for the single individual going out
+;    ifelse (singleSex)
+;    [
+;      set womenOut womenOut + 1 + childrenMovingOut
+;    ]
+;    [
+;      set menOut menOut + 1 + childrenMovingOut
+;    ]
+;  ]
+;
+;end
+;;;
+
+to apply-fertility
+
+  ask households
+  [
+    hh_reproduce
+  ]
+
+end
+
+to manage-orphanhood
+
+  ; initialize population lists of orphan children for this year
+  set orphanList (list)
+
+  ; go through every household checking if there is at least one adult and, if not,
+  ; placing all infants in the orphan list and erasing them from the household until eventually the household is disolved
+  ask households
+  [
+    hh_disolve-if-no-adults
+  ]
+
+  if (any? households) ; do it only in case there is any household left
+  [
+    ; distribute orphans randomly among surviving households
+    foreach n-values length orphanList [ j -> j ]
+    [
+      i ->
+
+      ask one-of households
+      [
+        hh_add-orphan (item i orphanList)
+      ]
+    ]
+  ]
+
+end
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; HOUSEHOLDS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Initialisation ==============================================================================
+; Initialisation irst generation households ==============================================================================
 to hh_initialise
 
   ;;; Initialization of households
 
-  set hh_householdAge hh_get-initial-age
+  set hh_age hh_get-initial-age
   set hh_maxCoupleCount hh_get-initial-max-couple-count
+  set hh_memberIndexesToDelete (list)
 
   hh_initialise-members
 
@@ -531,14 +791,14 @@ to hh_initialise-members
     ?1 ->
     set hh_membersSex lput (?1 = 0) hh_membersSex
     let marriageAge (hh_get-initial-marriage-age (item ?1 hh_membersSex))
-    set hh_membersAge lput (hh_householdAge + marriageAge) hh_membersAge
+    set hh_membersAge lput (hh_age + marriageAge) hh_membersAge
     set hh_membersMarriage lput 0 hh_membersMarriage ; this couple will have the 0 index
   ]
 
   ; calculate offspring and offspring age
   let offspringProb 0
-  let i hh_householdAge
-  repeat hh_householdAge
+  let i hh_age
+  repeat hh_age
   [
     ; get the probability of the couple having descendence for a past year i
     ; i.e. woman fertility at the corresponding age
@@ -558,18 +818,18 @@ to-report hh_get-initial-marriage-age [ isFemale ]
 
   ; get a marriage age as a stochastic function of nuptiality rates in earlier years
   let notMarried true
-  let i 0
+  let age 0
 
-  while [notMarried AND i < 100]
+  while [notMarried AND age < 100]
   [
-    if ((get-nuptiality isFemale i) > random-float 1)
+    if ((get-nuptiality isFemale age) > random-float 1)
     [
       set notMarried false
     ]
-    set i i + 1
+    set age age + 1
   ]
 
-  report i
+  report age
 
 end
 
@@ -577,13 +837,10 @@ end
 to hh_aging
 
   ; household aging
-  set hh_householdAge hh_householdAge + 1
+  set hh_age hh_age + 1
 
   ; members aging
   hh_update-members-age
-
-  ; apply mortality rate
-  hh_update-members-survival
 
 end
 
@@ -594,22 +851,17 @@ to hh_update-members-age
 
 end
 
+
 to hh_update-members-survival
 
   ; applies age-specific mortality rates and delete dying members
 
-  let membersIndex (n-values length hh_membersAge [ i -> i ])
-
-  ; define a list with true/false values flagging which members is dying during the current year
-  let dying? map
-  [
-    i ->
-    (random-float 1 < get-mortality (item i hh_membersSex) (item i hh_membersAge))
-  ] membersIndex
+  ; get a list with true/false values flagging which members is dying during the current year
+  let dying? hh_whichMembersDying
 
   ; iterate for the members from last to first, eliminating those that should be dying
-  let index (length membersIndex) - 1
-  repeat length membersIndex
+  let index (hh_count-members) - 1
+  repeat hh_count-members
   [
     if (item index dying?)
     [
@@ -624,12 +876,25 @@ to hh_update-members-survival
     set index index - 1
   ]
 
-  ; update the index of members
-  set membersIndex (n-values length hh_membersAge [ i -> i ])
+  hh_update-marriages-after-deaths
+
+end
+
+to-report hh_whichMembersDying
+
+  ; returns a list with true/false values flagging which members is dying during the current year
+  report map
+  [
+    i ->
+    (random-float 1 < get-mortality (item i hh_membersSex) (item i hh_membersAge))
+  ] hh_membersIndexes
+
+end
+
+to hh_update-marriages-after-deaths
 
   ; update hh_membersMarriage to consider any widow/widower as single
-  let hh_membersMarriageCopy hh_membersMarriage
-  foreach membersIndex
+  foreach hh_membersIndexes
   [
     i ->
     if (item i hh_membersMarriage != -1                                           ; if the member is married
@@ -640,36 +905,15 @@ to hh_update-members-survival
     ]
   ]
 
-  ; check if the household is left without any adult
-  if (hh_check-infant-only)
-  [
-    ; there is no adult in this household, so the children will enter the orphanList so they can be adopted later
-    ;print (word "all remaining individuals in " self " are children: is female = " hh_membersSex ", ages = " hh_membersAge ". They are now in the orphan list.")
-
-    ; iterate for the members from last to first
-    set index (length membersIndex) - 1
-    repeat length membersIndex
-    [
-      ; add children data (sex, age) to the orphan list (they are distributed among other households once aging procedures are done)
-      set orphanList lput (list (item index hh_membersSex) (item index hh_membersAge) ) orphanList
-
-      ; and delete them from the current household (eventualy erasing it)
-      hh_delete-member index
-
-      set index index - 1
-    ]
-  ]
-
 end
+
 
 to hh_set-members-to-marry
 
   ; applies age-specific nuptiality rates
 
-  let membersIndex (n-values length hh_membersAge [ i -> i ])
-
   ; iterate for each member, finding which one is marrying during the current year, according to age cohort and sex
-  foreach membersIndex
+  foreach hh_membersIndexes
   [
     i ->
     if (item i hh_membersMarriage = -1) ; member is not married
@@ -722,8 +966,8 @@ to hh_household-fission [ selfIndex spouseData ]
   ; create new household w/ self and spouse
   hatch 1
   [
-    set hh_householdAge 0
-    ; inherit hh_maxCoupleCount value from self's parent
+    set hh_age 0
+    ; inherit hh_maxCoupleCount value from parent household
 
     hh_reset-members
 
@@ -735,6 +979,9 @@ to hh_household-fission [ selfIndex spouseData ]
     ; account for the new couple
     set hh_membersMarriage lput 0 hh_membersMarriage ; 0 because this is the first couple of the new household
     set hh_membersMarriage lput 0 hh_membersMarriage
+
+    ; initialise list of members to delete (used during apply-nuptiality)
+    set hh_memberIndexesToDelete (list)
 
     ;;; move to empty or less crowded patch, just in sake of visualisation
     move-to min-one-of patches [count households-here]
@@ -756,16 +1003,15 @@ to hh_add-couple [ selfIndex spouseData ]
 
 end
 
-to hh_reproduction
+to hh_reproduce
 
   ; iterate for the members, up to the number of couples,
   ; testing women for the corresponding fertility rate
   ; and generates a new born individual if passing test.
 
-  let membersIndex (n-values length hh_membersAge [ i -> i ])
   let couplesToTest hh_count-couples
 
-  foreach membersIndex
+  foreach hh_membersIndexes
   [
     i ->
     ; there is still a couple to consider and the member is female
@@ -773,10 +1019,35 @@ to hh_reproduction
     [
       if (random-float 1 < get-fertility (item i hh_membersAge))
       [
+        ;print get-fertility (item i hh_membersAge)
         hh_add-offspring 0 ; add a newborn
         ;print (word "a new member is born in " self)
       ]
       set couplesToTest couplesToTest - 1
+    ]
+  ]
+
+end
+
+to hh_disolve-if-no-adults
+
+  ; check if the household is left without any adult
+  if (hh_is-infants-only)
+  [
+    ; there is no adult in this household, so the children will enter the orphanList so they can be adopted later
+    ;print (word "all remaining individuals in " self " are children: is female = " hh_membersSex ", ages = " hh_membersAge ". They are now in the orphan list.")
+
+    ; iterate for the members from last to first
+    let index (hh_count-members) - 1
+    repeat hh_count-members
+    [
+      ; add children data (sex, age) to the orphan list (they are distributed among other households once aging procedures are done)
+      set orphanList lput (list (item index hh_membersSex) (item index hh_membersAge) ) orphanList
+
+      ; and delete them from the current household (eventualy erasing it)
+      hh_delete-member index
+
+      set index index - 1
     ]
   ]
 
@@ -815,7 +1086,7 @@ to hh_add-member-from [ memberData ]
   ; add member to deletion queue of original parent household
   ask aHousehold
   [
-    set hh_memberDataToDelete lput index hh_memberDataToDelete
+    set hh_memberIndexesToDelete lput index hh_memberIndexesToDelete
   ]
 
 end
@@ -823,6 +1094,7 @@ end
 to hh_add-offspring [ initialAge ]
 
   ; add a newborn to the household
+  ; the specification of initialAge is needed to use this in setup
   set hh_membersAge lput initialAge hh_membersAge
   set hh_membersSex lput (random 2 = 0) hh_membersSex
   set hh_membersMarriage lput -1 hh_membersMarriage ; any offspring will be single
@@ -849,8 +1121,11 @@ end
 
 to hh_delete-members-in-queue
 
-  ; delete members in queue following decresing order (so indexes still to go remain valid)
-  foreach sort-by > hh_memberDataToDelete
+  ;print self
+  ;print hh_membersAge
+  ;print hh_memberIndexesToDelete
+  ; delete members in queue following decreasing order (so indexes still to go remain valid)
+  foreach sort-by > (remove-duplicates hh_memberIndexesToDelete)
   [
     i ->
     ; delete member from this household
@@ -858,7 +1133,7 @@ to hh_delete-members-in-queue
   ]
 
   ; reset queue
-  set hh_memberDataToDelete (list)
+  set hh_memberIndexesToDelete (list)
 
 end
 
@@ -870,24 +1145,30 @@ to hh_delete-member [ index ]
   ; if the member was married, it will imply that there will be an odd number of married members,
   ; thus discounting a couple in hh_count-couples
 
-  if (length hh_membersAge = 0) [ die ] ; delete empty household
+  if (hh_count-members = 0) [ die ] ; delete empty household
 
 end
 
-to-report hh_check-infant-only
+to-report hh_is-infants-only
 
   ; filter out the members selected to be deleted
-  let membersAgeWithoutQueuToDelete hh_membersAge
+  let membersAgeNotInQueueToDelete hh_membersAge
 
-  foreach sort-by > hh_memberDataToDelete
+  foreach sort-by > hh_memberIndexesToDelete
   [
     i ->
-    set membersAgeWithoutQueuToDelete remove-item i membersAgeWithoutQueuToDelete
+    set membersAgeNotInQueueToDelete remove-item i membersAgeNotInQueueToDelete
   ]
 
-  if (length membersAgeWithoutQueuToDelete = 0) [ report false ] ; report false in case there is no members that are not in queue to deletion
+  if (length membersAgeNotInQueueToDelete = 0) [ report false ] ; report false in case there is no members that are not in queue to deletion
 
-  report reduce and (map [i -> i < maturityAge] membersAgeWithoutQueuToDelete)
+  report reduce and (map [i -> i < maturityAge] membersAgeNotInQueueToDelete)
+
+end
+
+to-report hh_count-members
+
+  report length hh_membersAge
 
 end
 
@@ -905,13 +1186,21 @@ to-report hh_count-couples
 
 end
 
+to-report hh_membersIndexes
+
+  ; report a list of members indexes from 0 to n
+
+  report (n-values hh_count-members [ i -> i ])
+
+end
+
 to hh_reset-members
 
   set hh_membersAge (list)
   set hh_membersSex (list)
   set hh_membersMarriage (list)
 
-  set hh_memberDataToDelete (list)
+  set hh_memberIndexesToDelete (list)
 
 end
 
@@ -977,7 +1266,7 @@ to update-counters
 
   ask households
   [
-    foreach (n-values length hh_membersAge [j -> j])
+    foreach hh_membersIndexes
     [
       i ->
       ifelse (item i hh_membersSex)
@@ -1063,7 +1352,7 @@ to-report load-peristeri-kostaki-model-table [ c1 mu sigma1 sigma2 ]
 
   ;;; The following correspond to the first parametric model in:
 
-  ;;; Peristeva and Kostaki (2007), p. 147
+  ;;; Peristeva and Kostaki, 2009, p. 147
   ;;; "Modeling fertility in modern populations"
   ;;; Demographic Research 16: 141-194
   ;;; Available from: https://dx.doi.org/10.4054/DemRes.2007.16.6
@@ -1071,7 +1360,7 @@ to-report load-peristeri-kostaki-model-table [ c1 mu sigma1 sigma2 ]
   ;;; Peristeva and Kostaki (2015), p. 133
   ;;; "A parametric model for estimating nuptiality patterns in modern populations"
   ;;; Canadian studies in population 42(2):130-148. DOI: 10.25336/P6TK56
-  ;;; Available from: https://journals.library.ualberta.ca/csp/index.php/csp/article/view/19986
+  ;;; Available from: https://www.researchgate.net/publication/285457704_A_parametric_model_for_estimating_nuptiality_patterns_in_modern_populations [accessed Nov 27 2018].
   ;;; use "demoTables/compareNuptialityModel.R" to test shapes
 
   let marriageProbs (list)
@@ -1152,6 +1441,36 @@ to-report load-coale-demeny-table [ isFemale ]
   report nqx
 
 end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; EXPORT DATA ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to export-households
+
+  let FilePath "output//"
+
+  file-open (word FilePath behaviorspace-experiment-name behaviorspace-run-number "_households.csv")
+
+  file-print "household,lineage,householdAge,maxCoupleCount,membersAge,membersSex,membersMarriage"
+
+  foreach sort households
+  [
+    hh ->
+    ask hh
+    [
+      file-type who file-type ", "
+      file-type hh_age file-type ", "
+      file-type hh_maxCoupleCount file-type ", "
+      file-type (word "'" hh_membersAge "'") file-type ", "
+      file-type (word "'" hh_membersSex "'") file-type ", "
+      file-print (word "'" hh_membersMarriage "'")
+    ]
+  ]
+
+  file-close
+
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 248
@@ -1215,9 +1534,9 @@ NIL
 1
 
 INPUTBOX
-28
+6
 56
-102
+80
 116
 SEED
 0.0
@@ -1892,15 +2211,60 @@ sigma2-men
 HORIZONTAL
 
 INPUTBOX
-108
-57
-187
-117
+81
+56
+160
+116
 max-iterations
 1000.0
 1
 0
 Number
+
+INPUTBOX
+161
+56
+250
+116
+max-population
+5000.0
+1
+0
+Number
+
+BUTTON
+8
+219
+160
+252
+parameters to default
+parameters-to-default
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+60
+175
+195
+208
+NIL
+export-households
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## TO DO
