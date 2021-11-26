@@ -214,7 +214,7 @@ globals
 
   ;;; RIVER -------------------------------------------------------------------------------
   riverWaterPerFlowAccumulation ; average river stage increment per flow accumulation at the river's starting land unit ( mm (height) / m^2 (area) ).
-                                ; Because there are many factors subtracting river flow (assumin that the catchment area is large enough,
+                                ; Because there are many factors subtracting river flow (assuming that the catchment area is large enough,
                                 ; this parameter should be always very small; for the Indus Basin it would be between 1E-3 and 1E-5
                                 ; (near their mounths, this value would be around 5.66E-5 for the Indus (av. discharge 800.6 m^3/s, basin area 2,615,500 ha)
                                 ; and 3.061E-4 for the Chenab (av. discharge 6,600 m^3/s, basin area 116,500,000 ha).
