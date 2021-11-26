@@ -32,13 +32,15 @@ breed [ households household ]
 
 globals
 [
+  ;;; constants
+  maturityAge                     ; defaults to 15 years old; it affects the minimum age acceptable for individuals to keep a household without older individuals
+
   ;;; demography tables
   fertilityTable
   nuptialityTable-women nuptialityTable-men
   mortalityTable-women mortalityTable-men
 
   ;;; modified parameters
-  maturityAge                     ; defaults to 15 years old; it affects the minimum age acceptable for individuals to keep a household without older individuals
   initialNumHouseholds
   householdInitialAgeDistribution ; (list minimum maximum)
   maxCoupleCountDistribution      ; (list minimum maximum)
