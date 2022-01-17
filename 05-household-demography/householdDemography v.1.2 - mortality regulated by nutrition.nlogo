@@ -652,6 +652,9 @@ end
 
 to-report get-nutrition
 
+  ;;; Get a nutrition score as a function of the current population size and the carrying capacity (and a power that sets the shape of the relationship.
+  ;;; NOTE: this function is a rough approximation of the Nutrition model and is to be replaced by its inputs in integrated version.
+
   let populationSize sum ([length hh_membersAge] of households)
 
   report ((carryingCapacity - populationSize) / populationSize) ^ nutritionEffectSteepness
@@ -797,23 +800,6 @@ to-report hh_whichMembersDying
     i ->
     (random-float 1 < get-net-mortality (item i hh_membersSex) (item i hh_membersAge))
   ] hh_membersIndexes
-
-end
-
-to-report get-net-mortality [ isFemale age ]
-
-  let mortality (get-mortality isFemale age)
-
-  let nutrition get-nutrition
-
-  let nutritionEffect nutrition * (1 - mortality)
-
-  if (nutrition > 0)
-  [
-    set nutritionEffect nutritionEffect * nutritionDiminishingReturns
-  ]
-
-  report mortality - nutritionEffect
 
 end
 
@@ -1164,6 +1150,23 @@ to-report get-mortality [ isFemale age ]
   [
     report item age mortalityTable-men
   ]
+
+end
+
+to-report get-net-mortality [ isFemale age ]
+
+  let mortality (get-mortality isFemale age)
+
+  let nutrition get-nutrition
+
+  let nutritionEffect (1 - mortality) * nutrition
+
+  if (nutrition > 0)
+  [
+    set nutritionEffect nutritionEffect * nutritionDiminishingReturns
+  ]
+
+  report mortality - nutritionEffect
 
 end
 
