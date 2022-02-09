@@ -28,13 +28,13 @@ breed [ flowHolders flowHolder ]
 globals
 [
   ;;; constants
-  patchArea
-  patchWidth
-  maxDist
+  patchArea        ; width of land units in meters.
+  patchWidth       ; area of land units in squared meters (derived from patchWidth).
+  maxDist          ; maximum distance between land units (length of diagonal in a rectangular map).
 
-  yearLengthInDays
+  yearLengthInDays ; length of the year in days.
 
-  ;;;; soil water balance constants (?)
+  ;;;; soil water model constant
   soil_rootWaterUptakeCoefficient        ; (root) Water Uptake coefficient (mm^3.mm^-3) (MUF)
 
   ; randomSeed (GUI): seed of random number generator used for setting parameters and general stocahstic processes.
@@ -59,12 +59,12 @@ globals
   ecol_albedoTable                            ; table (list of lists) with min/max abedo by latitude range (columns) and broadband and cover type (and description)
 
 
-  ;;;;; ecological component table
+  ;;;;; ecological community table
   ecol_ecologicalComponents      ; ecological component names (order)
   ecol_maxRootDepth              ; maximum root depth (mm) of each vegetation component (to be used as root zone depth)
   ecol_biomass                   ; biomass (g/m^2) of each vegetation component (above ground biomass (AGB))
   ecol_recoveryLag               ; recovery lag (days) of each vegetation component
-  ecol_waterStressSensitivity    ; water stress sensitivity (%maxAffected/%total*day) of each vegetation component
+  ecol_waterStressSensitivity    ; water stress sensitivity (%maxAffected / %total * day) of each vegetation component
 
   ;*****************************************************************************************************************
   ;*** LAND model
@@ -181,7 +181,7 @@ globals
   ;;; parameters (modified copies of interface input) ===============================================================
 
   ;;; LAND ---------------------------------------------------------------------
-  elev_seaLevelReferenceShift            ; the shift applied to re-centre elevations, pointing to the new 0 reference as the sea level (m)
+  elev_seaLevelReferenceShift            ; the shift applied to re-centre elevations, pointing to the new 0 reference as the sea level (m).
 
   ;;; WEATHER ------------------------------------------------------------------
   ;;;; temperature (ºC)
@@ -212,7 +212,8 @@ globals
   solar_annualMin
   solar_meanDailyFluctuation
 
-  ;;; RIVER -------------------------------------------------------------------------------
+  ;;; LAND WATER specific -------------------------------------------------------------------------------
+  ;;; River
   riverWaterPerFlowAccumulation ; average river stage increment per flow accumulation at the river's starting land unit ( mm (height) / m^2 (area) ).
                                 ; Because there are many factors subtracting river flow (assuming that the catchment area is large enough,
                                 ; this parameter should be always very small; for the Indus Basin it would be between 1E-3 and 1E-5
@@ -228,7 +229,8 @@ globals
                                 ; https://cfpub.epa.gov/watertrain/moduleFrame.cfm?parent_object_id=1199
 
   ;;; Inundation algorithm
-  errorToleranceThreshold       ; in metres
+  errorToleranceThreshold       ; Error tolerance threshold of the algorithm used for inundation.
+                                ; It represents the difference in surface water depth between adjacent land units beyond which re-calculation stops. Value in metres.
                                 ; NOTE: this is an arbitrary limit to the precision of the inundation algorithm.
                                 ; Differences in height (i.e. elevation + water depth) that amount to less than this value will be ignored.
                                 ; It also serves as the step used to redistribute the water depth among patches of a neighborhood.
