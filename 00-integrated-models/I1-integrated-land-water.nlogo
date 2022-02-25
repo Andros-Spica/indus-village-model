@@ -249,8 +249,8 @@ globals
 
   solarRadiation                       ; solar radiation of current day (MJ m-2)
 
-  precipitation                                 ; precipitation of current day ( mm (height) / m^2 (area) )
-  precipitation_yearSeries
+  precipitation                        ; precipitation of current day ( mm (height) / m^2 (area) )
+  precipitation_yearSeries             ; series/list of precipitation and cumulative precipitation values of the current year.
   precipitation_cumYearSeries
 
   ;;;; counters and final measures
@@ -326,7 +326,7 @@ patches-own
 
   ;======= new I1 variables ======================================================================================
 
-  ;;; soil water properties
+  ;;; soil properties
   p_soil_hydrologicSoilGroup  ; USDA simplification of soil texture types into four categories
 
   p_soil_runOffCurveNumber                     ; runoff curve number (0=full retention to 100=full impermeability)
@@ -1133,16 +1133,16 @@ end
 
 to infiltrate-soil-water
 
-  ; WATst : Maximum Water content at saturation (mm)
-  let WATst p_soil_saturation * p_ecol_rootZoneDepth
+  ; Maximum Water content at saturation (mm)
+  let maxWaterContentAtSaturation p_soil_saturation * p_ecol_rootZoneDepth
 
   let potentialSoilWaterChange p_water - p_runoff
   let soilWaterChange 0
   ;print self print (word "p_runoff=" p_runoff)
-  ifelse ( p_soil_waterContent + (p_water - p_runoff) > WATst )
+  ifelse ( p_soil_waterContent + potentialSoilWaterChange > maxWaterContentAtSaturation )
   [
     ; soil is or becomes saturated and water accumulates on surface adding to runoff
-    set soilWaterChange WATst - p_soil_waterContent
+    set soilWaterChange maxWaterContentAtSaturation - p_soil_waterContent
     set p_runoff p_runoff + (potentialSoilWaterChange - soilWaterChange)
   ]
   [
@@ -1320,27 +1320,27 @@ to drain-soil-water
 
   ask patches
   [
-    ; WATfc : Maximum Water content at field capacity (mm)
-    let WATfc p_soil_fieldCapacity * p_ecol_rootZoneDepth
+    ; Maximum Water content at field capacity (mm)
+    let waterAtFieldCapacity p_soil_fieldCapacity * p_ecol_rootZoneDepth
 
-    ; WATwp : Water content at wilting Point (mm)
-    let WATwp p_soil_wiltingPoint * p_ecol_rootZoneDepth
+    ; Water content at wilting Point (mm)
+    let waterContentAtWiltingPoint p_soil_wiltingPoint * p_ecol_rootZoneDepth
 
     ; Calculating the amount of deep drainage
     let deepDrainage 0
-    if (p_soil_waterContent > WATfc)
-    [ set deepDrainage p_soil_deepDrainageCoefficient * (p_soil_waterContent - WATfc) ]
-;if (deepDrainage > p_soil_waterContent) [ print self print (word deepDrainage " = (" p_soil_deepDrainageCoefficient " / " p_ecol_rootZoneDepth ") * (" p_soil_waterContent " - " WATfc ")" ) ]
+    if (p_soil_waterContent > waterAtFieldCapacity)
+    [ set deepDrainage p_soil_deepDrainageCoefficient * (p_soil_waterContent - waterAtFieldCapacity) ]
+;if (deepDrainage > p_soil_waterContent) [ print self print (word deepDrainage " = (" p_soil_deepDrainageCoefficient " / " p_ecol_rootZoneDepth ") * (" p_soil_waterContent " - " waterAtFieldCapacity ")" ) ]
 
     ; Compute maximum water uptake by plant roots on a day, RWUM
-    let maxWaterUptakePlantRoot soil_rootWaterUptakeCoefficient * (p_soil_waterContent - WATwp)
+    let maxWaterUptakePlantRoot soil_rootWaterUptakeCoefficient * (p_soil_waterContent - waterContentAtWiltingPoint)
 
     ; Calculate the amount of water lost through transpiration (TR)
     let transpiration min (list maxWaterUptakePlantRoot p_ETr)
 
     ; Calculate rate of change of state variable p_soil_waterContent
     set p_soil_waterContent p_soil_waterContent - deepDrainage - transpiration
-    if (p_soil_waterContent < 0)  ;;; this happens if p_soil_waterContent is less than WATfc or WATwp
+    if (p_soil_waterContent < 0)  ;;; this happens if p_soil_waterContent is less than waterAtFieldCapacity or WATwp
     [
       ;print self print p_soil_waterContent
       set p_soil_waterContent 0
@@ -1354,21 +1354,6 @@ to drain-soil-water
     if (transpiration < p_ETr)
     [ set p_soil_ARID 1 - transpiration / p_ETr ]
   ]
-
-end
-
-to-report get-drop-from [ aPatch ] ; ego = patch
-
-  ; "Distance- weighted drop is calculated by subtracting the neighbor’s value from the center cell’s value
-  ; and dividing by the distance from the center cell, √2 for a corner cell and one for a noncorner cell." (p. 1594)
-
-  report ([elevation] of aPatch - elevation) / (distance aPatch)
-
-end
-
-to-report is-at-edge ; ego = patch
-
-  report (pxcor = min-pxcor or pxcor = max-pxcor or pycor = min-pycor or pycor = max-pycor)
 
 end
 
@@ -1778,10 +1763,10 @@ to-report get-albedo [ %water %wood %brush %grass %sand waterContentRatio]
 
 end
 
-to-report get-albedo-of-cover [ coverName ]
+to-report get-albedo-of-cover [ coverType ]
 
   ;;; get albedo value corresponding to coverName in ecol_albedoTable
-  report item (position coverName (item 0 ecol_albedoTable)) (item 1 ecol_albedoTable)
+  report item (position coverType (item 0 ecol_albedoTable)) (item 1 ecol_albedoTable)
 
 end
 
@@ -3372,7 +3357,7 @@ par_elev_seaLevelReferenceShift
 par_elev_seaLevelReferenceShift
 -1000
 round max (list maxElevation elev_rangeHeight)
-0.0
+-1000.0
 1
 1
 m
@@ -3605,7 +3590,7 @@ INPUTBOX
 394
 399
 par_riverWaterPerFlowAccumulation
-0.0
+1.0E-4
 1
 0
 Number
@@ -3751,7 +3736,7 @@ temperature_mean-daily-fluctuation
 temperature_mean-daily-fluctuation
 0
 5
-0.0
+2.2
 0.1
 1
 ºC  (default: 2.2)
@@ -3766,7 +3751,7 @@ temperature_daily-lower-deviation
 temperature_daily-lower-deviation
 0
 10
-0.0
+6.8
 0.1
 1
 ºC  (default: 6.8)
@@ -3781,7 +3766,7 @@ temperature_daily-upper-deviation
 temperature_daily-upper-deviation
 0
 10
-0.0
+7.9
 0.1
 1
 ºC  (default: 7.9)
@@ -3796,7 +3781,7 @@ temperature_annual-max-at-2m
 temperature_annual-max-at-2m
 15
 40
-0.0
+37.0
 0.1
 1
 ºC  (default: 37)
@@ -3811,7 +3796,7 @@ temperature_annual-min-at-2m
 temperature_annual-min-at-2m
 -15
 15
-0.0
+12.8
 0.1
 1
 ºC  (default: 12.8)
@@ -3879,7 +3864,7 @@ solar_annual-max
 solar_annual-max
 solar_annual-min
 30
-0.0
+24.2
 0.01
 1
 MJ/m2 (default: 24.2)
@@ -3909,7 +3894,7 @@ solar_mean-daily-fluctuation
 solar_mean-daily-fluctuation
 0
 6
-0.0
+3.3
 0.01
 1
 MJ/m2 (default: 3.3)
@@ -3996,7 +3981,7 @@ CHOOSER
 display-mode
 display-mode
 "elevation and surface water depth (m)" "elevation (m)" "surface water depth (mm)" "surface water width (%)" "soil formative erosion" "soil depth (mm)" "soil texture" "soil texture type" "soil run off curve number" "soil water wilting point" "soil water holding capacity" "soil water field capacity" "soil water saturation" "soil deep drainage coefficient" "soil water content (ratio)" "ecological community composition" "total ecological community biomass (Kg)" "cover type" "albedo (%)" "reference evapotranspiration (ETr) (mm)" "runoff (mm)" "root zone depth (mm)" "ARID coefficient"
-16
+1
 
 BUTTON
 1117
@@ -4041,7 +4026,7 @@ precipitation_yearly-mean
 precipitation_yearly-mean
 0
 1000
-0.0
+489.0
 1.0
 1
 mm/year (default: 489)
@@ -4056,7 +4041,7 @@ precipitation_yearly-sd
 precipitation_yearly-sd
 0
 250
-0.0
+142.2
 0.1
 1
 mm/year (default: 142.2)
@@ -4071,7 +4056,7 @@ precipitation_daily-cum_n-samples
 precipitation_daily-cum_n-samples
 0
 300
-0.0
+200.0
 1.0
 1
 (default: 200)
@@ -4086,7 +4071,7 @@ precipitation_daily-cum_max-sample-size
 precipitation_daily-cum_max-sample-size
 1
 20
-0.0
+10.0
 1.0
 1
 (default: 10)
@@ -4101,7 +4086,7 @@ precipitation_daily-cum_plateau-value_yearly-mean
 precipitation_daily-cum_plateau-value_yearly-mean
 0.2
 0.8
-0.0
+0.25
 0.01
 1
 winter (mm)/summer (mm) (default: 0.25)
@@ -4116,7 +4101,7 @@ precipitation_daily-cum_plateau-value_yearly-sd
 precipitation_daily-cum_plateau-value_yearly-sd
 0
 0.4
-0.0
+0.1
 0.001
 1
 (default: 0.1)
@@ -4131,7 +4116,7 @@ precipitation_daily-cum_inflection1_yearly-mean
 precipitation_daily-cum_inflection1_yearly-mean
 40
 140
-0.0
+40.0
 1.0
 1
 day of year (default: 40)
@@ -4161,7 +4146,7 @@ precipitation_daily-cum_rate1_yearly-mean
 precipitation_daily-cum_rate1_yearly-mean
 0.01
 0.07
-0.0
+0.07
 0.001
 1
 (default: 0.07)
@@ -4176,7 +4161,7 @@ precipitation_daily-cum_rate1_yearly-sd
 precipitation_daily-cum_rate1_yearly-sd
 0.004
 0.03
-0.0
+0.02
 0.001
 1
 (default: 0.02)
@@ -4191,7 +4176,7 @@ precipitation_daily-cum_inflection2_yearly-mean
 precipitation_daily-cum_inflection2_yearly-mean
 180
 366
-0.0
+240.0
 1.0
 1
 day of year (default: 240)
@@ -4206,7 +4191,7 @@ precipitation_daily-cum_inflection2_yearly-sd
 precipitation_daily-cum_inflection2_yearly-sd
 20
 100
-0.0
+20.0
 1
 1
 days (default: 20)
@@ -4221,7 +4206,7 @@ precipitation_daily-cum_rate2_yearly-mean
 precipitation_daily-cum_rate2_yearly-mean
 0.01
 0.08
-0.0
+0.08
 0.001
 1
 (default: 0.08)
@@ -4236,7 +4221,7 @@ precipitation_daily-cum_rate2_yearly-sd
 precipitation_daily-cum_rate2_yearly-sd
 0.004
 0.03
-0.0
+0.02
 0.001
 1
 (default: 0.02)
