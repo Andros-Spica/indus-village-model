@@ -233,7 +233,7 @@ currentDayOfYear = 1<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:Lab
           <y:Geometry height="297.716062626223" width="1785.1961446373305" x="1687.623409150182" y="6365.152651833697"/>
           <y:Fill color="#FF9900" transparent="false"/>
           <y:BorderStyle hasColor="false" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="24" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="268.62109375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="1766.8046875" x="9.195728568665345" xml:space="preserve" y="14.547484438112406">* Definition of river stage in:
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="24" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="268.62109375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="1766.8046875" x="9.195728568665345" xml:space="preserve" y="14.547484438111496">* Definition of river stage in:
 https://www.usgs.gov/special-topic/water-science-school/science/water-qa-what-does-term-river-stage-mean?qt-science_center_objects=0#qt-science_center_objects
 https://www.fondriest.com/environmental-measurements/measurements/hydrological-measurements/streamflow-measurements/
 
@@ -1612,7 +1612,7 @@ and
               <y:Geometry height="546.2440392706876" width="301.9599999999996" x="3125.4031023630273" y="4423.972334014473"/>
               <y:Fill hasColor="false" transparent="false"/>
               <y:BorderStyle color="#999999" raised="false" type="line" width="4.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" hasText="false" height="4.0" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="4.0" x="148.97999999999956" y="271.12201963534426">
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" hasText="false" height="4.0" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="4.0" x="148.98000000000002" y="271.12201963534335">
                 <y:LabelModel>
                   <y:SmartNodeLabelModel distance="4.0"/>
                 </y:LabelModel>
@@ -3500,7 +3500,7 @@ condition = "good"<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:Label
               <y:Geometry height="25.124710302287895" width="680.4541268173016" x="1645.3044118392227" y="5463.809602245457"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="643.3046875" x="18.574719658650793" xml:space="preserve" y="3.211769213644402">coverTreatmentAndHydrologicCondition = get-coverTreatmentAndHydrologicCondition (coverType, condition, treatment)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="643.3046875" x="18.574719658650793" xml:space="preserve" y="3.2117692136434925">coverTreatmentAndHydrologicCondition = get-coverTreatmentAndHydrologicCondition (coverType, condition, treatment)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
@@ -3744,7 +3744,7 @@ condition and treatment and selects a single default per each coverType<y:LabelM
               <y:Geometry height="30.40000000000009" width="330.747057532589" x="2978.104666269393" y="2173.9277058646403"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="324.53125" x="3.1079037662943847" xml:space="preserve" y="5.8494140625000455">sum% = p_ecol_%wood + p_ecol_%brush + p_ecol_%grass<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="324.53125" x="3.1079037662943847" xml:space="preserve" y="5.849414062499818">sum% = p_ecol_%wood + p_ecol_%brush + p_ecol_%grass<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
@@ -3754,7 +3754,7 @@ condition and treatment and selects a single default per each coverType<y:LabelM
               <y:Geometry height="97.93820365892486" width="195.07014382306977" x="3045.9431231241524" y="2239.44770586464"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="48.103515625" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="106.3984375" x="44.33585316153494" xml:space="preserve" y="24.917344016962716">p_ecol_%water &gt; 0
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="48.103515625" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="106.3984375" x="44.33585316153494" xml:space="preserve" y="24.91734401696249">p_ecol_%water &gt; 0
 and
 sum% &gt; 0?<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
@@ -3829,7 +3829,7 @@ p_ecol_%grass = 100 * (p_ecol_%grass / sum%) * (1 - p_ecol_%water / 100)<y:Label
               <y:Geometry height="48.2742036589251" width="243.19814382306993" x="3096.309710585581" y="2562.669956237496"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="194.435546875" x="24.381298474034793" xml:space="preserve" y="14.786515891962608">get-%water-surface p_water &lt; 100?<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="126.419921875" x="58.38911097403479" xml:space="preserve" y="14.786515891962608">p_ecol_%water &lt; 100?<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
@@ -3901,7 +3901,7 @@ p_ecol_%grass = 100 * (p_ecol_%grass / sum%) * (1 - p_ecol_%water / 100)<y:Label
         <y:ProxyAutoBoundsNode>
           <y:Realizers active="0">
             <y:GroupNode>
-              <y:Geometry height="566.3299310668008" width="485.4541268173016" x="2863.007575265395" y="2790.2083837013574"/>
+              <y:Geometry height="606.3374406084818" width="485.4541268173016" x="2863.007575265395" y="2790.2083837013574"/>
               <y:Fill color="#F5F5F5" transparent="false"/>
               <y:BorderStyle color="#000000" type="dashed" width="1.0"/>
               <y:NodeLabel alignment="right" autoSizePolicy="node_width" backgroundColor="#EBEBEB" borderDistance="0.0" fontFamily="Dialog" fontSize="15" fontStyle="plain" hasLineColor="false" height="22.37646484375" horizontalTextPosition="center" iconTextGap="4" modelName="internal" modelPosition="t" textColor="#000000" verticalTextPosition="bottom" visible="true" width="485.4541268173016" x="0.0" xml:space="preserve" y="0.0">advance-ecological-succession </y:NodeLabel>
@@ -3911,7 +3911,7 @@ p_ecol_%grass = 100 * (p_ecol_%grass / sum%) * (1 - p_ecol_%water / 100)<y:Label
               <y:BorderInsets bottom="0" bottomF="0.0" left="0" leftF="0.0" right="0" rightF="0.0" top="0" topF="0.0"/>
             </y:GroupNode>
             <y:GroupNode>
-              <y:Geometry height="50.0" width="50.0" x="2934.4075752653953" y="2733.810058112762"/>
+              <y:Geometry height="50.0" width="50.0" x="2863.007575265395" y="2790.2083837013574"/>
               <y:Fill color="#F5F5F5" transparent="false"/>
               <y:BorderStyle color="#000000" type="dashed" width="1.0"/>
               <y:NodeLabel alignment="right" autoSizePolicy="node_width" backgroundColor="#EBEBEB" borderDistance="0.0" fontFamily="Dialog" fontSize="15" fontStyle="plain" hasLineColor="false" height="22.37646484375" horizontalTextPosition="center" iconTextGap="4" modelName="internal" modelPosition="t" textColor="#000000" verticalTextPosition="bottom" visible="true" width="67.369140625" x="-8.6845703125" xml:space="preserve" y="0.0">Folder 33</y:NodeLabel>
@@ -3937,7 +3937,7 @@ p_ecol_%grass = 100 * (p_ecol_%grass / sum%) * (1 - p_ecol_%water / 100)<y:Label
         <node id="n43::n1">
           <data key="d6">
             <y:GenericNode configuration="com.yworks.flowchart.terminator">
-              <y:Geometry height="40.0" width="80.0" x="3065.734638674046" y="3301.538314768158"/>
+              <y:Geometry height="40.0" width="80.0" x="3065.734638674046" y="3341.545824309839"/>
               <y:Fill color="#E8EEF7" color2="#99CC00" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
               <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="24.021484375" x="27.9892578125" xml:space="preserve" y="10.6494140625">end<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
@@ -3959,7 +3959,7 @@ recoveryRate_%grass = 1 / (get-recovery-lag-of-ecological-component "grass")<y:L
         <node id="n43::n3">
           <data key="d6">
             <y:GenericNode configuration="com.yworks.flowchart.predefinedProcess">
-              <y:Geometry height="94.80399999999918" width="377.4541268173016" x="2917.007575265395" y="2965.0900998920133"/>
+              <y:Geometry height="94.80399999999918" width="377.4541268173016" x="2917.007575265395" y="3005.0976094336943"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
               <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="92.20703125" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="344.634765625" x="16.409680596150793" xml:space="preserve" y="1.298484374999589">p_ecol_%wood
@@ -3967,14 +3967,14 @@ recoveryRate_%grass = 1 / (get-recovery-lag-of-ecological-component "grass")<y:L
 p_ecol_%wood + recoveryRate_%wood * 
 ((p_initEcol_%wood * (1 - p_soil_ARID * 
 (get-water-stress-sensitivity-of-ecological-component "wood")) * 
-(1 - p_ecol_%water / 100)) - p_ecol_%wood))<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+proportionOfAvailableArea) - p_ecol_%wood))<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
         <node id="n43::n4">
           <data key="d6">
             <y:GenericNode configuration="com.yworks.flowchart.predefinedProcess">
-              <y:Geometry height="94.80399999999918" width="377.4541268173016" x="2917.007575265395" y="3079.037146838463"/>
+              <y:Geometry height="94.80399999999918" width="377.4541268173016" x="2917.007575265395" y="3119.044656380144"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
               <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="92.20703125" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="345.96484375" x="15.744641533650793" xml:space="preserve" y="1.298484374999589">p_ecol_%brush
@@ -3982,14 +3982,14 @@ p_ecol_%wood + recoveryRate_%wood *
 p_ecol_%brush + recoveryRate_%brush * 
 ((p_initEcol_%brush * (1 - p_soil_ARID * 
 (get-water-stress-sensitivity-of-ecological-component "brush")) * 
-(1 - p_ecol_%water / 100)) - p_ecol_%brush))<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+proportionOfAvailableArea) - p_ecol_%brush))<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
         <node id="n43::n5">
           <data key="d6">
             <y:GenericNode configuration="com.yworks.flowchart.predefinedProcess">
-              <y:Geometry height="94.80399999999918" width="377.4541268173016" x="2917.007575265395" y="3190.2877308033103"/>
+              <y:Geometry height="94.80399999999918" width="377.4541268173016" x="2917.007575265395" y="3230.2952403449913"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
               <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="92.20703125" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="345.291015625" x="16.081555596150793" xml:space="preserve" y="1.298484374999589">p_ecol_%grass
@@ -3997,7 +3997,17 @@ p_ecol_%brush + recoveryRate_%brush *
 p_ecol_%grass + recoveryRate_%grass * 
 ((p_initEcol_%grass * (1 - p_soil_ARID * 
 (get-water-stress-sensitivity-of-ecological-component "grass")) * 
-(1 - p_ecol_%water / 100)) - p_ecol_%grass))<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+proportionOfAvailableArea) - p_ecol_%grass))<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+            </y:GenericNode>
+          </data>
+        </node>
+        <node id="n43::n6">
+          <data key="d6">
+            <y:GenericNode configuration="com.yworks.flowchart.process">
+              <y:Geometry height="20.864462595231316" width="307.44290066579794" x="2952.0131883411473" y="2965.090099892013"/>
+              <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
+              <y:BorderStyle color="#000000" type="line" width="1.0"/>
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="295.826171875" x="5.808364395399167" xml:space="preserve" y="1.0816453601155445">proportionOfAvailableArea = (1 - p_ecol_%water / 100)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
@@ -4631,7 +4641,7 @@ elevation_original - elev_seaLevelReferenceShift<y:LabelModel><y:SmartNodeLabelM
               <y:Geometry height="21.600000000000136" width="203.4000000000001" x="3040.7508270392855" y="995.7811581224897"/>
               <y:Fill color="#E8EEF7" color2="#00FFFF" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="195.103515625" x="4.148242187500273" xml:space="preserve" y="1.4494140624999545">for each land unit with (p_water &gt; 0)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="195.103515625" x="4.148242187499818" xml:space="preserve" y="1.4494140625000682">for each land unit with (p_water &gt; 0)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
         </node>
@@ -4678,7 +4688,7 @@ elevation_original - elev_seaLevelReferenceShift<y:LabelModel><y:SmartNodeLabelM
               <y:Geometry height="54.399999999999864" width="360.27177637089454" x="3064.818362995052" y="1100.1072896580367"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="48.103515625" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="345.208984375" x="7.531395997947129" xml:space="preserve" y="3.1482421875000455">p_ecol_%wood = p_ecol_%wood * (100 - p_ecol_%water) / 100
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="48.103515625" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="345.208984375" x="7.531395997947129" xml:space="preserve" y="3.148242187499818">p_ecol_%wood = p_ecol_%wood * (100 - p_ecol_%water) / 100
 p_ecol_%brush = p_ecol_%brush * (100 - p_ecol_%water) / 100
 p_ecol_%grass = p_ecol_%grass * (100 - p_ecol_%water) / 100<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
@@ -4690,7 +4700,7 @@ p_ecol_%grass = p_ecol_%grass * (100 - p_ecol_%water) / 100<y:LabelModel><y:Smar
               <y:Geometry height="60.799999999999955" width="405.8717763708949" x="2939.514938853837" y="1033.5687796301727"/>
               <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="48.103515625" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="373.240234375" x="16.31577099794731" xml:space="preserve" y="6.348242187499864">newTotal
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="48.103515625" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="373.240234375" x="16.31577099794731" xml:space="preserve" y="6.348242187500091">newTotal
 =
 p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
@@ -4743,7 +4753,7 @@ p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:Sma
               <y:Geometry height="40.0" width="288.52" x="2999.2181950356867" y="1847.7593459970446"/>
               <y:Fill color="#E8EEF7" color2="#00FFFF" transparent="false"/>
               <y:BorderStyle color="#000000" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="33.40234375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="284.447265625" x="2.0363671875002183" xml:space="preserve" y="3.298828125">for each land unit with
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="33.40234375" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="284.447265625" x="2.0363671874997635" xml:space="preserve" y="3.298828125">for each land unit with
 (flow_accumulation &gt; flow_riverAccumulationAtStart)<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
             </y:GenericNode>
           </data>
@@ -4789,7 +4799,6 @@ p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:Sma
     </node>
     <node id="n54" yfiles.foldertype="group">
       <data key="d4" xml:space="preserve"/>
-      <data key="d5"/>
       <data key="d6">
         <y:ProxyAutoBoundsNode>
           <y:Realizers active="0">
@@ -4818,7 +4827,6 @@ p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:Sma
       </data>
       <graph edgedefault="directed" id="n54:">
         <node id="n54::n0">
-          <data key="d5"/>
           <data key="d6">
             <y:ImageNode>
               <y:Geometry height="297.716062626223" width="579.0" x="1662.5454794993163" y="5877.9539574353"/>
@@ -4865,7 +4873,6 @@ p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:Sma
     </node>
     <node id="n55" yfiles.foldertype="group">
       <data key="d4" xml:space="preserve"/>
-      <data key="d5"/>
       <data key="d6">
         <y:ProxyAutoBoundsNode>
           <y:Realizers active="0">
@@ -4910,7 +4917,7 @@ p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:Sma
               <y:Geometry height="247.55761966018235" width="215.00000000000006" x="2298.4244865940564" y="5925.785809053151"/>
               <y:Fill hasColor="false" transparent="false"/>
               <y:BorderStyle color="#000000" raised="false" type="line" width="1.0"/>
-              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="84.02734375" x="126.97265625" xml:space="preserve" y="-22.701171875">soilWaterTable<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.5" labelRatioY="0.5" nodeRatioX="0.5" nodeRatioY="-0.5" offsetX="-4.0" offsetY="-4.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
+              <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="18.701171875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="84.02734375" x="126.97265625" xml:space="preserve" y="-22.70117187500091">soilWaterTable<y:LabelModel><y:SmartNodeLabelModel distance="4.0"/></y:LabelModel><y:ModelParameter><y:SmartNodeLabelModelParameter labelRatioX="0.5" labelRatioY="0.5" nodeRatioX="0.5" nodeRatioY="-0.5" offsetX="-4.0" offsetY="-4.0" upX="0.0" upY="-1.0"/></y:ModelParameter></y:NodeLabel>
               <y:Shape type="rectangle"/>
             </y:ShapeNode>
           </data>
@@ -7722,7 +7729,7 @@ p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:Sma
     <edge id="e36" source="n20::n6" target="n43">
       <data key="d10">
         <y:PolyLineEdge>
-          <y:Path sx="0.0" sy="0.0" tx="-231.7270634086508" ty="-260.65170769165434">
+          <y:Path sx="0.0" sy="0.0" tx="-231.7270634086508" ty="-279.0650478852158">
             <y:Point x="2874.007575265395" y="1940.9741578190951"/>
           </y:Path>
           <y:LineStyle color="#000000" type="dashed_dotted" width="2.0"/>
@@ -7766,8 +7773,8 @@ p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:Sma
     <edge id="e38" source="n43::n2" target="n46">
       <data key="d10">
         <y:PolyLineEdge>
-          <y:Path sx="0.0" sy="-1.8189894035458565E-12" tx="281.5559475690434" ty="-16.582846959539893">
-            <y:Point x="3440.490586243089" y="2915.6970529455607"/>
+          <y:Path sx="0.0" sy="8.864954608176959" tx="281.5559475690434" ty="-16.582846959539893">
+            <y:Point x="3440.490586243089" y="2924.5620075537395"/>
           </y:Path>
           <y:LineStyle color="#000000" type="dashed_dotted" width="2.0"/>
           <y:Arrows source="none" target="standard"/>
@@ -7836,56 +7843,6 @@ p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:Sma
             <y:Point x="3396.953685323655" y="3780.8872190582924"/>
           </y:Path>
           <y:LineStyle color="#000000" type="dashed_dotted" width="2.0"/>
-          <y:Arrows source="none" target="standard"/>
-          <y:BendStyle smoothed="false"/>
-        </y:PolyLineEdge>
-      </data>
-    </edge>
-    <edge id="n43::e0" source="n43::n0" target="n43::n2">
-      <data key="d10">
-        <y:PolyLineEdge>
-          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
-          <y:LineStyle color="#000000" type="line" width="1.0"/>
-          <y:Arrows source="none" target="standard"/>
-          <y:BendStyle smoothed="false"/>
-        </y:PolyLineEdge>
-      </data>
-    </edge>
-    <edge id="n43::e1" source="n43::n2" target="n43::n3">
-      <data key="d10">
-        <y:PolyLineEdge>
-          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
-          <y:LineStyle color="#000000" type="line" width="1.0"/>
-          <y:Arrows source="none" target="standard"/>
-          <y:BendStyle smoothed="false"/>
-        </y:PolyLineEdge>
-      </data>
-    </edge>
-    <edge id="n43::e2" source="n43::n3" target="n43::n4">
-      <data key="d10">
-        <y:PolyLineEdge>
-          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
-          <y:LineStyle color="#000000" type="line" width="1.0"/>
-          <y:Arrows source="none" target="standard"/>
-          <y:BendStyle smoothed="false"/>
-        </y:PolyLineEdge>
-      </data>
-    </edge>
-    <edge id="n43::e3" source="n43::n4" target="n43::n5">
-      <data key="d10">
-        <y:PolyLineEdge>
-          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
-          <y:LineStyle color="#000000" type="line" width="1.0"/>
-          <y:Arrows source="none" target="standard"/>
-          <y:BendStyle smoothed="false"/>
-        </y:PolyLineEdge>
-      </data>
-    </edge>
-    <edge id="n43::e4" source="n43::n5" target="n43::n1">
-      <data key="d10">
-        <y:PolyLineEdge>
-          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
-          <y:LineStyle color="#000000" type="line" width="1.0"/>
           <y:Arrows source="none" target="standard"/>
           <y:BendStyle smoothed="false"/>
         </y:PolyLineEdge>
@@ -8069,7 +8026,6 @@ p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:Sma
       </data>
     </edge>
     <edge id="n49::e8" source="n49::n9" target="n49::n5">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
@@ -8145,7 +8101,6 @@ p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:Sma
       </data>
     </edge>
     <edge id="n52::e6" source="n52::n6" target="n52::n4">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
@@ -8156,7 +8111,6 @@ p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:Sma
       </data>
     </edge>
     <edge id="e48" source="n49::n9" target="n52">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="-245.85342414121487" ty="-112.0607562724">
@@ -8170,7 +8124,6 @@ p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:Sma
       </data>
     </edge>
     <edge id="e49" source="n50::n5" target="n9">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="4.547473508864641E-13" sy="-4.547473508864641E-13" tx="383.4576793532656" ty="-177.77562539240262">
@@ -8233,7 +8186,6 @@ p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:Sma
       </data>
     </edge>
     <edge id="n50::e5" source="n50::n6" target="n50::n8">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
@@ -8254,7 +8206,6 @@ p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:Sma
       </data>
     </edge>
     <edge id="n50::e7" source="n50::n8" target="n50::n4">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
@@ -8265,7 +8216,6 @@ p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:Sma
       </data>
     </edge>
     <edge id="e50" source="n9::n2" target="n36">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="-269.9656753343497" sy="11.207853890152364" tx="351.16697999071766" ty="175.7350279758466">
@@ -8319,7 +8269,6 @@ p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:Sma
       </data>
     </edge>
     <edge id="e51" source="n50::n6" target="n47">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="251.73775100817556" ty="-92.39108468129916">
@@ -8333,7 +8282,6 @@ p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:Sma
       </data>
     </edge>
     <edge id="e52" source="n50::n7" target="n53">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="-103.74867406123121" ty="-140.1100806618242"/>
@@ -8478,7 +8426,6 @@ p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:Sma
       </data>
     </edge>
     <edge id="e53" source="n38" target="n54::n1">
-      <data key="d9"/>
       <data key="d10">
         <y:ArcEdge>
           <y:Path sx="160.66712851850613" sy="-13.519131470354296" tx="244.24981206190455" ty="114.60082147790308">
@@ -8491,7 +8438,6 @@ p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:Sma
       </data>
     </edge>
     <edge id="n54::e0" source="n54::n2" target="n54::n1">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="-88.26027840103961"/>
@@ -8502,7 +8448,6 @@ p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:Sma
       </data>
     </edge>
     <edge id="n54::e1" source="n54::n1" target="n54::n3">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
@@ -8513,7 +8458,6 @@ p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:Sma
       </data>
     </edge>
     <edge id="n55::e0" source="n55::n2" target="n55::n1">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
@@ -8524,6 +8468,66 @@ p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water<y:LabelModel><y:Sma
       </data>
     </edge>
     <edge id="n55::e1" source="n55::n1" target="n55::n3">
+      <data key="d10">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
+          <y:LineStyle color="#000000" type="line" width="1.0"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:BendStyle smoothed="false"/>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="n43::e0" source="n43::n0" target="n43::n2">
+      <data key="d10">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
+          <y:LineStyle color="#000000" type="line" width="1.0"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:BendStyle smoothed="false"/>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="n43::e1" source="n43::n2" target="n43::n6">
+      <data key="d10">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
+          <y:LineStyle color="#000000" type="line" width="1.0"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:BendStyle smoothed="false"/>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="n43::e2" source="n43::n3" target="n43::n4">
+      <data key="d10">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
+          <y:LineStyle color="#000000" type="line" width="1.0"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:BendStyle smoothed="false"/>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="n43::e3" source="n43::n4" target="n43::n5">
+      <data key="d10">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
+          <y:LineStyle color="#000000" type="line" width="1.0"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:BendStyle smoothed="false"/>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="n43::e4" source="n43::n5" target="n43::n1">
+      <data key="d10">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
+          <y:LineStyle color="#000000" type="line" width="1.0"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:BendStyle smoothed="false"/>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="n43::e5" source="n43::n6" target="n43::n3">
       <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
