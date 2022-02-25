@@ -166,7 +166,6 @@ globals
 
   ;;;; derived measures
   landRatio                            ; the ratio of land units above seaLevel.
-  elevationDistribution                ; the set or list containing the elevation of all land units
   minElevation                         ; statistics on the elevation of land units.
   sdElevation
   maxElevation
@@ -249,7 +248,7 @@ globals
 
   solarRadiation                       ; solar radiation of current day (MJ m-2)
 
-  precipitation                        ; precipitation of current day ( mm (height) / m^2 (area) )
+  precipitation                        ; precipitation of current day ( mm (height) / m^2 (area) ).
   precipitation_yearSeries             ; series/list of precipitation and cumulative precipitation values of the current year.
   precipitation_cumYearSeries
 
@@ -307,7 +306,7 @@ patches-own
   p_initEcol_%brush                 ; percentage of brush/shrub vegetation (surface cover) in ecological community
   p_initEcol_%wood                  ; percentage of wood vegetation (surface cover) in ecological community
 
-  ;========= SOIL WATER BALANCE model ======================================================================
+  ;========= SOIL WATER model ======================================================================
 
   ;;; surface water
   p_water                           ; surface water ( mm (height) / m^2 (area) )
@@ -322,9 +321,11 @@ patches-own
   p_netSolarRadiation               ; net solar radiation discount reflection or albedo (MJ m-2)
   p_ETr                             ; reference evapotranspiration ( mm (height) / m^2 (area) )
 
-  p_soil_ARID                       ; ARID index after Woli et al. 2012, ranging form 0 (no water shortage) to 1 (extreme water shortage)
+  p_soil_ARID                       ; ARID index after Woli et al. 2012, ranging form 0 (no water shortage) to 1 (extreme water shortage).
+  p_soil_ARID_yearSeries            ; registers daily values of ARID of the current year (used to export data).
+  p_soil_ARID_yearSeries_lastYear   ; saves daily values of ARID of the last year (used to export data).
 
-  ;======= new I1 variables ======================================================================================
+  ;======= LAND WATER specific ======================================================================================
 
   ;;; soil properties
   p_soil_hydrologicSoilGroup  ; USDA simplification of soil texture types into four categories
@@ -552,6 +553,114 @@ to set-parameters
     ;;; and https://www.researchgate.net/publication/271722280_Solmap_Project_In_India%27s_Solar_Resource_Assessment
     ;;; see general info in http://www.physicalgeography.net/fundamentals/6i.html
   ]
+  if (type-of-experiment = "precipitation-variation")
+  [
+    ;;; load parameters from user interface
+
+    ;;; set sea level (no more just a display issue; it is relevant for ETr and limiting coastlines)
+    set elev_seaLevelReferenceShift par_elev_seaLevelReferenceShift
+
+    ;;; weather generation
+    set temperature_annualMaxAt2m temperature_annual-max-at-2m
+    set temperature_annualMinAt2m temperature_annual-min-at-2m
+    set temperature_meanDailyFluctuation temperature_mean-daily-fluctuation
+    set temperature_dailyLowerDeviation temperature_daily-lower-deviation
+    set temperature_dailyUpperDeviation temperature_daily-upper-deviation
+
+    set solar_annualMax solar_annual-max
+    set solar_annualMin solar_annual-min
+    set solar_meanDailyFluctuation solar_mean-daily-fluctuation
+
+    set precipitation_yearlyMean 50 + random-float 950
+    set precipitation_yearlySd precipitation_yearly-sd
+    set precipitation_dailyCum_nSamples precipitation_daily-cum_n-samples
+    set precipitation_dailyCum_maxSampleSize precipitation_daily-cum_max-sample-size
+    set precipitation_dailyCum_plateauValue_yearlyMean 0.2 + random-float 0.6
+    set precipitation_dailyCum_plateauValue_yearlySd precipitation_daily-cum_plateau-value_yearly-sd
+    set precipitation_dailyCum_inflection1_yearlyMean precipitation_daily-cum_inflection1_yearly-mean
+    set precipitation_dailyCum_inflection1_yearlySd precipitation_daily-cum_inflection1_yearly-sd
+    set precipitation_dailyCum_rate1_yearlyMean precipitation_daily-cum_rate1_yearly-mean
+    set precipitation_dailyCum_rate1_yearlySd precipitation_daily-cum_rate1_yearly-sd
+    set precipitation_dailyCum_inflection2_yearlyMean precipitation_daily-cum_inflection2_yearly-mean
+    set precipitation_dailyCum_inflection2_yearlySd precipitation_daily-cum_inflection2_yearly-sd
+    set precipitation_dailyCum_rate2_yearlyMean precipitation_daily-cum_rate2_yearly-mean
+    set precipitation_dailyCum_rate2_yearlySd precipitation_daily-cum_rate2_yearly-sd
+
+    ;;; River water (dependent on flow_riverAccumulationAtStart, which is set by Land model)
+    set riverWaterPerFlowAccumulation par_riverWaterPerFlowAccumulation
+  ]
+  if (type-of-experiment = "river-variation")
+  [
+    ;;; load parameters from user interface
+
+    ;;; set sea level (no more just a display issue; it is relevant for ETr and limiting coastlines)
+    set elev_seaLevelReferenceShift par_elev_seaLevelReferenceShift
+
+    ;;; weather generation
+    set temperature_annualMaxAt2m temperature_annual-max-at-2m
+    set temperature_annualMinAt2m temperature_annual-min-at-2m
+    set temperature_meanDailyFluctuation temperature_mean-daily-fluctuation
+    set temperature_dailyLowerDeviation temperature_daily-lower-deviation
+    set temperature_dailyUpperDeviation temperature_daily-upper-deviation
+
+    set solar_annualMax solar_annual-max
+    set solar_annualMin solar_annual-min
+    set solar_meanDailyFluctuation solar_mean-daily-fluctuation
+
+    set precipitation_yearlyMean precipitation_yearly-mean
+    set precipitation_yearlySd precipitation_yearly-sd
+    set precipitation_dailyCum_nSamples precipitation_daily-cum_n-samples
+    set precipitation_dailyCum_maxSampleSize precipitation_daily-cum_max-sample-size
+    set precipitation_dailyCum_plateauValue_yearlyMean precipitation_daily-cum_plateau-value_yearly-mean
+    set precipitation_dailyCum_plateauValue_yearlySd precipitation_daily-cum_plateau-value_yearly-sd
+    set precipitation_dailyCum_inflection1_yearlyMean precipitation_daily-cum_inflection1_yearly-mean
+    set precipitation_dailyCum_inflection1_yearlySd precipitation_daily-cum_inflection1_yearly-sd
+    set precipitation_dailyCum_rate1_yearlyMean precipitation_daily-cum_rate1_yearly-mean
+    set precipitation_dailyCum_rate1_yearlySd precipitation_daily-cum_rate1_yearly-sd
+    set precipitation_dailyCum_inflection2_yearlyMean precipitation_daily-cum_inflection2_yearly-mean
+    set precipitation_dailyCum_inflection2_yearlySd precipitation_daily-cum_inflection2_yearly-sd
+    set precipitation_dailyCum_rate2_yearlyMean precipitation_daily-cum_rate2_yearly-mean
+    set precipitation_dailyCum_rate2_yearlySd precipitation_daily-cum_rate2_yearly-sd
+
+    ;;; River water (dependent on flow_riverAccumulationAtStart, which is set by Land model)
+    set riverWaterPerFlowAccumulation 0.00001 + random-float 0.00099
+  ]
+  if (type-of-experiment = "water-variation")
+  [
+    ;;; load parameters from user interface
+
+    ;;; set sea level (no more just a display issue; it is relevant for ETr and limiting coastlines)
+    set elev_seaLevelReferenceShift par_elev_seaLevelReferenceShift
+
+    ;;; weather generation
+    set temperature_annualMaxAt2m temperature_annual-max-at-2m
+    set temperature_annualMinAt2m temperature_annual-min-at-2m
+    set temperature_meanDailyFluctuation temperature_mean-daily-fluctuation
+    set temperature_dailyLowerDeviation temperature_daily-lower-deviation
+    set temperature_dailyUpperDeviation temperature_daily-upper-deviation
+
+    set solar_annualMax solar_annual-max
+    set solar_annualMin solar_annual-min
+    set solar_meanDailyFluctuation solar_mean-daily-fluctuation
+
+    set precipitation_yearlyMean 50 + random-float 950
+    set precipitation_yearlySd precipitation_yearly-sd
+    set precipitation_dailyCum_nSamples precipitation_daily-cum_n-samples
+    set precipitation_dailyCum_maxSampleSize precipitation_daily-cum_max-sample-size
+    set precipitation_dailyCum_plateauValue_yearlyMean precipitation_daily-cum_plateau-value_yearly-mean
+    set precipitation_dailyCum_plateauValue_yearlySd precipitation_daily-cum_plateau-value_yearly-sd
+    set precipitation_dailyCum_inflection1_yearlyMean precipitation_daily-cum_inflection1_yearly-mean
+    set precipitation_dailyCum_inflection1_yearlySd precipitation_daily-cum_inflection1_yearly-sd
+    set precipitation_dailyCum_rate1_yearlyMean precipitation_daily-cum_rate1_yearly-mean
+    set precipitation_dailyCum_rate1_yearlySd precipitation_daily-cum_rate1_yearly-sd
+    set precipitation_dailyCum_inflection2_yearlyMean precipitation_daily-cum_inflection2_yearly-mean
+    set precipitation_dailyCum_inflection2_yearlySd precipitation_daily-cum_inflection2_yearly-sd
+    set precipitation_dailyCum_rate2_yearlyMean precipitation_daily-cum_rate2_yearly-mean
+    set precipitation_dailyCum_rate2_yearlySd precipitation_daily-cum_rate2_yearly-sd
+
+    ;;; River water (dependent on flow_riverAccumulationAtStart, which is set by Land model)
+    set riverWaterPerFlowAccumulation 0.00001 + random-float 0.00099
+  ]
 
   ;;; scenario settings:
 
@@ -739,6 +848,8 @@ end
 
 to rescale-ecological-communities
 
+  ;;; assumes that surface water takes preference over other natural ecological communities
+
   ask patches with [ p_water > 0 ]
   [
     ;;; scale the final percentage to account for acquatic ecological communities
@@ -791,7 +902,7 @@ to go
 
   ; --- stop conditions -------------------------
 
-  if (ticks = end-simulation-in-tick) [stop]
+  if (ticks = (end-simulation-in-year * yearLengthInDays)) [stop]
 
 end
 
@@ -1503,7 +1614,7 @@ to apply-ecological-recolonisation
   ;;; if this patch has 0 of a component,
   ;;; a very small amount of that component will be added in order to activate the logistic growth
 
-  if (get-%water-surface p_water < 100) ;;; not completely covered by water
+  if (p_ecol_%water < 100) ;;; not completely covered by water
   [
     ;;; wood
     if (p_ecol_%wood = 0)
@@ -1526,6 +1637,8 @@ to advance-ecological-succession
   ;;; all ecological components (based on vegetation) are assumed to grow towards the initial ecological community configuration, minus the influence of water stress.
   ;;; The logistic growth model is used, where the reproductive rate (growth slope) is regulated by the frequency of the component and its proportion to a carrying capacity (here, the initial value)
 
+  let proportionOfAvailableArea (1 - p_ecol_%water / 100)
+
   let recoveryRate_%wood 1 / (get-recovery-lag-of-ecological-component "wood")
   let recoveryRate_%brush 1 / (get-recovery-lag-of-ecological-component "brush")
   let recoveryRate_%grass 1 / (get-recovery-lag-of-ecological-component "grass")
@@ -1533,21 +1646,21 @@ to advance-ecological-succession
   set p_ecol_%wood (p_ecol_%wood +
     recoveryRate_%wood *
     ((p_initEcol_%wood * (1 - p_soil_ARID * (get-water-stress-sensitivity-of-ecological-component "wood")) *
-      (1 - p_ecol_%water / 100)) - p_ecol_%wood
+      proportionOfAvailableArea) - p_ecol_%wood
     )
   )
 
   set p_ecol_%brush (p_ecol_%brush +
     recoveryRate_%brush *
     ((p_initEcol_%brush * (1 - p_soil_ARID * (get-water-stress-sensitivity-of-ecological-component "brush")) *
-      (1 - p_ecol_%water / 100)) - p_ecol_%brush
+      proportionOfAvailableArea) - p_ecol_%brush
     )
   )
 
   set p_ecol_%grass (p_ecol_%grass +
     recoveryRate_%grass *
     ((p_initEcol_%grass * (1 - p_soil_ARID * (get-water-stress-sensitivity-of-ecological-component "grass")) *
-      (1 - p_ecol_%water / 100)) - p_ecol_%grass
+      proportionOfAvailableArea) - p_ecol_%grass
     )
   )
 
@@ -1569,6 +1682,8 @@ to-report get-ecological-communities-biomass [ %wood %brush %grass ]
 end
 
 to set-ecological-community-root-zone-depth
+
+  ;;; root zone depth is set to be the weighted mean of the maximum root zone depth of each crop and ecological component (water ecological community is ignored)
 
   set p_ecol_rootZoneDepth get-ecological-community-root-zone-depth p_ecol_%wood p_ecol_%brush p_ecol_%grass
 
@@ -1776,8 +1891,6 @@ end
 
 to set-terrain-output-stats
 
-  set elevationDistribution [elevation] of patches
-
   set minElevation min [elevation] of patches
 
   set maxElevation max [elevation] of patches
@@ -1788,15 +1901,37 @@ to set-terrain-output-stats
 
   set landWithRiver count patches with [flow_accumulation >= flow_riverAccumulationAtStart]
 
+  ;;; soil water properties (dependent only on soil texture)
+  set meanWaterHoldingCapacity mean [p_soil_waterHoldingCapacity] of patches
+  set meanDeepDrainageCoefficient mean [p_soil_deepDrainageCoefficient] of patches
+
 end
 
 to update-output-stats
 
   set meanRunOffCurveNumber mean [p_soil_runOffCurveNumber] of patches
-  set meanWaterHoldingCapacity mean [p_soil_waterHoldingCapacity] of patches
-  set meanDeepDrainageCoefficient mean [p_soil_deepDrainageCoefficient] of patches
 
   set mostCommonCoverType modes [p_ecol_coverType] of patches
+
+  ask patches
+  [
+    update-ARID_yearSeries
+  ]
+
+end
+
+to update-ARID_yearSeries
+
+  ; if starting a new year
+  if (currentDayOfYear = 1)
+  [
+    ; save current year as last year
+    set p_soil_ARID_yearSeries_lastYear p_soil_ARID_yearSeries
+    ; reset p_soil_ARID_yearSeries if starting a new year
+    set p_soil_ARID_yearSeries (list)
+  ]
+  ; append this day ARID to ARID_yearSeries
+  set p_soil_ARID_yearSeries lput p_soil_ARID p_soil_ARID_yearSeries
 
 end
 
@@ -2791,7 +2926,7 @@ to load-hydrologic-soil-groups-table
   ;;; line 3 (= index 2), row indexes
   let textureTypesRowRange (list ((item 1 (item 2 hydrologicSoilGroupTable)) - 1) ((item 3 (item 2 hydrologicSoilGroupTable)) - 1))
 
-  ;;; line 4 (= index 3), row indexes
+  ;;; line 4 (= index 3), column indexes
   ;;; Types of soil according to % of sand, silt and clay (ternary diagram) established by USDA
   let textureTypeColumn (item 1 (item 3 hydrologicSoilGroupTable)) - 1
 
@@ -2834,7 +2969,7 @@ to load-runoff-curve-number-table
   ;;; line 3 (= index 2), row indexes
   let typesOfCoverRowRange (list ((item 1 (item 2 runOffCurveNumberTable)) - 1) ((item 3 (item 2 runOffCurveNumberTable)) - 1))
 
-  ;;; line 4 (= index 3), row indexes
+  ;;; line 4 (= index 3), column indexes
   ;;; types of soil cover
   let coverTypeColumn (item 1 (item 3 runOffCurveNumberTable)) - 1
 
@@ -2894,7 +3029,7 @@ to load-soil-water-table
   ;;; line 3 (= index 2), row indexes
   let textureTypesRowRange (list ((item 1 (item 2 soilWaterTable)) - 1) ((item 3 (item 2 soilWaterTable)) - 1))
 
-  ;;; line 4 (= index 3), row indexes
+  ;;; line 4 (= index 3), column indexes
   ;;; Types of soil according to % of sand, silt and clay (ternary diagram) established by USDA
   let textureTypeColumn (item 1 (item 3 soilWaterTable)) - 1
 
@@ -2969,7 +3104,7 @@ to load-albedo-table
   ;;; line 3 (= index 2), row indexes
   let typesOfCoverRowRange (list ((item 1 (item 2 albedoTable)) - 1) ((item 3 (item 2 albedoTable)) - 1))
 
-  ;;; line 4 (= index 3), row indexes
+  ;;; line 4 (= index 3), column indexes
   ;;; broadband range
   ;;; types of soil cover
   let coverTypeColumn (item 1 (item 3 albedoTable)) - 1
@@ -3036,7 +3171,7 @@ to load-ecological-component-table
   ;;; line 3 (= index 2), row indexes
   let typesOfEcologicalComponentRowRange (list ((item 1 (item 2 ecologicalCommunityTable)) - 1) ((item 3 (item 2 ecologicalCommunityTable)) - 1))
 
-  ;;; line 4 (= index 3), row indexes
+  ;;; line 4 (= index 3), column indexes
   ;;; broadband range
   ;;; types of soil cover
   let ecologicalComponentTypeColumn (item 1 (item 3 ecologicalCommunityTable)) - 1
@@ -3098,7 +3233,7 @@ to generate-animation
 
   setup
   vid:start-recorder
-  repeat end-simulation-in-tick [ go vid:record-view ]
+  repeat (end-simulation-in-year * yearLengthInDays) [ go vid:record-view ]
   vid:save-recording  (word "run_" behaviorspace-run-number ".mov")
   vid:reset-recorder
 
@@ -3598,11 +3733,11 @@ Number
 CHOOSER
 48
 125
-182
+218
 170
 type-of-experiment
 type-of-experiment
-"random" "user-defined" "defined by expNumber"
+"random" "user-defined" "precipitation-variation" "river-variation" "water-variation"
 1
 
 BUTTON
@@ -3721,7 +3856,7 @@ INPUTBOX
 58
 215
 118
-end-simulation-in-tick
+end-simulation-in-year
 0.0
 1
 0

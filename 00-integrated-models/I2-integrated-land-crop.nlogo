@@ -28,13 +28,13 @@ breed [ flowHolders flowHolder ]
 globals
 [
   ;;; constants
-  patchArea
-  patchWidth
-  maxDist
+  patchArea        ; width of land units in meters.
+  patchWidth       ; area of land units in squared meters (derived from patchWidth).
+  maxDist          ; maximum distance between land units (length of diagonal in a rectangular map).
 
-  yearLengthInDays
+  yearLengthInDays ; length of the year in days.
 
-  ;;;; Soil Water Balance model global
+  ;;;; soil water model constant
   soil_rootWaterUptakeCoefficient        ; (root) Water Uptake coefficient (mm^3.mm^-3) (MUF)
 
   ;;;; Crop model
@@ -62,12 +62,12 @@ globals
   ;;;;; albedo table
   ecol_albedoTable                            ; table (list of lists) with min/max abedo by latitude range (columns) and broadband and cover type (and description)
 
-  ;;;;; ecological component table
+  ;;;;; ecological community table
   ecol_ecologicalComponents      ; ecological component names (order)
   ecol_maxRootDepth              ; maximum root depth (mm) of each vegetation component (to be used as root zone depth)
   ecol_biomass                   ; biomass (g/m^2) of each vegetation component (above ground biomass (AGB))
   ecol_recoveryLag               ; recovery lag (days) of each vegetation component
-  ecol_waterStressSensitivity    ; water stress sensitivity (%maxAffected/%total*day) of each vegetation component
+  ecol_waterStressSensitivity    ; water stress sensitivity (%maxAffected / %total * day) of each vegetation component
 
   ;;;;; crop table
   crop_typesOfCrops                   ; common name of crop
@@ -236,7 +236,8 @@ globals
   solar_annualMin
   solar_meanDailyFluctuation
 
-  ;;; RIVER -------------------------------------------------------------------------------
+  ;;; LAND WATER specific -------------------------------------------------------------------------------
+  ;;; River
   riverWaterPerFlowAccumulation ; average river stage increment per flow accumulation at the river's starting land unit ( mm (height) / m^2 (area) ).
                                 ; Because there are many factors subtracting river flow (assuming that the catchment area is large enough,
                                 ; this parameter should be always very small; for the Indus Basin it would be between 1E-3 and 1E-5
@@ -252,7 +253,8 @@ globals
                                 ; https://cfpub.epa.gov/watertrain/moduleFrame.cfm?parent_object_id=1199
 
   ;;; Inundation algorithm
-  errorToleranceThreshold       ; in metres
+  errorToleranceThreshold       ; Error tolerance threshold of the algorithm used for inundation.
+                                ; It represents the difference in surface water depth between adjacent land units beyond which re-calculation stops. Value in metres.
                                 ; NOTE: this is an arbitrary limit to the precision of the inundation algorithm.
                                 ; Differences in height (i.e. elevation + water depth) that amount to less than this value will be ignored.
                                 ; It also serves as the step used to redistribute the water depth among patches of a neighborhood.
@@ -276,8 +278,8 @@ globals
 
   solarRadiation                       ; solar radiation of current day (MJ m-2)
 
-  precipitation                                 ; precipitation of current day ( mm (height) / m^2 (area) )
-  precipitation_yearSeries
+  precipitation                        ; precipitation of current day ( mm (height) / m^2 (area) ).
+  precipitation_yearSeries             ; series/list of precipitation and cumulative precipitation values of the current year.
   precipitation_cumYearSeries
 
   crop_sowingDay
@@ -337,7 +339,7 @@ patches-own
   p_initEcol_%brush                 ; percentage of brush/shrub vegetation (surface cover) in ecological community
   p_initEcol_%wood                  ; percentage of wood vegetation (surface cover) in ecological community
 
-  ;========= SOIL WATER BALANCE model ======================================================================
+  ;========= SOIL WATER model ======================================================================
 
   ;;; surface water
   p_water                           ; surface water ( mm (height) / m^2 (area) )
@@ -352,13 +354,13 @@ patches-own
   p_netSolarRadiation               ; net solar radiation discount reflection or albedo (MJ m-2)
   p_ETr                             ; reference evapotranspiration ( mm (height) / m^2 (area) )
 
-  p_soil_ARID                       ; ARID index after Woli et al. 2012, ranging form 0 (no water shortage) to 1 (extreme water shortage)
-  p_soil_ARID_yearSeries            ; registers daily values of ARID of the current year (used to export data)
-  p_soil_ARID_yearSeries_lastYear   ; saves daily values of ARID of the last year (used to export data)
+  p_soil_ARID                       ; ARID index after Woli et al. 2012, ranging form 0 (no water shortage) to 1 (extreme water shortage).
+  p_soil_ARID_yearSeries            ; registers daily values of ARID of the current year (used to export data).
+  p_soil_ARID_yearSeries_lastYear   ; saves daily values of ARID of the last year (used to export data).
 
-  ;======= I1 variables ======================================================================================
+  ;======= LAND WATER specific ======================================================================================
 
-  ;;; soil water properties
+  ;;; soil properties
   p_soil_hydrologicSoilGroup  ; USDA simplification of soil texture types into four categories
 
   p_soil_runOffCurveNumber                     ; runoff curve number (0=full retention to 100=full impermeability)
@@ -403,7 +405,7 @@ patches-own
 
   p_ecol_biomass                    ; total biomass (g/m^2) of ecological communities (vegetation as proxy)
 
-  ;========= I2 variables ======================================================================
+  ;========= LAND CROP specific ======================================================================
 
   ;;; main variables
   p_crop_frequency                  ; frequency in % of p_ecol_%crop of each crop in typesOfCrop
@@ -989,7 +991,7 @@ end
 
 to rescale-ecological-communities
 
-  ;;; assumes that water and crops takes preference over other natural ecological communities
+  ;;; assumes that surface water and crops takes preference over other natural ecological communities
 
   ask patches ;with [ p_ecol_%water > 0 or p_ecol_%crop > 0 ]
   [
@@ -1441,16 +1443,16 @@ end
 
 to infiltrate-soil-water
 
-  ; WATst : Maximum Water content at saturation (mm)
-  let WATst p_soil_saturation * p_ecol_rootZoneDepth
+  ; Maximum Water content at saturation (mm)
+  let maxWaterContentAtSaturation p_soil_saturation * p_ecol_rootZoneDepth
 
   let potentialSoilWaterChange p_water - p_runoff
   let soilWaterChange 0
   ;print self print (word "p_runoff=" p_runoff)
-  ifelse ( p_soil_waterContent + (p_water - p_runoff) > WATst )
+  ifelse ( p_soil_waterContent + potentialSoilWaterChange > maxWaterContentAtSaturation )
   [
     ; soil is or becomes saturated and water accumulates on surface adding to runoff
-    set soilWaterChange WATst - p_soil_waterContent
+    set soilWaterChange maxWaterContentAtSaturation - p_soil_waterContent
     set p_runoff p_runoff + (potentialSoilWaterChange - soilWaterChange)
   ]
   [
@@ -1628,27 +1630,27 @@ to drain-soil-water
 
   ask patches
   [
-    ; WATfc : Maximum Water content at field capacity (mm)
-    let WATfc p_soil_fieldCapacity * p_ecol_rootZoneDepth
+    ; Maximum Water content at field capacity (mm)
+    let waterAtFieldCapacity p_soil_fieldCapacity * p_ecol_rootZoneDepth
 
-    ; WATwp : Water content at wilting Point (mm)
-    let WATwp p_soil_wiltingPoint * p_ecol_rootZoneDepth
+    ; Water content at wilting Point (mm)
+    let waterContentAtWiltingPoint p_soil_wiltingPoint * p_ecol_rootZoneDepth
 
     ; Calculating the amount of deep drainage
     let deepDrainage 0
-    if (p_soil_waterContent > WATfc)
-    [ set deepDrainage p_soil_deepDrainageCoefficient * (p_soil_waterContent - WATfc) ]
-;if (deepDrainage > p_soil_waterContent) [ print self print (word deepDrainage " = (" p_soil_deepDrainageCoefficient " / " p_ecol_rootZoneDepth ") * (" p_soil_waterContent " - " WATfc ")" ) ]
+    if (p_soil_waterContent > waterAtFieldCapacity)
+    [ set deepDrainage p_soil_deepDrainageCoefficient * (p_soil_waterContent - waterAtFieldCapacity) ]
+;if (deepDrainage > p_soil_waterContent) [ print self print (word deepDrainage " = (" p_soil_deepDrainageCoefficient " / " p_ecol_rootZoneDepth ") * (" p_soil_waterContent " - " waterAtFieldCapacity ")" ) ]
 
     ; Compute maximum water uptake by plant roots on a day, RWUM
-    let maxWaterUptakePlantRoot soil_rootWaterUptakeCoefficient * (p_soil_waterContent - WATwp)
+    let maxWaterUptakePlantRoot soil_rootWaterUptakeCoefficient * (p_soil_waterContent - waterContentAtWiltingPoint)
 
     ; Calculate the amount of water lost through transpiration (TR)
     let transpiration min (list maxWaterUptakePlantRoot p_ETr)
 
     ; Calculate rate of change of state variable p_soil_waterContent
     set p_soil_waterContent p_soil_waterContent - deepDrainage - transpiration
-    if (p_soil_waterContent < 0)  ;;; this happens if p_soil_waterContent is less than WATfc or WATwp
+    if (p_soil_waterContent < 0)  ;;; this happens if p_soil_waterContent is less than waterAtFieldCapacity or WATwp
     [
       ;print self print p_soil_waterContent
       set p_soil_waterContent 0
@@ -1662,21 +1664,6 @@ to drain-soil-water
     if (transpiration < p_ETr)
     [ set p_soil_ARID 1 - transpiration / p_ETr ]
   ]
-
-end
-
-to-report get-drop-from [ aPatch ] ; ego = patch
-
-  ; "Distance- weighted drop is calculated by subtracting the neighbor’s value from the center cell’s value
-  ; and dividing by the distance from the center cell, √2 for a corner cell and one for a noncorner cell." (p. 1594)
-
-  report ([elevation] of aPatch - elevation) / (distance aPatch)
-
-end
-
-to-report is-at-edge ; ego = patch
-
-  report (pxcor = min-pxcor or pxcor = max-pxcor or pycor = min-pycor or pycor = max-pycor)
 
 end
 
@@ -2291,10 +2278,10 @@ to-report get-albedo [ %grass %brush %wood %water %crop %sand waterContentRatio]
 
 end
 
-to-report get-albedo-of-cover [ coverName ]
+to-report get-albedo-of-cover [ coverType ]
 
   ;;; get albedo value corresponding to coverName in ecol_albedoTable
-  report item (position coverName (item 0 ecol_albedoTable)) (item 1 ecol_albedoTable)
+  report item (position coverType (item 0 ecol_albedoTable)) (item 1 ecol_albedoTable)
 
 end
 
