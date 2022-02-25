@@ -3934,7 +3934,7 @@ to load-hydrologic-soil-groups-table
   ;;; line 3 (= index 2), row indexes
   let textureTypesRowRange (list ((item 1 (item 2 hydrologicSoilGroupTable)) - 1) ((item 3 (item 2 hydrologicSoilGroupTable)) - 1))
 
-  ;;; line 4 (= index 3), row indexes
+  ;;; line 4 (= index 3), column indexes
   ;;; Types of soil according to % of sand, silt and clay (ternary diagram) established by USDA
   let textureTypeColumn (item 1 (item 3 hydrologicSoilGroupTable)) - 1
 
@@ -3977,7 +3977,7 @@ to load-runoff-curve-number-table
   ;;; line 3 (= index 2), row indexes
   let typesOfCoverRowRange (list ((item 1 (item 2 runOffCurveNumberTable)) - 1) ((item 3 (item 2 runOffCurveNumberTable)) - 1))
 
-  ;;; line 4 (= index 3), row indexes
+  ;;; line 4 (= index 3), column indexes
   ;;; types of soil cover
   let coverTypeColumn (item 1 (item 3 runOffCurveNumberTable)) - 1
 
@@ -4037,7 +4037,7 @@ to load-soil-water-table
   ;;; line 3 (= index 2), row indexes
   let textureTypesRowRange (list ((item 1 (item 2 soilWaterTable)) - 1) ((item 3 (item 2 soilWaterTable)) - 1))
 
-  ;;; line 4 (= index 3), row indexes
+  ;;; line 4 (= index 3), column indexes
   ;;; Types of soil according to % of sand, silt and clay (ternary diagram) established by USDA
   let textureTypeColumn (item 1 (item 3 soilWaterTable)) - 1
 
@@ -4112,7 +4112,7 @@ to load-albedo-table
   ;;; line 3 (= index 2), row indexes
   let typesOfCoverRowRange (list ((item 1 (item 2 albedoTable)) - 1) ((item 3 (item 2 albedoTable)) - 1))
 
-  ;;; line 4 (= index 3), row indexes
+  ;;; line 4 (= index 3), column indexes
   ;;; broadband range
   ;;; types of soil cover
   let coverTypeColumn (item 1 (item 3 albedoTable)) - 1
@@ -4179,7 +4179,7 @@ to load-ecological-component-table
   ;;; line 3 (= index 2), row indexes
   let typesOfEcologicalComponentRowRange (list ((item 1 (item 2 ecologicalCommunityTable)) - 1) ((item 3 (item 2 ecologicalCommunityTable)) - 1))
 
-  ;;; line 4 (= index 3), row indexes
+  ;;; line 4 (= index 3), column indexes
   ;;; broadband range
   ;;; types of soil cover
   let ecologicalComponentTypeColumn (item 1 (item 3 ecologicalCommunityTable)) - 1
