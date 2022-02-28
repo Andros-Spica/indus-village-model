@@ -855,11 +855,13 @@ to rescale-ecological-communities
     ;;; scale the final percentage to account for acquatic ecological communities
     let newTotal p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water
 
+    let proportionOfAvailableArea (100 - p_ecol_%water) / 100
+
     if (newTotal > 100)
     [
-      set p_ecol_%wood p_ecol_%wood * (100 - p_ecol_%water) / 100
-      set p_ecol_%brush p_ecol_%brush * (100 - p_ecol_%water) / 100
-      set p_ecol_%grass p_ecol_%grass * (100 - p_ecol_%water) / 100
+      set p_ecol_%wood p_ecol_%wood * proportionOfAvailableArea
+      set p_ecol_%brush p_ecol_%brush * proportionOfAvailableArea
+      set p_ecol_%grass p_ecol_%grass * proportionOfAvailableArea
     ]
   ]
 
@@ -1600,11 +1602,13 @@ to apply-inundation-effect
 
   let sum% p_ecol_%wood + p_ecol_%brush + p_ecol_%grass
 
+  let proportionOfAvailableArea (100 - p_ecol_%water) / 100
+
   if (p_ecol_%water > 0 and sum% > 0)
   [
-    set p_ecol_%wood 100 * (p_ecol_%wood / sum%) * (1 - p_ecol_%water / 100)
-    set p_ecol_%brush 100 * (p_ecol_%brush / sum%) * (1 - p_ecol_%water / 100)
-    set p_ecol_%grass 100 * (p_ecol_%grass / sum%) * (1 - p_ecol_%water / 100)
+    set p_ecol_%wood 100 * (p_ecol_%wood / sum%) * proportionOfAvailableArea
+    set p_ecol_%brush 100 * (p_ecol_%brush / sum%) * proportionOfAvailableArea
+    set p_ecol_%grass 100 * (p_ecol_%grass / sum%) * proportionOfAvailableArea
   ]
 
 end
@@ -1749,10 +1753,10 @@ to update-soil-cover
       )
 
     set p_ecol_albedo (get-albedo
-      p_ecol_%water
-      p_ecol_%wood
-      p_ecol_%brush
       p_ecol_%grass
+      p_ecol_%brush
+      p_ecol_%wood
+      p_ecol_%water
       p_soil_%sand
       p_soil_waterContentRatio
      )
@@ -1857,7 +1861,7 @@ to-report get-coverTreatmentAndHydrologicCondition [ coverType condition treatme
 
 end
 
-to-report get-albedo [ %water %wood %brush %grass %sand waterContentRatio]
+to-report get-albedo [ %grass %brush %wood %water %sand waterContentRatio]
 
   ;;; declare variables only available in other models and set them as 0
   ;;; NOTE: these should be inputs, once integrated with other models
@@ -3725,7 +3729,7 @@ INPUTBOX
 394
 399
 par_riverWaterPerFlowAccumulation
-1.0E-4
+0.0
 1
 0
 Number
@@ -4251,7 +4255,7 @@ precipitation_daily-cum_inflection1_yearly-mean
 precipitation_daily-cum_inflection1_yearly-mean
 40
 140
-40.0
+0.0
 1.0
 1
 day of year (default: 40)
@@ -4326,7 +4330,7 @@ precipitation_daily-cum_inflection2_yearly-sd
 precipitation_daily-cum_inflection2_yearly-sd
 20
 100
-20.0
+0.0
 1
 1
 days (default: 20)

@@ -205,7 +205,7 @@ globals
   ;;; parameters (modified copies of interface input) ===============================================================
 
   ;;; LAND ---------------------------------------------------------------------
-  elev_seaLevelReferenceShift            ; the shift applied to re-centre elevations, pointing to the new 0 reference as the sea level (m)
+  elev_seaLevelReferenceShift            ; the shift applied to re-centre elevations, pointing to the new 0 reference as the sea level (m).
 
   ;;; WEATHER ------------------------------------------------------------------
   ;;;; temperature (ºC)
@@ -912,7 +912,7 @@ to setup-soil-soilWaterProperties
     p_ecol_%brush
     p_ecol_%wood
     p_ecol_%water
-    p_crop_frequency
+    crop_intensity
     p_soil_hydrologicSoilGroup
     )
 
@@ -998,11 +998,13 @@ to rescale-ecological-communities
     ;;; scale the final percentage to account for acquatic ecological communities and crops
     let newTotal p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water + p_ecol_%crop
 
+    let proportionOfAvailableArea (100 - p_ecol_%water - p_ecol_%crop) / 100
+
     if (newTotal > 100)
     [
-      set p_ecol_%wood p_ecol_%wood * (100 - p_ecol_%water - p_ecol_%crop) / 100
-      set p_ecol_%brush p_ecol_%brush * (100 - p_ecol_%water - p_ecol_%crop) / 100
-      set p_ecol_%grass p_ecol_%grass * (100 - p_ecol_%water - p_ecol_%crop) / 100
+      set p_ecol_%wood p_ecol_%wood * proportionOfAvailableArea
+      set p_ecol_%brush p_ecol_%brush * proportionOfAvailableArea
+      set p_ecol_%grass p_ecol_%grass * proportionOfAvailableArea
     ]
   ]
 
@@ -1799,11 +1801,13 @@ to apply-inundation-and-crop-effect
 
   let sum% p_ecol_%wood + p_ecol_%brush + p_ecol_%grass
 
+  let proportionOfAvailableArea (100 - p_ecol_%water - p_ecol_%crop) / 100
+
   if (p_ecol_%water + p_ecol_%crop > 0 and sum% > 0)
   [
-    set p_ecol_%wood 100 * (p_ecol_%wood / sum%) * (1 - (p_ecol_%water + p_ecol_%crop) / 100)
-    set p_ecol_%brush 100 * (p_ecol_%brush / sum%) * (1 - (p_ecol_%water + p_ecol_%crop) / 100)
-    set p_ecol_%grass 100 * (p_ecol_%grass / sum%) * (1 - (p_ecol_%water + p_ecol_%crop) / 100)
+    set p_ecol_%wood 100 * (p_ecol_%wood / sum%) * proportionOfAvailableArea
+    set p_ecol_%brush 100 * (p_ecol_%brush / sum%) * proportionOfAvailableArea
+    set p_ecol_%grass 100 * (p_ecol_%grass / sum%) * proportionOfAvailableArea
   ]
 
 end
@@ -2188,8 +2192,6 @@ to-report get-cover-type [ %grass %brush %wood %water %crop ]
 end
 
 to-report get-runOffCurveNumber [ %grass %brush %wood %water %crop hydrologicSoilGroup ]
-
-  ; cropland should be broken down once crop model is integrated (I2 model)
 
   let treatment "" ; defaults to no specific treatment
   let condition "good" ; defaults to "good"
@@ -4583,7 +4585,7 @@ par_elev_seaLevelReferenceShift
 par_elev_seaLevelReferenceShift
 -1000
 round max (list maxElevation elev_rangeHeight)
--1000.0
+-995.0
 1
 1
 m
