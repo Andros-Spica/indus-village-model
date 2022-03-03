@@ -653,7 +653,7 @@ end
 to-report get-nutrition
 
   ;;; Get a nutrition score as a function of the current population size and the carrying capacity (and a power that sets the shape of the relationship.
-  ;;; NOTE: this function is a rough approximation of the Nutrition model and is to be replaced by its inputs in integrated version.
+  ;;; NOTE: this function is a rough approximation of the combined outcomes of the Nutrition and Food Storage model and is to be replaced in the integrated version.
 
   let populationSize sum ([length hh_membersAge] of households)
 
