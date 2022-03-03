@@ -78,6 +78,9 @@ globals
   ;;; Choline (AI, mg)
   nutrientRequirementsTable_vitaminNames
   nutrientRequirementsTable_vitamins
+
+  nutrientRequirementsTable_numberOfNutrients    ; total numbner of nutrients accpounted in nutrientRequirementsTable
+
   ;;;;;; ================================================================================
   ;;;;;; Nutrients per foodstuff Table ==================================================
   ; table holding the average minimum and maximum amount of each nutrient type per 100g of foodstuff type.
@@ -113,6 +116,9 @@ globals
   ;;; Choline (mg)
   nutrientContentsPerFoodstuffTable_vitaminNames
   nutrientContentsPerFoodstuffTable_vitamins
+
+  nutrientContentsPerFoodstuffTable_numberOfNutrients    ; total numbner of nutrients accpounted in nutrientRequirementsTable
+
   ;;;;;; ==============================================================================
 
   ;;;; parameters for simulating inputs
@@ -150,8 +156,9 @@ globals
 
 households-own
 [
-  hh_dietConsumed                 ; The amounts of each foodstuff type consumed by the household in each time-step (stock units).
-  hh_nutrientsRequired            ; The amount of each nutrient type desired by the household, but currently unsatisfied (stock units).
+  hh_dietConsumed                 ; The amounts of each foodstuff type consumed by the household in each time-step (Kg).
+  hh_nutrientsInDiet              ; The amount of each nutrient type contained in the current diet consumed by the household (g, mg, micrag, depending on nutrient).
+  hh_nutrientsRequired            ; The amount of each nutrient type required by the household (g, mg, micrag, depending on nutrient).
 
   hh_membersAge                  ; ages of every household member (list of integer)
   hh_membersSex                  ; sex of every household member (list of true/false, i.e. is female?)
@@ -571,6 +578,9 @@ to load-nutrient-requirements-table
   ;;; Choline (AI, mg)
   set nutrientRequirementsTable_vitamins extract-subtable nutrientsRequirementData (item 0 vitaminsColumns) (item 1 vitaminsColumns)
 
+  ;;; calculate the total number of nutrients accounted in this table (saved for further use)
+  set nutrientRequirementsTable_numberOfNutrients 6 + (length nutrientRequirementsTable_mineralNames) + (length nutrientRequirementsTable_vitaminNames)
+
 end
 
 to-report get-nutrient-requirements-of-group [ peopleAge peopleSex peoplePregnancyTrimester peopleLactancySemester peoplePAL ]
@@ -578,8 +588,7 @@ to-report get-nutrient-requirements-of-group [ peopleAge peopleSex peoplePregnan
   ;;; Returns a list of amounts per nutrient required by a group of people, given lists of people ages, sex, pregnancy trimester, lactancy semester, and PAL (physical activity level).
 
   ;;; Initialise list of nutrients
-  let numberOfNutrients 6 + (length nutrientRequirementsTable_mineralNames) + (length nutrientRequirementsTable_vitaminNames)
-  let listOfNutrientAmountsRequiredByGroup n-values numberOfNutrients [ i -> 0 ]
+  let listOfNutrientAmountsRequiredByGroup n-values nutrientRequirementsTable_numberOfNutrients [ i -> 0 ]
 
   foreach n-values (length peopleAge) [ i -> i ]
   [
@@ -595,7 +604,7 @@ to-report get-nutrient-requirements-of-group [ peopleAge peopleSex peoplePregnan
     ;;; Nutrient amounts required are sampled out of an uniform probability distribution between the minimum and maximum values determined in nutrientContentsPerFoodstuffTable.
     let minNutrientAmountsRequiredByPerson get-nutrient-requirements-of-person personAge personSex personPregnancyTrimester personLactancySemester personPAL "min"
     let maxNutrientAmountsRequiredByPerson get-nutrient-requirements-of-person personAge personSex personPregnancyTrimester personLactancySemester personPAL "max"
-    let listOfNutrientAmountsRequiredByPerson (map [ [ minI maxI ] -> minI + random-float maxI ] minNutrientAmountsRequiredByPerson maxNutrientAmountsRequiredByPerson)
+    let listOfNutrientAmountsRequiredByPerson (map [ [ minI maxI ] -> minI + random-float (maxI - minI) ] minNutrientAmountsRequiredByPerson maxNutrientAmountsRequiredByPerson)
 
     ;;; add values to the list of nutrient content amounts required by the group
     set listOfNutrientAmountsRequiredByGroup (map [ [ i j ] -> i + j ] listOfNutrientAmountsRequiredByGroup listOfNutrientAmountsRequiredByPerson)
@@ -1043,6 +1052,9 @@ to load-nutrient-contents-per-foodstuff-table
   ;;; Choline (mg)
   set nutrientContentsPerFoodstuffTable_vitamins extract-subtable nutrientsPerFoodstuffData (item 0 vitaminsColumns) (item 1 vitaminsColumns)
 
+  ;;; calculate the total number of nutrients accounted in this table (saved for further use)
+  set nutrientContentsPerFoodstuffTable_numberOfNutrients 6 + (length nutrientContentsPerFoodstuffTable_mineralNames) + (length nutrientContentsPerFoodstuffTable_vitaminNames)
+
 end
 
 to-report get-nutrient-contents-in-diet [ listOfFoodstuffAmountInDiet ]
@@ -1050,23 +1062,24 @@ to-report get-nutrient-contents-in-diet [ listOfFoodstuffAmountInDiet ]
   ;;; Returns a list of amounts per nutrient given a list of amounts per foodstuff in grams.
 
   ;;; Initialise list of nutrients
-  let numberOfNutrients 6 + (length nutrientContentsPerFoodstuffTable_mineralNames) + (length nutrientContentsPerFoodstuffTable_vitaminNames)
-  let listOfNutrientAmountsInDiet n-values numberOfNutrients [ i -> 0 ]
+  let listOfNutrientAmountsInDiet n-values nutrientContentsPerFoodstuffTable_numberOfNutrients [ i -> 0 ]
 
   foreach nutrientContentsPerFoodstuffTable_foodstuffTypes
   [
-    foodstuffTypeName ->
+    foodstuffType ->
 
-    let foodstuffTypeIndex (position foodstuffTypeName nutrientContentsPerFoodstuffTable_foodstuffTypes)
+    let foodstuffTypeIndex (position foodstuffType nutrientContentsPerFoodstuffTable_foodstuffTypes)
 
     ;;; get nutrition content values per 100g of this foodstuff
     ;;; Nutrient amounts are sampled out of an uniform probability distribution between the minimum and maximum values determined in nutrientContentsPerFoodstuffTable.
-    let minNutrientContentsPer100g get-nutrient-contents-of-foodstuff-type foodstuffTypeName "min"
-    let maxNutrientContentsPer100g get-nutrient-contents-of-foodstuff-type foodstuffTypeName "min"
+    let minNutrientContentsPer100g get-nutrient-contents-of-foodstuff-type foodstuffType "min"
+    let maxNutrientContentsPer100g get-nutrient-contents-of-foodstuff-type foodstuffType "min"
     let nutrientContentsPer100g (map [ [ minI maxI ] -> minI + random-float maxI ] minNutrientContentsPer100g maxNutrientContentsPer100g)
 
-    ;;; calculate total nutrition content values for edible portion and given foodstuff amount
+    ;;; calculate edible amount
     let edibleAmount (item foodstuffTypeIndex nutrientContentsPerFoodstuffTable_ediblePortion) * (item foodstuffTypeIndex listOfFoodstuffAmountInDiet)
+
+    ;;; calculate total nutrition content values for edible portion and given foodstuff amount
     let totalNutrientContents map [ i -> i * (edibleAmount / 100) ] nutrientContentsPer100g
 
     ;;; add values to the overall list of nutrient contents in diet
@@ -1077,36 +1090,36 @@ to-report get-nutrient-contents-in-diet [ listOfFoodstuffAmountInDiet ]
 
 end
 
-to-report get-nutrient-contents-of-foodstuff-type [ foodstuffTypeName minOrMax ]
+to-report get-nutrient-contents-of-foodstuff-type [ foodstuffType minOrMax ]
 
   ;;; Returns a list of all minimum or maximum nutrient content values corresponding to the given foodstuff type (row) in nutrientContentsPerFoodstuffTable.
 
-  let index (position foodstuffTypeName nutrientContentsPerFoodstuffTable_foodstuffTypes)
+  let foodstuffTypeIndex (position foodstuffType nutrientContentsPerFoodstuffTable_foodstuffTypes)
   let suffix (word " " minOrMax)
   let minOrMaxIndex position minOrMax [ "min" "max" ]
 
-  let series (list
-    (item index (item minOrMaxIndex nutrientContentsPerFoodstuffTable_water))
-    (item index (item minOrMaxIndex nutrientContentsPerFoodstuffTable_energy))
-    (item index (item minOrMaxIndex nutrientContentsPerFoodstuffTable_CHO))
-    (item index (item minOrMaxIndex nutrientContentsPerFoodstuffTable_fibre))
-    (item index (item minOrMaxIndex nutrientContentsPerFoodstuffTable_fat))
-    (item index (item minOrMaxIndex nutrientContentsPerFoodstuffTable_protein))
+  let listOfNutrientAmountsInFoodstuffType (list
+    (item foodstuffTypeIndex (item minOrMaxIndex nutrientContentsPerFoodstuffTable_water))
+    (item foodstuffTypeIndex (item minOrMaxIndex nutrientContentsPerFoodstuffTable_energy))
+    (item foodstuffTypeIndex (item minOrMaxIndex nutrientContentsPerFoodstuffTable_CHO))
+    (item foodstuffTypeIndex (item minOrMaxIndex nutrientContentsPerFoodstuffTable_fibre))
+    (item foodstuffTypeIndex (item minOrMaxIndex nutrientContentsPerFoodstuffTable_fat))
+    (item foodstuffTypeIndex (item minOrMaxIndex nutrientContentsPerFoodstuffTable_protein))
     )
 
   foreach nutrientContentsPerFoodstuffTable_mineralNames
   [
     mineralName ->
-    set series lput (get-content-mineral-value index (word mineralName suffix)) series
+    set listOfNutrientAmountsInFoodstuffType lput (get-content-mineral-value foodstuffTypeIndex (word mineralName suffix)) listOfNutrientAmountsInFoodstuffType
   ]
 
   foreach nutrientContentsPerFoodstuffTable_vitaminNames
   [
     vitaminName ->
-    set series lput (get-content-vitamin-value index (word vitaminName suffix)) series
+    set listOfNutrientAmountsInFoodstuffType lput (get-content-vitamin-value foodstuffTypeIndex (word vitaminName suffix)) listOfNutrientAmountsInFoodstuffType
   ]
 
-  report series
+  report listOfNutrientAmountsInFoodstuffType
 
 end
 
@@ -1126,27 +1139,28 @@ to-report get-content-vitamin-value [ foodstuffIndex vitaminVariableName ]
 
 end
 
-to-report get-nutrient-content-of-foodstuff-types [ nutrientVariableName minOrMaxIndex ]
+to-report get-nutrient-content-of-foodstuff-types [ nutrientName minOrMax ]
 
   ;;; Returns all (min or max) content of the given nutrient for all foodstuff types in nutrientContentsPerFoodstuffTable.
   ;;; NOTE: Useful for querying the table and plotting
 
-  let suffix item minOrMaxIndex (list "min" "max")
+  let suffix (word " " minOrMax)
+  let minOrMaxIndex position minOrMax [ "min" "max" ]
 
-  if (nutrientVariableName = "water (g)")
+  if (nutrientName = "water (g)")
   [ report (item minOrMaxIndex nutrientContentsPerFoodstuffTable_water) ]
-  if (nutrientVariableName = "energy (kJ)")
+  if (nutrientName = "energy (kJ)")
   [ report (item minOrMaxIndex nutrientContentsPerFoodstuffTable_energy) ]
-  if (nutrientVariableName = "carbohydrates (g)")
+  if (nutrientName = "carbohydrates (g)")
   [ report (item minOrMaxIndex nutrientContentsPerFoodstuffTable_CHO) ]
-  if (nutrientVariableName = "fibre (g)")
+  if (nutrientName = "fibre (g)")
   [ report (item minOrMaxIndex nutrientContentsPerFoodstuffTable_fibre) ]
-  if (nutrientVariableName = "fat (g)")
+  if (nutrientName = "fat (g)")
   [ report (item minOrMaxIndex nutrientContentsPerFoodstuffTable_fat) ]
-  if (nutrientVariableName = "protein (g)")
+  if (nutrientName = "protein (g)")
   [ report (item minOrMaxIndex nutrientContentsPerFoodstuffTable_protein) ]
 
-  let variableName (substring nutrientVariableName 0 (position "(" nutrientVariableName))
+  let variableName (substring nutrientName 0 (position "(" nutrientName))
   set variableName (word variableName suffix)
 
   if (member? variableName nutrientContentsPerFoodstuffTable_mineralNames)
@@ -1861,7 +1875,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.0.4
+NetLogo 6.2.2
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
