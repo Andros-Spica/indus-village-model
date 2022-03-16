@@ -33,6 +33,7 @@ breed [ households household ]
 globals
 [
   ;;; constants
+  maturityAgeInYears              ; defaults to 15 years old; it affects the minimum age acceptable for individuals to keep a household without older individuals
   nutritionEffectSteepness
   yearLengthInDays
 
@@ -42,7 +43,6 @@ globals
   mortalityTable-women mortalityTable-men
 
   ;;; modified parameters
-  maturityAgeInYears              ; defaults to 15 years old; it affects the minimum age acceptable for individuals to keep a household without older individuals
   initialNumHouseholds
   householdInitialAgeDistribution ; (list minimum maximum)
   maxCoupleCountDistribution      ; (list minimum maximum)
@@ -2722,7 +2722,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.0.4
+NetLogo 6.2.2
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
