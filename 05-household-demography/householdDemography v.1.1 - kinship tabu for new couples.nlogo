@@ -642,8 +642,8 @@ to hh_initialise
   ;;; Initialization of households
 
   set hh_lineage (list who) ; initialise lineage ID with this household 'who'
-  set hh_age hh_get-initial-age
-  set hh_maxCoupleCount hh_get-initial-max-couple-count
+  set hh_age get-initial-household-age
+  set hh_maxCoupleCount get-initial-max-couple-count
   set hh_memberIndexesToDelete (list)
 
   hh_initialise-members
@@ -653,13 +653,13 @@ to hh_initialise
 
 end
 
-to-report hh_get-initial-age
+to-report get-initial-household-age
 
   report item 0 householdInitialAgeDistribution + random (item 1 householdInitialAgeDistribution - item 0 householdInitialAgeDistribution + 1)
 
 end
 
-to-report hh_get-initial-max-couple-count
+to-report get-initial-max-couple-count
 
   report item 0 maxCoupleCountDistribution + random (item 1 maxCoupleCountDistribution - item 0 maxCoupleCountDistribution + 1)
 
@@ -674,7 +674,7 @@ to hh_initialise-members
   [
     ?1 ->
     set hh_membersSex lput (?1 = 0) hh_membersSex
-    let marriageAge (hh_get-initial-marriage-age (item ?1 hh_membersSex))
+    let marriageAge (get-initial-marriage-age (item ?1 hh_membersSex))
     set hh_membersAge lput (hh_age + marriageAge) hh_membersAge
     set hh_membersMarriage lput 0 hh_membersMarriage ; this couple will have the 0 index
   ]
@@ -698,7 +698,7 @@ to hh_initialise-members
 
 end
 
-to-report hh_get-initial-marriage-age [ isFemale ]
+to-report get-initial-marriage-age [ isFemale ]
 
   ; get a marriage age as a stochastic function of nuptiality rates in earlier years
   let notMarried true
