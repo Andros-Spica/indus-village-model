@@ -35,11 +35,10 @@ globals
 [
   ;;; constants
   nutritionEffectSteepness
+  yearLengthInDays
+  maturityAgeInYears              ; defaults to 15 years old; it affects the minimum age acceptable for individuals to keep a household without older individuals
 
   ;;; modified parameters
-
-  ;;;; initialisation
-  initialNumHouseholds
 
   ;;;; parameter tables (loaded from csv files)
 
@@ -50,19 +49,20 @@ globals
                                                   ;;; sex (includes values "pregnancy" and "lactation")
                                                   ;;; age group (years old; trimester for pregnancy; semester for lactation)
 
-  nutrientRequirementsTable_referenceBodyWeight  ; reference body weight (Kg)
+  nutrientRequirementsTable_referenceBodyWeight  ; reference body weight (kg)
   ;;;;; MAJOR NUTRIENTS
   nutrientRequirementsTable_water                ; water RI (liter)
   nutrientRequirementsTable_energy               ; energy AR (MJ) for PAL 1.4 to 2.0 (four columns)
   nutrientRequirementsTable_CHO                  ; minimum and maximum total carbohydrates RI (E%)
   nutrientRequirementsTable_fibre                ; dietary fibre RI (g)
   nutrientRequirementsTable_fat                  ; minimum and maximum total fat RI (E%)
-  nutrientRequirementsTable_protein              ; protein (g/Kg of body weight)
+  nutrientRequirementsTable_protein              ; protein (g/kg of body weight)
   ;;;;; MINOR NUTRIENTS
   ;;;;;; MINERALS
   ;;; Calcium PRI (mg), Iron PRI (mg), Zinc PRI (mg), Copper AI (mg), Magnesium AI (mg),
   ;;; Fluoride AI (mg), Iodine AI (micrag), Manganese AI (mg), Molybdenum AI (micrag),
   ;;; Phosphorus AI (mg), Potassium AI (mg), Selenium AI (micrag)
+  nutrientRequirementsTable_mineralColumnNames
   nutrientRequirementsTable_mineralNames
   nutrientRequirementsTable_minerals
   ;;;; VITAMINS
@@ -76,10 +76,11 @@ globals
   ;;; Vitamin E or alfa-Tocopherol and equivalent (AI, mg),
   ;;; Vitamin K or Phylloquinones (AI, micrag),
   ;;; Choline (AI, mg)
+  nutrientRequirementsTable_vitaminColumnNames
   nutrientRequirementsTable_vitaminNames
   nutrientRequirementsTable_vitamins
 
-  nutrientRequirementsTable_numberOfNutrients    ; total numbner of nutrients accpounted in nutrientRequirementsTable
+  nutrientRequirementsTable_numberOfNutrients    ; total number of nutrients accounted in nutrientRequirementsTable
 
   ;;;;;; ================================================================================
   ;;;;;; Nutrients per foodstuff Table ==================================================
@@ -101,6 +102,7 @@ globals
   ;;; Calcium (mg), Iron (mg), Zinc (mg), Copper AI (mg), Magnesium (mg),
   ;;; Fluoride (mg), Iodine (micrag), Manganese (mg), Molybdenum (micrag),
   ;;; Phosphorus (mg), Potassium (mg), Selenium (micrag)
+  nutrientContentsPerFoodstuffTable_mineralColumnNames
   nutrientContentsPerFoodstuffTable_mineralNames
   nutrientContentsPerFoodstuffTable_minerals
   ;;;; VITAMINS
@@ -114,15 +116,27 @@ globals
   ;;; Vitamin E or alfa-Tocopherol and equivalent (mg),
   ;;; Vitamin K or Phylloquinones (micrag),
   ;;; Choline (mg)
+  nutrientContentsPerFoodstuffTable_vitaminColumnNames
   nutrientContentsPerFoodstuffTable_vitaminNames
   nutrientContentsPerFoodstuffTable_vitamins
 
-  nutrientContentsPerFoodstuffTable_numberOfNutrients    ; total numbner of nutrients accpounted in nutrientRequirementsTable
+  nutrientContentsPerFoodstuffTable_numberOfNutrients    ; total number of nutrients accounted in nutrientRequirementsTable
 
   ;;;;;; ==============================================================================
 
   ;;;; parameters for simulating inputs
   ;;;; Their values should eventually come from other submodels.
+
+  ;;;; Household Demography parameters
+  ;;; demography tables
+  fertilityTable
+  nuptialityTable-women nuptialityTable-men
+
+  ;;; individual parameters
+  initialNumHouseholds
+  householdInitialAgeDistribution ; (list minimum maximum)
+
+  ;;;; input variables from other submodels
   consumedDietMin consumedDietMax           ; Minimum and maximum consumed diet of households (list of floats per foodstuff type, stock units). Consumed diet is randomised in each household very time step.
 
   desiredDietMin desiredDietMax             ; Minimum and maximum desired diet of households (list of floats per foodstuff type, stock units). Desired diet is randomised in each household at initialisation.
@@ -156,14 +170,19 @@ globals
 
 households-own
 [
-  hh_dietConsumed                 ; The amounts of each foodstuff type consumed by the household in each time-step (Kg).
+  hh_dietDesired                  ; The amounts of each foodstuff type desired by the household in each time-step (kg).
+  hh_dietConsumed                 ; The amounts of each foodstuff type consumed by the household in each time-step (kg).
   hh_nutrientsInDiet              ; The amount of each nutrient type contained in the current diet consumed by the household (g, mg, micrag, depending on nutrient).
   hh_nutrientsRequired            ; The amount of each nutrient type required by the household (g, mg, micrag, depending on nutrient).
+  hh_nutritionScore               ; score calculated from the contrast between hh_nutrientsInDiet and hh_nutrientsRequired.
+                                  ; A single score exists for a household, meaning we assume food to be distributed internally in proportion to the needs of individual members.
 
-  hh_membersAge                  ; ages of every household member (list of integer)
+  hh_age                         ; number of days during which the household existed (integer)
+
+  hh_membersAge                  ; ages of every household member in days (list of integer)
   hh_membersSex                  ; sex of every household member (list of true/false, i.e. is female?)
-  hh_pregnancyTrimester          ; pregnancy trimester of every household member (list of integer, values are 1, 2, and 3)
-  hh_lactancySemester            ; lactancy semester of every household member (list of integer, values are 1 and 2)
+  hh_pregnancyTrimester          ; pregnancy trimester of every household member (list of integer, values are 0 (null), 1, 2, and 3)
+  hh_lactancySemester            ; lactancy semester of every household member (list of integer, values are 0 (null), 1 and 2)
   hh_menbersPAL                  ; physical activity level of every household member (list of strings, values are "1.4", "1.6", "1.8", and "2.0")
 ]
 
@@ -175,17 +194,27 @@ to setup
 
   clear-all
 
+  ; --- loading/testing parameters -----------
+
   set-constants
+
+  set-parameters
+
+  build-demography-tables
 
   load-nutrition-tables
 
-  ;set-parameters
+  ; --- core procedures ----------------------
 
-  ;setup-households
+  setup-households
+
+  ; --- counters -----------------------------
 
   reset-counters
 
   update-counters
+
+  ; --- tick ---------------------------------
 
   reset-ticks
 
@@ -195,6 +224,10 @@ to set-constants
 
   ; "constants" are variables that will not be explored as parameters
   ; and may be used during a simulation.
+
+  set yearLengthInDays 365
+
+  set maturityAgeInYears 15
 
   set nutritionEffectSteepness 3
 
@@ -209,28 +242,25 @@ to set-parameters
   parameters-check1
 
   ;;; setup parameters depending on the type of experiment
+  set householdInitialAgeDistribution read-from-string ( word "[" household-initial-age-distribution "]")
 
   if (type-of-experiment = "user-defined")
   [
     ;;; load parameters from user interface
     set initialNumHouseholds initial-num-households
-
-    set desiredDietMax desired-diet-max
-    set desiredDietMin desired-diet-min
-
-    set consumedDietMax consumed-diet-max
-    set consumedDietMin consumed-diet-min
   ]
   if (type-of-experiment = "random")
   [
     ;;; use values from user interface as a maximum for random uniform distributions
     set initialNumHouseholds 1 + random initial-num-households ; at least one household
-
-    set desiredDietMin random desired-diet-min
-    set desiredDietMax desiredDietMin + random desired-diet-max
-
-    set consumedDietMin random consumed-diet-min
-    set consumedDietMax consumedDietMin + random consumed-diet-max
+    set householdInitialAgeDistribution (list
+      (1 + random (item 0 householdInitialAgeDistribution))   ; minimum
+      (
+        (item 0 householdInitialAgeDistribution)
+        + 1
+        + random ((item 1 householdInitialAgeDistribution) - (item 0 householdInitialAgeDistribution))
+      )   ; maximum
+      )
   ]
 
   ; check parameters values
@@ -244,11 +274,9 @@ to parameters-check1
   ;;; and set default values
   if (initial-num-households = 0)               [ set initial-num-households               25 ]
 
-  if (desired-diet-max = 0)                     [ set desired-diet-max                     80 ]
-  if (desired-diet-min = 0)                     [ set desired-diet-min                     30 ]
-
-  if (consumed-diet-max = 0)                    [ set consumed-diet-max                    80 ]
-  if (consumed-diet-min = 0)                    [ set consumed-diet-min                    30 ]
+  ;;; string type inputs (vector of values)
+  if (household-initial-age-distribution = 0 or
+    length household-initial-age-distribution = 1)   [ set household-initial-age-distribution   "0 30" ]
 
 end
 
@@ -258,12 +286,7 @@ to parameters-to-default
   set max-iterations                     2000
 
   set initial-num-households               25
-
-  set desired-diet-max                     80
-  set desired-diet-min                     30
-
-  set consumed-diet-max                    80
-  set consumed-diet-min                    30
+  set household-initial-age-distribution   "0 30"
 
 end
 
@@ -271,6 +294,9 @@ to parameters-check2
 
   ;;; initial parameter check (e.g., avoiding division per zero error)
   check-par-is-positive "initialNumHouseholds" initialNumHouseholds
+
+  ;;; check if given min values are less than max values
+  check-par-is-range "householdInitialAgeDistribution" householdInitialAgeDistribution
 
 end
 
@@ -296,12 +322,11 @@ end
 
 to setup-households
 
-  ;;; create households (position are not relevant)
+  ;;; create households
   repeat initialNumHouseholds
   [
     create-households 1
     [
-      setxy random-xcor random-ycor
       hh_initialise
     ]
   ]
@@ -312,15 +337,288 @@ end
 
 to hh_initialise
 
-  ;set hh_dietDesired hh_get-dietDesired
+  ;;; Initialization of household members (age and sex)
 
-  ;hh_initialise-stocks
+  set hh_age get-initial-household-age
+
+  hh_initialise-members
+
+  ;;; nutrition model specific procedures
+  hh_initialise-diet
+
+  hh_update-nutrition
+
+  ;;; move to empty or less crowded patch, just in sake of visualisation
+  move-to min-one-of patches [count households-here]
 
 end
 
-to-report hh_get-dietDesired
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; START of simplified Household Demography model procedures ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  report get-random-in-range desiredDietMin desiredDietMax
+to-report get-initial-household-age
+
+  let ageInYears item 0 householdInitialAgeDistribution + random (item 1 householdInitialAgeDistribution - item 0 householdInitialAgeDistribution + 1)
+
+  report (ageInYears * yearLengthInDays) + (random yearLengthInDays)
+
+end
+
+to hh_initialise-members
+
+  hh_reset-members
+
+  ;;; assures that at least two member are above (fertility age + household age) and have different sex
+  foreach (list 0 1)
+  [
+    firstMembersIndex ->
+    set hh_membersSex lput (firstMembersIndex = 0) hh_membersSex
+    let marriageAge (get-initial-marriage-age (item firstMembersIndex hh_membersSex))
+    set hh_membersAge lput (hh_age + marriageAge) hh_membersAge
+  ]
+
+  ;;; calculate offspring and offspring age
+  let offspringProb 0
+  let i hh_age
+  repeat hh_age
+  [
+    ;;; get the probability of the couple having descendence for a past day i
+    ;;; i.e. woman fertility at the corresponding age
+    set offspringProb get-fertility-of-day ((item 0 hh_membersAge) - i)
+
+    ; test the probability and add the offspring with the corresponding age
+    if (random-float 1 < offspringProb)
+    [
+      hh_add-offspring i ; a child with i days old
+    ]
+    set i i - 1
+  ]
+
+  ;;; initialise pregnancy, lactancy and PAL at base default values
+  set hh_pregnancyTrimester map [memberIndex -> 0] hh_membersSex
+  set hh_lactancySemester map [memberIndex -> 0] hh_membersSex
+  set hh_menbersPAL map [memberIndex -> "1.4"] hh_membersSex
+
+end
+
+to-report get-initial-marriage-age [ isFemale ]
+
+  ; get a marriage age in days as a stochastic function of nuptiality rates in earlier years
+  let notMarried true
+  let ageInYears 0
+
+  while [notMarried AND ageInYears < 100]
+  [
+    if ((get-nuptiality isFemale ageInYears) > random-float 1)
+    [
+      set notMarried false
+    ]
+    set ageInYears ageInYears + 1
+  ]
+
+  report (ageInYears * yearLengthInDays) + (random yearLengthInDays)
+
+end
+
+to hh_reset-members
+
+  set hh_membersAge (list)
+  set hh_membersSex (list)
+  set hh_pregnancyTrimester (list)
+  set hh_lactancySemester (list)
+  set hh_menbersPAL (list)
+
+end
+
+to-report get-fertility-of-day [ ageInDays ]
+
+  let ageInYears get-age-in-years-old ageInDays
+
+  report (get-fertility ageInYears) / yearLengthInDays
+
+end
+
+to-report get-fertility [ ageInYears ]
+
+  report (item ageInYears fertilityTable)
+
+end
+
+to-report get-nuptiality [ isFemale ageInYears ]
+
+  let probMarry 0
+
+  ifelse (isFemale)
+  [
+    set probMarry item ageInYears nuptialityTable-women
+  ]
+  [
+    set probMarry item ageInYears nuptialityTable-men
+  ]
+
+  report probMarry
+
+end
+
+to hh_add-offspring [ initialAge ]
+
+  ; add a newborn to the household
+  ; the specification of initialAge is needed to use this in setup
+  set hh_membersAge lput initialAge hh_membersAge
+  set hh_membersSex lput (random 2 = 0) hh_membersSex
+
+end
+
+to-report get-age-in-years-old [ ageInDays ]
+
+  report floor (ageInDays / yearLengthInDays)
+
+end
+
+to-report hh_count-members
+
+  report length hh_membersSex
+
+end
+
+to-report hh_membersIndexes
+
+  ; report a list of members indexes from 0 to n
+
+  report (n-values hh_count-members [ i -> i ])
+
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; DEMOGRAPHY TABLES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to build-demography-tables
+
+  ;;; load demographic data tables into lists
+
+  ;=======FERTILITY========================================================
+
+  build-fertility-tables
+
+  ;=======NUPTIALITY========================================================
+
+  build-nuptiality-tables
+
+end
+
+
+to build-fertility-tables
+
+  ;;; to keep it simple, we fix the fertility parameters to the default values in the Household Demography model
+  ;;; The point is to get a stochastic, yet realistic, age distribution.
+  let c1-fert 0.85
+  let mu-fert 25
+  let sigma1-fert 5
+  let sigma2-fert 10
+
+  set fertilityTable load-peristeri-kostaki-model-table c1-fert mu-fert sigma1-fert sigma2-fert
+
+end
+
+to build-nuptiality-tables
+
+  ;;; Again, to keep it simple, we fix the nuptiality parameters to the default values in the Household Demography model
+  ;;; The point is to get a stochastic, yet realistic, age distribution.
+  let c1-women 0.85
+  let mu-women 25
+  let sigma1-women 5
+  let sigma2-women 10
+  let c1-men 0.9
+  let mu-men 15
+  let sigma1-men 5
+  let sigma2-men 5
+
+  set nuptialityTable-women load-peristeri-kostaki-model-table c1-women mu-women sigma1-women sigma2-women
+
+  set nuptialityTable-men load-peristeri-kostaki-model-table c1-men mu-men sigma1-men sigma2-men
+
+end
+
+to-report load-peristeri-kostaki-model-table [ c1 mu sigma1 sigma2 ]
+
+  ;;; The following correspond to the first parametric model in:
+
+  ;;; Peristeva and Kostaki, 2009, p. 147
+  ;;; "Modeling fertility in modern populations"
+  ;;; Demographic Research 16: 141-194
+  ;;; Available from: https://dx.doi.org/10.4054/DemRes.2007.16.6
+
+  ;;; Peristeva and Kostaki (2015), p. 133
+  ;;; "A parametric model for estimating nuptiality patterns in modern populations"
+  ;;; Canadian studies in population 42(2):130-148. DOI: 10.25336/P6TK56
+  ;;; Available from: https://www.researchgate.net/publication/285457704_A_parametric_model_for_estimating_nuptiality_patterns_in_modern_populations [accessed Nov 27 2018].
+  ;;; use "demoTables/compareNuptialityModel.R" to test shapes
+
+  let marriageProbs (list)
+
+  foreach n-values 151 [ i -> i ]
+  [
+    i ->
+    let sigma sigma1
+    if (i > mu) [ set sigma sigma2 ]
+
+    set marriageProbs lput (
+      c1 * exp (-1 * (((i - mu) / sigma) ^ 2))
+    ) marriageProbs
+  ]
+
+  report marriageProbs
+
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; END of simplified Household Demography model procedures ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to hh_initialise-diet
+
+  hh_update-nutrientsRequired
+
+  set hh_dietDesired (get-initial-dietDesired hh_nutrientsRequired)
+
+  set hh_dietConsumed hh_dietDesired
+
+end
+
+to-report get-initial-dietDesired [ nutrientsRequired ]
+
+  ;;; derive initial desired diet from the nutritional requirements,
+  ;;; by randomly adding 1g of foodstuff one type at a time, until the nutrition score is neutral
+  ;;; NOTE: this is not very computationally efficient, and the diet return will be often too random (with lots of the abundant nutrients and lack of minor rarer ones).
+  ;;; Probably best to search for an empirical reference to set one or a few diets.
+
+  ;;; initialise list with a 0 for each foodstuff type
+  let desiredDiet map [foodstuffTypeIndex -> 0] nutrientContentsPerFoodstuffTable_foodstuffTypes
+  let nutritionScore -1
+
+  let maxIterations 5000 ; stop iteration if reaching 5 kg of food
+  while [ (maxIterations > 0) and (nutritionScore < 0) ]
+  [
+    ;;; get random foodstuffType index
+    let foodstuffTypeIndex random (length nutrientContentsPerFoodstuffTable_foodstuffTypes)
+
+    ;;; add 100g of the selected foodstuffType
+    let currentAmount item foodstuffTypeIndex desiredDiet
+    set desiredDiet replace-item foodstuffTypeIndex desiredDiet (currentAmount + 1)
+
+    ;;; calculate the current nutrition score
+    set nutritionScore (get-nutrition-score (get-nutrient-contents-in-diet desiredDiet) nutrientsRequired)
+
+    ;print desiredDiet
+    ;print nutritionScore
+
+    set maxIterations maxIterations - 1
+    if (maxIterations = 0) [ print "Warning: failed to calculate sufficient initial diet (more than 5kg required)." ]
+  ]
+
+  report desiredDiet
 
 end
 
@@ -330,19 +628,26 @@ end
 
 to go
 
+  ; --- core procedures -------------------------
+
   reset-counters
 
   update-households
 
   update-counters
 
+  ; -- time -------------------------------------
+
+  ;print "-------tick----"
+  tick
+
+  ; --- stop conditions -------------------------
+
   if (ticks = max-iterations)
   [
     ;if (length behaviorspace-experiment-name > 0 and count households > 0) [ export-households ]
     stop
   ]
-  ;print "-------tick----"
-  tick
 
 end
 
@@ -350,55 +655,98 @@ end
 
 to update-households
 
-  reset-diet-satisfaction
-
-  ;stocks-update
-
-end
-
-to reset-diet-satisfaction
-
   ask households
   [
-    ;;; set the diet unfullfilled as the desired diet
-    ;set hh_dietUnfulfilled hh_dietDesired
+
+    hh_update-diet-consumed
+
+    hh_update-nutrition
+
+    ;stocks-update
+
   ]
 
 end
 
 ;;; HOUSEHOLDS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+to hh_update-diet-consumed
+
+  set hh_dietConsumed hh_dietDesired ;;; !!! TO DO
+
+end
+
 to-report hh_get-diet-available
 
-  ;report sum hh_stocks
+  ;report sum hh_stocks ;;; !!! TO DO
 
 end
 
-to-report hh_get-nutrition
+to hh_update-nutrition
 
-  let nutritionScore 0
+  hh_update-nutrientsRequired
 
-  let nutrientAmountsRequiredByHousehold get-nutrient-requirements-of-group hh_membersAge hh_membersSex hh_pregnancyTrimester hh_lactancySemester hh_menbersPAL
+  hh_update-nutrientsInDiet
 
-  let nutrientAmountsInHouseholdDiet get-nutrient-contents-in-diet hh_dietConsumed
+  set hh_nutritionScore (get-nutrition-score hh_nutrientsInDiet hh_nutrientsRequired)
 
+end
+
+to hh_update-nutrientsRequired
+
+  let membersAgeInYears map [ ageInDays -> get-age-in-years-old ageInDays ] hh_membersAge
+
+  set hh_nutrientsRequired get-nutrient-requirements-of-group membersAgeInYears hh_membersSex hh_pregnancyTrimester hh_lactancySemester hh_menbersPAL
+
+end
+
+to hh_update-nutrientsInDiet
+
+  set hh_nutrientsInDiet get-nutrient-contents-in-diet hh_dietConsumed
+
+end
+
+to-report get-nutrition-score [ nutrientsInDiet nutrientsRequired ]
+
+  ;;; get a list of nutrition scores per nutrient and then aggregate them into a single score
+
+  let scoresPerNutrient (get-nutrition-scores-per-nutrient nutrientsInDiet nutrientsRequired)
+
+  ;;; Option A
+  ;;; sum all values, knowing that negative and positive values will cancel each other out.
+  ;;; The upside of the averaging effect is that neutrality (0) becomes possible, if option A in get-nutrition-scores-per-nutrient is used.
+  let score sum scoresPerNutrient
+  ;;; Rescale score to [-1, 1] interval, assuming they use the scale [-lenghtOfNutrientList, lenghtOfNutrientList]
+  let lenghtOfNutrientList length nutrientsInDiet
+  set score (score / lenghtOfNutrientList)
+
+  ;;; Option B
+  ;;; return the minimum score, following the rationale of the least consumed required nutrient becomes the limiting factor
+  ;;; NOTE: if using option A in get-nutrition-scores-per-nutrient, the nutrition score will always be either -1 or 1 (and often it will be -1)
+  ;let score min scoresPerNutrient
+
+  report score
+
+end
+
+to-report get-nutrition-scores-per-nutrient [ nutrientsInDiet nutrientsRequired ]
+
+  ;;; Option A
+  ;;; check if each nutrient requirement is fullfilled and assign scores of either -1 (not fullfilled) or 1 (fullfilled)
+  ;;; the advantage of this option is that it do not require any extra information, nor assume anything besides the concept of "requirement"
+  ;;; the downside is that there is no neutral point.
+  report (map [ [ nutrientInDiet nutrientRequired ] -> ifelse-value (nutrientInDiet >= nutrientRequired) [ 1 ] [ -1 ] ] nutrientsInDiet nutrientsRequired)
+
+  ;;; Option B
   ;;; compare each nutrient using logistic curve centred at y=0 and x=required amount.
   ;;; For example: (2(1/(1+exp(rate(required-consumed)))) - 1)
-  ;;; NOTE: rate could be defined on a nutrient basis, but it would need more info on nutrition
+  ;;; Rate should be defined on a nutrient basis, or at least on the basis of their scale (mg, micrag).
+  ;;; For this option to be viable, we need either more detailed information on nutrition (i.e., the response to under and over ingestion),
+  ;;; or, as an intermediate option, to keep track of minimum (the neutral point) and maximum nutrientsRequired and then extrapolate the value of rate (linearly, instead of logistically?)
 
+  ;let rate 0.1
 
-
-  report nutritionScore
-
-end
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; GENERIC FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-to-report get-random-in-range [ minValue maxValue ]
-
-  report (minValue + random-float (maxValue - minValue))
+  ;report (map [ [ nutrientInDiet nutrientRequired ] -> (2 * (1 / (1 + (exp (rate * ( nutrientRequired - nutrientInDiet))))) - 1) ] nutrientsInDiet nutrientsRequired)
 
 end
 
@@ -408,15 +756,49 @@ end
 
 to reset-counters
 
-
+  set totalWomen 0
+  set totalMen 0
+  set femaleRatio -1
+  set womenAgeStructure (list)
+  set menAgeStructure (list)
+  set womenFirstAgeGroup 0
+  set menFirstAgeGroup 0
 
 end
 
 to update-counters
 
+  set totalHouseholds count households
+  let oldTotalIndividual totalIndividuals
+  set totalIndividuals 0
 
+  ask households
+  [
+    foreach hh_membersIndexes
+    [
+      i ->
+      let ageInYears get-age-in-years-old (item i hh_membersAge)
+      ifelse (item i hh_membersSex)
+      [
+        set totalWomen totalWomen + 1
+        set womenAgeStructure lput ageInYears womenAgeStructure
+        if (ageInYears < 5)
+        [ set womenFirstAgeGroup womenFirstAgeGroup + 1 ]
+      ]
+      [
+        set totalMen totalMen + 1
+        set menAgeStructure lput ageInYears menAgeStructure
+        if (ageInYears < 5)
+        [ set menFirstAgeGroup menFirstAgeGroup + 1 ]
+      ]
+      set totalIndividuals totalIndividuals + 1
+    ]
+  ]
+
+  carefully [ set femaleRatio totalWomen / totalIndividuals ] [ set femaleRatio "" ]
 
 end
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; DISPLAY ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -433,6 +815,59 @@ to plot-table [ values ]
     set j j + 1
   ]
   plot-pen-up
+
+end
+
+to-report get-itemwise-mean-in-list-of-lists [ listOfLists aggregationFunction ]
+
+  if (length listOfLists = 0)
+  [ report 0 ]
+
+  if (length listOfLists = 1)
+  [ report item 0 listOfLists ]
+
+  let acceptedAggregationFunctions [ "mean" "median" "max" "min" "standard-deviation"]
+  if (not member? aggregationFunction acceptedAggregationFunctions)
+  [ error (word "aggregation function name not accepted. Please enter any of the following: " acceptedAggregationFunctions) ]
+
+  let numberOfItems length (item 0 listOfLists)
+  let outputList (list)
+
+  foreach (n-values numberOfItems [ i -> i ])
+  [
+    index ->
+
+    let listOfItemsWithIndex (list)
+
+    foreach listOfLists
+    [
+      anInputList ->
+
+      set listOfItemsWithIndex lput (item index anInputList) listOfItemsWithIndex
+    ]
+
+    let value 0
+
+    if (aggregationFunction = "mean") [ set value mean listOfItemsWithIndex ]
+    if (aggregationFunction = "median") [ set value median listOfItemsWithIndex ]
+    if (aggregationFunction = "max") [ set value max listOfItemsWithIndex ]
+    if (aggregationFunction = "min") [ set value min listOfItemsWithIndex ]
+    if (aggregationFunction = "standard-deviation") [ set value standard-deviation listOfItemsWithIndex ]
+
+    set outputList lput value outputList
+  ]
+
+  report outputList
+
+end
+
+to print-foodstuff-types-list
+
+  foreach n-values (length nutrientContentsPerFoodstuffTable_foodstuffTypes) [j -> j]
+  [
+    foodstuffTypeIndex ->
+    output-print item foodstuffTypeIndex nutrientContentsPerFoodstuffTable_foodstuffTypes
+  ]
 
 end
 
@@ -489,7 +924,7 @@ to load-nutrient-requirements-table
   ;;; age group (years old; trimester for pregnancy; semester for lactation)
   let ageGroupColumn (item 3 (item 3 nutrientsRequirementTable)) - 1
 
-  ;;; reference body weight (Kg)
+  ;;; reference body weight (kg)
   let bodyWeightColumn (item 5 (item 3 nutrientsRequirementTable)) - 1
 
   ;;; MAJOR NUTRIENTS
@@ -508,7 +943,7 @@ to load-nutrient-requirements-table
   ;;; minimum and maximum total fat RI (E%)
   let fatColumns (list ((item 19 (item 3 nutrientsRequirementTable)) - 1) ((item 21 (item 3 nutrientsRequirementTable)) - 1) )
 
-  ;;; protein (g/Kg of body weight)
+  ;;; protein (g/kg of body weight)
   ;let proteinColumn (item 23 (item 3 nutrientsRequirementTable)) - 1 ;;; protein AR
   let proteinColumn (item 25 (item 3 nutrientsRequirementTable)) - 1 ;;; protein PRI
 
@@ -523,8 +958,12 @@ to load-nutrient-requirements-table
   ;;; extract data---------------------------------------------------------------------------------------
 
   ;;; get list of mineral and vitamins names in the order they are in the table as columns
-  set nutrientRequirementsTable_mineralNames sublist (item 4 nutrientsRequirementTable) (item 0 mineralColumns) (item 1 mineralColumns + 1)
-  set nutrientRequirementsTable_vitaminNames sublist (item 4 nutrientsRequirementTable) (item 0 vitaminsColumns) (item 1 vitaminsColumns + 1)
+  set nutrientRequirementsTable_mineralColumnNames sublist (item 4 nutrientsRequirementTable) (item 0 mineralColumns) (item 1 mineralColumns + 1)
+  set nutrientRequirementsTable_vitaminColumnNames sublist (item 4 nutrientsRequirementTable) (item 0 vitaminsColumns) (item 1 vitaminsColumns + 1)
+  ;;; get lists of mineral and vitamins names, without the min/max suffixes
+  ;;; NOTE: for now, there is no max and min for these in nutrientRequirementsTable.
+  set nutrientRequirementsTable_mineralNames remove-duplicates map [columnName -> remove " max" (remove " min" columnName)] nutrientRequirementsTable_mineralColumnNames
+  set nutrientRequirementsTable_vitaminNames remove-duplicates map [columnName -> remove " max" (remove " min" columnName)] nutrientRequirementsTable_vitaminColumnNames
 
   ;;; read variables (list of lists, matrix: sex-age groups x nutrient variables)
   let nutrientsRequirementData sublist nutrientsRequirementTable (item 0 ageGroupsRowRange) (item 1 ageGroupsRowRange + 1)
@@ -536,7 +975,7 @@ to load-nutrient-requirements-table
 
   ;;; major nutrients as separate list and list of lists variables
 
-  ;;; reference body weight (Kg)
+  ;;; reference body weight (kg)
   set nutrientRequirementsTable_referenceBodyWeight map [row -> item bodyWeightColumn row ] nutrientsRequirementData
 
   ;;; water RI (liter)
@@ -554,7 +993,7 @@ to load-nutrient-requirements-table
   ;;; minimum and maximum total fat RI (E%) (two columns)
   set nutrientRequirementsTable_fat extract-subtable nutrientsRequirementData (item 0 fatColumns) (item 1 fatColumns)
 
-  ;;; protein PRI (g/Kg of body weight)
+  ;;; protein PRI (g/kg of body weight)
   set nutrientRequirementsTable_protein map [row -> item proteinColumn row ] nutrientsRequirementData
 
   ;;; minor nutrients as two list of lists variables
@@ -595,16 +1034,14 @@ to-report get-nutrient-requirements-of-group [ peopleAge peopleSex peoplePregnan
     personIndex ->
 
     let personAge (item personIndex peopleAge)
-    let personSex (item personIndex peopleSex)
+    let personSex ifelse-value (item personIndex peopleSex) [ "female" ] [ "male" ] ;;; this converts the true/false values into the "female"/"male" of the nutrientRequirementsTable
     let personPregnancyTrimester (item personIndex peoplePregnancyTrimester)
     let personLactancySemester (item personIndex peopleLactancySemester)
     let personPAL (item personIndex peoplePAL)
 
-    ;;; get nutrition content values per 100g of this foodstuff
-    ;;; Nutrient amounts required are sampled out of an uniform probability distribution between the minimum and maximum values determined in nutrientContentsPerFoodstuffTable.
-    let minNutrientAmountsRequiredByPerson get-nutrient-requirements-of-person personAge personSex personPregnancyTrimester personLactancySemester personPAL "min"
-    let maxNutrientAmountsRequiredByPerson get-nutrient-requirements-of-person personAge personSex personPregnancyTrimester personLactancySemester personPAL "max"
-    let listOfNutrientAmountsRequiredByPerson (map [ [ minI maxI ] -> minI + random-float (maxI - minI) ] minNutrientAmountsRequiredByPerson maxNutrientAmountsRequiredByPerson)
+    ;;; get nutrition requirements per pèrson according to their sex, age, pregnancy or lactancy status, and physical activity level
+    ;;; Nutrient with minimum and maximum values in nutrientRequirementsTable are sampled randomly from an uniform probability distribution between these.
+    let listOfNutrientAmountsRequiredByPerson (get-nutrient-requirements-of-person personAge personSex personPregnancyTrimester personLactancySemester personPAL)
 
     ;;; add values to the list of nutrient content amounts required by the group
     set listOfNutrientAmountsRequiredByGroup (map [ [ i j ] -> i + j ] listOfNutrientAmountsRequiredByGroup listOfNutrientAmountsRequiredByPerson)
@@ -614,31 +1051,29 @@ to-report get-nutrient-requirements-of-group [ peopleAge peopleSex peoplePregnan
 
 end
 
-to-report get-nutrient-requirements-of-person [ personAge personSex personPregnancyTrimester personLactancySemester personPAL minOrMax ]
+to-report get-nutrient-requirements-of-person [ personAge personSex personPregnancyTrimester personLactancySemester personPAL ]
 
   let sexAgeGroupIndex get-index-of-sex-age-group personAge personSex personPregnancyTrimester personLactancySemester
-  let suffix (word " " minOrMax)
-  let minOrMaxIndex position minOrMax [ "min" "max" ]
 
   let listOfNutrientAmountRequired (list
-    (item sexAgeGroupIndex (item minOrMaxIndex nutrientRequirementsTable_water))
-    (item sexAgeGroupIndex (item minOrMaxIndex nutrientRequirementsTable_energy))
-    (item sexAgeGroupIndex (item minOrMaxIndex nutrientRequirementsTable_CHO))
-    (item sexAgeGroupIndex (item minOrMaxIndex nutrientRequirementsTable_fibre))
-    (item sexAgeGroupIndex (item minOrMaxIndex nutrientRequirementsTable_fat))
-    (item sexAgeGroupIndex (item minOrMaxIndex nutrientRequirementsTable_protein))
+    (get-water-requirement-of-person sexAgeGroupIndex)             ;;; water
+    (get-energy-requirement-of-person sexAgeGroupIndex personPAL)  ;;; energy
+    (get-CHO-requirement-of-person sexAgeGroupIndex personPAL)     ;;; carbohydrates (CHO)
+    (get-fibre-requirement-of-person sexAgeGroupIndex)             ;;; fibre
+    (get-fat-requirement-of-person sexAgeGroupIndex personPAL)     ;;; fat
+    (get-protein-requirement-of-person sexAgeGroupIndex)           ;;; protein
     )
 
   foreach nutrientRequirementsTable_mineralNames
   [
     mineralName ->
-    set listOfNutrientAmountRequired lput (get-required-mineral-value sexAgeGroupIndex (word mineralName suffix)) listOfNutrientAmountRequired
+    set listOfNutrientAmountRequired lput (get-mineral-requirement-of-person sexAgeGroupIndex mineralName) listOfNutrientAmountRequired
   ]
 
   foreach nutrientRequirementsTable_vitaminNames
   [
     vitaminName ->
-    set listOfNutrientAmountRequired lput (get-required-vitamin-value sexAgeGroupIndex (word vitaminName suffix)) listOfNutrientAmountRequired
+    set listOfNutrientAmountRequired lput (get-vitamin-requirement-of-person sexAgeGroupIndex vitaminName) listOfNutrientAmountRequired
   ]
 
   report listOfNutrientAmountRequired
@@ -647,45 +1082,42 @@ end
 
 to-report get-nutrient-requirement-of-person [ nutrientName personAge personSex pregnancyTrimester lactancySemester personPAL ]
 
-  let value 0
   let sexAgeGroupIndex get-index-of-sex-age-group personAge personSex pregnancyTrimester lactancySemester
 
   if (nutrientName = "water")
   [
-    set value item sexAgeGroupIndex nutrientRequirementsTable_water
+    report (get-water-requirement-of-person sexAgeGroupIndex)
   ]
   if (nutrientName = "energy")
   [
-    let palIndex position personPAL [ "1.4" "1.6" "1.8" "2.0" ]
-
-    set value item sexAgeGroupIndex (item palIndex nutrientRequirementsTable_energy)
+    report (get-energy-requirement-of-person sexAgeGroupIndex personPAL)
   ]
   if (nutrientName = "carbohydrates")
   [
-    let minValue item sexAgeGroupIndex (item 0 nutrientRequirementsTable_CHO)
-    let maxValue item sexAgeGroupIndex (item 1 nutrientRequirementsTable_CHO)
-    set value minValue + random-float (maxValue - minValue)
+    report (get-CHO-requirement-of-person sexAgeGroupIndex personPAL)
   ]
   if (nutrientName = "fibre")
   [
-    set value item sexAgeGroupIndex nutrientRequirementsTable_fibre
+    report (get-fibre-requirement-of-person sexAgeGroupIndex)
   ]
   if (nutrientName = "fat")
   [
-    let minValue item sexAgeGroupIndex (item 0 nutrientRequirementsTable_fat)
-    let maxValue item sexAgeGroupIndex (item 1 nutrientRequirementsTable_fat)
-    set value minValue + random-float (maxValue - minValue)
+    report (get-fat-requirement-of-person sexAgeGroupIndex personPAL)
   ]
   if (nutrientName = "protein")
   [
-    set value item sexAgeGroupIndex nutrientRequirementsTable_protein
+    report (get-protein-requirement-of-person sexAgeGroupIndex)
   ]
   if (member? nutrientName nutrientRequirementsTable_mineralNames)
-  [ set value item sexAgeGroupIndex (item (position nutrientName nutrientRequirementsTable_mineralNames) nutrientRequirementsTable_minerals) ]
+  [
+    report (get-mineral-requirement-of-person sexAgeGroupIndex nutrientName)
+  ]
   if (member? nutrientName nutrientRequirementsTable_vitaminNames)
-  [ set value item sexAgeGroupIndex (item (position nutrientName nutrientRequirementsTable_vitaminNames) nutrientRequirementsTable_minerals) ]
+  [
+    report (get-vitamin-requirement-of-person sexAgeGroupIndex nutrientName)
+  ]
 
-  report value
+  error (word "ERROR (get-nutrient-requirement-of-person): " nutrientName " not recognised.")
 
 end
 
@@ -734,7 +1166,7 @@ to-report get-nutrient-requirement-per-sex-group [ nutrientName sexGroup ]
   [
     set series sublist (item 1 nutrientRequirementsTable_fat) (item 0 indexRange) (item 1 indexRange)
   ]
-  if (nutrientName = "protein (g/Kg of body weight)")
+  if (nutrientName = "protein (g/kg of body weight)")
   [
     set series sublist nutrientRequirementsTable_protein (item 0 indexRange) (item 1 indexRange)
   ]
@@ -849,22 +1281,6 @@ to-report get-nutrient-requirement-per-sex-group [ nutrientName sexGroup ]
 
 end
 
-to-report get-required-mineral-value [ sexAgeGroupIndex mineralVariableName ]
-
-  ;;; Returns the value at the given (row) index for the given mineral variable from the nutrientRequirementsTable
-
-  report (item sexAgeGroupIndex (item (position mineralVariableName nutrientRequirementsTable_mineralNames) nutrientRequirementsTable_minerals))
-
-end
-
-to-report get-required-vitamin-value [ sexAgeGroupIndex vitaminVariableName ]
-
-  ;;; Returns the value at the given (row) index for the given vitamin variable from the nutrientRequirementsTable
-
-  report (item sexAgeGroupIndex (item (position vitaminVariableName nutrientRequirementsTable_vitaminNames) nutrientRequirementsTable_vitamins))
-
-end
-
 to-report get-index-of-sex-age-group [ personAge personSex personPregnancyTrimester personLactancySemester ]
 
   ;;; Returns the numeric row index of the sex-age group of the given person in nutrientsRequirementTable.
@@ -910,6 +1326,110 @@ to-report get-index-range-of-sex-group [ sexGroup ]
   ]
 
   report (list (first indexes) (last indexes))
+
+end
+
+to-report get-water-requirement-of-person [ sexAgeGroupIndex ]
+
+  report (item sexAgeGroupIndex nutrientRequirementsTable_water)
+
+end
+
+to-report get-energy-requirement-of-person [ sexAgeGroupIndex personPAL ]
+
+  let palIndex position personPAL [ "1.4" "1.6" "1.8" "2.0" ]
+
+  report (item sexAgeGroupIndex (item palIndex nutrientRequirementsTable_energy)) * 1000 ;;; convert from MJ to kJ
+
+end
+
+to-report get-CHO-requirement-of-person [ sexAgeGroupIndex personPAL ]
+
+  let totalE% (get-energy-requirement-of-person sexAgeGroupIndex personPAL)
+
+  let minValue (item sexAgeGroupIndex (item 0 nutrientRequirementsTable_CHO))
+  let maxValue (item sexAgeGroupIndex (item 1 nutrientRequirementsTable_CHO))
+  let CHOE% get-random-float-in-range minValue maxValue
+
+  report (get-g-from-E%-CHO CHOE% totalE%)
+
+end
+
+to-report get-fat-requirement-of-person [ sexAgeGroupIndex personPAL ]
+
+  let totalE% (get-energy-requirement-of-person sexAgeGroupIndex personPAL)
+
+  let minValue (item sexAgeGroupIndex (item 0 nutrientRequirementsTable_fat))
+  let maxValue (item sexAgeGroupIndex (item 1 nutrientRequirementsTable_fat))
+  let fatE% get-random-float-in-range minValue maxValue
+
+  report (get-g-from-E%-fat fatE% totalE%)
+
+end
+
+to-report get-g-from-E%-CHO [ E% totalE ]
+
+  ;;; define Atwater general factor system's value for carbohydrates
+  ;;; NOTE: this value includes fibre.
+  ;;; See: CHAPTER 3: CALCULATION OF THE ENERGY CONTENT OF FOODS - ENERGY CONVERSION FACTORS. (2003).
+  ;;; In Food energy—Methods of analysis and conversion factors. Report of a Technical Workshop, Rome, 3-6 December 2002. FAO.
+  ;;; https://www.fao.org/3/y5022e/y5022e04.htm
+
+  let AtwaterGeneralFactor_CHO 17 ;;; 17 kJ/g or 4 kcal/g
+
+  ;;; NOTE: assuming totalE is in kJ
+  report totalE / AtwaterGeneralFactor_CHO
+
+end
+
+to-report get-g-from-E%-fat [ E% totalE ]
+
+  ;;; define Atwater general factor system's value for fat
+  ;;; NOTE: this value includes fibre.
+  ;;; See: CHAPTER 3: CALCULATION OF THE ENERGY CONTENT OF FOODS - ENERGY CONVERSION FACTORS. (2003).
+  ;;; In Food energy—Methods of analysis and conversion factors. Report of a Technical Workshop, Rome, 3-6 December 2002. FAO.
+  ;;; https://www.fao.org/3/y5022e/y5022e04.htm
+
+  let AtwaterGeneralFactor_fat 37 ;;; 37 kJ/g or 9 kcal/g
+
+  ;;; NOTE: assuming totalE is in kJ
+  report totalE / AtwaterGeneralFactor_fat
+
+end
+
+to-report get-fibre-requirement-of-person [ sexAgeGroupIndex ]
+
+  report (item sexAgeGroupIndex nutrientRequirementsTable_fibre)
+
+end
+
+to-report get-protein-requirement-of-person [ sexAgeGroupIndex ]
+
+  let referenceBodyWeight (item sexAgeGroupIndex nutrientRequirementsTable_referenceBodyWeight)
+
+  let proteinPerBodykg (item sexAgeGroupIndex nutrientRequirementsTable_protein)
+
+  report referenceBodyWeight * proteinPerBodykg
+
+end
+
+to-report get-mineral-requirement-of-person [ sexAgeGroupIndex mineralVariableName ]
+
+  ;;; Returns the value at the given (row) index for the given mineral variable from the nutrientRequirementsTable
+
+  let mineralVariableIndex (position mineralVariableName nutrientRequirementsTable_mineralColumnNames)
+
+  report (item sexAgeGroupIndex (item mineralVariableIndex nutrientRequirementsTable_minerals))
+
+end
+
+to-report get-vitamin-requirement-of-person [ sexAgeGroupIndex vitaminVariableName ]
+
+  ;;; Returns the value at the given (row) index for the given vitamin variable from the nutrientRequirementsTable
+
+  let vitaminVariableIndex (position vitaminVariableName nutrientRequirementsTable_vitaminColumnNames)
+
+  report (item sexAgeGroupIndex (item vitaminVariableIndex nutrientRequirementsTable_vitamins))
 
 end
 
@@ -996,9 +1516,12 @@ to load-nutrient-contents-per-foodstuff-table
   ;;;==================================================================================================================
   ;;; extract data---------------------------------------------------------------------------------------
 
-  ;;; get list of mineral and vitamins names (min and max) in the order they are in the table as columns
-  set nutrientContentsPerFoodstuffTable_mineralNames sublist (item 4 nutrientContentsPerFoodstuffTable) (item 0 mineralColumns) (item 1 mineralColumns + 1)
-  set nutrientContentsPerFoodstuffTable_vitaminNames sublist (item 4 nutrientContentsPerFoodstuffTable) (item 0 vitaminsColumns) (item 1 vitaminsColumns + 1)
+  ;;; get lists of mineral and vitamins column names (min and max) in the order they are in the table as columns
+  set nutrientContentsPerFoodstuffTable_mineralColumnNames sublist (item 4 nutrientContentsPerFoodstuffTable) (item 0 mineralColumns) (item 1 mineralColumns + 1)
+  set nutrientContentsPerFoodstuffTable_vitaminColumnNames sublist (item 4 nutrientContentsPerFoodstuffTable) (item 0 vitaminsColumns) (item 1 vitaminsColumns + 1)
+  ;;; get lists of mineral and vitamins names, without the min/max suffixes
+  set nutrientContentsPerFoodstuffTable_mineralNames remove-duplicates map [columnName -> remove " max" (remove " min" columnName)] nutrientContentsPerFoodstuffTable_mineralColumnNames
+  set nutrientContentsPerFoodstuffTable_vitaminNames remove-duplicates map [columnName -> remove " max" (remove " min" columnName)] nutrientContentsPerFoodstuffTable_vitaminColumnNames
 
   ;;; read variables (list of lists, matrix: foodstuff types x source scientific names, foodstuff groups, edible portion, nutrient variables)
   let nutrientsPerFoodstuffData sublist nutrientContentsPerFoodstuffTable (item 0 foodstuffRowRange) (item 1 foodstuffRowRange + 1)
@@ -1072,12 +1595,10 @@ to-report get-nutrient-contents-in-diet [ listOfFoodstuffAmountInDiet ]
 
     ;;; get nutrition content values per 100g of this foodstuff
     ;;; Nutrient amounts are sampled out of an uniform probability distribution between the minimum and maximum values determined in nutrientContentsPerFoodstuffTable.
-    let minNutrientContentsPer100g get-nutrient-contents-of-foodstuff-type foodstuffType "min"
-    let maxNutrientContentsPer100g get-nutrient-contents-of-foodstuff-type foodstuffType "min"
-    let nutrientContentsPer100g (map [ [ minI maxI ] -> minI + random-float maxI ] minNutrientContentsPer100g maxNutrientContentsPer100g)
+    let nutrientContentsPer100g (get-nutrient-contents-of-foodstuff-type foodstuffType)
 
     ;;; calculate edible amount
-    let edibleAmount (item foodstuffTypeIndex nutrientContentsPerFoodstuffTable_ediblePortion) * (item foodstuffTypeIndex listOfFoodstuffAmountInDiet)
+    let edibleAmount (get-edible-amount-in-foodstuff-type foodstuffTypeIndex) * (item foodstuffTypeIndex listOfFoodstuffAmountInDiet)
 
     ;;; calculate total nutrition content values for edible portion and given foodstuff amount
     let totalNutrientContents map [ i -> i * (edibleAmount / 100) ] nutrientContentsPer100g
@@ -1090,52 +1611,123 @@ to-report get-nutrient-contents-in-diet [ listOfFoodstuffAmountInDiet ]
 
 end
 
-to-report get-nutrient-contents-of-foodstuff-type [ foodstuffType minOrMax ]
+to-report get-nutrient-contents-of-foodstuff-type [ foodstuffType ]
 
-  ;;; Returns a list of all minimum or maximum nutrient content values corresponding to the given foodstuff type (row) in nutrientContentsPerFoodstuffTable.
+  ;;; Returns a list of nutrient content values corresponding to the given foodstuff type (row) in nutrientContentsPerFoodstuffTable.
+  ;;; Values are sampled randomly from an uniform probability distribution between minimum and maximum values in nutrientRequirementsTable.
 
   let foodstuffTypeIndex (position foodstuffType nutrientContentsPerFoodstuffTable_foodstuffTypes)
-  let suffix (word " " minOrMax)
-  let minOrMaxIndex position minOrMax [ "min" "max" ]
 
   let listOfNutrientAmountsInFoodstuffType (list
-    (item foodstuffTypeIndex (item minOrMaxIndex nutrientContentsPerFoodstuffTable_water))
-    (item foodstuffTypeIndex (item minOrMaxIndex nutrientContentsPerFoodstuffTable_energy))
-    (item foodstuffTypeIndex (item minOrMaxIndex nutrientContentsPerFoodstuffTable_CHO))
-    (item foodstuffTypeIndex (item minOrMaxIndex nutrientContentsPerFoodstuffTable_fibre))
-    (item foodstuffTypeIndex (item minOrMaxIndex nutrientContentsPerFoodstuffTable_fat))
-    (item foodstuffTypeIndex (item minOrMaxIndex nutrientContentsPerFoodstuffTable_protein))
+    (get-water-content-of-foodstuffType foodstuffTypeIndex)
+    (get-energy-content-of-foodstuffType foodstuffTypeIndex)
+    (get-CHO-content-of-foodstuffType foodstuffTypeIndex)
+    (get-fibre-content-of-foodstuffType foodstuffTypeIndex)
+    (get-fat-content-of-foodstuffType foodstuffTypeIndex)
+    (get-protein-content-of-foodstuffType foodstuffTypeIndex)
     )
 
   foreach nutrientContentsPerFoodstuffTable_mineralNames
   [
     mineralName ->
-    set listOfNutrientAmountsInFoodstuffType lput (get-content-mineral-value foodstuffTypeIndex (word mineralName suffix)) listOfNutrientAmountsInFoodstuffType
+    set listOfNutrientAmountsInFoodstuffType lput (get-mineral-content-of-foodstuffType foodstuffTypeIndex mineralName) listOfNutrientAmountsInFoodstuffType
   ]
 
   foreach nutrientContentsPerFoodstuffTable_vitaminNames
   [
     vitaminName ->
-    set listOfNutrientAmountsInFoodstuffType lput (get-content-vitamin-value foodstuffTypeIndex (word vitaminName suffix)) listOfNutrientAmountsInFoodstuffType
+    set listOfNutrientAmountsInFoodstuffType lput (get-vitamin-content-of-foodstuffType foodstuffTypeIndex vitaminName) listOfNutrientAmountsInFoodstuffType
   ]
 
   report listOfNutrientAmountsInFoodstuffType
 
 end
 
-to-report get-content-mineral-value [ foodstuffIndex mineralVariableName ]
+to-report get-edible-amount-in-foodstuff-type [ foodstuffTypeIndex ]
 
-  ;;; Returns the value at the given (row) index for the given mineral variable from the nutrientContentsPerFoodstuffTable
-
-  report (item foodstuffIndex (item (position mineralVariableName nutrientContentsPerFoodstuffTable_mineralNames) nutrientContentsPerFoodstuffTable_minerals))
+  report (item foodstuffTypeIndex nutrientContentsPerFoodstuffTable_ediblePortion)
 
 end
 
-to-report get-content-vitamin-value [ foodstuffIndex vitaminVariableName ]
+to-report get-water-content-of-foodstuffType [ foodstuffTypeIndex ]
 
-  ;;; Returns the value at the given (row) index for the given vitamin variable from the nutrientContentsPerFoodstuffTable
+  let minValue (item foodstuffTypeIndex (item 0 nutrientContentsPerFoodstuffTable_water))
+  let maxValue (item foodstuffTypeIndex (item 1 nutrientContentsPerFoodstuffTable_water))
 
-  report (item foodstuffIndex (item (position vitaminVariableName nutrientContentsPerFoodstuffTable_vitaminNames) nutrientContentsPerFoodstuffTable_vitamins))
+  report get-random-float-in-range minValue maxValue
+
+end
+
+to-report get-energy-content-of-foodstuffType [ foodstuffTypeIndex ]
+
+  let minValue (item foodstuffTypeIndex (item 0 nutrientContentsPerFoodstuffTable_energy))
+  let maxValue (item foodstuffTypeIndex (item 1 nutrientContentsPerFoodstuffTable_energy))
+
+  report get-random-float-in-range minValue maxValue
+
+end
+
+to-report get-CHO-content-of-foodstuffType [ foodstuffTypeIndex ]
+
+  let minValue (item foodstuffTypeIndex (item 0 nutrientContentsPerFoodstuffTable_CHO))
+  let maxValue (item foodstuffTypeIndex (item 1 nutrientContentsPerFoodstuffTable_CHO))
+
+  report get-random-float-in-range minValue maxValue
+
+end
+
+to-report get-fat-content-of-foodstuffType [ foodstuffTypeIndex ]
+
+  let minValue (item foodstuffTypeIndex (item 0 nutrientContentsPerFoodstuffTable_fat))
+  let maxValue (item foodstuffTypeIndex (item 1 nutrientContentsPerFoodstuffTable_fat))
+
+  report get-random-float-in-range minValue maxValue
+
+end
+
+to-report get-fibre-content-of-foodstuffType [ foodstuffTypeIndex ]
+
+  let minValue (item foodstuffTypeIndex (item 0 nutrientContentsPerFoodstuffTable_fibre))
+  let maxValue (item foodstuffTypeIndex (item 1 nutrientContentsPerFoodstuffTable_fibre))
+
+  report get-random-float-in-range minValue maxValue
+
+end
+
+to-report get-protein-content-of-foodstuffType [ foodstuffTypeIndex ]
+
+  let minValue (item foodstuffTypeIndex (item 0 nutrientContentsPerFoodstuffTable_protein))
+  let maxValue (item foodstuffTypeIndex (item 1 nutrientContentsPerFoodstuffTable_protein))
+
+  report get-random-float-in-range minValue maxValue
+
+end
+
+to-report get-mineral-content-of-foodstuffType [ foodstuffIndex mineralName ]
+
+  ;;; Returns a random value between minimum and maximum values at the given (row) index for the given mineral variable from the nutrientContentsPerFoodstuffTable
+
+  let mineralVariableIndexMin (position (word mineralName " min") nutrientContentsPerFoodstuffTable_mineralColumnNames)
+  let mineralVariableIndexMax (position (word mineralName " max") nutrientContentsPerFoodstuffTable_mineralColumnNames)
+
+  let minValue (item foodstuffIndex (item mineralVariableIndexMin nutrientContentsPerFoodstuffTable_minerals))
+  let maxValue (item foodstuffIndex (item mineralVariableIndexMax nutrientContentsPerFoodstuffTable_minerals))
+
+  report get-random-float-in-range minValue maxValue
+
+end
+
+to-report get-vitamin-content-of-foodstuffType [ foodstuffIndex vitaminName ]
+
+  ;;; Returns a random value between minimum and maximum values at the given (row) index for the given vitamin variable from the nutrientContentsPerFoodstuffTable
+
+  let vitaminVariableIndexMin (position (word vitaminName " min") nutrientContentsPerFoodstuffTable_vitaminColumnNames)
+  let vitaminVariableIndexMax (position (word vitaminName " max") nutrientContentsPerFoodstuffTable_vitaminColumnNames)
+
+  let minValue (item foodstuffIndex (item vitaminVariableIndexMin nutrientContentsPerFoodstuffTable_vitamins))
+  let maxValue (item foodstuffIndex (item vitaminVariableIndexMax nutrientContentsPerFoodstuffTable_vitamins))
+
+  report get-random-float-in-range minValue maxValue
 
 end
 
@@ -1211,6 +1803,16 @@ to export-households
   ]
 
   file-close
+
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; GENERIC FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to-report get-random-float-in-range [ minValue maxValue ]
+
+  report (minValue + random-float (maxValue - minValue))
 
 end
 @#$#@#$#@
@@ -1297,26 +1899,78 @@ type-of-experiment
 0
 
 INPUTBOX
-16
-310
-138
-370
+13
+344
+135
+404
 initial-num-households
-25.0
+1.0
 1
 0
 Number
 
 MONITOR
-143
-319
-244
-356
+140
+353
+241
+390
 NIL
 initialNumHouseholds
 0
 1
 9
+
+PLOT
+693
+296
+1097
+416
+Age structure (population)
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+true
+"set-histogram-num-bars 20\nset-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)" "set-plot-y-range 0 10\n;set-histogram-num-bars 20\nset-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)"
+PENS
+"women" 1.0 1 -2674135 true "" "histogram womenAgeStructure"
+"men" 1.0 1 -13345367 true "" "histogram menAgeStructure"
+
+MONITOR
+1099
+295
+1172
+340
+NIL
+femaleRatio
+4
+1
+11
+
+MONITOR
+1100
+339
+1200
+384
+% 0-4 (women)
+100 * womenFirstAgeGroup / totalWomen
+2
+1
+11
+
+MONITOR
+1100
+383
+1200
+428
+% 0-4 (men)
+100 * menFirstAgeGroup / totalMen
+2
+1
+11
 
 BUTTON
 162
@@ -1341,7 +1995,7 @@ INPUTBOX
 196
 138
 max-iterations
-0.0
+2000.0
 1
 0
 Number
@@ -1380,16 +2034,6 @@ NIL
 NIL
 1
 
-TEXTBOX
-434
-323
-667
-357
-desired and consumed FOODSTUFFs 
-14
-0.0
-1
-
 PLOT
 571
 10
@@ -1404,65 +2048,10 @@ nutrients required
 10.0
 false
 true
-"" "clear-plot\nif (nutrientRequirementsTable_ageAndSexGroup = 0) [ load-nutrient-requirements-table ]\nset-plot-x-range 0 100\nlet nutrientPerGroupFemale get-nutrient-requirement-per-sex-group required-nutrient-to-plot \"female\"\nlet nutrientPerGroupMale get-nutrient-requirement-per-sex-group required-nutrient-to-plot \"male\"\nset-plot-y-range -0.001 (precision (max (list (max nutrientPerGroupFemale) (max nutrientPerGroupMale)) + 0.001) 3)"
+"" "clear-plot\nif (nutrientRequirementsTable_ageAndSexGroup = 0) [ load-nutrient-requirements-table ]\nset-plot-x-range -1 100\nlet nutrientPerGroupFemale get-nutrient-requirement-per-sex-group required-nutrient-to-plot \"female\"\nlet nutrientPerGroupMale get-nutrient-requirement-per-sex-group required-nutrient-to-plot \"male\"\nset-plot-y-range -0.001 (precision (max (list (max nutrientPerGroupFemale) (max nutrientPerGroupMale)) + 0.001) 3)"
 PENS
 "females" 1.0 0 -5298144 true "\n" "plot-table get-nutrient-requirement-per-sex-group required-nutrient-to-plot \"female\""
 "males" 1.0 0 -14070903 true "" "plot-table get-nutrient-requirement-per-sex-group required-nutrient-to-plot \"male\""
-
-INPUTBOX
-247
-405
-1230
-465
-desired-diet-min
-\"[  ]\"
-1
-0
-String
-
-INPUTBOX
-247
-527
-1231
-587
-consumed-diet-min
-0
-1
-0
-String
-
-INPUTBOX
-246
-464
-1230
-524
-desired-diet-max
-0
-1
-0
-String
-
-INPUTBOX
-247
-586
-1231
-646
-consumed-diet-max
-0
-1
-0
-String
-
-MONITOR
-248
-347
-1229
-392
-NIL
-nutrientContentsPerFoodstuffTable_foodstuffTypes
-0
-1
-11
 
 CHOOSER
 572
@@ -1471,8 +2060,8 @@ CHOOSER
 283
 required-nutrient-to-plot
 required-nutrient-to-plot
-"water (L)" "energy PAL=1.4" "energy PAL=1.6" "energy PAL=1.8" "energy PAL=2.0" "carbohydrates (E%) min." "carbohydrates (E%) max." "fibre (g)" "fat (E%) min." "fat (E%) max." "protein (g/Kg of body weight)" "Calcium PRI (mg)" "Iron PRI (mg)" "Zinc PRI (mg)" "Copper AI (mg)" "Magnesium AI (mg)" "Fluoride AI (mg)" "Iodine AI (micrag)" "Manganese AI (mg)" "Molybdenum AI (micrag)" "Phosphorus AI (mg)" "Potassium AI (mg)" "Selenium AI (micrag)" "Vitamin A PRI (micrag)" "Vitamin B1 PRI (mg/MJ)" "Vitamin B2 PRI (mg)" "Vitamin B3 PRI (micrag/MJ)" "Vitamin B5 AI (mg)" "Vitamin B6 PRI (mg)" "Vitamin B7 AI (micrag)" "Vitamin B9 PRI (micrag)" "Vitamin B12 AI (micrag)" "Vitamin C PRI (micrag)" "Vitamin D AI (micrag)" "Vitamin E AI (mg)" "Vitamin K AI (micrag)" "Choline AI (mg)"
-9
+"water (L)" "energy PAL=1.4" "energy PAL=1.6" "energy PAL=1.8" "energy PAL=2.0" "carbohydrates (E%) min." "carbohydrates (E%) max." "fibre (g)" "fat (E%) min." "fat (E%) max." "protein (g/kg of body weight)" "Calcium PRI (mg)" "Iron PRI (mg)" "Zinc PRI (mg)" "Copper AI (mg)" "Magnesium AI (mg)" "Fluoride AI (mg)" "Iodine AI (micrag)" "Manganese AI (mg)" "Molybdenum AI (micrag)" "Phosphorus AI (mg)" "Potassium AI (mg)" "Selenium AI (micrag)" "Vitamin A PRI (micrag)" "Vitamin B1 PRI (mg/MJ)" "Vitamin B2 PRI (mg)" "Vitamin B3 PRI (micrag/MJ)" "Vitamin B5 AI (mg)" "Vitamin B6 PRI (mg)" "Vitamin B7 AI (micrag)" "Vitamin B9 PRI (micrag)" "Vitamin B12 AI (micrag)" "Vitamin C PRI (micrag)" "Vitamin D AI (micrag)" "Vitamin E AI (mg)" "Vitamin K AI (micrag)" "Choline AI (mg)"
+7
 
 BUTTON
 573
@@ -1505,10 +2094,10 @@ nutrient amount per 100g
 10.0
 true
 true
-"" "clear-plot\nif (nutrientContentsPerFoodstuffTable_foodstuffTypes = 0) [ load-nutrient-contents-per-foodstuff-table ]\nset-plot-x-range -1 ((length nutrientContentsPerFoodstuffTable_foodstuffTypes) + 1)\nlet nutrientPerFoodstuffMax (max (get-nutrient-content-of-foodstuff-types nutrient-content-to-plot 1))\nset-plot-y-range -0.001 (precision (nutrientPerFoodstuffMax + 0.001) 3)"
+"" "clear-plot\nif (nutrientContentsPerFoodstuffTable_foodstuffTypes = 0) [ load-nutrient-contents-per-foodstuff-table ]\nset-plot-x-range -1 ((length nutrientContentsPerFoodstuffTable_foodstuffTypes) + 1)\nlet nutrientPerFoodstuffMax (max (get-nutrient-content-of-foodstuff-types nutrient-content-to-plot \"max\"))\nset-plot-y-range -0.001 (precision (nutrientPerFoodstuffMax + 0.001) 3)"
 PENS
-"min" 1.0 1 -16777216 true "" "plot-table get-nutrient-content-of-foodstuff-types nutrient-content-to-plot 0"
-"max" 1.0 1 -7500403 true "" "plot-table get-nutrient-content-of-foodstuff-types nutrient-content-to-plot 1"
+"min" 1.0 1 -16777216 true "" "plot-table get-nutrient-content-of-foodstuff-types nutrient-content-to-plot \"min\""
+"max" 1.0 1 -7500403 true "" "plot-table get-nutrient-content-of-foodstuff-types nutrient-content-to-plot \"max\""
 
 CHOOSER
 878
@@ -1519,6 +2108,101 @@ nutrient-content-to-plot
 nutrient-content-to-plot
 "water (g)" "energy (kJ)" "carbohydrates (g)" "fibre (g)" "fat (g)" "protein (g)" "Calcium (mg)" "Iron (mg)" "Zinc (mg)" "Copper (mg)" "Magnesium (mg)" "Fluoride (mg)" "Iodine (micrag)" "Manganese (mg)" "Molybdenum (micrag)" "Phosphorus (mg)" "Potassium (mg)" "Selenium (micrag)" "Vitamin A (micrag)" "Vitamin B1 (mg)" "Vitamin B2 (mg)" "Vitamin B3 (mg)" "Vitamin B5 (mg)" "Vitamin B6 (mg)" "Vitamin B7 (micrag)" "Vitamin B9 (micrag)" "Vitamin B12 AI (micrag)" "Vitamin C (micrag)" "Vitamin D (micrag)" "Vitamin E (mg)" "Vitamin K (micrag)" "Choline (mg)"
 4
+
+INPUTBOX
+248
+342
+467
+402
+household-initial-age-distribution
+0 30
+1
+0
+String
+
+TEXTBOX
+256
+330
+412
+353
+<minimum><SPACE><maximum>
+9
+0.0
+1
+
+MONITOR
+472
+353
+614
+390
+NIL
+houseHoldInitialAgeDistribution
+17
+1
+9
+
+PLOT
+1181
+11
+1486
+179
+Diet satisfaction
+foodstuff type index
+g
+0.0
+10.0
+0.0
+10.0
+true
+true
+"" "clear-plot"
+PENS
+"desired mean" 1.0 0 -16777216 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) \"mean\"" "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) \"mean\""
+"desired min" 1.0 0 -14070903 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) \"min\"" "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) \"min\""
+"desired max" 1.0 0 -5298144 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) \"max\"" "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) \"max\""
+"consumed mean" 1.0 0 -7500403 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) \"mean\"" "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) \"mean\""
+"consumed min" 1.0 0 -10649926 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) \"min\"" "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) \"min\""
+"consumed max" 1.0 0 -2139308 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) \"max\"" "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) \"max\""
+
+PLOT
+1181
+179
+1486
+338
+Nutrition satisfaction
+nutrient index
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+true
+"" "clear-plot"
+PENS
+"required mean" 1.0 0 -16777216 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsRequired] of households) \"mean\"" "plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsRequired] of households) \"mean\""
+"required min" 1.0 0 -14070903 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsRequired] of households) \"min\"" "plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsRequired] of households) \"min\""
+"required max" 1.0 0 -5298144 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsRequired] of households) \"max\"" "plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsRequired] of households) \"max\""
+"in-diet mean" 1.0 0 -7500403 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsInDiet] of households) \"mean\"" "plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsInDiet] of households) \"mean\""
+"in-diet min" 1.0 0 -10649926 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsInDiet] of households) \"min\"" "plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsInDiet] of households) \"min\""
+"in-diet max" 1.0 0 -2139308 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsInDiet] of households) \"max\"" "plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsInDiet] of households) \"max\""
+
+OUTPUT
+11
+445
+409
+573
+11
+
+TEXTBOX
+20
+422
+145
+440
+Foodstuff types
+14
+0.0
+1
 
 @#$#@#$#@
 ## Development notes
