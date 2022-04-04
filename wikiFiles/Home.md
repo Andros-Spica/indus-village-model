@@ -14,9 +14,13 @@ The overall design of the Indus Village model is as follows:
 
 ## Road map of development and integration of submodels
 
-[[https://github.com/Andros-Spica/indus-village-model/blob/master/diagrams/RoadMapSoFar_2021-05.png | alt=Overall design]]
+[[https://github.com/Andros-Spica/indus-village-model/blob/master/diagrams/RoadMapSoFar_2021-05.png | alt=Road map Land Crop model]]
 
 (consolidated by Jan 2022) | [Link to file](https://https://github.com/Andros-Spica/indus-village-model/blob/master/diagrams/RoadMapSoFar_2021-05.png)
+
+[[https://github.com/Andros-Spica/indus-village-model/blob/master/diagrams/RoadMap_HouseholdFoodEconomy_2022-04.png | alt=Road map Household Food Economy model]]
+
+(in progress by Apr 2022) | [Link to file](https://https://github.com/Andros-Spica/indus-village-model/blob/master/diagrams/RoadMap_HouseholdFoodEconomy_2022-04.png)
 
 ## Submodels and integrated versions
 
@@ -91,7 +95,11 @@ I2. [**Integrated Land Crop model**: Weather, Soil Water Balance, Land, and Crop
     1. _**Base version**_  
         (design: ✅🔛 | implementation: ✅🔛 | documentation: ✏️) 
 
-8. [**Exchange model**](https://github.com/Andros-Spica/indus-village-model/wiki/9.-Exchange-model)  
+8. [**Food Exchange model**](https://github.com/Andros-Spica/indus-village-model/wiki/8.-Food-Exchange-model)  
+    1. _**Base version**_  
+        (design: ✅🔛 | implementation: ⬜️ | documentation: ⬜️)  
+
+9. [**Food Strategy model**](https://github.com/Andros-Spica/indus-village-model/wiki/9.-Food-Strategy-model)  
     1. _**Base version**_  
         (design: ✅🔛 | implementation: ⬜️ | documentation: ⬜️)  
 
@@ -102,22 +110,13 @@ I3. [**Integrated Household Food Economy model**: Food Storage, Exchange, Nutrit
 
 ---
 
-(NOTE: possibly, enlist here the algorithm to determine food production strategy as a separate model instead of having it as an aspect of I4)
-
----
-
-I4. [**Integrated Landed Household Food Economy model**: integrated Land Crop and Household Food Economy models](https://github.com/Andros-Spica/indus-village-model/wiki/I4.-Integrated-Land-Household-Economy-model)  
-        (design: ✅🔛 | implementation: ⬜️ | documentation: ⬜️)  
-
----
-
-1. [**Household Position model**](https://github.com/Andros-Spica/indus-village-model/wiki/8.-Household-position-model)  
+10.  [**Household Position model**](https://github.com/Andros-Spica/indus-village-model/wiki/10.-Household-position-model)  
     1. _**Base version**_  
         (design: ✅🔛 | implementation: ⬜️ | documentation: ⬜️)  
 
 ---
 
-I5. [**Indus Village model**: integrated Household Food Economy and Household Position models](https://github.com/Andros-Spica/indus-village-model/wiki/I5.-Indus-Village-model)  
+I4. [**Integrated Landed Household Food Economy model**: integrated Land Crop, Household Position, and Household Food Economy models](https://github.com/Andros-Spica/indus-village-model/wiki/I4.-Integrated-Land-Household-Economy-model)  
         (design: ✅🔛 | implementation: ⬜️ | documentation: ⬜️)  
 
 ---
