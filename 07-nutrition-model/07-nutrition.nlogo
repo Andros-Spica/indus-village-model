@@ -214,6 +214,10 @@ to setup
 
   update-counters
 
+  ; --- display -----------------------------
+
+  print-foodstuff-types-list
+
   ; --- tick ---------------------------------
 
   reset-ticks
@@ -1904,7 +1908,7 @@ INPUTBOX
 135
 404
 initial-num-households
-1.0
+10.0
 1
 0
 Number
