@@ -218,6 +218,8 @@ to setup
 
   print-foodstuff-types-list
 
+  update-display
+
   ; --- tick ---------------------------------
 
   reset-ticks
@@ -602,25 +604,30 @@ to-report get-initial-dietDesired [ nutrientsRequired ]
   let desiredDiet map [foodstuffTypeIndex -> 0] nutrientContentsPerFoodstuffTable_foodstuffTypes
   let nutritionScore -1
 
-  let maxIterations 5000 ; stop iteration if reaching 5 kg of food
-  while [ (maxIterations > 0) and (nutritionScore < 0) ]
-  [
-    ;;; get random foodstuffType index
-    let foodstuffTypeIndex random (length nutrientContentsPerFoodstuffTable_foodstuffTypes)
+;  let maxIterations 5000 ; stop iteration if reaching 5 kg of food
+;  while [ (maxIterations > 0) and (nutritionScore < 0) ]
+;  [
+;    ;;; get random foodstuffType index
+;    let foodstuffTypeIndex random (length nutrientContentsPerFoodstuffTable_foodstuffTypes)
+;
+;    ;;; add 100g of the selected foodstuffType
+;    let currentAmount item foodstuffTypeIndex desiredDiet
+;    set desiredDiet replace-item foodstuffTypeIndex desiredDiet (currentAmount + 1)
+;
+;    ;;; calculate the current nutrition score
+;    set nutritionScore (get-nutrition-score (get-nutrient-contents-in-diet desiredDiet) nutrientsRequired)
+;
+;    ;print desiredDiet
+;    ;print nutritionScore
+;
+;    set maxIterations maxIterations - 1
+;    if (maxIterations = 0) [ print "Warning: failed to calculate sufficient initial diet (more than 5kg required)." ]
+;  ]
 
-    ;;; add 100g of the selected foodstuffType
-    let currentAmount item foodstuffTypeIndex desiredDiet
-    set desiredDiet replace-item foodstuffTypeIndex desiredDiet (currentAmount + 1)
+  ;;; OR
 
-    ;;; calculate the current nutrition score
-    set nutritionScore (get-nutrition-score (get-nutrient-contents-in-diet desiredDiet) nutrientsRequired)
-
-    ;print desiredDiet
-    ;print nutritionScore
-
-    set maxIterations maxIterations - 1
-    if (maxIterations = 0) [ print "Warning: failed to calculate sufficient initial diet (more than 5kg required)." ]
-  ]
+  ;;; set values manually to make it faster during testing
+  set desiredDiet (list 114 123 122 122 115 114 131 123 108 113 134 124)
 
   report desiredDiet
 
@@ -639,6 +646,8 @@ to go
   update-households
 
   update-counters
+
+  update-display
 
   ; -- time -------------------------------------
 
@@ -717,12 +726,17 @@ to-report get-nutrition-score [ nutrientsInDiet nutrientsRequired ]
   let scoresPerNutrient (get-nutrition-scores-per-nutrient nutrientsInDiet nutrientsRequired)
 
   ;;; Option A
+  ;;; return the mean of scoresPerNutrient
+  let score mean scoresPerNutrient
+
+  ;;; Option BA
+  ;;; return a
   ;;; sum all values, knowing that negative and positive values will cancel each other out.
   ;;; The upside of the averaging effect is that neutrality (0) becomes possible, if option A in get-nutrition-scores-per-nutrient is used.
-  let score sum scoresPerNutrient
+  ;let score sum scoresPerNutrient
   ;;; Rescale score to [-1, 1] interval, assuming they use the scale [-lenghtOfNutrientList, lenghtOfNutrientList]
-  let lenghtOfNutrientList length nutrientsInDiet
-  set score (score / lenghtOfNutrientList)
+  ;let lenghtOfNutrientList length nutrientsInDiet
+  ;set score (score / lenghtOfNutrientList)
 
   ;;; Option B
   ;;; return the minimum score, following the rationale of the least consumed required nutrient becomes the limiting factor
@@ -739,18 +753,19 @@ to-report get-nutrition-scores-per-nutrient [ nutrientsInDiet nutrientsRequired 
   ;;; check if each nutrient requirement is fullfilled and assign scores of either -1 (not fullfilled) or 1 (fullfilled)
   ;;; the advantage of this option is that it do not require any extra information, nor assume anything besides the concept of "requirement"
   ;;; the downside is that there is no neutral point.
-  report (map [ [ nutrientInDiet nutrientRequired ] -> ifelse-value (nutrientInDiet >= nutrientRequired) [ 1 ] [ -1 ] ] nutrientsInDiet nutrientsRequired)
+  ;report (map [ [ nutrientInDiet nutrientRequired ] -> ifelse-value (nutrientInDiet >= nutrientRequired) [ 1 ] [ -1 ] ] nutrientsInDiet nutrientsRequired)
 
   ;;; Option B
   ;;; compare each nutrient using logistic curve centred at y=0 and x=required amount.
-  ;;; For example: (2(1/(1+exp(rate(required-consumed)))) - 1)
+  ;;; For example: (2(1/(1+exp(rate(required-consumed)/required))) - 1)
+  ;;; visualise function in Wolfram|Alpha:
+  ;;; https://www.wolframalpha.com/input?i2d=true&i=plot+%5C%2840%292%5C%2840%29Divide%5B1%2C%5C%2840%291%2Bexp%5C%2840%2910Divide%5B%5C%2840%29100-x%5C%2841%29%2C100%5D%5C%2841%29%5C%2841%29%5D%5C%2841%29+-+1%5C%2841%29+x%3D0+to+200
   ;;; Rate should be defined on a nutrient basis, or at least on the basis of their scale (mg, micrag).
   ;;; For this option to be viable, we need either more detailed information on nutrition (i.e., the response to under and over ingestion),
   ;;; or, as an intermediate option, to keep track of minimum (the neutral point) and maximum nutrientsRequired and then extrapolate the value of rate (linearly, instead of logistically?)
 
-  ;let rate 0.1
-
-  ;report (map [ [ nutrientInDiet nutrientRequired ] -> (2 * (1 / (1 + (exp (rate * ( nutrientRequired - nutrientInDiet))))) - 1) ] nutrientsInDiet nutrientsRequired)
+  let rate 10
+  report (map [ [ nutrientInDiet nutrientRequired ] -> (2 * (1 / (1 + (exp (rate * (nutrientRequired - nutrientInDiet) / nutrientRequired)))) - 1) ] nutrientsInDiet nutrientsRequired)
 
 end
 
@@ -808,6 +823,12 @@ end
 ;;; DISPLAY ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+to update-display
+
+  ask households [ hh_resize-with-nutritionScore ]
+
+end
+
 to plot-table [ values ]
 
   let j 0
@@ -816,6 +837,20 @@ to plot-table [ values ]
     i ->
     if (i != "") ;;; not null
     [ plotxy j i ]
+    set j j + 1
+  ]
+  plot-pen-up
+
+end
+
+to plot-table-transposed [ values ]
+
+  let j 0
+  foreach values
+  [
+    i ->
+    if (i != "") ;;; not null
+    [ plotxy i j ]
     set j j + 1
   ]
   plot-pen-up
@@ -872,6 +907,12 @@ to print-foodstuff-types-list
     foodstuffTypeIndex ->
     output-print item foodstuffTypeIndex nutrientContentsPerFoodstuffTable_foodstuffTypes
   ]
+
+end
+
+to hh_resize-with-nutritionScore
+
+  set size 1 + hh_nutritionScore * 0.5
 
 end
 
@@ -1821,9 +1862,9 @@ to-report get-random-float-in-range [ minValue maxValue ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-248
+226
 10
-560
+538
 323
 -1
 -1
@@ -1903,10 +1944,10 @@ type-of-experiment
 0
 
 INPUTBOX
-13
-344
-135
-404
+16
+308
+138
+368
 initial-num-households
 10.0
 1
@@ -1914,10 +1955,10 @@ initial-num-households
 Number
 
 MONITOR
-140
-353
-241
-390
+26
+372
+127
+409
 NIL
 initialNumHouseholds
 0
@@ -1925,12 +1966,12 @@ initialNumHouseholds
 9
 
 PLOT
-693
-296
-1097
-416
+21
+437
+425
+557
 Age structure (population)
-NIL
+age
 NIL
 0.0
 10.0
@@ -1944,10 +1985,10 @@ PENS
 "men" 1.0 1 -13345367 true "" "histogram menAgeStructure"
 
 MONITOR
-1099
-295
-1172
-340
+427
+436
+500
+481
 NIL
 femaleRatio
 4
@@ -1955,10 +1996,10 @@ femaleRatio
 11
 
 MONITOR
-1100
-339
-1200
-384
+415
+480
+515
+525
 % 0-4 (women)
 100 * womenFirstAgeGroup / totalWomen
 2
@@ -1966,10 +2007,10 @@ MONITOR
 11
 
 MONITOR
-1100
-383
-1200
-428
+415
+524
+515
+569
 % 0-4 (men)
 100 * menFirstAgeGroup / totalMen
 2
@@ -2039,10 +2080,10 @@ NIL
 1
 
 PLOT
-571
-10
-872
-236
+636
+317
+937
+543
 Nutrient per sex-age
 age group
 nutrients required
@@ -2058,20 +2099,20 @@ PENS
 "males" 1.0 0 -14070903 true "" "plot-table get-nutrient-requirement-per-sex-group required-nutrient-to-plot \"male\""
 
 CHOOSER
-572
-238
-873
-283
+637
+545
+938
+590
 required-nutrient-to-plot
 required-nutrient-to-plot
 "water (L)" "energy PAL=1.4" "energy PAL=1.6" "energy PAL=1.8" "energy PAL=2.0" "carbohydrates (E%) min." "carbohydrates (E%) max." "fibre (g)" "fat (E%) min." "fat (E%) max." "protein (g/kg of body weight)" "Calcium PRI (mg)" "Iron PRI (mg)" "Zinc PRI (mg)" "Copper AI (mg)" "Magnesium AI (mg)" "Fluoride AI (mg)" "Iodine AI (micrag)" "Manganese AI (mg)" "Molybdenum AI (micrag)" "Phosphorus AI (mg)" "Potassium AI (mg)" "Selenium AI (micrag)" "Vitamin A PRI (micrag)" "Vitamin B1 PRI (mg/MJ)" "Vitamin B2 PRI (mg)" "Vitamin B3 PRI (micrag/MJ)" "Vitamin B5 AI (mg)" "Vitamin B6 PRI (mg)" "Vitamin B7 AI (micrag)" "Vitamin B9 PRI (micrag)" "Vitamin B12 AI (micrag)" "Vitamin C PRI (micrag)" "Vitamin D AI (micrag)" "Vitamin E AI (mg)" "Vitamin K AI (micrag)" "Choline AI (mg)"
 7
 
 BUTTON
-573
-285
-675
-318
+526
+356
+628
+389
 NIL
 update-plots
 NIL
@@ -2085,10 +2126,10 @@ NIL
 1
 
 PLOT
-877
-10
-1177
-236
+939
+317
+1239
+543
 Nutrient per foodstuff types
 foodstuff type index
 nutrient amount per 100g
@@ -2104,20 +2145,20 @@ PENS
 "max" 1.0 1 -7500403 true "" "plot-table get-nutrient-content-of-foodstuff-types nutrient-content-to-plot \"max\""
 
 CHOOSER
-878
-239
-1178
-284
+940
+546
+1240
+591
 nutrient-content-to-plot
 nutrient-content-to-plot
 "water (g)" "energy (kJ)" "carbohydrates (g)" "fibre (g)" "fat (g)" "protein (g)" "Calcium (mg)" "Iron (mg)" "Zinc (mg)" "Copper (mg)" "Magnesium (mg)" "Fluoride (mg)" "Iodine (micrag)" "Manganese (mg)" "Molybdenum (micrag)" "Phosphorus (mg)" "Potassium (mg)" "Selenium (micrag)" "Vitamin A (micrag)" "Vitamin B1 (mg)" "Vitamin B2 (mg)" "Vitamin B3 (mg)" "Vitamin B5 (mg)" "Vitamin B6 (mg)" "Vitamin B7 (micrag)" "Vitamin B9 (micrag)" "Vitamin B12 AI (micrag)" "Vitamin C (micrag)" "Vitamin D (micrag)" "Vitamin E (mg)" "Vitamin K (micrag)" "Choline (mg)"
 4
 
 INPUTBOX
-248
-342
-467
-402
+146
+344
+365
+404
 household-initial-age-distribution
 0 30
 1
@@ -2125,20 +2166,20 @@ household-initial-age-distribution
 String
 
 TEXTBOX
-256
-330
-412
-353
+154
+332
+310
+355
 <minimum><SPACE><maximum>
 9
 0.0
 1
 
 MONITOR
-472
-353
-614
-390
+370
+355
+512
+392
 NIL
 houseHoldInitialAgeDistribution
 17
@@ -2146,13 +2187,13 @@ houseHoldInitialAgeDistribution
 9
 
 PLOT
-1181
-11
-1486
-179
+1175
+34
+1398
+312
 Diet satisfaction
+mass unit
 foodstuff type index
-g
 0.0
 10.0
 0.0
@@ -2161,18 +2202,18 @@ true
 true
 "" "clear-plot"
 PENS
-"desired mean" 1.0 0 -16777216 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) \"mean\"" "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) \"mean\""
-"desired min" 1.0 0 -14070903 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) \"min\"" "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) \"min\""
-"desired max" 1.0 0 -5298144 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) \"max\"" "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) \"max\""
-"consumed mean" 1.0 0 -7500403 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) \"mean\"" "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) \"mean\""
-"consumed min" 1.0 0 -10649926 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) \"min\"" "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) \"min\""
-"consumed max" 1.0 0 -2139308 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) \"max\"" "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) \"max\""
+"desired mean" 1.0 0 -16777216 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) \"mean\"" "plot-table-transposed get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) \"mean\""
+"desired min" 1.0 0 -14070903 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) \"min\"" "plot-table-transposed get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) \"min\""
+"desired max" 1.0 0 -5298144 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) \"max\"" "plot-table-transposed get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) \"max\""
+"consumed mean" 1.0 0 -7500403 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) \"mean\"" "plot-table-transposed get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) \"mean\""
+"consumed min" 1.0 0 -10649926 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) \"min\"" "plot-table-transposed get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) \"min\""
+"consumed max" 1.0 0 -2139308 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) \"max\"" "plot-table-transposed get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) \"max\""
 
 PLOT
-1181
-179
-1486
-338
+543
+133
+872
+292
 Nutrition satisfaction
 nutrient index
 NIL
@@ -2192,21 +2233,41 @@ PENS
 "in-diet max" 1.0 0 -2139308 true "plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsInDiet] of households) \"max\"" "plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsInDiet] of households) \"max\""
 
 OUTPUT
-11
-445
-409
-573
+887
+34
+1175
+312
 11
 
 TEXTBOX
-20
-422
-145
-440
+984
+10
+1109
+28
 Foodstuff types
 14
 0.0
 1
+
+PLOT
+542
+10
+871
+130
+Nutrition score
+ticks
+NIL
+0.0
+10.0
+0.0
+2.0
+true
+true
+"set-plot-y-range -2 2" ""
+PENS
+"mean" 1.0 0 -16777216 true "" "plot mean [hh_nutritionScore] of households"
+"min" 1.0 0 -13345367 true "" "plot min [hh_nutritionScore] of households"
+"max" 1.0 0 -2674135 true "" "plot max [hh_nutritionScore] of households"
 
 @#$#@#$#@
 ## Development notes
