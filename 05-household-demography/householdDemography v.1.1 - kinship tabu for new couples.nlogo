@@ -947,7 +947,6 @@ to hh_add-spouse [ selfIndex spouseData ]
     ; The spouse is entering the system:
     ; generate and add spouse's sex and age
     set hh_membersSex lput (not item selfIndex hh_membersSex) hh_membersSex ; opposite sex from selfIndex's
-    set hh_membersAge lput (hh_get-initial-marriage-age (last hh_membersSex)) hh_membersAge ; get the age as a function of sex-specific nuptiality
 
     ;print (word "new spouse added to " self ": is female = " (last hh_membersSex) ", age = " (last hh_membersAge))
   ]
@@ -1518,10 +1517,10 @@ NIL
 10.0
 true
 true
-"set-histogram-num-bars 20\nset-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)" "set-plot-y-range 0 10\n;set-histogram-num-bars 20\nset-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)"
+"set-histogram-num-bars 20\nset-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)" "set-plot-y-range 0 10\n;set-histogram-num-bars 20\ncarefully [ set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure) ] [ ]"
 PENS
-"women" 1.0 1 -2674135 true "" "histogram womenAgeStructure"
-"men" 1.0 1 -13345367 true "" "histogram menAgeStructure"
+"women" 1.0 1 -2674135 true "" "carefully [ histogram womenAgeStructure ] [ ]"
+"men" 1.0 1 -13345367 true "" "carefully [ histogram menAgeStructure ] [ ]"
 
 MONITOR
 955
@@ -1588,12 +1587,12 @@ true
 true
 "set-plot-y-range -1 (1 + item 1 maxCoupleCountDistribution)" ""
 PENS
-"max. mean" 1.0 0 -8053223 true "" "plot mean [hh_maxCoupleCount] of households"
-"max. max" 1.0 0 -8630108 true "" "plot max [hh_maxCoupleCount] of households"
-"max. min" 1.0 0 -5825686 true "" "plot min [hh_maxCoupleCount] of households"
-"count mean" 1.0 0 -15582384 true "" "plot mean [hh_count-couples] of households"
-"count max" 1.0 0 -14454117 true "" "plot max [hh_count-couples] of households"
-"count min" 1.0 0 -12345184 true "" "plot min [hh_count-couples] of households"
+"max. mean" 1.0 0 -8053223 true "" "carefully [ plot mean [hh_maxCoupleCount] of households] [ ]"
+"max. max" 1.0 0 -8630108 true "" "carefully [ plot max [hh_maxCoupleCount] of households ] [ ]"
+"max. min" 1.0 0 -5825686 true "" "carefully [ plot min [hh_maxCoupleCount] of households ] [ ]"
+"count mean" 1.0 0 -15582384 true "" "carefully [ plot mean [hh_count-couples] of households ] [ ]"
+"count max" 1.0 0 -14454117 true "" "carefully [ plot max [hh_count-couples] of households ] [ ]"
+"count min" 1.0 0 -12345184 true "" "carefully [ plot min [hh_count-couples] of households ] [ ]"
 
 MONITOR
 1085
@@ -1845,7 +1844,7 @@ sigma1-women
 sigma1-women
 0
 2 * 5
-4.971
+5.0
 0.001
 1
 (default: 5)
@@ -1860,7 +1859,7 @@ mu-women
 mu-women
 0
 40
-19.518
+15.0
 0.001
 1
 (default: 15)
@@ -1890,7 +1889,7 @@ mu-men
 mu-men
 0
 2 * 20
-25.15
+20.0
 0.001
 1
 (default: 20)
@@ -1899,7 +1898,7 @@ HORIZONTAL
 SLIDER
 760
 735
-949
+961
 768
 sigma1-men
 sigma1-men
@@ -1908,7 +1907,7 @@ sigma1-men
 2.0
 0.001
 1
-(default: 2.5)
+(default: 2)
 HORIZONTAL
 
 SLIDER
@@ -1923,7 +1922,7 @@ c1-fert
 0.9
 0.001
 1
-(default: 0.85)
+(default: 0.9)
 HORIZONTAL
 
 SLIDER
@@ -1935,7 +1934,7 @@ sigma1-fert
 sigma1-fert
 0
 2 * 5
-5.136
+5.0
 0.001
 1
 (default: 5)
@@ -1949,8 +1948,8 @@ SLIDER
 sigma2-fert
 sigma2-fert
 0
-3 * 5
-10.685
+6 * 5
+25.205
 0.001
 1
 (default: 10)
@@ -1965,10 +1964,10 @@ mu-fert
 mu-fert
 0
 40
-22.176
+15.0
 0.001
 1
-(default: 25)
+(default: 15)
 HORIZONTAL
 
 BUTTON
@@ -2541,7 +2540,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.0.4
+NetLogo 6.2.2
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@

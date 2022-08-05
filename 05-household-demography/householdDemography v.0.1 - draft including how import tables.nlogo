@@ -1499,10 +1499,10 @@ NIL
 10.0
 true
 true
-"set-histogram-num-bars 20\nset-plot-x-range -1 101;max (sentence womenAgeStructure menAgeStructure)" ";set-histogram-num-bars 20\n;set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)"
+"set-histogram-num-bars 20\nset-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)" "set-plot-y-range 0 10\n;set-histogram-num-bars 20\ncarefully [ set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure) ] [ ]"
 PENS
-"women" 1.0 1 -2674135 true "" "histogram womenAgeStructure"
-"men" 1.0 1 -13345367 true "" "histogram menAgeStructure"
+"women" 1.0 1 -2674135 true "" "carefully [ histogram womenAgeStructure ] [ ]"
+"men" 1.0 1 -13345367 true "" "carefully [ histogram menAgeStructure ] [ ]"
 
 MONITOR
 526
@@ -1551,12 +1551,12 @@ true
 true
 "set-plot-y-range -1 (1 + item 1 maxCoupleCountDistribution)" ""
 PENS
-"mean" 1.0 0 -8053223 true "" "plot mean [hh_maxCoupleCount] of households"
-"max" 1.0 0 -8630108 true "" "plot max [hh_maxCoupleCount] of households"
-"min" 1.0 0 -5825686 true "" "plot min [hh_maxCoupleCount] of households"
-"count mean" 1.0 0 -15582384 true "" "plot mean [hh_count-couples] of households"
-"count max" 1.0 0 -14454117 true "" "plot max [hh_count-couples] of households"
-"count min" 1.0 0 -12345184 true "" "plot min [hh_count-couples] of households"
+"max. mean" 1.0 0 -8053223 true "" "carefully [ plot mean [hh_maxCoupleCount] of households] [ ]"
+"max. max" 1.0 0 -8630108 true "" "carefully [ plot max [hh_maxCoupleCount] of households ] [ ]"
+"max. min" 1.0 0 -5825686 true "" "carefully [ plot min [hh_maxCoupleCount] of households ] [ ]"
+"count mean" 1.0 0 -15582384 true "" "carefully [ plot mean [hh_count-couples] of households ] [ ]"
+"count max" 1.0 0 -14454117 true "" "carefully [ plot max [hh_count-couples] of households ] [ ]"
+"count min" 1.0 0 -12345184 true "" "carefully [ plot min [hh_count-couples] of households ] [ ]"
 
 MONITOR
 611

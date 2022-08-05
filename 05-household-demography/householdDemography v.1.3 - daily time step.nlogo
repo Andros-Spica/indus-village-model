@@ -229,6 +229,7 @@ to parameters-check1
   if (mu-women = 0)                             [ set mu-women                             15 ]
   if (mu-men = 0)                               [ set mu-men                               20 ]
   if (sigma1-fert = 0)                          [ set sigma1-fert                           5 ]
+  if (sigma2-fert = 0)                          [ set sigma2-fert                          10 ]
   if (sigma1-women = 0)                         [ set sigma1-women                          5 ]
   if (sigma1-men = 0)                           [ set sigma1-men                            2 ]
   if (sigma2-fert = 0)                          [ set sigma2-fert                           2 ]
@@ -256,6 +257,7 @@ to parameters-to-default
   set c1-fert                               0.9
   set mu-fert                              15
   set sigma1-fert                           5
+  set sigma2-fert                          10
 
   set c1-women                              0.9
   set mu-women                             15
@@ -697,7 +699,7 @@ to-report get-nutrition
 
   let populationSize sum ([length hh_membersAge] of households)
 
-  report ((carryingCapacity - populationSize) / populationSize) ^ nutritionEffectSteepness
+  report ((carryingCapacity - populationSize) / carryingCapacity) ^ nutritionEffectSteepness
 
 end
 
@@ -1215,14 +1217,14 @@ to-report get-net-mortality-of-day [ isFemale age ]
 
   let nutrition get-nutrition
 
-  let nutritionEffect nutrition * (1 - mortality)
+  let nutritionEffect nutrition
 
   if (nutrition > 0)
   [
     set nutritionEffect nutritionEffect * nutritionDiminishingReturns
   ]
 
-  report mortality - nutritionEffect
+  report clamp01 (mortality - mortality * nutritionEffect)
 
 end
 
@@ -1492,6 +1494,22 @@ to export-households
   file-close
 
 end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;; numeric generic functions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to-report clamp01 [ value ]
+  report min (list 1 (clampMin0 value))
+end
+
+to-report clampMin0 [ value ]
+  report (max (list 0 value))
+end
+
+to-report clampMinMax [ value minValue maxValue ]
+  report min (list maxValue (max (list minValue value)))
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 291
@@ -1652,10 +1670,10 @@ NIL
 10.0
 true
 true
-"set-histogram-num-bars 20\nset-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)" "set-plot-y-range 0 10\n;set-histogram-num-bars 20\nset-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)"
+"set-histogram-num-bars 20\nset-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)" "set-plot-y-range 0 10\n;set-histogram-num-bars 20\ncarefully [ set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure) ] [ ]"
 PENS
-"women" 1.0 1 -2674135 true "" "histogram womenAgeStructure"
-"men" 1.0 1 -13345367 true "" "histogram menAgeStructure"
+"women" 1.0 1 -2674135 true "" "carefully [ histogram womenAgeStructure ] [ ]"
+"men" 1.0 1 -13345367 true "" "carefully [ histogram menAgeStructure ] [ ]"
 
 MONITOR
 955
@@ -1722,12 +1740,12 @@ true
 true
 "set-plot-y-range -1 (1 + item 1 maxCoupleCountDistribution)" ""
 PENS
-"max. mean" 1.0 0 -8053223 true "" "plot mean [hh_maxCoupleCount] of households"
-"max. max" 1.0 0 -8630108 true "" "plot max [hh_maxCoupleCount] of households"
-"max. min" 1.0 0 -5825686 true "" "plot min [hh_maxCoupleCount] of households"
-"count mean" 1.0 0 -15582384 true "" "plot mean [hh_count-couples] of households"
-"count max" 1.0 0 -14454117 true "" "plot max [hh_count-couples] of households"
-"count min" 1.0 0 -12345184 true "" "plot min [hh_count-couples] of households"
+"max. mean" 1.0 0 -8053223 true "" "carefully [ plot mean [hh_maxCoupleCount] of households] [ ]"
+"max. max" 1.0 0 -8630108 true "" "carefully [ plot max [hh_maxCoupleCount] of households ] [ ]"
+"max. min" 1.0 0 -5825686 true "" "carefully [ plot min [hh_maxCoupleCount] of households ] [ ]"
+"count mean" 1.0 0 -15582384 true "" "carefully [ plot mean [hh_count-couples] of households ] [ ]"
+"count max" 1.0 0 -14454117 true "" "carefully [ plot max [hh_count-couples] of households ] [ ]"
+"count min" 1.0 0 -12345184 true "" "carefully [ plot min [hh_count-couples] of households ] [ ]"
 
 MONITOR
 1085
@@ -1822,7 +1840,7 @@ cdmlt-level
 cdmlt-level
 1
 25
-6.0
+1.0
 1
 1
 levels from 1 to 25
@@ -1979,7 +1997,7 @@ sigma1-women
 sigma1-women
 0
 2 * 5
-4.971
+5.0
 0.001
 1
 (default: 5)
@@ -1994,7 +2012,7 @@ mu-women
 mu-women
 0
 40
-19.518
+15.0
 0.001
 1
 (default: 15)
@@ -2024,7 +2042,7 @@ mu-men
 mu-men
 0
 2 * 20
-25.15
+20.0
 0.001
 1
 (default: 20)
@@ -2033,7 +2051,7 @@ HORIZONTAL
 SLIDER
 760
 735
-949
+961
 768
 sigma1-men
 sigma1-men
@@ -2042,7 +2060,7 @@ sigma1-men
 2.0
 0.001
 1
-(default: 2.5)
+(default: 2)
 HORIZONTAL
 
 SLIDER
@@ -2057,7 +2075,7 @@ c1-fert
 0.9
 0.001
 1
-(default: 0.85)
+(default: 0.9)
 HORIZONTAL
 
 SLIDER
@@ -2069,7 +2087,7 @@ sigma1-fert
 sigma1-fert
 0
 2 * 5
-5.136
+5.0
 0.001
 1
 (default: 5)
@@ -2083,8 +2101,8 @@ SLIDER
 sigma2-fert
 sigma2-fert
 0
-3 * 5
-10.685
+6 * 5
+25.205
 0.001
 1
 (default: 10)
@@ -2099,10 +2117,10 @@ mu-fert
 mu-fert
 0
 40
-22.176
+15.0
 0.001
 1
-(default: 25)
+(default: 15)
 HORIZONTAL
 
 BUTTON
@@ -2228,10 +2246,10 @@ sigma2-women
 sigma2-women
 0
 2 * 5
-2.011
+2.0
 0.001
 1
-(default: 5)
+(default: 2)
 HORIZONTAL
 
 SLIDER
@@ -2307,7 +2325,7 @@ carrying-capacity
 carrying-capacity
 0
 1000
-492.0
+200.0
 1
 1
 indiv. (default: 200)
