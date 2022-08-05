@@ -716,7 +716,7 @@ to-report is-sink ; ego = patch
 
   let thisPatch self
 
-  report (not is-at-edge) and (elevation < min [elevation] of neighbors);count neighbors with [elevation < [elevation] of thisPatch] = 0)
+  report (not is-at-edge) and (elevation <= min [elevation] of neighbors);count neighbors with [elevation < [elevation] of thisPatch] = 0)
 
 end
 
@@ -3867,7 +3867,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.0.4
+NetLogo 6.2.2
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@

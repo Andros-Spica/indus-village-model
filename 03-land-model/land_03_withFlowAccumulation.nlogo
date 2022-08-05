@@ -546,7 +546,7 @@ to-report is-sink ; ego = patch
 
   let thisPatch self
 
-  report (not is-at-edge) and (elevation < min [elevation] of neighbors);count neighbors with [elevation < [elevation] of thisPatch] = 0)
+  report (not is-at-edge) and (elevation <= min [elevation] of neighbors);count neighbors with [elevation < [elevation] of thisPatch] = 0)
 
 end
 
@@ -1398,7 +1398,7 @@ par_seaLevel
 par_seaLevel
 round min (list minElevation par_elev_riftHeight)
 round max (list maxElevation par_elev_rangeHeight)
-5.0
+8.0
 1
 1
 m
@@ -1440,7 +1440,7 @@ INPUTBOX
 156
 70
 randomSeed
-7.0
+35.0
 1
 0
 Number
@@ -2602,7 +2602,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.0.4
+NetLogo 6.2.2
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
