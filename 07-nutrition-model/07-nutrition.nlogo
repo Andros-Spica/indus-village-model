@@ -645,6 +645,8 @@ to go
 
   update-households
 
+  ; --- counters and display --------------------
+
   update-counters
 
   update-display
