@@ -727,23 +727,31 @@ to-report get-nutrition-score [ nutrientsInDiet nutrientsRequired ]
 
   let scoresPerNutrient (get-nutrition-scores-per-nutrient nutrientsInDiet nutrientsRequired)
 
-  ;;; Option A
-  ;;; return the mean of scoresPerNutrient
-  let score mean scoresPerNutrient
+  let score 0
 
-  ;;; Option BA
-  ;;; return a
-  ;;; sum all values, knowing that negative and positive values will cancel each other out.
-  ;;; The upside of the averaging effect is that neutrality (0) becomes possible, if option A in get-nutrition-scores-per-nutrient is used.
-  ;let score sum scoresPerNutrient
-  ;;; Rescale score to [-1, 1] interval, assuming they use the scale [-lenghtOfNutrientList, lenghtOfNutrientList]
-  ;let lenghtOfNutrientList length nutrientsInDiet
-  ;set score (score / lenghtOfNutrientList)
+  if ( member? "mean" nutrition-score-calculation)
+  [
+    ;;; Option A
+    ;;; return the mean of scoresPerNutrient
+    set score mean scoresPerNutrient
+  ]
 
-  ;;; Option B
-  ;;; return the minimum score, following the rationale of the least consumed required nutrient becomes the limiting factor
-  ;;; NOTE: if using option A in get-nutrition-scores-per-nutrient, the nutrition score will always be either -1 or 1 (and often it will be -1)
-  ;let score min scoresPerNutrient
+  if ( member? "sum" nutrition-score-calculation)
+  [
+    ;;; Option BA
+    ;;; return a sum all values, knowing that negative and positive values will cancel each other out.
+    set score sum scoresPerNutrient
+    ;;; Rescale score to [-1, 1] interval, assuming they use the scale [-lenghtOfNutrientList, lenghtOfNutrientList]
+    let lenghtOfNutrientList length nutrientsInDiet
+    set score (score / lenghtOfNutrientList)
+  ]
+
+  if ( member? "minimum" nutrition-score-calculation)
+  [
+    ;;; Option B
+    ;;; return the minimum score, following the rationale of the least consumed required nutrient becomes the limiting factor
+    set score min scoresPerNutrient
+  ]
 
   report score
 
@@ -751,23 +759,26 @@ end
 
 to-report get-nutrition-scores-per-nutrient [ nutrientsInDiet nutrientsRequired ]
 
-  ;;; Option A
-  ;;; check if each nutrient requirement is fullfilled and assign scores of either -1 (not fullfilled) or 1 (fullfilled)
-  ;;; the advantage of this option is that it do not require any extra information, nor assume anything besides the concept of "requirement"
-  ;;; the downside is that there is no neutral point.
-  ;report (map [ [ nutrientInDiet nutrientRequired ] -> ifelse-value (nutrientInDiet >= nutrientRequired) [ 1 ] [ -1 ] ] nutrientsInDiet nutrientsRequired)
+  if ( member? "all-or-nothing" nutrition-score-calculation)
+  [
+    ;;; Option A
+    ;;; check if each nutrient requirement is fullfilled and assign scores of either -1 (not fullfilled) or 1 (fullfilled)
+    ;;; the advantage of this option is that it do not require any extra information, nor assume anything besides the concept of "requirement"
+    ;;; the downside is that there is no neutral point.
+    report (map [ [ nutrientInDiet nutrientRequired ] -> ifelse-value (nutrientInDiet >= nutrientRequired) [ 1 ] [ -1 ] ] nutrientsInDiet nutrientsRequired)
+  ]
 
-  ;;; Option B
-  ;;; compare each nutrient using logistic curve centred at y=0 and x=required amount.
-  ;;; For example: (2(1/(1+exp(rate(required-consumed)/required))) - 1)
-  ;;; visualise function in Wolfram|Alpha:
-  ;;; https://www.wolframalpha.com/input?i2d=true&i=plot+%5C%2840%292%5C%2840%29Divide%5B1%2C%5C%2840%291%2Bexp%5C%2840%2910Divide%5B%5C%2840%29100-x%5C%2841%29%2C100%5D%5C%2841%29%5C%2841%29%5D%5C%2841%29+-+1%5C%2841%29+x%3D0+to+200
-  ;;; Rate should be defined on a nutrient basis, or at least on the basis of their scale (mg, micrag).
-  ;;; For this option to be viable, we need either more detailed information on nutrition (i.e., the response to under and over ingestion),
-  ;;; or, as an intermediate option, to keep track of minimum (the neutral point) and maximum nutrientsRequired and then extrapolate the value of rate (linearly, instead of logistically?)
-
-  let rate 10
-  report (map [ [ nutrientInDiet nutrientRequired ] -> (2 * (1 / (1 + (exp (rate * (nutrientRequired - nutrientInDiet) / nutrientRequired)))) - 1) ] nutrientsInDiet nutrientsRequired)
+  if ( member? "logistic" nutrition-score-calculation)
+  [
+    ;;; Option B
+    ;;; compare each nutrient using logistic curve centred at y=0 and x=required amount.
+    ;;; For example: (2(1/(1+exp(rate(required-consumed)/required))) - 1)
+    ;;; visualise function in Wolfram|Alpha:
+    ;;; https://www.wolframalpha.com/input?i2d=true&i=plot+%5C%2840%292%5C%2840%29Divide%5B1%2C%5C%2840%291%2Bexp%5C%2840%2910Divide%5B%5C%2840%29100-x%5C%2841%29%2C100%5D%5C%2841%29%5C%2841%29%5D%5C%2841%29+-+1%5C%2841%29+x%3D0+to+200
+    ;;; For this option to be viable, we need either more detailed information on nutrition (i.e., the response to under and over ingestion).
+    let rate 10 ;;; Rate should be defined on a nutrient basis, or at least on the basis of their scale (mg, micrag).
+    report (map [ [ nutrientInDiet nutrientRequired ] -> (2 * (1 / (1 + (exp (rate * (nutrientRequired - nutrientInDiet) / nutrientRequired)))) - 1) ] nutrientsInDiet nutrientsRequired)
+  ]
 
 end
 
@@ -2112,9 +2123,9 @@ required-nutrient-to-plot
 
 BUTTON
 526
-356
+344
 628
-389
+377
 NIL
 update-plots
 NIL
@@ -2179,9 +2190,9 @@ TEXTBOX
 
 MONITOR
 370
-355
+343
 512
-392
+380
 NIL
 houseHoldInitialAgeDistribution
 17
@@ -2190,7 +2201,7 @@ houseHoldInitialAgeDistribution
 
 PLOT
 1175
-34
+10
 1398
 312
 Diet satisfaction
@@ -2236,7 +2247,7 @@ PENS
 
 OUTPUT
 887
-34
+33
 1175
 312
 11
@@ -2270,6 +2281,16 @@ PENS
 "mean" 1.0 0 -16777216 true "" "plot mean [hh_nutritionScore] of households"
 "min" 1.0 0 -13345367 true "" "plot min [hh_nutritionScore] of households"
 "max" 1.0 0 -2674135 true "" "plot max [hh_nutritionScore] of households"
+
+CHOOSER
+430
+382
+631
+427
+nutrition-score-calculation
+nutrition-score-calculation
+"all-or-nothing then mean" "all-or-nothing then sum" "all-or-nothing then minimum" "logistic then mean" "logistic then sum" "logistic then minimum"
+0
 
 @#$#@#$#@
 ## Development notes
