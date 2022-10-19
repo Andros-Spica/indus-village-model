@@ -3,7 +3,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;  Household Nutrition model
-;;  Copyright (C) 2021 Andreas Angourakis (andros.spica@gmail.com)
+;;  Copyright (C) 2022 Andreas Angourakis (andros.spica@gmail.com)
 ;;  available at https://www.github.com/Andros-Spica/indus-village-model
 ;;
 ;;  This program is free software: you can redistribute it and/or modify
@@ -34,16 +34,14 @@ breed [ households household ]
 globals
 [
   ;;; constants
-  nutritionEffectSteepness
   yearLengthInDays
-  maturityAgeInYears              ; defaults to 15 years old; it affects the minimum age acceptable for individuals to keep a household without older individuals
 
   ;;; modified parameters
 
   ;;;; parameter tables (loaded from csv files)
 
   ;;;;;; Nutrients Requirement Table ==================================================
-  ; table holding the average amount of each nutrient type required per age group and sex (units are specific to nutrient types).
+  ; table holding the average minimum and maximum amount of each nutrient type required per age group and sex (units are specific to nutrient types).
   ; Structure: age groups (rows) x sex (first column), nutrient types (second to n-th columns)
   nutrientRequirementsTable_ageAndSexGroup       ; sex-age groups. Two columns of the original table combined as a list of strings with format: "<age (integer)> | <sex (string)>"
                                                   ;;; sex (includes values "pregnancy" and "lactation")
@@ -136,17 +134,6 @@ globals
   initialNumHouseholds
   householdInitialAgeDistribution ; (list minimum maximum)
 
-  ;;;; input variables from other submodels
-  consumedDietMin consumedDietMax           ; Minimum and maximum consumed diet of households (list of floats per foodstuff type, stock units). Consumed diet is randomised in each household very time step.
-
-  desiredDietMin desiredDietMax             ; Minimum and maximum desired diet of households (list of floats per foodstuff type, stock units). Desired diet is randomised in each household at initialisation.
-
-  ;;; TO-DO: nutrientsRequirementDeviation and nutrientsPerFoodstuffDeviation are candidates for being external tables
-  nutrientsRequirementDeviation             ; the standard deviation applied to values from Nutrients Requirement Table to be set for each household member upon initialisation (list of floats per nutrient type).
-                                            ; It represents all factors of individual variance that are not explained by sex and age group (including pregnancy and lactation).
-
-  nutrientsPerFoodstuffDeviation            ; the standard deviation applied to values from Nutrient per Foodstuff Table to be set globally upon initialisation (list of floats per nutrient type).
-
   ;;; variables
 
   ;;;; auxiliar
@@ -232,10 +219,6 @@ to set-constants
   ; and may be used during a simulation.
 
   set yearLengthInDays 365
-
-  set maturityAgeInYears 15
-
-  set nutritionEffectSteepness 3
 
 end
 
@@ -677,8 +660,6 @@ to update-households
 
     hh_update-nutrition
 
-    ;stocks-update
-
   ]
 
 end
@@ -687,13 +668,7 @@ end
 
 to hh_update-diet-consumed
 
-  set hh_dietConsumed hh_dietDesired ;;; !!! TO DO
-
-end
-
-to-report hh_get-diet-available
-
-  ;report sum hh_stocks ;;; !!! TO DO
+  set hh_dietConsumed hh_dietDesired ;;; to be replaced by output from Household Storage model
 
 end
 
