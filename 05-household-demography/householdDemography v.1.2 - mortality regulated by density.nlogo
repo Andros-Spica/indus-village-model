@@ -34,7 +34,7 @@ globals
 [
   ;;; constants
   maturityAge                     ; defaults to 15 years old; it affects the minimum age acceptable for individuals to keep a household without older individuals
-  nutritionEffectSteepness
+  densityEffectSteepness
 
   ;;; demography tables
   fertilityTable
@@ -47,8 +47,8 @@ globals
   maxCoupleCountDistribution      ; (list minimum maximum)
   acceptableKinshipDegreeForCouples ; degree of kinship acceptable between two individuals forming a new couple (1 = same household, 0.5 = level one relationship, etc.)
 
-  carryingCapacity               ; carrying capacity or number of people that can be fully feed, i.e. mortality is unaffected
-  nutritionDiminishingReturns    ; rate of diminishing returns per each potential fully-feed person
+  carryingCapacity               ; carrying capacity or maximum number of people that can be sustained, i.e. mortality is increased in prportion to closeness of population to it (density effect)
+  densityEffectScalingFactor     ; the maximum additional death probability (scaling factor for density-dependent mortality)
 
   ;;; variables
   ;;;; auxiliar
@@ -124,7 +124,7 @@ to set-parameters
   ; parameter set to default value (constant)
   set maturityAge 15
 
-  set nutritionEffectSteepness 3
+  set densityEffectSteepness 3
 
   ; check parameters values
   parameters-check1
@@ -141,7 +141,7 @@ to set-parameters
     set acceptableKinshipDegreeForCouples acceptable-kinship-degree-for-couples
 
     set carryingCapacity carrying-capacity
-    set nutritionDiminishingReturns nutrition-diminishing-returns
+    set densityEffectScalingFactor density-effect-scaling-factor
   ]
   if (type-of-experiment = "random")
   [
@@ -182,7 +182,7 @@ to set-parameters
     set sigma2-men max (list 1E-6 (random-float (40 - mu-men)))
 
     set carryingCapacity 100 + random-float 900
-    set nutritionDiminishingReturns 0.05 + random-float 0.1
+    set densityEffectScalingFactor 0.05 + random-float 0.1
   ]
 
   ; check parameters values
@@ -211,7 +211,7 @@ to parameters-check1
   if (sigma2-men = 0)                           [ set sigma2-men                           10 ]
 
   if (carrying-capacity = 0)                    [ set carrying-capacity                   200 ]
-  if (nutrition-diminishing-returns = 0)        [ set nutrition-diminishing-returns         0.1 ]
+  if (density-effect-scaling-factor = 0)        [ set density-effect-scaling-factor         0.1 ]
 
   ;;; string type inputs (vector of values)
   if (household-initial-age-distribution = 0 or
@@ -249,7 +249,7 @@ to parameters-to-default
   set max-couple-count-distribution        "1 6"
 
   set carrying-capacity                   200
-  set nutrition-diminishing-returns         0.1
+  set density-effect-scaling-factor         0.1
 
 end
 
@@ -650,14 +650,18 @@ to manage-orphanhood
 
 end
 
-to-report get-nutrition
+to-report get-density-effect
 
   ;;; Get a nutrition score as a function of the current population size and the carrying capacity (and a power that sets the shape of the relationship.
   ;;; NOTE: this function is a rough approximation of the combined outcomes of the Nutrition and Food Storage model and is to be replaced in the integrated version.
 
-  let populationSize sum ([length hh_membersAge] of households)
+  let numberOfPeople sum ([length hh_membersAge] of households)
 
-  report ((carryingCapacity - populationSize) / populationSize) ^ nutritionEffectSteepness
+  ; For example, in https://www.wolframalpha.com/, use:
+  ;plot 0.05*((x - 200) / 200) ^ 3 for x=1..1000
+  let densityEffect density-effect-scaling-factor * (numberOfPeople / carryingCapacity) ^ densityEffectSteepness
+
+  report densityEffect
 
 end
 
@@ -1156,16 +1160,9 @@ to-report get-net-mortality [ isFemale age ]
 
   let mortality (get-mortality isFemale age)
 
-  let nutrition get-nutrition
+  let densityEffect get-density-effect
 
-  let nutritionEffect nutrition
-
-  if (nutrition > 0)
-  [
-    set nutritionEffect nutritionEffect * nutritionDiminishingReturns
-  ]
-
-  report clamp01 (mortality - mortality * nutritionEffect)
+  report clamp01 (mortality + densityEffect)
 
 end
 
@@ -1632,6 +1629,7 @@ PENS
 "total" 1.0 0 -16777216 true "" "plot totalIndividuals"
 "women" 1.0 0 -2674135 true "" "plot totalWomen"
 "men" 1.0 0 -13345367 true "" "plot totalMen"
+"car.-cap." 1.0 0 -7500403 true "" "plot carrying-capacity"
 
 PLOT
 627
@@ -1783,6 +1781,8 @@ false
 PENS
 "default" 1.0 0 -5298144 true "\n" "plot-table mortalityTable-women"
 "pen-1" 1.0 0 -14070903 true "" "plot-table mortalityTable-men"
+"pen-2" 1.0 0 -2674135 true "" "plot-table map [i -> i + get-density-effect] mortalityTable-women"
+"pen-3" 1.0 0 -10649926 true "" "plot-table map [i -> i + get-density-effect] mortalityTable-men"
 
 PLOT
 182
@@ -2265,16 +2265,16 @@ HORIZONTAL
 SLIDER
 4
 291
-273
+301
 324
-nutrition-diminishing-returns
-nutrition-diminishing-returns
+density-effect-scaling-factor
+density-effect-scaling-factor
 0
-0.2
-0.1
+0.5
+0.05
 0.01
 1
-(default: 0.1)
+(default: 0.05)
 HORIZONTAL
 
 @#$#@#$#@
@@ -2632,7 +2632,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.2.2
+NetLogo 6.4.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
