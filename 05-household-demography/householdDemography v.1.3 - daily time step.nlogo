@@ -34,7 +34,7 @@ globals
 [
   ;;; constants
   maturityAgeInYears              ; defaults to 15 years old; it affects the minimum age acceptable for individuals to keep a household without older individuals
-  nutritionEffectSteepness
+  gestationPeriodInDays           ; assumed here as a constant fixed at 280
   yearLengthInDays
 
   ;;; demography tables
@@ -47,9 +47,8 @@ globals
   householdInitialAgeDistribution ; (list minimum maximum)
   maxCoupleCountDistribution      ; (list minimum maximum)
   acceptableKinshipDegreeForCouples ; degree of kinship acceptable between two individuals forming a new couple (1 = same household, 0.5 = level one relationship, etc.)
-
-  carryingCapacity               ; carrying capacity or number of people that can be fully feed, i.e. mortality is unaffected
-  nutritionDiminishingReturns    ; rate of diminishing returns per each potential fully-feed person
+  amenorrheaPeriodInDays          ; length in days of the postpartum amenorrhea periodInDays
+  ; value guide: 23 (3 weeks, minimal), 42 (6 weeks, if not lactating), 180 (6 months or 24 weeks, average), 540 (18 months or 64 weeks, intentional delay, medical recommendation)
 
   ;;; variables
   ;;;; time tracking
@@ -74,13 +73,21 @@ globals
   womenFirstAgeGroup             ; count of women with age from 0 to 4 years old (base of typical population pyramid) (integer)
   menFirstAgeGroup               ; count of men with age from 0 to 4 years old (base of typical population pyramid) (integer)
   womenBirths                    ; number of births (integer)
+  womenBirthsLastYear
   menBirths
+  menBirthsLastYear
   womenDeaths                    ; number of deaths (integer)
+  womenDeathsLastYear
   menDeaths
+  menDeathsLastYear
   womenIn                        ; number of individuals entering the system (generated for couple creation with external population) (integer)
+  womenInLastYear
   menIn
+  menInLastYear
   womenOut                       ; number of individuals exiting the system (due to couple creation with external population) (integer)
+  womenOutLastYear
   menOut
+  menOutLastYear
   totalOrphans                   ; number of children moving from an household where all adults are dead
 ]
 
@@ -94,9 +101,13 @@ households-own
   hh_membersAge                  ; ages of every household member in days (list of integer)
   hh_membersSex                  ; sex of every household member (list of true/false, i.e. is female?)
   hh_membersMarriage             ; couple index of every member (list of integers; 0-Inf: couple index, -1: member is single)
+  hh_membersGestation            ; whether members are female and currently in the gestation or pregnancy period
+  hh_membersAmenorrhea           ; whether members are female and currently in the amenorrhea or breastfeeding period
 
   ;;; auxiliar
   hh_memberIndexesToDelete
+
+  hh_tellYourStory
 ]
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -142,7 +153,7 @@ to set-constants
 
   set maturityAgeInYears 15
 
-  set nutritionEffectSteepness 3
+  set gestationPeriodInDays 280 ; 280 (40 weeks)
 
 end
 
@@ -158,15 +169,14 @@ to set-parameters
   set householdInitialAgeDistribution read-from-string ( word "[" household-initial-age-distribution "]")
   set maxCoupleCountDistribution read-from-string ( word "[" max-couple-count-distribution "]")
 
+  set amenorrheaPeriodInDays amenorrhea-period * 7 ; conversion from weeks to days
+
   if (type-of-experiment = "user-defined")
   [
     ;;; load parameters from user interface
     set initialNumHouseholds initial-num-households
 
     set acceptableKinshipDegreeForCouples acceptable-kinship-degree-for-couples
-
-    set carryingCapacity carrying-capacity
-    set nutritionDiminishingReturns nutrition-diminishing-returns
   ]
   if (type-of-experiment = "random")
   [
@@ -205,9 +215,6 @@ to set-parameters
     set sigma1-men max (list 1E-6 (random-float mu-men))
     set sigma2-women max (list 1E-6 (random-float (40 - mu-women)))
     set sigma2-men max (list 1E-6 (random-float (40 - mu-men)))
-
-    set carryingCapacity 100 + random-float 900
-    set nutritionDiminishingReturns 0.05 + random-float 0.1
   ]
 
   ; check parameters values
@@ -233,17 +240,16 @@ to parameters-check1
   if (sigma1-women = 0)                         [ set sigma1-women                          5 ]
   if (sigma1-men = 0)                           [ set sigma1-men                            2 ]
   if (sigma2-fert = 0)                          [ set sigma2-fert                           2 ]
-  if (sigma2-women = 0)                         [ set sigma2-women                          2 ]
+  if (sigma2-women = 0)                         [ set sigma2-women                         10 ]
   if (sigma2-men = 0)                           [ set sigma2-men                           10 ]
-
-  if (carrying-capacity = 0)                    [ set carrying-capacity                   200 ]
-  if (nutrition-diminishing-returns = 0)        [ set nutrition-diminishing-returns         0.1 ]
 
   ;;; string type inputs (vector of values)
   if (household-initial-age-distribution = 0 or
     length household-initial-age-distribution = 1)   [ set household-initial-age-distribution   "0 30" ]
   if (max-couple-count-distribution = 0 or
     length max-couple-count-distribution = 1)        [ set max-couple-count-distribution        "1 6" ]
+
+  if (amenorrhea-period = 0)                    [ set amenorrhea-period                    24 ]
 
 end
 
@@ -261,7 +267,7 @@ to parameters-to-default
 
   set c1-women                              0.9
   set mu-women                             15
-  set sigma2-women                          2
+  set sigma2-women                         10
   set sigma1-women                          5
 
   set c1-men                                0.85
@@ -271,9 +277,7 @@ to parameters-to-default
 
   set household-initial-age-distribution   "0 30"
   set max-couple-count-distribution        "1 6"
-
-  set carrying-capacity                   200
-  set nutrition-diminishing-returns         0.1
+  set amenorrhea-period                    24
 
 end
 
@@ -358,10 +362,14 @@ end
 to advance-time
 
   set currentDayOfYear currentDayOfYear + 1
+
   if (currentDayOfYear > yearLengthInDays)
   [
     set currentYear currentYear + 1
     set currentDayOfYear 1
+
+    reset-counters-year
+    if (member? true [hh_tellYourStory] of households) [ print (word "A new year starts.") ]
   ]
 
 end
@@ -692,17 +700,6 @@ to manage-orphanhood
 
 end
 
-to-report get-nutrition
-
-  ;;; Get a nutrition score as a function of the current population size and the carrying capacity (and a power that sets the shape of the relationship.
-  ;;; NOTE: this function is a rough approximation of the Nutrition model and is to be replaced by its inputs in integrated version.
-
-  let populationSize sum ([length hh_membersAge] of households)
-
-  report ((carryingCapacity - populationSize) / carryingCapacity) ^ nutritionEffectSteepness
-
-end
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; HOUSEHOLDS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -716,6 +713,7 @@ to hh_initialise
   set hh_age get-initial-household-age
   set hh_maxCoupleCount get-initial-max-couple-count
   set hh_memberIndexesToDelete (list)
+  set hh_tellYourStory false
 
   hh_initialise-members
 
@@ -742,7 +740,7 @@ to hh_initialise-members
 
   hh_reset-members
 
-  ; assures that at least two member are above (fertility age + household age) and have different sex
+  ; assures that at least two members are above (fertility age + household age), have different sex and are coupled
   foreach (list 0 1)
   [
     ?1 ->
@@ -750,6 +748,8 @@ to hh_initialise-members
     let marriageAge (get-initial-marriage-age (item ?1 hh_membersSex))
     set hh_membersAge lput (hh_age + marriageAge) hh_membersAge
     set hh_membersMarriage lput 0 hh_membersMarriage ; this couple will have the 0 index
+    set hh_membersGestation lput 0 hh_membersGestation
+    set hh_membersAmenorrhea lput 0 hh_membersAmenorrhea
   ]
 
   ; calculate offspring and offspring age
@@ -757,15 +757,37 @@ to hh_initialise-members
   let i hh_age
   repeat hh_age
   [
-    ; get the probability of the couple having descendence for a past day i
-    ; i.e. woman fertility at the corresponding age
-    set offspringProb get-fertility-of-day ((item 0 hh_membersAge) - i)
-
-    ; test the probability and add the offspring with the corresponding age
-    if (random-float 1 < offspringProb)
+    ; check fertility only if woman is not in postpartum amenorrhea
+    ifelse (item 0 hh_membersAmenorrhea = 0)
     [
-      hh_add-offspring i ; a child with i days old
+      ; get the probability of the couple having descendence for a past day i
+      ; i.e. woman fertility at the corresponding age
+      set offspringProb get-fertility-of-day ((item 0 hh_membersAge) - i)
+
+      ; test the fertility probability and mark gestation
+      if (random-float 1 < offspringProb)
+      [
+        ; mark the female as gestating a child
+        set hh_membersGestation replace-item 0 hh_membersGestation gestationPeriodInDays
+      ]
+
+      ; advance gestation, if any, and, if it comes to 0, add the offspring with the corresponding age and account for mother amenorrhea
+      if (item 0 hh_membersGestation > 0)
+      [
+        set hh_membersGestation replace-item 0 hh_membersGestation (max (list 0 (item 0 hh_membersGestation - 1)))
+        if (item 0 hh_membersGestation = 0)
+        [
+          hh_add-offspring i ; a child with i days old
+
+          ; account for the postpartum amenorrhea period, discouting child age
+          set hh_membersAmenorrhea replace-item 0 hh_membersAmenorrhea amenorrheaPeriodInDays
+        ]
+      ]
     ]
+    [
+      set hh_membersAmenorrhea replace-item 0 hh_membersAmenorrhea (max (list 0 (amenorrheaPeriodInDays - i)))
+    ]
+
     set i i - 1
   ]
 
@@ -816,20 +838,21 @@ to hh_update-members-survival
   let dying? hh_whichMembersDying
 
   ; iterate for the members from last to first, eliminating those that should be dying
-  let index (hh_count-members) - 1
+  let memberIndex (hh_count-members) - 1
   repeat hh_count-members
   [
-    if (item index dying?)
+    if (item memberIndex dying?)
     [
       ; add to mortality
-      ifelse (item index hh_membersSex)
+      ifelse (item memberIndex hh_membersSex)
       [ set womenDeaths womenDeaths + 1 ]
       [ set menDeaths menDeaths + 1 ]
 
-      ;print (word "member from " self " dies with age " (item index hh_membersAge))
-      hh_delete-member index
+      if (hh_tellYourStory) [ print (word "Member " memberIndex " from " self " dies with age " (item memberIndex hh_membersAge) ".") ]
+
+      hh_delete-member memberIndex
     ]
-    set index index - 1
+    set memberIndex memberIndex - 1
   ]
 
   hh_update-marriages-after-deaths
@@ -842,7 +865,7 @@ to-report hh_whichMembersDying
   report map
   [
     i ->
-    (random-float 1 < get-net-mortality-of-day (item i hh_membersSex) (item i hh_membersAge))
+    (random-float 1 < get-mortality-of-day (item i hh_membersSex) (item i hh_membersAge))
   ] hh_membersIndexes
 
 end
@@ -857,7 +880,8 @@ to hh_update-marriages-after-deaths
       and length filter [j -> j = item i hh_membersMarriage] hh_membersMarriage = 1) ; and her/his partner died this day (so she/he is the only member with the marriage index)
     [
       set hh_membersMarriage replace-item i hh_membersMarriage -1
-      ;print (word "a member of " self " has lost her/his partner.")
+
+      if (hh_tellYourStory) [ print (word "Member " i " of " self " has lost her/his partner.") ]
     ]
   ]
 
@@ -898,7 +922,7 @@ to hh_try-to-add-couple [ selfIndex spouseData ]
   ifelse (tooManyCouples)
   [
     ; the new couple must found a new household, descending from self's household
-    ;print "household fission"
+
     hh_household-fission selfIndex spouseData
   ]
   [
@@ -914,7 +938,7 @@ to hh_household-fission [ selfIndex spouseData ]
   ; adding self and spouse and
   ; deleting them from the respective parent households
 
-  ;print (word self " is fissioning")
+  if (hh_tellYourStory) [ print (word "Household " selfIndex " fissions.") ]
 
   let selfHousehold self
 
@@ -951,7 +975,7 @@ end
 to hh_add-couple [ selfIndex spouseData ]
 
   ; add spouse to self's household
-  ;print (word "adding couple to " self)
+  if (hh_tellYourStory) [ print (word "Household " selfIndex " forms a new couple (receives an spouse).") ]
 
   hh_add-spouse selfIndex spouseData
 
@@ -964,24 +988,45 @@ end
 
 to hh_reproduce
 
-  ; iterate for the members, up to the number of couples,
-  ; testing women for the corresponding fertility rate
-  ; and generates a new born individual if passing test.
-
   let couplesToTest hh_count-couples
+
+  ; decrease amenorrhea time, when greater than 0
+  set hh_membersAmenorrhea map [ i -> ifelse-value (i > 0) [i - 1] [i] ] hh_membersAmenorrhea
 
   foreach hh_membersIndexes
   [
-    i ->
-    ; there is still a couple to consider and the member is female
-    if (couplesToTest > 0 and item i hh_membersSex)
+    memberIndex ->
+
+    ; advance women gestation, if any, and, if it comes to 0,
+    ; add the new offspring and account for mother postpartum amenorrhea
+    if (item memberIndex hh_membersGestation > 0)
     [
-      if (random-float 1 < get-fertility-of-day (item i hh_membersAge))
+      set hh_membersGestation replace-item memberIndex hh_membersGestation (max (list 0 (item memberIndex hh_membersGestation - 1)))
+      if (item memberIndex hh_membersGestation = 0)
       [
-        ;print get-fertility-of-day (item i hh_membersAge)
         hh_add-offspring 0 ; add a newborn
-        ;print (word "a new member is born in " self)
+
+        set hh_membersAmenorrhea replace-item memberIndex hh_membersAmenorrhea amenorrheaPeriodInDays
+
+        if (hh_tellYourStory) [ print (word "Member " memberIndex " of household " self " give birth to a new child.") ]
       ]
+    ]
+
+    ; iterate for the members, up to the number of couples,
+    ; testing women for the corresponding fertility rate and gestation/amenorrhea states
+    ; and, if passing test, marking women as gestating.
+
+    ; there is still a couple to consider and the member is female and not currently gestation or lactating
+    if (couplesToTest > 0 and item memberIndex hh_membersSex and (item memberIndex hh_membersGestation = 0) and (item memberIndex hh_membersAmenorrhea = 0))
+    [
+      if (random-float 1 < get-fertility-of-day (item memberIndex hh_membersAge))
+      [
+        ; mark the female as gestating a child
+        set hh_membersGestation replace-item 0 hh_membersGestation gestationPeriodInDays
+
+        if (hh_tellYourStory) [ print (word "Member " memberIndex " of household " self " is pregnant with a new child.") ]
+      ]
+
       set couplesToTest couplesToTest - 1
     ]
   ]
@@ -994,19 +1039,19 @@ to hh_disolve-if-no-adults
   if (hh_is-infants-only)
   [
     ; there is no adult in this household, so the children will enter the orphanList so they can be adopted later
-    ;print (word "all remaining individuals in " self " are children: is female = " hh_membersSex ", ages = " hh_membersAge ". They are now in the orphan list.")
+    if (hh_tellYourStory) [ print (word "All remaining individuals in household " self " are children: is female = " hh_membersSex ", ages = " hh_membersAge ". They are now in the orphan list.") ]
 
     ; iterate for the members from last to first
-    let index (hh_count-members) - 1
+    let memberIndex (hh_count-members) - 1
     repeat hh_count-members
     [
       ; add children data (sex, age) to the orphan list (they are distributed among other households once aging procedures are done)
-      set orphanList lput (list (item index hh_membersSex) (item index hh_membersAge) ) orphanList
+      set orphanList lput (list (item memberIndex hh_membersSex) (item memberIndex hh_membersAge) ) orphanList
 
       ; and delete them from the current household (eventualy erasing it)
-      hh_delete-member index
+      hh_delete-member memberIndex
 
-      set index index - 1
+      set memberIndex memberIndex - 1
     ]
   ]
 
@@ -1021,15 +1066,18 @@ to hh_add-spouse [ selfIndex spouseData ]
     ; generate and add spouse's sex and age
     set hh_membersSex lput (not item selfIndex hh_membersSex) hh_membersSex ; opposite sex from selfIndex's
     set hh_membersAge lput (get-initial-marriage-age (last hh_membersSex)) hh_membersAge ; get the age as a function of sex-specific nuptiality
+    ; new spouse assumed to never be gestating or lactating
+    set hh_membersGestation lput 0 hh_membersGestation
+    set hh_membersAmenorrhea lput 0 hh_membersAmenorrhea
 
-    ;print (word "new spouse added to " self ": is female = " (last hh_membersSex) ", age = " (last hh_membersAge))
+    if (hh_tellYourStory) [ print (word "New spouse added to household " self ": is female = " (last hh_membersSex) ", age = " (last hh_membersAge) ".") ]
   ]
   [
     ; The spouse is already in the system:
     ; copy spouse
     hh_add-member-from spouseData
 
-    ;print (word "spouse moving from " (Household (item 1 spouseData)) " to " self ": is female = " (last hh_membersSex) ", age = " (last hh_membersAge))
+    if (hh_tellYourStory) [ print (word "Spouse moving from household " (item 1 spouseData) " to " self ": is female = " (last hh_membersSex) ", age = " (last hh_membersAge) ".") ]
   ]
 
 end
@@ -1041,6 +1089,8 @@ to hh_add-member-from [ memberData ]
 
   set hh_membersAge lput item index ([hh_membersAge] of aHousehold) hh_membersAge
   set hh_membersSex lput item index ([hh_membersSex] of aHousehold) hh_membersSex
+  set hh_membersGestation lput item index ([hh_membersGestation] of aHousehold) hh_membersGestation
+  set hh_membersAmenorrhea lput item index ([hh_membersAmenorrhea] of aHousehold) hh_membersAmenorrhea
 
   ; add member to deletion queue of original parent household
   ask aHousehold
@@ -1057,6 +1107,8 @@ to hh_add-offspring [ initialAge ]
   set hh_membersAge lput initialAge hh_membersAge
   set hh_membersSex lput (random 2 = 0) hh_membersSex
   set hh_membersMarriage lput -1 hh_membersMarriage ; any offspring will be single
+  set hh_membersGestation lput 0 hh_membersGestation
+  set hh_membersAmenorrhea lput 0 hh_membersAmenorrhea
 
   ifelse (last hh_membersSex)
   [ set womenBirths womenBirths + 1 ]
@@ -1073,8 +1125,11 @@ to hh_add-orphan [ orphanData ]
   set hh_membersAge lput (item 1 orphanData) hh_membersAge
   set hh_membersMarriage lput -1 hh_membersMarriage ; any orphan is assumed single
   ;(when children "marry", they will share the household with the spouse. If they are found an orphan is because the spouse is either dead or is also an orphan)
+  ; girls (women under maturity age) are assumed not to be in gestation or amenorrhea states
+  set hh_membersGestation lput 0 hh_membersGestation
+  set hh_membersAmenorrhea lput 0 hh_membersAmenorrhea
 
-  ;print (word "the orphan (is female = " (item 0 orphanData) ", age = " (item 1 orphanData) ") is adopted by " self ": are females = " hh_membersSex ", ages = " hh_membersAge )
+  if (hh_tellYourStory) [ print (word "The orphan (is female = " (item 0 orphanData) ", age = " (item 1 orphanData) ") is adopted by household " self " ( females = " hh_membersSex ", ages = " hh_membersAge ").") ]
 
 end
 
@@ -1086,9 +1141,9 @@ to hh_delete-members-in-queue
   ; delete members in queue following decreasing order (so indexes still to go remain valid)
   foreach sort-by > (remove-duplicates hh_memberIndexesToDelete)
   [
-    i ->
+    memberIndex ->
     ; delete member from this household
-    hh_delete-member i
+    hh_delete-member memberIndex
   ]
 
   ; reset queue
@@ -1103,6 +1158,8 @@ to hh_delete-member [ index ]
   set hh_membersMarriage remove-item index hh_membersMarriage
   ; if the member was married, it will imply that there will be an odd number of married members,
   ; thus discounting a couple in hh_count-couples
+  set hh_membersGestation remove-item index hh_membersGestation
+  set hh_membersAmenorrhea remove-item index hh_membersAmenorrhea
 
   if (hh_count-members = 0) [ die ] ; delete empty household
 
@@ -1115,8 +1172,8 @@ to-report hh_is-infants-only
 
   foreach sort-by > hh_memberIndexesToDelete
   [
-    i ->
-    set membersAgeNotInQueueToDelete remove-item i membersAgeNotInQueueToDelete
+    memberIndex ->
+    set membersAgeNotInQueueToDelete remove-item memberIndex membersAgeNotInQueueToDelete
   ]
 
   if (length membersAgeNotInQueueToDelete = 0) [ report false ] ; report false in case there is no members that are not in queue to deletion
@@ -1164,6 +1221,8 @@ to hh_reset-members
   set hh_membersAge (list)
   set hh_membersSex (list)
   set hh_membersMarriage (list)
+  set hh_membersGestation (list)
+  set hh_membersAmenorrhea (list)
 
   set hh_memberIndexesToDelete (list)
 
@@ -1177,7 +1236,11 @@ to-report get-fertility-of-day [ ageInDays ]
 
   let ageInYears get-age-in-years-old ageInDays
 
-  report (get-fertility ageInYears) / yearLengthInDays
+  let probPregnancy (get-fertility ageInYears)
+
+  set probPregnancy 1 - (1 - probPregnancy) ^ (1 / yearLengthInDays)
+
+  report probPregnancy
 
 end
 
@@ -1191,7 +1254,11 @@ to-report get-nuptiality-of-day [ isFemale ageInDays ]
 
   let ageInYears get-age-in-years-old ageInDays
 
-  report (get-nuptiality isFemale ageInYears) / yearLengthInDays
+  let probMarry (get-nuptiality isFemale ageInYears)
+
+  set probMarry 1 - (1 - probMarry) ^ (1 / yearLengthInDays)
+
+  report probMarry
 
 end
 
@@ -1211,28 +1278,15 @@ to-report get-nuptiality [ isFemale ageInYears ]
 
 end
 
-to-report get-net-mortality-of-day [ isFemale age ]
-
-  let mortality (get-mortality-of-day isFemale age)
-
-  let nutrition get-nutrition
-
-  let nutritionEffect nutrition
-
-  if (nutrition > 0)
-  [
-    set nutritionEffect nutritionEffect * nutritionDiminishingReturns
-  ]
-
-  report clamp01 (mortality - mortality * nutritionEffect)
-
-end
-
 to-report get-mortality-of-day [ isFemale ageInDays ]
 
   let ageInYears get-age-in-years-old ageInDays
 
-  report (get-mortality isFemale ageInYears) / yearLengthInDays
+  let probDying (get-mortality isFemale ageInYears)
+
+  set probDying 1 - (1 - probDying) ^ (1 / yearLengthInDays)
+
+  report probDying
 
 end
 
@@ -1289,9 +1343,9 @@ to update-counters
   [
     foreach hh_membersIndexes
     [
-      i ->
-      let ageInYears get-age-in-years-old (item i hh_membersAge)
-      ifelse (item i hh_membersSex)
+      memberIndex ->
+      let ageInYears get-age-in-years-old (item memberIndex hh_membersAge)
+      ifelse (item memberIndex hh_membersSex)
       [
         set totalWomen totalWomen + 1
         set womenAgeStructure lput ageInYears womenAgeStructure
@@ -1313,6 +1367,29 @@ to update-counters
   carefully [ set femaleRatio totalWomen / totalIndividuals ] [ set femaleRatio "" ]
 
   carefully [ set totalOrphans length orphanList ] [ set totalOrphans 0 ]
+
+  set womenBirthsLastYear womenBirthsLastYear + womenBirths
+  set menBirthsLastYear menBirthsLastYear + menBirths
+  set womenDeathsLastYear womenDeathsLastYear + womenDeaths
+  set menDeathsLastYear menDeathsLastYear + menDeaths
+  set womenInLastYear womenInLastYear + womenIn
+  set menInLastYear menInLastYear + menIn
+  set womenOutLastYear womenOutLastYear + womenOut
+  set menOutLastYear menOutLastYear + menOut
+
+end
+
+to reset-counters-year
+
+  set womenBirthsLastYear 0
+  set menBirthsLastYear 0
+  set womenDeathsLastYear 0
+  set menDeaths 0
+  set menDeathsLastYear 0
+  set womenInLastYear 0
+  set menInLastYear 0
+  set womenOutLastYear 0
+  set menOutLastYear 0
 
 end
 
@@ -1599,7 +1676,7 @@ INPUTBOX
 147
 397
 initial-num-households
-25.0
+50.0
 1
 0
 Number
@@ -1778,19 +1855,17 @@ Births and deaths
 NIL
 NIL
 0.0
-10.0
+5.0
 0.0
-10.0
+5.0
 true
 true
 "" ""
 PENS
-"women deaths" 1.0 0 -11053225 true "" "plot womenDeaths"
-"men deaths" 1.0 0 -4539718 true "" "plot menDeaths"
-"births" 1.0 0 -14439633 true "" "plot womenBirths + menBirths"
-"deaths" 1.0 0 -16777216 true "" "plot womenDeaths + menDeaths"
-"women births" 1.0 0 -13210332 true "" "plot womenBirths"
-"men births" 1.0 0 -11881837 true "" "plot menBirths"
+"women births" 1.0 1 -2139308 true "" "plot womenBirthsLastYear + menBirthsLastYear"
+"women deaths" 1.0 1 -16777216 true "" "plot -1 * (womenDeathsLastYear + menDeathsLastYear)"
+"men births" 1.0 1 -10649926 true "" "plot menBirthsLastYear"
+"men deaths" 1.0 1 -4539718 true "" "plot -1 * menDeathsLastYear"
 
 MONITOR
 1085
@@ -1840,7 +1915,7 @@ cdmlt-level
 cdmlt-level
 1
 25
-1.0
+8.0
 1
 1
 levels from 1 to 25
@@ -1899,7 +1974,7 @@ PLOT
 470
 389
 613
-fertility (prob. of giving birth)
+fertility (prob. of pregnancy)
 age
 NIL
 0.0
@@ -2072,7 +2147,7 @@ c1-fert
 c1-fert
 0
 1
-0.9
+1.0
 0.001
 1
 (default: 0.9)
@@ -2102,7 +2177,7 @@ sigma2-fert
 sigma2-fert
 0
 6 * 5
-25.205
+10.0
 0.001
 1
 (default: 10)
@@ -2117,7 +2192,7 @@ mu-fert
 mu-fert
 0
 40
-15.0
+21.14
 0.001
 1
 (default: 15)
@@ -2246,7 +2321,7 @@ sigma2-women
 sigma2-women
 0
 2 * 5
-2.0
+10.0
 0.001
 1
 (default: 2)
@@ -2316,36 +2391,6 @@ NIL
 NIL
 1
 
-SLIDER
-7
-248
-274
-281
-carrying-capacity
-carrying-capacity
-0
-1000
-200.0
-1
-1
-indiv. (default: 200)
-HORIZONTAL
-
-SLIDER
-7
-281
-276
-314
-nutrition-diminishing-returns
-nutrition-diminishing-returns
-0
-0.2
-0.1
-0.01
-1
-(default: 0.1)
-HORIZONTAL
-
 BUTTON
 140
 10
@@ -2384,6 +2429,21 @@ currentDayOfYear
 0
 1
 11
+
+SLIDER
+8
+685
+177
+718
+amenorrhea-period
+amenorrhea-period
+2
+64
+24.0
+1
+1
+weeks
+HORIZONTAL
 
 @#$#@#$#@
 ## Development notes
@@ -2740,7 +2800,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.2.2
+NetLogo 6.4.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
