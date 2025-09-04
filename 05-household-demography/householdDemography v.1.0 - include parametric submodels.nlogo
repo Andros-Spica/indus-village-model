@@ -1059,8 +1059,10 @@ to hh_add-spouse [ selfIndex spouseData ]
   ifelse (item 0 spouseData = -1)
   [
     ; The spouse is entering the system:
-    ; generate and add spouse's sex and age
-    set hh_membersSex lput (not item selfIndex hh_membersSex) hh_membersSex ; opposite sex from selfIndex's
+    ; generate and add spouse's age and sex
+    let spouse-sex (not item selfIndex hh_membersSex) ; opposite sex from selfIndex's
+    set hh_membersAge lput (get-initial-marriage-age spouse-sex) hh_membersAge
+    set hh_membersSex lput spouse-sex hh_membersSex
 
     ;print (word "new spouse added to " self ": is female = " (last hh_membersSex) ", age = " (last hh_membersAge))
   ]
@@ -2610,7 +2612,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.2.2
+NetLogo 6.4.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@

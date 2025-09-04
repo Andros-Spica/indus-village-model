@@ -33,7 +33,7 @@ breed [ households household ]
 globals
 [
   ;;; constants
-  maturityAge                     ; defaults to 15 years old; it affects the minimum age acceptable for individuals to keep a household without older individuals
+  maturity-age                     ; defaults to 15 years old; it affects the minimum age acceptable for individuals to keep a household without older individuals
 
   ;;; demography tables
   fertilityTable
@@ -98,6 +98,8 @@ to setup
 
   clear-all
 
+  set-constants
+
   set-parameters
 
   build-demography-tables
@@ -112,13 +114,17 @@ to setup
 
 end
 
+to set-constants
+
+  ; parameter set to default value (constant)
+  set maturity-age 15
+
+end
+
 to set-parameters
 
   ; set random seed
   random-seed SEED
-
-  ; parameter set to default value (constant)
-  set maturityAge 15
 
   ; check parameters values
   parameters-check1
@@ -158,9 +164,9 @@ to set-parameters
     set cdmlt-level 1 + random 25
     set coale-demeny-region item random 4 (list "west" "east" "south" "north")
     set c1-fert max (list 1E-6 (random-float 1))
-    set mu-fert maturityAge + (random 40 - maturityAge)
-    set sigma1-fert max (list 1E-6 (random-float (mu-fert - maturityAge)))
-    set sigma2-fert max (list 1E-6 (random-float ((30 + maturityAge) - mu-fert)))
+    set mu-fert maturity-age + (random 40 - maturity-age)
+    set sigma1-fert max (list 1E-6 (random-float (mu-fert - maturity-age)))
+    set sigma2-fert max (list 1E-6 (random-float ((30 + maturity-age) - mu-fert)))
     set residence-rule item random 2 (list "patrilocal-patrilineal" "matrilocal-matrilineal")
     set acceptableKinshipDegreeForCouples random 10
     set c1-women max (list 1E-6 (random-float 1))
@@ -171,6 +177,10 @@ to set-parameters
     set sigma1-men max (list 1E-6 (random-float mu-men))
     set sigma2-women max (list 1E-6 (random-float (40 - mu-women)))
     set sigma2-men max (list 1E-6 (random-float (40 - mu-men)))
+  ]
+  if (type-of-experiment = "defined by exp-number")
+  [
+    load-experiment
   ]
 
   ; check parameters values
@@ -675,7 +685,7 @@ to hh_initialise-members
     ?1 ->
     set hh_membersSex lput (?1 = 0) hh_membersSex
     let marriageAge (get-initial-marriage-age (item ?1 hh_membersSex))
-    set hh_membersAge lput (hh_age + marriageAge) hh_membersAge
+    set hh_membersAge lput (min (list (hh_age + marriageAge) 100)) hh_membersAge
     set hh_membersMarriage lput 0 hh_membersMarriage ; this couple will have the 0 index
   ]
 
@@ -945,8 +955,10 @@ to hh_add-spouse [ selfIndex spouseData ]
   ifelse (item 0 spouseData = -1)
   [
     ; The spouse is entering the system:
-    ; generate and add spouse's sex and age
-    set hh_membersSex lput (not item selfIndex hh_membersSex) hh_membersSex ; opposite sex from selfIndex's
+    ; generate and add spouse's age and sex
+    let spouse-sex (not item selfIndex hh_membersSex) ; opposite sex from selfIndex's
+    set hh_membersAge lput (get-initial-marriage-age spouse-sex) hh_membersAge
+    set hh_membersSex lput spouse-sex hh_membersSex
 
     ;print (word "new spouse added to " self ": is female = " (last hh_membersSex) ", age = " (last hh_membersAge))
   ]
@@ -1047,7 +1059,7 @@ to-report hh_is-infants-only
 
   if (length membersAgeNotInQueueToDelete = 0) [ report false ] ; report false in case there is no members that are not in queue to deletion
 
-  report reduce and (map [i -> i < maturityAge] membersAgeNotInQueueToDelete)
+  report reduce and (map [i -> i < maturity-age] membersAgeNotInQueueToDelete)
 
 end
 
@@ -1059,7 +1071,7 @@ end
 
 to-report hh_count-children
 
-  report length filter [i -> i < maturityAge] hh_membersAge
+  report length filter [i -> i < maturity-age] hh_membersAge
 
 end
 
@@ -1284,10 +1296,10 @@ to-report load-coale-demeny-table [ isFemale ]
   ;;; Regional model life tables and stable populations.
   ;;; 2nd ed. New York: Academic Press.
 
-  ;;; Tables were generated using the R script 'importCoaleDemenyLifeTables.R'
+  ;;; Tables were generated using the R script 'demoTables/exportCoaleDemenyLifeTables.R'
   ;;; included in the demoTables folder.
 
-  ;;; this function assumes there is a text file (.../demoTables/cdmlt<coale-demeny-region><sex>.txt)
+  ;;; this function assumes there is a text file (demoTables/cdmlt<coale-demeny-region><sex>.txt)
   ;;; containing a matrix with prob. of death for life-expentancy-level (rows) by age cohort (columns).
   ;;; values of the first row and columns should be skipped
 
@@ -1327,15 +1339,59 @@ to-report load-coale-demeny-table [ isFemale ]
 
 end
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;; Parametrization from file ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to load-experiment
+
+  ;;; this procedure loads the values of each (explored) parameter from a csv file.
+  ;;; Note that the setup will use the value set by the user for any other parameter (e.g. scenario).
+
+  let FilePath "experiments//v1.1//" ;;; create folders in the model's directory before trying to load experiments
+  let filename (word FilePath exp-number ".txt")
+  file-open filename
+  while [not file-at-end?]
+    [
+      ;;; the values of the file must follow this same order
+
+      set initialNumHouseholds file-read
+      set householdInitialAgeDistribution (list (file-read) (file-read))
+      set maxCoupleCountDistribution (list (file-read) (file-read))
+      set acceptableKinshipDegreeForCouples file-read
+
+      set cdmlt-level file-read
+
+      set c1-fert file-read
+      set mu-fert file-read
+      set sigma1-fert file-read
+      set sigma2-fert file-read
+
+      set c1-women file-read
+      set mu-women file-read
+      set sigma1-women file-read
+      set sigma2-women file-read
+      set c1-men file-read
+      set mu-men file-read
+      set sigma1-men file-read
+      set sigma2-men file-read
+
+      set max-iterations 2000
+      set max-population 10000
+    ]
+  file-close
+
+end
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; EXPORT DATA ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 to export-households
 
-  let FilePath "output//"
+  let FilePath "output//v1.1//"
 
-  file-open (word FilePath behaviorspace-experiment-name behaviorspace-run-number "_households.csv")
+  file-open (word FilePath "exp-number=" exp-number "_SEED=" SEED "_households.csv")
 
   file-print "household,lineage,householdAge,maxCoupleCount,membersAge,membersSex,membersMarriage"
 
@@ -1425,20 +1481,20 @@ INPUTBOX
 80
 115
 SEED
-0.0
+1.0
 1
 0
 Number
 
 CHOOSER
-38
+3
 122
-176
+181
 167
 type-of-experiment
 type-of-experiment
-"user-defined" "random"
-0
+"user-defined" "random" "defined by exp-number"
+2
 
 INPUTBOX
 22
@@ -1446,7 +1502,7 @@ INPUTBOX
 144
 318
 initial-num-households
-25.0
+50.0
 1
 0
 Number
@@ -1687,7 +1743,7 @@ cdmlt-level
 cdmlt-level
 1
 25
-6.0
+23.0
 1
 1
 levels from 1 to 25
@@ -1829,7 +1885,7 @@ c1-women
 c1-women
 0
 1
-0.9
+0.0703125
 0.001
 1
 (default: 0.9)
@@ -1844,7 +1900,7 @@ sigma1-women
 sigma1-women
 0
 2 * 5
-5.0
+16.8828125
 0.001
 1
 (default: 5)
@@ -1859,7 +1915,7 @@ mu-women
 mu-women
 0
 40
-15.0
+17.5390625
 0.001
 1
 (default: 15)
@@ -1874,7 +1930,7 @@ c1-men
 c1-men
 0
 1
-0.85
+0.8359375
 0.001
 1
 (default: 0.85)
@@ -1889,7 +1945,7 @@ mu-men
 mu-men
 0
 2 * 20
-20.0
+19.8828125
 0.001
 1
 (default: 20)
@@ -1904,7 +1960,7 @@ sigma1-men
 sigma1-men
 0
 2 * 5
-2.0
+8.2734375
 0.001
 1
 (default: 2)
@@ -1919,7 +1975,7 @@ c1-fert
 c1-fert
 0
 1
-0.9
+0.09765625
 0.001
 1
 (default: 0.9)
@@ -1934,7 +1990,7 @@ sigma1-fert
 sigma1-fert
 0
 2 * 5
-5.0
+8.8046875
 0.001
 1
 (default: 5)
@@ -1949,7 +2005,7 @@ sigma2-fert
 sigma2-fert
 0
 6 * 5
-25.205
+7.6953125
 0.001
 1
 (default: 10)
@@ -1964,7 +2020,7 @@ mu-fert
 mu-fert
 0
 40
-15.0
+26.1328125
 0.001
 1
 (default: 15)
@@ -2093,7 +2149,7 @@ sigma2-women
 sigma2-women
 0
 2 * 5
-2.011
+1.1484375
 0.001
 1
 (default: 5)
@@ -2108,7 +2164,7 @@ sigma2-men
 sigma2-men
 0
 2 * 5
-10.0
+4.1171875
 0.001
 1
 (default: 10)
@@ -2123,7 +2179,7 @@ acceptable-kinship-degree-for-couples
 acceptable-kinship-degree-for-couples
 0
 10
-9.0
+8.0
 1
 1
 NIL
@@ -2163,7 +2219,7 @@ INPUTBOX
 249
 115
 max-population
-5000.0
+10000.0
 1
 0
 Number
@@ -2184,6 +2240,17 @@ NIL
 NIL
 NIL
 1
+
+INPUTBOX
+179
+119
+248
+179
+exp-number
+65.0
+1
+0
+Number
 
 @#$#@#$#@
 ## Development notes
@@ -2540,7 +2607,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.2.2
+NetLogo 6.4.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
@@ -2593,6 +2660,8 @@ NetLogo 6.2.2
   <experiment name="exp-endstates" repetitions="1" runMetricsEveryStep="false">
     <setup>setup</setup>
     <go>go</go>
+    <postRun>if (totalHouseholds = 0) [ export-households ]</postRun>
+    <metric>exp-number</metric>
     <metric>SEED</metric>
     <metric>maturityAge</metric>
     <metric>initialNumHouseholds</metric>
@@ -2633,7 +2702,15 @@ NetLogo 6.2.2
     <metric>womenOut</metric>
     <metric>menOut</metric>
     <metric>totalOrphans</metric>
-    <steppedValueSet variable="SEED" first="0" step="1" last="4999"/>
+    <enumeratedValueSet variable="type-of-experiment">
+      <value value="&quot;defined by exp-number&quot;"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="exp-number" first="1" step="1" last="2000"/>
+    <enumeratedValueSet variable="SEED">
+      <value value="0"/>
+      <value value="1"/>
+      <value value="2"/>
+    </enumeratedValueSet>
   </experiment>
 </experiments>
 @#$#@#$#@

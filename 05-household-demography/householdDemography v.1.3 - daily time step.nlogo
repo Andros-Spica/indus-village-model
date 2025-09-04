@@ -1064,8 +1064,9 @@ to hh_add-spouse [ selfIndex spouseData ]
   [
     ; The spouse is entering the system:
     ; generate and add spouse's sex and age
-    set hh_membersSex lput (not item selfIndex hh_membersSex) hh_membersSex ; opposite sex from selfIndex's
-    set hh_membersAge lput (get-initial-marriage-age (last hh_membersSex)) hh_membersAge ; get the age as a function of sex-specific nuptiality
+    let spouse-sex (not item selfIndex hh_membersSex) ; opposite sex from selfIndex's
+    set hh_membersAge lput (get-initial-marriage-age spouse-sex) hh_membersAge ; get the age as a function of sex-specific nuptiality
+    set hh_membersSex lput spouse-sex hh_membersSex
     ; new spouse assumed to never be gestating or lactating
     set hh_membersGestation lput 0 hh_membersGestation
     set hh_membersAmenorrhea lput 0 hh_membersAmenorrhea
