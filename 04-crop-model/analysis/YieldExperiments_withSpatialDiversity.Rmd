@@ -1,0 +1,1273 @@
+---
+title: "Simple crop model with spatial diversity - analysis of yield experiments"
+author: "Andreas Angourakis"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+## Load data
+
+Load all experiment output files in the "yield" folder, generated with this version ("Simple crop model with spatial diversity").
+
+```{r}
+file_names <- paste0("yield/", list.files("yield"))
+
+isThisVersion <- grepl("SIMPLE-crop-model_withSpatialDiversity_yield", file_names)
+
+yieldData <- do.call(rbind, lapply(file_names[isThisVersion], read.csv))
+```
+
+Preview the data structure
+
+```{r}
+knitr::kable(head(yieldData))
+```
+
+## All crops
+
+Visualise simulation results for all crops included in Zhao et al. 2019 (except those taking more than a year to reach maturity; i.e. banana, cotton, peanut and cassava). NOTE: banana is already not used for simulations.
+
+## Preparations
+
+Reconstruct cropTable content:
+
+```{r}
+cropTableNames <- c("crop", "T_sum", "HI", "I_50A", "I_50B", "T_base", "T_opt", "RUE", "I_50maxH", "I_50maxW", "T_heat", "T_extreme", "S_CO2", "S_water", "sowingDay", "harvestDay")
+
+cropTable <- data.frame(matrix(ncol=length(cropTableNames),nrow=0, dimnames=list(NULL, cropTableNames)))
+
+for (aCrop in levels(yieldData$crop))
+{
+  cropTable <- rbind(cropTable, yieldData[match(aCrop, yieldData$crop), cropTableNames])
+}
+```
+
+Filter out cassava, cotton and peanut:
+
+```{r}
+notAnnualCrops <- c(" 'cassava'", " 'cotton'", " 'peanut'")
+notAnnual <- yieldData$crop == " 'cassava'" | yieldData$crop == " 'cotton'" | yieldData$crop == " 'peanut'"
+
+yieldData <- yieldData[!notAnnual,]
+
+# crop factor variable needs resetting levels
+yieldData$crop <- factor(yieldData$crop)
+```
+
+Get vector of colours to represent crops:
+
+```{r}
+cropColours <- rainbow(nlevels(yieldData$crop), s = 0.8, end = 0.9)
+```
+
+Precalculate ranges of ARID and yield:
+
+```{r}
+minARID = round(min(c(yieldData$meanARID, yieldData$meanARID_grow), na.rm = TRUE), digits = 2)
+maxARID = round(max(c(yieldData$meanARID, yieldData$meanARID_grow), na.rm = TRUE), digits = 2)
+
+minYield = round(min(yieldData$yield), digits = -1)
+maxYield = round(max(yieldData$yield), digits = -1)
+
+minElevation = round(min(yieldData$elevation, na.rm = TRUE), digits = -1)
+maxElevation = round(max(yieldData$elevation, na.rm = TRUE), digits = -1)
+
+minDC = round(min(yieldData$DC, na.rm = TRUE), digits = 2)
+maxDC = round(max(yieldData$DC, na.rm = TRUE), digits = 2)
+
+minWHC = round(min(yieldData$WHC, na.rm = TRUE), digits = 2)
+maxWHC = round(max(yieldData$WHC, na.rm = TRUE), digits = 2)
+
+minAlbedo = round(min(yieldData$albedo, na.rm = TRUE), digits = 2)
+maxAlbedo = round(max(yieldData$albedo, na.rm = TRUE), digits = 2)
+```
+
+## Summary statistics per crop
+
+```{r}
+yieldData_summary <- tapply(as.numeric(as.character(yieldData$yield)), yieldData$crop, summary)
+
+yieldData_summary <- data.frame(Reduce(rbind, yieldData_summary), row.names = names(yieldData_summary))
+```
+
+```{r}
+knitr::kable(yieldData_summary)
+```
+
+```{r}
+plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/yieldPerCrop.png"
+
+grScale = 2
+fontRescale = 0
+fontRescaleDay = 0
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+par(mar = c(6,5,1,1))
+
+boxplot(yield ~ factor(crop), data = yieldData,#[yieldData$yield > 0,], # show only non-zero yield 
+        ylab = expression(paste("yield (", g/m^2, ")")), xlab = "",
+        las = 2, 
+        col = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+## Effect of elevation on ARID
+
+Plotting ARID vs elevation:
+
+```{r}
+plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/ARIDvsElevation.png"
+
+grScale = 2
+fontRescale = 0.5
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+layout(matrix(c(1, 2, 3, 4, 4, 4), nrow = 3, ncol = 2),
+       heights = c(10, 10, 2), widths = c(10, 3))
+
+par(mar = c(1,5,1,1), cex.lab = 0.8 * grScale)
+
+plot(c(minElevation, maxElevation),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (current year)")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(yieldData$elevation[yieldData$crop == aCrop],
+         yieldData$meanARID[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(meanARID ~ elevation, data = yieldData[yieldData$crop == aCrop,]),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+plot(c(minElevation, maxElevation),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (grow seasons)")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(yieldData$elevation[yieldData$crop == aCrop],
+         yieldData$meanARID_grow[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(meanARID_grow ~ elevation, data = yieldData[yieldData$crop == aCrop,]),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+par(mar = c(1, 1, 1, 0.1))
+
+plot(c(minElevation, maxElevation), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+axis(3, 
+     at = seq(minElevation, maxElevation, by = 5),
+     tck = 0, lwd = 0)
+
+mtext("elevation (m)", side = 1, line = -2)
+
+par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+legend(x = 0, y = 1, 
+       legend = stringi::stri_c(cropTable$S_water[!cropTable$crop %in% notAnnualCrops], " (", levels(yieldData$crop), ")"), 
+       title = "S_water (Crop-cultivar)", 
+       fill = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+linearModels.table <- data.frame(
+  levels(yieldData$crop),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop))
+)
+
+names(linearModels.table) <- c("crop", "correlation_Pearson", "intercept", "intercept_p", "speed", "speed_p", "adjrsquared")
+
+for (aCrop in levels(yieldData$crop))
+{
+  linearModels.table$correlation_Pearson[linearModels.table$crop == aCrop] <- 
+    cor(x = yieldData$elevation[yieldData$crop == aCrop], y = yieldData$meanARID_grow[yieldData$crop == aCrop], use = "pairwise.complete.obs")
+  
+  linearModel <- lm(meanARID_grow ~ elevation, data = yieldData[yieldData$crop == aCrop,])
+
+  linearModels.table$intercept[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,1]
+  linearModels.table$intercept_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,4]
+  linearModels.table$speed[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,1]
+  linearModels.table$speed_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,4]
+  linearModels.table$adjrsquared[linearModels.table$crop == aCrop] <- summary(linearModel)$adj.r.squared
+}
+```
+
+```{r}
+knitr::kable(linearModels.table)
+```
+
+## Effect of drainage coefficient (DC) on ARID
+
+Plotting ARID vs DC:
+
+```{r}
+plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/ARIDvsDC.png"
+
+grScale = 2
+fontRescale = 0.5
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+layout(matrix(c(1, 2, 3, 4, 4, 4), nrow = 3, ncol = 2),
+       heights = c(10, 10, 2), widths = c(10, 3))
+
+par(mar = c(1,5,1,1), cex.lab = 0.8 * grScale)
+
+plot(c(minDC, maxDC),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (current year)")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(yieldData$DC[yieldData$crop == aCrop],
+         yieldData$meanARID[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(meanARID ~ DC, data = yieldData[yieldData$crop == aCrop,]),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+plot(c(minDC, maxDC),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (grow seasons)")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(yieldData$DC[yieldData$crop == aCrop],
+         yieldData$meanARID_grow[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(meanARID_grow ~ DC, data = yieldData[yieldData$crop == aCrop,]),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+par(mar = c(1, 1, 1, 0.1))
+
+plot(c(minDC, maxDC), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+axis(3, 
+     at = seq(minDC, maxDC, by = 0.05),
+     tck = 0, lwd = 0)
+
+mtext(expression("drainage coefficient " (m^3*m^-3) ), side = 1, line = -2)
+
+par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+legend(x = 0, y = 1, 
+       legend = stringi::stri_c(cropTable$S_water[!cropTable$crop %in% notAnnualCrops], " (", levels(yieldData$crop), ")"), 
+       title = "S_water (Crop-cultivar)", 
+       fill = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+linearModels.table <- data.frame(
+  levels(yieldData$crop),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop))
+)
+
+names(linearModels.table) <- c("crop", "correlation_Pearson", "intercept", "intercept_p", "speed", "speed_p", "adjrsquared")
+
+for (aCrop in levels(yieldData$crop))
+{
+  linearModels.table$correlation_Pearson[linearModels.table$crop == aCrop] <- 
+    cor(x = yieldData$DC[yieldData$crop == aCrop], y = yieldData$meanARID_grow[yieldData$crop == aCrop], use = "pairwise.complete.obs")
+  
+  linearModel <- lm(meanARID_grow ~ DC, data = yieldData[yieldData$crop == aCrop,])
+
+  linearModels.table$intercept[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,1]
+  linearModels.table$intercept_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,4]
+  linearModels.table$speed[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,1]
+  linearModels.table$speed_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,4]
+  linearModels.table$adjrsquared[linearModels.table$crop == aCrop] <- summary(linearModel)$adj.r.squared
+}
+```
+
+```{r}
+knitr::kable(linearModels.table)
+```
+
+## Effect of water holding capacity (WHC) on ARID
+
+Plotting ARID vs DC:
+
+```{r}
+plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/ARIDvsWHC.png"
+
+grScale = 2
+fontRescale = 0.5
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+layout(matrix(c(1, 2, 3, 4, 4, 4), nrow = 3, ncol = 2),
+       heights = c(10, 10, 2), widths = c(10, 3))
+
+par(mar = c(1,5,1,1), cex.lab = 0.8 * grScale)
+
+plot(c(minWHC, maxWHC),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (current year)")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(yieldData$WHC[yieldData$crop == aCrop],
+         yieldData$meanARID[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(meanARID ~ WHC, data = yieldData[yieldData$crop == aCrop,]),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+plot(c(minWHC, maxWHC),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (grow seasons)")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(yieldData$WHC[yieldData$crop == aCrop],
+         yieldData$meanARID_grow[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(meanARID_grow ~ WHC, data = yieldData[yieldData$crop == aCrop,]),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+par(mar = c(1, 1, 1, 0.1))
+
+plot(c(minWHC, maxWHC), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+axis(3, 
+     at = seq(minWHC, maxWHC, by = 0.05),
+     tck = 0, lwd = 0)
+
+mtext(expression("water holding capacity " (m^3*m^-3) ), side = 1, line = -2)
+
+par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+legend(x = 0, y = 1, 
+       legend = stringi::stri_c(cropTable$S_water[!cropTable$crop %in% notAnnualCrops], " (", levels(yieldData$crop), ")"), 
+       title = "S_water (Crop-cultivar)", 
+       fill = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+linearModels.table <- data.frame(
+  levels(yieldData$crop),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop))
+)
+
+names(linearModels.table) <- c("crop", "correlation_Pearson", "intercept", "intercept_p", "speed", "speed_p", "adjrsquared")
+
+for (aCrop in levels(yieldData$crop))
+{
+  linearModels.table$correlation_Pearson[linearModels.table$crop == aCrop] <- 
+    cor(x = yieldData$WHC[yieldData$crop == aCrop], y = yieldData$meanARID_grow[yieldData$crop == aCrop], use = "pairwise.complete.obs")
+  
+  linearModel <- lm(meanARID_grow ~ WHC, data = yieldData[yieldData$crop == aCrop,])
+
+  linearModels.table$intercept[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,1]
+  linearModels.table$intercept_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,4]
+  linearModels.table$speed[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,1]
+  linearModels.table$speed_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,4]
+  linearModels.table$adjrsquared[linearModels.table$crop == aCrop] <- summary(linearModel)$adj.r.squared
+}
+```
+
+```{r}
+knitr::kable(linearModels.table)
+```
+
+## Effect of albedo on ARID
+
+Plotting ARID vs DC:
+
+```{r}
+plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/ARIDvsAlbedo.png"
+
+grScale = 2
+fontRescale = 0.5
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+layout(matrix(c(1, 2, 3, 4, 4, 4), nrow = 3, ncol = 2),
+       heights = c(10, 10, 2), widths = c(10, 3))
+
+par(mar = c(1,5,1,1), cex.lab = 0.8 * grScale)
+
+plot(c(minAlbedo, maxAlbedo),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (current year)")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(yieldData$albedo[yieldData$crop == aCrop],
+         yieldData$meanARID[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(meanARID ~ albedo, data = yieldData[yieldData$crop == aCrop,]),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+plot(c(minAlbedo, maxAlbedo),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (grow seasons)")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(yieldData$albedo[yieldData$crop == aCrop],
+         yieldData$meanARID_grow[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(meanARID_grow ~ albedo, data = yieldData[yieldData$crop == aCrop,]),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+par(mar = c(1, 1, 1, 0.1))
+
+plot(c(minAlbedo, maxAlbedo), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+axis(3, 
+     at = seq(minAlbedo, maxAlbedo, by = 0.05),
+     tck = 0, lwd = 0)
+
+mtext("albedo", side = 1, line = -2)
+
+par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+legend(x = 0, y = 1, 
+       legend = stringi::stri_c(cropTable$S_water[!cropTable$crop %in% notAnnualCrops], " (", levels(yieldData$crop), ")"), 
+       title = "S_water (Crop-cultivar)", 
+       fill = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+linearModels.table <- data.frame(
+  levels(yieldData$crop),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop))
+)
+
+names(linearModels.table) <- c("crop", "correlation_Pearson", "intercept", "intercept_p", "speed", "speed_p", "adjrsquared")
+
+for (aCrop in levels(yieldData$crop))
+{
+  linearModels.table$correlation_Pearson[linearModels.table$crop == aCrop] <- 
+    cor(x = yieldData$albedo[yieldData$crop == aCrop], y = yieldData$meanARID_grow[yieldData$crop == aCrop], use = "pairwise.complete.obs")
+  
+  linearModel <- lm(meanARID_grow ~ albedo, data = yieldData[yieldData$crop == aCrop,])
+
+  linearModels.table$intercept[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,1]
+  linearModels.table$intercept_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,4]
+  linearModels.table$speed[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,1]
+  linearModels.table$speed_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,4]
+  linearModels.table$adjrsquared[linearModels.table$crop == aCrop] <- summary(linearModel)$adj.r.squared
+}
+```
+
+```{r}
+knitr::kable(linearModels.table)
+```
+
+## Effect of albedo on yield
+
+Plotting ARID vs DC:
+
+```{r}
+plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/yieldvsAlbedo.png"
+
+grScale = 2
+fontRescale = 0.5
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+layout(matrix(c(1, 2), nrow = 1, ncol = 2), widths = c(10, 3))
+
+par(mar = c(5,5,1,1), cex.lab = 0.8 * grScale)
+
+plot(c(minAlbedo, maxAlbedo),
+     c(minYield, maxYield),
+     xlab = "albedo",
+     ylab = "yield")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(yieldData$albedo[yieldData$crop == aCrop],
+         yieldData$yield[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(yield ~ albedo, data = yieldData[yieldData$crop == aCrop,]),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+legend(x = 0, y = 1, 
+       legend = stringi::stri_c(cropTable$S_water[!cropTable$crop %in% notAnnualCrops], " (", levels(yieldData$crop), ")"), 
+       title = "S_water (Crop-cultivar)", 
+       fill = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+linearModels.table <- data.frame(
+  levels(yieldData$crop),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop))
+)
+
+names(linearModels.table) <- c("crop", "correlation_Pearson", "intercept", "intercept_p", "speed", "speed_p", "adjrsquared")
+
+for (aCrop in levels(yieldData$crop))
+{
+  linearModels.table$correlation_Pearson[linearModels.table$crop == aCrop] <- 
+    cor(x = yieldData$albedo[yieldData$crop == aCrop], y = yieldData$yield[yieldData$crop == aCrop], use = "pairwise.complete.obs")
+  
+  linearModel <- lm(yield ~ albedo, data = yieldData[yieldData$crop == aCrop,])
+
+  linearModels.table$intercept[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,1]
+  linearModels.table$intercept_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,4]
+  linearModels.table$speed[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,1]
+  linearModels.table$speed_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,4]
+  linearModels.table$adjrsquared[linearModels.table$crop == aCrop] <- summary(linearModel)$adj.r.squared
+}
+```
+
+```{r}
+knitr::kable(linearModels.table)
+```
+
+## Wheat vs rice
+
+### Preparations
+
+Create filter for wheat and rice:
+
+```{r}
+wheatAndRice <- c(" 'wheat 1'", " 'wheat 2'", " 'rice'")
+
+isWheatAndRice <- yieldData$crop == " 'wheat 1'" | yieldData$crop == " 'wheat 2'" | yieldData$crop == " 'rice'"
+```
+
+Apply filter:
+
+```{r}
+yieldData <- yieldData[isWheatAndRice,]
+
+# crop factor variable needs resetting levels
+yieldData$crop <- factor(yieldData$crop)
+```
+
+Get vector of colours to represent crops:
+
+```{r}
+cropColours <- rainbow(nlevels(yieldData$crop), s = 0.8, end = 0.9)
+```
+
+Precalculate ranges of ARID and yield:
+
+```{r}
+minARID = round(min(c(yieldData$meanARID, yieldData$meanARID_grow), na.rm = TRUE), digits = 2)
+maxARID = round(max(c(yieldData$meanARID, yieldData$meanARID_grow), na.rm = TRUE), digits = 2)
+
+minYield = round(min(yieldData$yield), digits = -1)
+maxYield = round(max(yieldData$yield), digits = -1)
+
+minElevation = round(min(yieldData$elevation, na.rm = TRUE), digits = -1)
+maxElevation = round(max(yieldData$elevation, na.rm = TRUE), digits = -1)
+
+minDC = round(min(yieldData$DC, na.rm = TRUE), digits = 2)
+maxDC = round(max(yieldData$DC, na.rm = TRUE), digits = 2)
+
+minWHC = round(min(yieldData$WHC, na.rm = TRUE), digits = 2)
+maxWHC = round(max(yieldData$WHC, na.rm = TRUE), digits = 2)
+
+minAlbedo = round(min(yieldData$albedo, na.rm = TRUE), digits = 2)
+maxAlbedo = round(max(yieldData$albedo, na.rm = TRUE), digits = 2)
+```
+
+## Summary statistics per crop
+
+```{r}
+yieldData_summary <- tapply(as.numeric(as.character(yieldData$yield)), yieldData$crop, summary)
+
+yieldData_summary <- data.frame(Reduce(rbind, yieldData_summary), row.names = names(yieldData_summary))
+```
+
+```{r}
+knitr::kable(yieldData_summary)
+```
+
+```{r}
+plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/yieldPerCrop_wheatVsRice.png"
+
+grScale = 2
+fontRescale = 0
+fontRescaleDay = 0
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+par(mar = c(6,5,1,1))
+
+boxplot(yield ~ factor(crop), data = yieldData,#[yieldData$yield > 0,], # show only non-zero yield 
+        ylab = expression(paste("yield (", g/m^2, ")")), xlab = "",
+        las = 2, 
+        col = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+## Effect of elevation on ARID
+
+Plotting ARID vs elevation:
+
+```{r}
+plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/ARIDvsElevation_wheatVsRice.png"
+
+grScale = 2
+fontRescale = 0.5
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+layout(matrix(c(1, 2, 3, 4, 4, 4), nrow = 3, ncol = 2),
+       heights = c(10, 10, 2), widths = c(10, 3))
+
+par(mar = c(1,5,1,1), cex.lab = 0.8 * grScale)
+
+plot(c(minElevation, maxElevation),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (current year)")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(yieldData$elevation[yieldData$crop == aCrop],
+         yieldData$meanARID[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(meanARID ~ elevation, data = yieldData[yieldData$crop == aCrop,]),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+plot(c(minElevation, maxElevation),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (grow seasons)")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(yieldData$elevation[yieldData$crop == aCrop],
+         yieldData$meanARID_grow[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(meanARID_grow ~ elevation, data = yieldData[yieldData$crop == aCrop,]),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+par(mar = c(1, 1, 1, 0.1))
+
+plot(c(minElevation, maxElevation), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+axis(3, 
+     at = seq(minElevation, maxElevation, by = 5),
+     tck = 0, lwd = 0)
+
+mtext("elevation (m)", side = 1, line = -2)
+
+par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+legend(x = 0, y = 1, 
+       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% wheatAndRice], " (", levels(yieldData$crop), ")"), 
+       title = "S_water (Crop-cultivar)", 
+       fill = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+linearModels.table <- data.frame(
+  levels(yieldData$crop),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop))
+)
+
+names(linearModels.table) <- c("crop", "correlation_Pearson", "intercept", "intercept_p", "speed", "speed_p", "adjrsquared")
+
+for (aCrop in levels(yieldData$crop))
+{
+  linearModels.table$correlation_Pearson[linearModels.table$crop == aCrop] <- 
+    cor(x = yieldData$elevation[yieldData$crop == aCrop], y = yieldData$meanARID_grow[yieldData$crop == aCrop], use = "pairwise.complete.obs")
+  
+  linearModel <- lm(meanARID_grow ~ elevation, data = yieldData[yieldData$crop == aCrop,])
+
+  linearModels.table$intercept[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,1]
+  linearModels.table$intercept_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,4]
+  linearModels.table$speed[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,1]
+  linearModels.table$speed_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,4]
+  linearModels.table$adjrsquared[linearModels.table$crop == aCrop] <- summary(linearModel)$adj.r.squared
+}
+```
+
+```{r}
+knitr::kable(linearModels.table)
+```
+
+## Effect of drainage coefficient (DC) on ARID
+
+Plotting ARID vs drainage coefficient:
+
+```{r}
+plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/ARIDvsDC_wheatVsRice.png"
+
+grScale = 2
+fontRescale = 0.5
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+layout(matrix(c(1, 2, 3, 4, 4, 4), nrow = 3, ncol = 2),
+       heights = c(10, 10, 2), widths = c(10, 3))
+
+par(mar = c(1,5,1,1), cex.lab = 0.8 * grScale)
+
+plot(c(minDC, maxDC),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (current year)")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(yieldData$DC[yieldData$crop == aCrop],
+         yieldData$meanARID[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(meanARID ~ DC, data = yieldData[yieldData$crop == aCrop,]),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+plot(c(minDC, maxDC),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (grow seasons)")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(yieldData$DC[yieldData$crop == aCrop],
+         yieldData$meanARID_grow[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(meanARID_grow ~ DC, data = yieldData[yieldData$crop == aCrop,]),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+par(mar = c(1, 1, 1, 0.1))
+
+plot(c(minDC, maxDC), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+axis(3, 
+     at = seq(minDC, maxDC, by = 0.05),
+     tck = 0, lwd = 0)
+
+mtext(expression("drainage coefficient " (m^3*m^-3) ), side = 1, line = -2)
+
+par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+legend(x = 0, y = 1, 
+       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% wheatAndRice], " (", levels(yieldData$crop), ")"), 
+       title = "S_water (Crop-cultivar)", 
+       fill = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+linearModels.table <- data.frame(
+  levels(yieldData$crop),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop))
+)
+
+names(linearModels.table) <- c("crop", "correlation_Pearson", "intercept", "intercept_p", "speed", "speed_p", "adjrsquared")
+
+for (aCrop in levels(yieldData$crop))
+{
+  linearModels.table$correlation_Pearson[linearModels.table$crop == aCrop] <- 
+    cor(x = yieldData$DC[yieldData$crop == aCrop], y = yieldData$meanARID_grow[yieldData$crop == aCrop], use = "pairwise.complete.obs")
+  
+  linearModel <- lm(meanARID_grow ~ DC, data = yieldData[yieldData$crop == aCrop,])
+
+  linearModels.table$intercept[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,1]
+  linearModels.table$intercept_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,4]
+  linearModels.table$speed[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,1]
+  linearModels.table$speed_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,4]
+  linearModels.table$adjrsquared[linearModels.table$crop == aCrop] <- summary(linearModel)$adj.r.squared
+}
+```
+
+```{r}
+knitr::kable(linearModels.table)
+```
+
+## Effect of water holding capacity (WHC) on ARID
+
+Plotting ARID vs water holding capacity:
+
+```{r}
+plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/ARIDvsWHC_wheatVsRice.png"
+
+grScale = 2
+fontRescale = 0.5
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+layout(matrix(c(1, 2, 3, 4, 4, 4), nrow = 3, ncol = 2),
+       heights = c(10, 10, 2), widths = c(10, 3))
+
+par(mar = c(1,5,1,1), cex.lab = 0.8 * grScale)
+
+plot(c(minWHC, maxWHC),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (current year)")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(yieldData$WHC[yieldData$crop == aCrop],
+         yieldData$meanARID[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(meanARID ~ WHC, data = yieldData[yieldData$crop == aCrop,]),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+plot(c(minWHC, maxWHC),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (grow seasons)")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(yieldData$WHC[yieldData$crop == aCrop],
+         yieldData$meanARID_grow[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(meanARID_grow ~ WHC, data = yieldData[yieldData$crop == aCrop,]),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+par(mar = c(1, 1, 1, 0.1))
+
+plot(c(minWHC, maxWHC), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+axis(3, 
+     at = seq(minWHC, maxWHC, by = 0.05),
+     tck = 0, lwd = 0)
+
+mtext(expression("water holding capacity " (m^3*m^-3) ), side = 1, line = -2)
+
+par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+legend(x = 0, y = 1, 
+       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% wheatAndRice], " (", levels(yieldData$crop), ")"), 
+       title = "S_water (Crop-cultivar)", 
+       fill = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+linearModels.table <- data.frame(
+  levels(yieldData$crop),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop))
+)
+
+names(linearModels.table) <- c("crop", "correlation_Pearson", "intercept", "intercept_p", "speed", "speed_p", "adjrsquared")
+
+for (aCrop in levels(yieldData$crop))
+{
+  linearModels.table$correlation_Pearson[linearModels.table$crop == aCrop] <- 
+    cor(x = yieldData$WHC[yieldData$crop == aCrop], y = yieldData$meanARID_grow[yieldData$crop == aCrop], use = "pairwise.complete.obs")
+  
+  linearModel <- lm(meanARID_grow ~ WHC, data = yieldData[yieldData$crop == aCrop,])
+
+  linearModels.table$intercept[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,1]
+  linearModels.table$intercept_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,4]
+  linearModels.table$speed[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,1]
+  linearModels.table$speed_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,4]
+  linearModels.table$adjrsquared[linearModels.table$crop == aCrop] <- summary(linearModel)$adj.r.squared
+}
+```
+
+```{r}
+knitr::kable(linearModels.table)
+```
+
+## Effect of albedo on ARID
+
+Plotting ARID vs albedo:
+
+```{r}
+plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/ARIDvsAlbedo_wheatVsRice.png"
+
+grScale = 2
+fontRescale = 0.5
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+layout(matrix(c(1, 2, 3, 4, 4, 4), nrow = 3, ncol = 2),
+       heights = c(10, 10, 2), widths = c(10, 3))
+
+par(mar = c(1,5,1,1), cex.lab = 0.8 * grScale)
+
+plot(c(minAlbedo, maxAlbedo),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (current year)")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(yieldData$albedo[yieldData$crop == aCrop],
+         yieldData$meanARID[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(meanARID ~ albedo, data = yieldData[yieldData$crop == aCrop,]),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+plot(c(minAlbedo, maxAlbedo),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (grow seasons)")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(yieldData$albedo[yieldData$crop == aCrop],
+         yieldData$meanARID_grow[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(meanARID_grow ~ albedo, data = yieldData[yieldData$crop == aCrop,]),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+par(mar = c(1, 1, 1, 0.1))
+
+plot(c(minAlbedo, maxAlbedo), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+axis(3, 
+     at = seq(minAlbedo, maxAlbedo, by = 0.05),
+     tck = 0, lwd = 0)
+
+mtext("albedo", side = 1, line = -2)
+
+par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+legend(x = 0, y = 1, 
+       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% wheatAndRice], " (", levels(yieldData$crop), ")"), 
+       title = "S_water (Crop-cultivar)", 
+       fill = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+linearModels.table <- data.frame(
+  levels(yieldData$crop),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop))
+)
+
+names(linearModels.table) <- c("crop", "correlation_Pearson", "intercept", "intercept_p", "speed", "speed_p", "adjrsquared")
+
+for (aCrop in levels(yieldData$crop))
+{
+  linearModels.table$correlation_Pearson[linearModels.table$crop == aCrop] <- 
+    cor(x = yieldData$albedo[yieldData$crop == aCrop], y = yieldData$meanARID_grow[yieldData$crop == aCrop], use = "pairwise.complete.obs")
+  
+  linearModel <- lm(meanARID_grow ~ albedo, data = yieldData[yieldData$crop == aCrop,])
+
+  linearModels.table$intercept[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,1]
+  linearModels.table$intercept_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,4]
+  linearModels.table$speed[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,1]
+  linearModels.table$speed_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,4]
+  linearModels.table$adjrsquared[linearModels.table$crop == aCrop] <- summary(linearModel)$adj.r.squared
+}
+```
+
+```{r}
+knitr::kable(linearModels.table)
+```
+
+## Effect of albedo on yield
+
+Plotting yield vs albedo:
+
+```{r}
+plotName = "plots/SIMPLE-crop-model_withSpatialDiversity/yieldvsAlbedo_wheatVsRice.png"
+
+grScale = 2
+fontRescale = 0.5
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+layout(matrix(c(1, 2), nrow = 1, ncol = 2), widths = c(10, 3))
+
+par(mar = c(5,5,1,1), cex.lab = 0.8 * grScale)
+
+plot(c(minAlbedo, maxAlbedo),
+     c(minYield, maxYield),
+     xlab = "albedo",
+     ylab = "yield")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(yieldData$albedo[yieldData$crop == aCrop],
+         yieldData$yield[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(yield ~ albedo, data = yieldData[yieldData$crop == aCrop,]),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+legend(x = 0, y = 1, 
+       legend = stringi::stri_c(cropTable$S_water[cropTable$crop %in% wheatAndRice], " (", levels(yieldData$crop), ")"), 
+       title = "S_water (Crop-cultivar)", 
+       fill = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+linearModels.table <- data.frame(
+  levels(yieldData$crop),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop))
+)
+
+names(linearModels.table) <- c("crop", "correlation_Pearson", "intercept", "intercept_p", "speed", "speed_p", "adjrsquared")
+
+for (aCrop in levels(yieldData$crop))
+{
+  linearModels.table$correlation_Pearson[linearModels.table$crop == aCrop] <- 
+    cor(x = yieldData$albedo[yieldData$crop == aCrop], y = yieldData$yield[yieldData$crop == aCrop], use = "pairwise.complete.obs")
+  
+  linearModel <- lm(yield ~ albedo, data = yieldData[yieldData$crop == aCrop,])
+
+  linearModels.table$intercept[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,1]
+  linearModels.table$intercept_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,4]
+  linearModels.table$speed[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,1]
+  linearModels.table$speed_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,4]
+  linearModels.table$adjrsquared[linearModels.table$crop == aCrop] <- summary(linearModel)$adj.r.squared
+}
+```
+
+```{r}
+knitr::kable(linearModels.table)
+```
+

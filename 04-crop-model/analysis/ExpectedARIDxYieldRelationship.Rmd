@@ -1,0 +1,42 @@
+---
+title: "Expectation on ARID x yield relationship"
+author: "Andreas Angourakis"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+```{r}
+library(ggplot2)
+```
+
+```{r setup, include=FALSE}
+theorethicalData <- c()
+
+for (waterSensitivity in seq(0, 1, length.out = 25))# (1:24) * 1/4)
+{
+  for (meanARID in seq(0, 1, length.out = 100))
+  {
+    theorethicalData <- rbind(theorethicalData, 
+                              c(waterSensitivity, meanARID, (100 * (1 - meanARID) ^ (waterSensitivity * 25 * 1/4) )))
+  }
+}
+theorethicalData <- as.data.frame(theorethicalData)
+names(theorethicalData) <- c("waterSensitivity", "meanARID", "meanYield")
+```
+
+```{r}
+plotName = "expectedARIDxYieldRelationship.png"
+
+grScale = 1
+
+png(plotName, width = grScale * 600, height = grScale * 300)
+
+ggplot(data = theorethicalData,
+                mapping = aes( x = meanARID, 
+                               y = meanYield,
+                               group = waterSensitivity,
+                               color = waterSensitivity)) +
+  geom_path()
+
+dev.off()
+```

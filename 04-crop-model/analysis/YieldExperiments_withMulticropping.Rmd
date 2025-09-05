@@ -1,0 +1,227 @@
+---
+title: "Simple crop model with multipcropping - plotting land unit yield"
+author: "Andreas Angourakis"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+
+```{r}
+require(stringr)
+```
+
+## Load data
+
+Load all experiment output files in the "yield" folder, generated with this version ("Simple crop model").
+
+```{r}
+file_names <- paste0("yield/", list.files("yield"))
+
+isThisVersion <- grepl("SIMPLE-crop-model_withMulticropping_yield", file_names)
+
+yieldData <- do.call(rbind, lapply(file_names[isThisVersion], read.csv))
+```
+
+## Preparations
+
+Reconstruct cropTable content:
+
+```{r}
+cropTableNames <- c("crop", "T_sum", "HI", "I_50A", "I_50B", "T_base", "T_opt", "RUE", "I_50maxH", "I_50maxW", "T_heat", "T_extreme", "S_CO2", "S_water", "sowingDay", "harvestDay")
+
+cropTable <- data.frame(matrix(ncol=length(cropTableNames),nrow=0, dimnames=list(NULL, cropTableNames)))
+
+for (aCrop in levels(yieldData$crop))
+{
+  cropTable <- rbind(cropTable, yieldData[match(aCrop, yieldData$crop), cropTableNames])
+}
+```
+
+Get vector of colours to represent crops:
+
+```{r}
+cropColours <- rainbow(nlevels(cropTable$crop), s = 0.8, end = 0.9)
+```
+
+extract map dimensions:
+
+```{r}
+minX = min(yieldData$x)
+maxX = max(yieldData$x)
+mapWidth = maxX - minX + 1
+
+minY = min(yieldData$y)
+maxY = max(yieldData$y)
+mapHeight = maxY - minY + 1
+```
+
+## Mean yield per crop
+
+Build spatial yield matrices:
+
+```{r}
+meanYield_byPosAndCrop <- list()
+
+for (aCrop in levels(cropTable$crop))
+{
+  meanYield_byPosAndCrop[[aCrop]] <- matrix(rep(NA, mapWidth * mapHeight), nrow = mapHeight, ncol = mapWidth)
+  
+  for (i in minX:maxX)
+  {
+    for (j in minY:maxY)
+    {
+      meanYield_byPosAndCrop[[aCrop]][j+1, i+1] <- mean(yieldData$yield[yieldData$crop == aCrop & yieldData$x == i & yieldData$y == j])
+    }
+  }
+}
+
+```
+
+Plot mean yield per crop in grid map:
+
+```{r}
+cleanCropName <- function(x) trimws(gsub("[[:punct:]]", "", x), 'l')
+
+plotName = paste0("plots/SIMPLE-crop-model_withMulticropping/meanYieldRaster_byCrop.png")
+
+grScale = 2
+  
+png(plotName, width = grScale * 200 * nlevels(cropTable$crop), height = grScale * 200)
+
+layout(matrix(1:(nlevels(cropTable$crop)), nrow = 1, byrow = FALSE))
+
+par(cex.main = 1.5 * grScale, cex.axis = 0.6 * grScale)
+
+for (aCrop in levels(cropTable$crop))
+{
+  colgrp <- findInterval(c(meanYield_byPosAndCrop[[aCrop]]),
+                         seq(min(c(meanYield_byPosAndCrop[[aCrop]])),
+                             max(c(meanYield_byPosAndCrop[[aCrop]])),
+                             length.out = 10))
+  colfunc <- colorRampPalette(c("white", cropColours[match(aCrop, cropTable$crop)]))
+  collist <- colfunc(length(unique(colgrp))) 
+  
+  image(meanYield_byPosAndCrop[[aCrop]],
+        col = collist,
+        axes = FALSE, xaxt='n', yaxt='n', ann=FALSE)
+  
+  title(main = cleanCropName(aCrop))
+  
+  axis(2, at = seq(0, 1, length.out = mapHeight), labels = minY:maxY)
+  axis(1, at = seq(0, 1, length.out = mapWidth), labels = minX:maxX)
+}
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Alternative using data frame structure (instead of separate matrices) and plotting using more elemental base graphic functions. This alternative is equivalent to the previous one but takes longer to process.
+
+```{r}
+meanYield_byPosAndCrop_v2 <- list(
+  crop = c(),
+  x = c(),
+  y = c(),
+  meanYield = c()
+)
+
+for (aCrop in levels(cropTable$crop))
+{
+  for (i in minX:maxX)
+  {
+    for (j in minY:maxY)
+    { 
+      meanYield_byPosAndCrop_v2$crop <- c(meanYield_byPosAndCrop_v2$crop, aCrop)
+      meanYield_byPosAndCrop_v2$x <- c(meanYield_byPosAndCrop_v2$x, i)
+      meanYield_byPosAndCrop_v2$y <- c(meanYield_byPosAndCrop_v2$y, j)
+      
+      meanYield_byPosAndCrop_v2$meanYield <- c(meanYield_byPosAndCrop_v2$meanYield,
+                                            mean(yieldData$yield[yieldData$crop == aCrop & yieldData$x == i & yieldData$y == j]))
+    }
+  }
+}
+
+meanYield_byPosAndCrop_v2 <- as.data.frame(meanYield_byPosAndCrop_v2)
+```
+
+
+```{r}
+cleanCropName <- function(x) trimws(gsub("[[:punct:]]", "", x), 'l')
+
+plotName = paste0("plots/SIMPLE-crop-model_withMulticropping/meanYieldRaster_byCrop_v2.png")
+
+grScale = 2
+  
+png(plotName, width = grScale * 200 * nlevels(cropTable$crop), height = grScale * 200)
+
+layout(matrix(1:(nlevels(cropTable$crop)), nrow = 1))
+
+for (aCrop in levels(cropTable$crop))
+{
+  colgrp <- findInterval(meanYield_byPosAndCrop_v2$meanYield[meanYield_byPosAndCrop_v2$crop == aCrop],
+                         seq(min(meanYield_byPosAndCrop_v2$meanYield[meanYield_byPosAndCrop_v2$crop == aCrop]),
+                             max(meanYield_byPosAndCrop_v2$meanYield[meanYield_byPosAndCrop_v2$crop == aCrop]),
+                             length.out = 10))
+  colfunc <- colorRampPalette(c("white", cropColours[match(aCrop, cropTable$crop)]))
+  collist <- colfunc(length(unique(colgrp))) 
+  
+  par(cex.main = 1.5 * grScale, cex.axis = 0.6 * grScale)
+  
+  plot(NA, ylim = c(0.5, mapHeight + 0.5), xlim = c(0.5, mapWidth + 0.5), ann = FALSE, axes = FALSE)
+  
+  title(main = cleanCropName(aCrop))
+  
+  axis(2, at = minY:maxY, labels = minY:maxY)
+  axis(1, at = minX:maxX, labels = minX:maxX)
+
+  symbols(meanYield_byPosAndCrop_v2$x[meanYield_byPosAndCrop_v2$crop == aCrop], 
+          meanYield_byPosAndCrop_v2$y[meanYield_byPosAndCrop_v2$crop == aCrop],
+          squares = rep(1, mapHeight * mapWidth),
+          add = TRUE,
+          inches = FALSE,
+          fg = collist[colgrp],
+          bg = collist[colgrp])
+}
+
+dev.off()
+
+
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Alternative using `heatmap`: 
+NOTE: this function is incompatible with `layout` so plots must be generated separately; it is also hard to customise because of many inaccessible defaults which are set for biostatistics (i.e. genetic data, with lateral dendrograms)).
+
+```{r}
+
+cleanCropName <- function(x) gsub("[[:punct:]]", "", x)
+
+for (aCrop in levels(cropTable$crop))
+{
+  plotName = paste0("plots/SIMPLE-crop-model_withMulticropping/meanYieldRaster_", cleanCropName(aCrop), ".png")
+
+  grScale = 2
+  
+  png(plotName, width = grScale * 500, height = grScale * 300)
+  
+  par(mar = c(3,1,10,1), cex.main = grScale)
+  heatmap(meanYield_byPosAndCrop[[aCrop]], 
+        Rowv = NA, Colv = NA, 
+        main = aCrop,
+        labRow = minY:maxY, labCol = minX:maxX,
+        cexRow = 0.8 * grScale, cexCol = 0.8 * grScale)
+  
+  dev.off()
+}
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
