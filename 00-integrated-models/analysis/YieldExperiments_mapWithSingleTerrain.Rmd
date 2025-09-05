@@ -1,0 +1,531 @@
+---
+title: "I2 - integrated land crop model - mapping yield in single terrain"
+author: "Andreas Angourakis"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+## General preparation
+
+Define paths:
+
+```{r}
+data_dir <- "simdata/"
+plots_dir <- "plots/"
+```
+
+Get file names in simulation data directory:
+```{r}
+file_names <- paste0(data_dir, "/", list.files(data_dir))
+```
+
+```{r}
+require(colorspace)
+```
+
+Load crop table (assumed to always have the same name):
+
+```{r}
+cropTable <- read.csv(paste0(data_dir, "I2_yield-exp_cropTable.csv"))
+```
+
+Reorder crops for a more logical display:
+
+WARNING: doing this manually makes the script sensitive to the value of crop-selection in NetLogo. Thus, this chunk must be uptdated if crop-selection is changed before running experiments.
+
+```{r}
+cropTable$crop <- factor(cropTable$crop, levels = c("proso millet", "pearl millet", "rice", "barley", "wheat 1", "wheat 2"))
+```
+
+## Terrain example 1: no river
+
+### Experiment definition
+
+First set any parameters to be used as identifiers of the experiment batches to retrieved:
+
+```{r}
+terrainRandomSeed = 0
+```
+
+### Load data
+
+Load the terrain data in the "yield" folder:
+
+```{r}
+terrainData <- read.csv(paste0(data_dir, "I2_yield-exp_terrainRandomSeed=", terrainRandomSeed, ".csv"))
+```
+
+Load all experiment output files in the "yield" folder, generated with this version (I2):
+
+```{r}
+file_names <- paste0(data_dir, list.files("yield"))
+
+nameFilter <- grepl(paste0("I2_yield-exp_terrainRandomSeed=", terrainRandomSeed, "_"), file_names)
+
+yieldData <- do.call(rbind, lapply(file_names[nameFilter], read.csv))
+```
+
+Force the same order of crops used by cropTable:
+
+```{r}
+yieldData$crop <- factor(yieldData$crop, levels = levels(cropTable$crop))
+```
+
+### Preparations
+
+Get vector of colours to represent crops:
+
+```{r}
+cropColours <- rainbow(nlevels(cropTable$crop), s = 0.8, v = 0.8, end = 0.85)
+```
+
+extract map dimensions:
+
+```{r}
+minX = min(terrainData$x)
+maxX = max(terrainData$x)
+mapWidth = maxX - minX + 1
+
+minY = min(terrainData$y)
+maxY = max(terrainData$y)
+mapHeight = maxY - minY + 1
+```
+
+### mean ARID and mean ARID in growth season per crop
+
+Build spatial ARID matrices:
+
+```{r}
+meanARID_byPos <- matrix(rep(NA, mapWidth * mapHeight), nrow = mapHeight, ncol = mapWidth)
+
+for (i in minX:maxX)
+{
+  for (j in minY:maxY)
+  {
+    meanARID_byPos[j+1, i+1] <- mean(yieldData$p_soil_meanARID[yieldData$x == i & yieldData$y == j], na.rm = TRUE)
+  }
+}
+
+meanARID_grow_byPosAndCrop <- list()
+
+for (aCrop in levels(cropTable$crop))
+{
+  meanARID_grow_byPosAndCrop[[aCrop]] <- matrix(rep(NA, mapWidth * mapHeight), nrow = mapHeight, ncol = mapWidth)
+  
+  for (i in minX:maxX)
+  {
+    for (j in minY:maxY)
+    {
+      meanARID_grow_byPosAndCrop[[aCrop]][j+1, i+1] <- 
+        mean(yieldData$p_soil_meanARID_grow[yieldData$crop == aCrop & yieldData$x == i & yieldData$y == j], na.rm = TRUE)
+    }
+  }
+}
+
+```
+
+Plot mean ARID per crop in grid map:
+
+```{r}
+plotName = paste0(plots_dir, "I2/meanARIDRaster_byCrop_terrainRandomSeed=", terrainRandomSeed,".png")
+
+grScale = 2
+  
+png(plotName, width = grScale * 200 * nlevels(cropTable$crop), height = grScale * 800)
+
+layout(matrix(c(rep(nlevels(cropTable$crop) + 2, nlevels(cropTable$crop) + 1), 1:(nlevels(cropTable$crop) + 1)), nrow = 2, byrow = TRUE),
+       heights = c(3, 1))
+
+par(cex.main = 1.5 * grScale, cex.axis = 0.6 * grScale)
+
+for (aCrop in levels(cropTable$crop))
+{
+  colgrp <- findInterval(c(meanARID_grow_byPosAndCrop[[aCrop]]),
+                         seq(min(c(meanARID_grow_byPosAndCrop[[aCrop]])),
+                             max(c(meanARID_grow_byPosAndCrop[[aCrop]])),
+                             length.out = 10))
+  colfunc <- colorRampPalette(c(lighten(cropColours[match(aCrop, levels(cropTable$crop))], amount = 0.9), 
+                                cropColours[match(aCrop, levels(cropTable$crop))]))
+  collist <- colfunc(length(unique(colgrp))) 
+  
+  image(t(meanARID_grow_byPosAndCrop[[aCrop]]),
+        col = collist,
+        axes = FALSE, xaxt = 'n', yaxt = 'n', ann = FALSE)
+  
+  title(main = aCrop)
+  
+  axis(2, at = seq(0, 1, length.out = mapHeight), labels = minY:maxY)
+  axis(1, at = seq(0, 1, length.out = mapWidth), labels = minX:maxX)
+}
+
+image(t(meanARID_byPos), axes = FALSE, xaxt = 'n', yaxt = 'n', ann = FALSE)
+
+title(main = "entire year")
+
+axis(2, at = seq(0, 1, length.out = mapHeight), labels = minY:maxY)
+axis(1, at = seq(0, 1, length.out = mapWidth), labels = minX:maxX)
+
+par(mar = c(5, 20, 5, 5), cex.axis = 2 * grScale, cex.lab = 2 * grScale)
+
+boxplot(p_soil_meanARID_grow ~ factor(crop), data = yieldData,#[yieldData$yield > 0,], # show only non-zero yield 
+        ylab = "", xlab = "",
+        las = 2, xaxt = 'n', cex = grScale,
+        col = cropColours)
+
+mtext("mean ARID (growth season)", side = 2, line = 10, cex = 2 * grScale)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+### Mean yield per crop
+
+Build spatial yield matrices:
+
+```{r}
+meanYield_byPosAndCrop <- list()
+
+for (aCrop in levels(cropTable$crop))
+{
+  meanYield_byPosAndCrop[[aCrop]] <- matrix(rep(NA, mapWidth * mapHeight), nrow = mapHeight, ncol = mapWidth)
+  
+  for (i in minX:maxX)
+  {
+    for (j in minY:maxY)
+    {
+      meanYield_byPosAndCrop[[aCrop]][j+1, i+1] <- mean(yieldData$yield[yieldData$crop == aCrop & yieldData$x == i & yieldData$y == j])
+    }
+  }
+}
+
+```
+
+Plot mean yield per crop in grid map:
+
+```{r}
+plotName = paste0(plots_dir, "I2/meanYieldRaster_byCrop_terrainRandomSeed=", terrainRandomSeed,".png")
+
+grScale = 2
+  
+png(plotName, width = grScale * 200 * nlevels(cropTable$crop), height = grScale * 800)
+
+layout(matrix(c(rep(nlevels(cropTable$crop) + 1, nlevels(cropTable$crop)), 1:(nlevels(cropTable$crop))), nrow = 2, byrow = TRUE),
+       heights = c(3, 1))
+
+par(cex.main = 1.5 * grScale, cex.axis = 0.6 * grScale)
+
+for (aCrop in levels(cropTable$crop))
+{
+  colgrp <- findInterval(c(meanYield_byPosAndCrop[[aCrop]]),
+                         seq(min(c(meanYield_byPosAndCrop[[aCrop]])),
+                             max(c(meanYield_byPosAndCrop[[aCrop]])),
+                             length.out = 10))
+  colfunc <- colorRampPalette(c(lighten(cropColours[match(aCrop, levels(cropTable$crop))], amount = 0.9), 
+                                cropColours[match(aCrop, levels(cropTable$crop))]))
+  collist <- colfunc(length(unique(colgrp))) 
+  
+  image(t(meanYield_byPosAndCrop[[aCrop]]),
+        col = collist,
+        axes = FALSE, xaxt = 'n', yaxt = 'n', ann = FALSE)
+  
+  title(main = aCrop)
+  
+  axis(2, at = seq(0, 1, length.out = mapHeight), labels = minY:maxY)
+  axis(1, at = seq(0, 1, length.out = mapWidth), labels = minX:maxX)
+}
+
+par(mar = c(5, 20, 5, 5), cex.axis = 2 * grScale, cex.lab = 2 * grScale)
+
+boxplot(yield ~ factor(crop), data = yieldData,#[yieldData$yield > 0,], # show only non-zero yield 
+        ylab = "", xlab = "",
+        las = 2, xaxt = 'n', cex = grScale,
+        col = cropColours)
+
+mtext(expression(paste("yield (", g/m^2, ")")), side = 2, line = 10, cex = 2 * grScale)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Alternative using `heatmap`: 
+NOTE: this function is incompatible with `layout` so plots must be generated separately; it is also hard to customise because of many inaccessible defaults which are set for biostatistics (i.e. genetic data, with lateral dendrograms)).
+
+```{r}
+for (aCrop in levels(cropTable$crop))
+{
+  plotName = paste0(plots_dir, "I2/meanYieldRaster_terrainRandomSeed=", terrainRandomSeed,"_", aCrop, ".png")
+
+  grScale = 2
+  
+  png(plotName, width = grScale * 500, height = grScale * 300)
+  
+  par(mar = c(3,1,10,1), cex.main = grScale)
+  heatmap(meanYield_byPosAndCrop[[aCrop]], 
+        Rowv = NA, Colv = NA, 
+        main = aCrop,
+        labRow = minY:maxY, labCol = minX:maxX,
+        cexRow = 0.8 * grScale, cexCol = 0.8 * grScale)
+  
+  dev.off()
+}
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+## Terrain example 2: river
+
+Clear memory space used by large objects in the R environment:
+
+```{r}
+rm(terrainData, yieldData)
+```
+
+### Experiment definition
+
+First set any parameters to be used as identifiers of the experiment batches to retrieved:
+
+```{r}
+terrainRandomSeed = 35
+```
+
+### Load data
+
+Load the terrain data in the "yield" folder:
+
+```{r}
+terrainData <- read.csv(paste0(data_dir, "I2_yield-exp_terrainRandomSeed=", terrainRandomSeed, ".csv"))
+```
+
+Load all experiment output files in the "yield" folder, generated with this version (I2):
+
+```{r}
+file_names <- paste0(data_dir, list.files("yield"))
+
+isThisVersion <- grepl(paste0("I2_yield-exp_terrainRandomSeed=", terrainRandomSeed, "_"), file_names)
+
+yieldData <- do.call(rbind, lapply(file_names[isThisVersion], read.csv))
+```
+
+Force the same order of crops used by cropTable:
+
+```{r}
+yieldData$crop <- factor(yieldData$crop, levels = levels(cropTable$crop))
+```
+
+### Preparations
+
+Get vector of colours to represent crops:
+
+```{r}
+cropColours <- rainbow(nlevels(cropTable$crop), s = 0.8, v = 0.8, end = 0.85)
+```
+
+extract map dimensions:
+
+```{r}
+minX = min(terrainData$x)
+maxX = max(terrainData$x)
+mapWidth = maxX - minX + 1
+
+minY = min(terrainData$y)
+maxY = max(terrainData$y)
+mapHeight = maxY - minY + 1
+```
+
+### mean ARID and mean ARID in growth season per crop
+
+Build spatial yield matrices:
+
+```{r}
+meanARID_byPos <- matrix(rep(NA, mapWidth * mapHeight), nrow = mapHeight, ncol = mapWidth)
+
+for (i in minX:maxX)
+{
+  for (j in minY:maxY)
+  {
+    meanARID_byPos[j+1, i+1] <- mean(yieldData$p_soil_meanARID[yieldData$x == i & yieldData$y == j], na.rm = TRUE)
+  }
+}
+
+meanARID_grow_byPosAndCrop <- list()
+
+for (aCrop in levels(cropTable$crop))
+{
+  meanARID_grow_byPosAndCrop[[aCrop]] <- matrix(rep(NA, mapWidth * mapHeight), nrow = mapHeight, ncol = mapWidth)
+  
+  for (i in minX:maxX)
+  {
+    for (j in minY:maxY)
+    {
+      meanARID_grow_byPosAndCrop[[aCrop]][j+1, i+1] <- 
+        mean(yieldData$p_soil_meanARID_grow[yieldData$crop == aCrop & yieldData$x == i & yieldData$y == j], na.rm = TRUE)
+    }
+  }
+}
+
+```
+
+Plot mean yield per crop in grid map:
+
+```{r}
+plotName = paste0(plots_dir, "I2/meanARIDRaster_byCrop_terrainRandomSeed=", terrainRandomSeed,".png")
+
+grScale = 2
+  
+png(plotName, width = grScale * 200 * nlevels(cropTable$crop), height = grScale * 800)
+
+layout(matrix(c(rep(nlevels(cropTable$crop) + 2, nlevels(cropTable$crop) + 1), 1:(nlevels(cropTable$crop) + 1)), nrow = 2, byrow = TRUE),
+       heights = c(3, 1))
+
+par(cex.main = 1.5 * grScale, cex.axis = 0.6 * grScale)
+
+for (aCrop in levels(cropTable$crop))
+{
+  colgrp <- findInterval(c(meanARID_grow_byPosAndCrop[[aCrop]]),
+                         seq(min(c(meanARID_grow_byPosAndCrop[[aCrop]])),
+                             max(c(meanARID_grow_byPosAndCrop[[aCrop]])),
+                             length.out = 10))
+  colfunc <- colorRampPalette(c(lighten(cropColours[match(aCrop, levels(cropTable$crop))], amount = 0.9), 
+                                cropColours[match(aCrop, levels(cropTable$crop))]))
+  collist <- colfunc(length(unique(colgrp))) 
+  
+  image(t(meanARID_grow_byPosAndCrop[[aCrop]]),
+        col = collist,
+        axes = FALSE, xaxt = 'n', yaxt = 'n', ann = FALSE)
+  
+  title(main = aCrop)
+  
+  axis(2, at = seq(0, 1, length.out = mapHeight), labels = minY:maxY)
+  axis(1, at = seq(0, 1, length.out = mapWidth), labels = minX:maxX)
+}
+
+image(t(meanARID_byPos), axes = FALSE, xaxt = 'n', yaxt = 'n', ann = FALSE)
+
+title(main = "entire year")
+
+axis(2, at = seq(0, 1, length.out = mapHeight), labels = minY:maxY)
+axis(1, at = seq(0, 1, length.out = mapWidth), labels = minX:maxX)
+
+par(mar = c(5, 20, 5, 5), cex.axis = 2 * grScale, cex.lab = 2 * grScale)
+
+boxplot(p_soil_meanARID_grow ~ factor(crop), data = yieldData,#[yieldData$yield > 0,], # show only non-zero yield 
+        ylab = "", xlab = "",
+        las = 2, xaxt = 'n', cex = grScale,
+        col = cropColours)
+
+mtext("mean ARID (growth season)", side = 2, line = 10, cex = 2 * grScale)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+### Mean yield per crop
+
+Build spatial yield matrices:
+
+```{r}
+meanYield_byPosAndCrop <- list()
+
+for (aCrop in levels(cropTable$crop))
+{
+  meanYield_byPosAndCrop[[aCrop]] <- matrix(rep(NA, mapWidth * mapHeight), nrow = mapHeight, ncol = mapWidth)
+  
+  for (i in minX:maxX)
+  {
+    for (j in minY:maxY)
+    {
+      meanYield_byPosAndCrop[[aCrop]][j+1, i+1] <- mean(yieldData$yield[yieldData$crop == aCrop & yieldData$x == i & yieldData$y == j])
+    }
+  }
+}
+
+```
+
+Plot mean yield per crop in grid map:
+
+```{r}
+plotName = paste0(plots_dir, "I2/meanYieldRaster_byCrop_terrainRandomSeed=", terrainRandomSeed,".png")
+
+grScale = 2
+  
+png(plotName, width = grScale * 200 * nlevels(cropTable$crop), height = grScale * 800)
+
+layout(matrix(c(rep(nlevels(cropTable$crop) + 1, nlevels(cropTable$crop)), 1:(nlevels(cropTable$crop))), nrow = 2, byrow = TRUE),
+       heights = c(3, 1))
+
+par(cex.main = 1.5 * grScale, cex.axis = 0.6 * grScale)
+
+for (aCrop in levels(cropTable$crop))
+{
+  colgrp <- findInterval(c(meanYield_byPosAndCrop[[aCrop]]),
+                         seq(min(c(meanYield_byPosAndCrop[[aCrop]])),
+                             max(c(meanYield_byPosAndCrop[[aCrop]])),
+                             length.out = 10))
+  colfunc <- colorRampPalette(c(lighten(cropColours[match(aCrop, levels(cropTable$crop))], amount = 0.9), 
+                                cropColours[match(aCrop, levels(cropTable$crop))]))
+  collist <- colfunc(length(unique(colgrp))) 
+  
+  image(t(meanYield_byPosAndCrop[[aCrop]]),
+        col = collist,
+        axes = FALSE, xaxt = 'n', yaxt = 'n', ann = FALSE)
+  
+  title(main = aCrop)
+  
+  axis(2, at = seq(0, 1, length.out = mapHeight), labels = minY:maxY)
+  axis(1, at = seq(0, 1, length.out = mapWidth), labels = minX:maxX)
+}
+
+par(mar = c(5, 20, 5, 5), cex.axis = 2 * grScale, cex.lab = 2 * grScale)
+
+boxplot(yield ~ factor(crop), data = yieldData,#[yieldData$yield > 0,], # show only non-zero yield 
+        ylab = "", xlab = "",
+        las = 2, xaxt = 'n', cex = grScale,
+        col = cropColours)
+
+mtext(expression(paste("yield (", g/m^2, ")")), side = 2, line = 10, cex = 2 * grScale)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+
+Alternative using `heatmap`: 
+NOTE: this function is incompatible with `layout` so plots must be generated separately; it is also hard to customise because of many inaccessible defaults which are set for biostatistics (i.e. genetic data, with lateral dendrograms)).
+
+```{r}
+for (aCrop in levels(cropTable$crop))
+{
+  plotName = paste0(plots_dir, "I2/meanYieldRaster_terrainRandomSeed=", terrainRandomSeed,"_", aCrop, ".png")
+
+  grScale = 2
+  
+  png(plotName, width = grScale * 500, height = grScale * 300)
+  
+  par(mar = c(3,1,10,1), cex.main = grScale)
+  heatmap(meanYield_byPosAndCrop[[aCrop]], 
+        Rowv = NA, Colv = NA, 
+        main = aCrop,
+        labRow = minY:maxY, labCol = minX:maxX,
+        cexRow = 0.8 * grScale, cexCol = 0.8 * grScale)
+  
+  dev.off()
+}
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```

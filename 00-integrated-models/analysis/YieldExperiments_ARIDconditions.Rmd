@@ -1,0 +1,1433 @@
+---
+title: "I2 - integrated land crop model - ARID conditions"
+author: "Andreas Angourakis"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+
+## General preparation
+
+Define paths:
+
+```{r}
+data_dir <- "simdata"
+plots_dir <- "plots"
+```
+
+Get file names in simulation data directory:
+```{r}
+file_names <- paste0(data_dir, "/", list.files(data_dir))
+```
+
+Define lookup functions to access data between tables using identifiers or 'keys':
+
+```{r}
+getRelatedVariableWithKey <- function(keyInCallingTable, keyInCalledTable, variableInCalledTable)
+{
+  return(
+    sapply(keyInCallingTable, function(x) variableInCalledTable[match(x, keyInCalledTable)])
+  )
+}
+
+getRelativeVariableWithTwoKeys <- function(firstKeyInCallingTable, secondKeyInCallingTable, 
+                                       firstKeyInCalledTable, secondKeyInCalledTable, variableInCalledTable)
+{
+  temp <- firstKeyInCallingTable
+  
+  for (i in 1:length(firstKeyInCallingTable))
+  {
+    temp[i] <- variableInCalledTable[firstKeyInCalledTable == firstKeyInCallingTable & secondKeyInCalledTable == secondKeyInCallingTable]
+  }
+  
+  return(temp)
+}
+```
+
+Load crop table (assumed to always have the same name):
+
+```{r}
+cropTable <- read.csv(paste0(data_dir, "/I2_yield-exp_cropTable.csv"))
+```
+
+Reorder crops for a more logical display:
+
+WARNING: doing this manually makes the script sensitive to the value of crop-selection in NetLogo. Thus, this chunk must be updated if crop-selection is changed before running experiments.
+
+```{r}
+cropTable$crop <- factor(cropTable$crop, levels = c("proso millet", "pearl millet", "rice", "barley", "wheat 1", "wheat 2"))
+```
+
+## Terrain example 1: no river
+
+### Experiment definition
+
+First set any parameters to be used as identifiers of the experiment batches to retrieved:
+
+```{r}
+terrainRandomSeed = 0
+```
+
+### Load data
+
+Load the terrain data in the "yield" folder:
+
+```{r}
+terrainData <- read.csv(paste0(data_dir, "/I2_yield-exp_terrainRandomSeed=", terrainRandomSeed, ".csv"))
+```
+
+Load the parameters data:
+
+```{r}
+parsData <- read.csv(paste0(
+  data_dir, 
+  "/I2_yield-exp_pars_terrainRandomSeed=", 
+  terrainRandomSeed, 
+  "_type-of-experiment=user-defined_experiment-name=exp3.csv"))
+```
+
+Load all experiment output files in the "yield" folder, generated with this version (I2):
+
+```{r}
+nameFilter <- grepl(paste0(
+  "I2_yield-exp_terrainRandomSeed=", 
+  terrainRandomSeed, 
+  "_"
+  ), file_names)
+
+yieldData <- do.call(rbind, lapply(file_names[nameFilter], read.csv))
+```
+
+Force the same order of crops used by cropTable:
+
+```{r}
+yieldData$crop <- factor(yieldData$crop, levels = levels(cropTable$crop))
+```
+
+### Preparations
+
+Get vector of colours to represent crops:
+
+```{r}
+cropColours <- rainbow(nlevels(cropTable$crop), s = 0.8, v = 0.8, end = 0.85)
+```
+
+Precalculate ranges of ARID and yield:
+
+```{r}
+minARID = round(min(c(yieldData$p_soil_meanARID, yieldData$p_soil_meanARID_grow), na.rm = TRUE), digits = 2)
+maxARID = round(max(c(yieldData$p_soil_meanARID, yieldData$p_soil_meanARID_grow), na.rm = TRUE), digits = 2)
+
+minYield = round(min(yieldData$yield), digits = -1)
+maxYield = round(max(yieldData$yield), digits = -1)
+
+minPrecipitation_yearlyMean = round(min(parsData$precipitation_yearlyMean, na.rm = TRUE), digits = -2)
+maxPrecipitation_yearlyMean = round(max(parsData$precipitation_yearlyMean, na.rm = TRUE), digits = -2)
+
+minPrecipitation_dailyCum_plateauValue_yearlyMean = round(min(parsData$precipitation_dailyCum_plateauValue_yearlyMean, na.rm = TRUE), digits = 2)
+maxPrecipitation_dailyCum_plateauValue_yearlyMean = round(max(parsData$precipitation_dailyCum_plateauValue_yearlyMean, na.rm = TRUE), digits = 2)
+```
+
+### Summary statistics per crop
+
+```{r}
+yieldData_summary <- tapply(as.numeric(as.character(yieldData$yield)), yieldData$crop, summary)
+
+yieldData_summary <- data.frame(Reduce(rbind, yieldData_summary), row.names = names(yieldData_summary))
+```
+
+```{r}
+knitr::kable(yieldData_summary)
+```
+
+```{r}
+plotName = paste0(plots_dir, "I2/yieldPerCrop_terrainRandomSeed=", terrainRandomSeed, ".png")
+
+grScale = 2
+fontRescale = 0
+fontRescaleDay = 0
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+par(mar = c(6,5,1,1))
+
+boxplot(yield ~ factor(crop), data = yieldData,#[yieldData$yield > 0,], # show only non-zero yield 
+        ylab = expression(paste("yield (", g/m^2, ")")), xlab = "",
+        las = 2, 
+        col = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+### Effect of precipitation on ARID
+
+Plotting ARID vs precipitation yearly mean:
+
+```{r}
+plotName = paste0("plots/I2/ARIDvsPrecipitation_yearlyMean_terrainRandomSeed=", terrainRandomSeed, ".png")
+
+grScale = 2
+fontRescale = 0.5
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+layout(matrix(c(1, 2, 3, 4, 4, 4), nrow = 3, ncol = 2),
+       heights = c(10, 10, 2), widths = c(10, 3))
+
+par(mar = c(1,5,1,1), cex.lab = 0.8 * grScale)
+
+plot(c(minPrecipitation_yearlyMean, maxPrecipitation_yearlyMean),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (current year)")
+
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(getRelatedVariableWithKey(keyInCallingTable =  yieldData$randomSeed[yieldData$crop == aCrop], 
+                                   keyInCalledTable = parsData$randomSeed, 
+                                   variableInCalledTable =parsData$precipitation_yearlyMean),
+         yieldData$p_soil_meanARID[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(p_soil_meanARID ~ precipitation_yearlyMean,
+            data = data.frame(cbind(
+              p_soil_meanARID = yieldData[yieldData$crop == aCrop, "p_soil_meanARID"],
+              precipitation_yearlyMean = getRelatedVariableWithKey(yieldData$randomSeed[yieldData$crop == aCrop], 
+                                                                   parsData$randomSeed, 
+                                                                   parsData$precipitation_yearlyMean)))),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+plot(c(minPrecipitation_yearlyMean, maxPrecipitation_yearlyMean),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (grow seasons)")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(getRelatedVariableWithKey(keyInCallingTable =  yieldData$randomSeed[yieldData$crop == aCrop], 
+                                   keyInCalledTable = parsData$randomSeed, 
+                                   variableInCalledTable =parsData$precipitation_yearlyMean),
+         yieldData$p_soil_meanARID_grow[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(p_soil_meanARID_grow ~ precipitation_yearlyMean,
+            data = data.frame(cbind(
+              p_soil_meanARID_grow = yieldData[yieldData$crop == aCrop, "p_soil_meanARID_grow"],
+              precipitation_yearlyMean = getRelatedVariableWithKey(yieldData$randomSeed[yieldData$crop == aCrop], 
+                                                                   parsData$randomSeed, 
+                                                                   parsData$precipitation_yearlyMean)))),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+par(mar = c(1, 1, 1, 0.1))
+
+plot(c(minPrecipitation_yearlyMean, maxPrecipitation_yearlyMean), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+axis(3, 
+     at = seq(minPrecipitation_yearlyMean, maxPrecipitation_yearlyMean, by = 50),
+     tck = 0, lwd = 0)
+
+mtext("precipitation yearly mean (mm)", side = 1, line = -2)
+
+par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+legend(x = 0, y = 1, 
+       legend = stringi::stri_c(cropTable$S_water, " (", levels(yieldData$crop), ")"), 
+       title = "S_water (Crop-cultivar)", 
+       fill = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Plotting ARID vs precipitation seasonal balance (plateau value):
+
+```{r}
+plotName = paste0(plots_dir, "I2/ARIDvsPrecipitation_dailyCum_plateauValue_yearlyMean_terrainRandomSeed=", terrainRandomSeed, ".png")
+
+grScale = 2
+fontRescale = 0.5
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+layout(matrix(c(1, 2, 3, 4, 4, 4), nrow = 3, ncol = 2),
+       heights = c(10, 10, 2), widths = c(10, 3))
+
+par(mar = c(1,5,1,1), cex.lab = 0.8 * grScale)
+
+plot(c(minPrecipitation_dailyCum_plateauValue_yearlyMean, maxPrecipitation_dailyCum_plateauValue_yearlyMean),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (current year)")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(getRelatedVariableWithKey(keyInCallingTable =  yieldData$randomSeed[yieldData$crop == aCrop], 
+                                   keyInCalledTable = parsData$randomSeed, 
+                                   variableInCalledTable =parsData$precipitation_dailyCum_plateauValue_yearlyMean),
+         yieldData$p_soil_meanARID[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(p_soil_meanARID ~ precipitation_yearlyMean,
+            data = data.frame(cbind(
+              p_soil_meanARID = yieldData[yieldData$crop == aCrop, "p_soil_meanARID"],
+              precipitation_yearlyMean = getRelatedVariableWithKey(yieldData$randomSeed[yieldData$crop == aCrop], 
+                                                                   parsData$randomSeed, 
+                                                                   parsData$precipitation_dailyCum_plateauValue_yearlyMean)))),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+plot(c(minPrecipitation_dailyCum_plateauValue_yearlyMean, maxPrecipitation_dailyCum_plateauValue_yearlyMean),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (grow seasons)")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(getRelatedVariableWithKey(keyInCallingTable =  yieldData$randomSeed[yieldData$crop == aCrop], 
+                                   keyInCalledTable = parsData$randomSeed, 
+                                   variableInCalledTable =parsData$precipitation_dailyCum_plateauValue_yearlyMean),
+         yieldData$p_soil_meanARID_grow[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(p_soil_meanARID_grow ~ precipitation_yearlyMean,
+            data = data.frame(cbind(
+              p_soil_meanARID_grow = yieldData[yieldData$crop == aCrop, "p_soil_meanARID_grow"],
+              precipitation_yearlyMean = getRelatedVariableWithKey(yieldData$randomSeed[yieldData$crop == aCrop], 
+                                                                   parsData$randomSeed, 
+                                                                   parsData$precipitation_dailyCum_plateauValue_yearlyMean)))),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+par(mar = c(1, 1, 1, 0.1))
+
+plot(c(minPrecipitation_dailyCum_plateauValue_yearlyMean, maxPrecipitation_dailyCum_plateauValue_yearlyMean), c(0, 1), 
+     ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+axis(3, 
+     at = seq(minPrecipitation_dailyCum_plateauValue_yearlyMean, maxPrecipitation_dailyCum_plateauValue_yearlyMean, by = 0.1),
+     tck = 0, lwd = 0)
+
+mtext("precipitation plateau value (i.e. winter / summer) yearly mean (mm)", side = 1, line = -2)
+
+par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+legend(x = 0, y = 1, 
+       legend = stringi::stri_c(cropTable$S_water[order(match(cropTable$crop, levels(cropTable$crop)))], " (", levels(yieldData$crop), ")"), 
+       title = "S_water (Crop-cultivar)", 
+       fill = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+### Effect of ARID on yield
+
+Plotting absolute values of yield vs ARID:
+
+```{r}
+plotName = paste0(plots_dir, "I2/yieldVsARID_terrainRandomSeed=", terrainRandomSeed, ".png")
+
+grScale = 2
+fontRescale = 0
+fontRescaleDay = 0
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+layout(matrix(c(1, 2, 3, 3), nrow = 2, ncol = 2, byrow = FALSE),
+       widths = c(10, 3))
+
+par(mar = c(5,5,1,1), cex.lab = 0.8 * grScale)
+
+plot(c(minARID, maxARID), 
+     c(minYield, maxYield),
+     xlab = "mean ARID (current year)", 
+     ylab = expression(paste("yield (", g/m^2, ")")))
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(yieldData$p_soil_meanARID[yieldData$crop == aCrop],
+         yieldData$yield[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(yield ~ p_soil_meanARID, data = yieldData[yieldData$crop == aCrop,]),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+plot(c(minARID, maxARID), 
+     c(minYield, maxYield),
+     xlab = "mean ARID (grow season)",
+     ylab = expression(paste("yield (", g/m^2, ")")))
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(yieldData$p_soil_meanARID_grow[yieldData$crop == aCrop],
+         yieldData$yield[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(yield ~ p_soil_meanARID_grow, data = yieldData[yieldData$crop == aCrop,]),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+legend(x = 0, y = 1, 
+       legend = stringi::stri_c(cropTable$S_water[order(match(cropTable$crop, levels(cropTable$crop)))], " (", levels(yieldData$crop), ")"), 
+       title = "S_water (Crop-cultivar)", 
+       fill = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+linearModels.table <- data.frame(
+  levels(yieldData$crop),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop))
+)
+
+names(linearModels.table) <- c("crop", "correlation_Pearson", "intercept", "intercept_p", "speed", "speed_p", "adjrsquared")
+
+for (aCrop in levels(yieldData$crop))
+{
+  linearModels.table$correlation_Pearson[linearModels.table$crop == aCrop] <- 
+    cor(x = yieldData$p_soil_meanARID_grow[yieldData$crop == aCrop], y = yieldData$yield[yieldData$crop == aCrop], use = "pairwise.complete.obs")
+  
+  linearModel <- lm(yield ~ p_soil_meanARID_grow, data = yieldData[yieldData$crop == aCrop,])
+
+  linearModels.table$intercept[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,1]
+  linearModels.table$intercept_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,4]
+  linearModels.table$speed[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,1]
+  linearModels.table$speed_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,4]
+  linearModels.table$adjrsquared[linearModels.table$crop == aCrop] <- summary(linearModel)$adj.r.squared
+}
+```
+
+```{r}
+knitr::kable(linearModels.table)
+```
+
+### Yield by crop and precipitation conditions
+
+Plotting absolute values of yield vs precipitation yearly mean:
+
+```{r}
+plotName = paste0(plots_dir, "I2/yieldVsprecipitation_yearlyMean_terrainRandomSeed=", terrainRandomSeed, ".png")
+
+grScale = 2
+fontRescale = 0
+fontRescaleDay = 0
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+layout(matrix(c(1, 2), nrow = 1, ncol = 2, byrow = FALSE),
+       widths = c(10, 3))
+
+par(mar = c(5,5,1,1), cex.lab = 0.8 * grScale)
+
+plot(c(minPrecipitation_yearlyMean, maxPrecipitation_yearlyMean), 
+     c(minYield, maxYield),
+     xlab = "precipitation yearly mean (mm)",
+     ylab = expression(paste("yield (", g/m^2, ")")))
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(getRelatedVariableWithKey(keyInCallingTable =  yieldData$randomSeed[yieldData$crop == aCrop], 
+                                   keyInCalledTable = parsData$randomSeed, 
+                                   variableInCalledTable = parsData$precipitation_yearlyMean),
+         yieldData$yield[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(yield ~ precipitation_yearlyMean,
+            data = data.frame(cbind(
+              yield = yieldData[yieldData$crop == aCrop, "yield"],
+              precipitation_yearlyMean = getRelatedVariableWithKey(yieldData$randomSeed[yieldData$crop == aCrop], 
+                                                                   parsData$randomSeed, 
+                                                                   parsData$precipitation_yearlyMean)))),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+legend(x = 0, y = 1, 
+       legend = stringi::stri_c(cropTable$S_water[order(match(cropTable$crop, levels(cropTable$crop)))], " (", levels(yieldData$crop), ")"), 
+       title = "S_water (Crop-cultivar)", 
+       fill = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+linearModels.table <- data.frame(
+  levels(yieldData$crop),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop))
+)
+
+names(linearModels.table) <- c("crop", "correlation_Pearson", "intercept", "intercept_p", "speed", "speed_p", "adjrsquared")
+
+for (aCrop in levels(yieldData$crop))
+{
+  linearModels.table$correlation_Pearson[linearModels.table$crop == aCrop] <- 
+    cor(x = getRelatedVariableWithKey(keyInCallingTable =  yieldData$randomSeed[yieldData$crop == aCrop], 
+                                   keyInCalledTable = parsData$randomSeed, 
+                                   variableInCalledTable = parsData$precipitation_yearlyMean), 
+        y = yieldData$yield[yieldData$crop == aCrop], use = "pairwise.complete.obs")
+  
+  linearModel <- lm(yield ~ precipitation_yearlyMean,
+            data = data.frame(cbind(
+              yield = yieldData[yieldData$crop == aCrop, "yield"],
+              precipitation_yearlyMean = getRelatedVariableWithKey(yieldData$randomSeed[yieldData$crop == aCrop], 
+                                                                   parsData$randomSeed, 
+                                                                   parsData$precipitation_yearlyMean))))
+
+  linearModels.table$intercept[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,1]
+  linearModels.table$intercept_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,4]
+  linearModels.table$speed[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,1]
+  linearModels.table$speed_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,4]
+  linearModels.table$adjrsquared[linearModels.table$crop == aCrop] <- summary(linearModel)$adj.r.squared
+}
+```
+
+```{r}
+knitr::kable(linearModels.table)
+```
+
+Plotting absolute values of yield vs precipitation seasonal balance (plateau value):
+
+```{r}
+plotName = paste0(plots_dir, "I2/yieldVsprecipitation_dailyCum_plateauValue_yearlyMean_terrainRandomSeed=", terrainRandomSeed, ".png")
+
+grScale = 2
+fontRescale = 0
+fontRescaleDay = 0
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+layout(matrix(c(1, 2), nrow = 1, ncol = 2, byrow = FALSE),
+       widths = c(10, 3))
+
+par(mar = c(5,5,1,1), cex.lab = 0.8 * grScale)
+
+plot(c(minPrecipitation_dailyCum_plateauValue_yearlyMean, maxPrecipitation_dailyCum_plateauValue_yearlyMean), 
+     c(minYield, maxYield),
+     xlab = "precipitation plateau value (i.e. winter / summer) yearly mean (mm)",
+     ylab = expression(paste("yield (", g/m^2, ")")))
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(getRelatedVariableWithKey(keyInCallingTable =  yieldData$randomSeed[yieldData$crop == aCrop], 
+                                   keyInCalledTable = parsData$randomSeed, 
+                                   variableInCalledTable =parsData$precipitation_dailyCum_plateauValue_yearlyMean),
+         yieldData$yield[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(yield ~ precipitation_yearlyMean,
+            data = data.frame(cbind(
+              yield = yieldData[yieldData$crop == aCrop, "yield"],
+              precipitation_yearlyMean = getRelatedVariableWithKey(yieldData$randomSeed[yieldData$crop == aCrop], 
+                                                                   parsData$randomSeed, 
+                                                                   parsData$precipitation_dailyCum_plateauValue_yearlyMean)))),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+legend(x = 0, y = 1, 
+       legend = levels(yieldData$crop), 
+       title = "Crop-cultivar", 
+       fill = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+linearModels.table <- data.frame(
+  levels(yieldData$crop),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop))
+)
+
+names(linearModels.table) <- c("crop", "correlation_Pearson", "intercept", "intercept_p", "speed", "speed_p", "adjrsquared")
+
+for (aCrop in levels(yieldData$crop))
+{
+  linearModels.table$correlation_Pearson[linearModels.table$crop == aCrop] <- 
+    cor(x = getRelatedVariableWithKey(keyInCallingTable =  yieldData$randomSeed[yieldData$crop == aCrop], 
+                                      keyInCalledTable = parsData$randomSeed, 
+                                      variableInCalledTable =parsData$precipitation_dailyCum_plateauValue_yearlyMean), 
+        y = yieldData$yield[yieldData$crop == aCrop], use = "pairwise.complete.obs")
+  
+  linearModel <- lm(yield ~ precipitation_yearlyMean,
+                    data = data.frame(cbind(
+                      yield = yieldData[yieldData$crop == aCrop, "yield"],
+                      precipitation_yearlyMean = getRelatedVariableWithKey(yieldData$randomSeed[yieldData$crop == aCrop], 
+                                                                           parsData$randomSeed, 
+                                                                           parsData$precipitation_dailyCum_plateauValue_yearlyMean))))
+
+  linearModels.table$intercept[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,1]
+  linearModels.table$intercept_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,4]
+  linearModels.table$speed[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,1]
+  linearModels.table$speed_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,4]
+  linearModels.table$adjrsquared[linearModels.table$crop == aCrop] <- summary(linearModel)$adj.r.squared
+}
+```
+
+```{r}
+knitr::kable(linearModels.table)
+```
+
+## Terrain example 2: river
+
+### Experiment definition
+
+First set any parameters to be used as identifiers of the experiment batches to retrieved:
+
+```{r}
+terrainRandomSeed = 35
+```
+
+### Load data
+
+Load the terrain data in the "yield" folder:
+
+```{r}
+terrainData <- read.csv(paste0(data_dir, "/I2_yield-exp_terrainRandomSeed=", terrainRandomSeed, ".csv"))
+```
+
+Load the parameters data:
+
+```{r}
+nameFilter <- grepl(paste0("I2_yield-exp_pars_terrainRandomSeed=", terrainRandomSeed, "_"), file_names)
+
+parsData <- read.csv(file_names[nameFilter])
+```
+
+Load all experiment output files in the "yield" folder, generated with this version (I2):
+
+```{r}
+nameFilter <- grepl(paste0("I2_yield-exp_terrainRandomSeed=", terrainRandomSeed, "_"), file_names)
+
+yieldData <- do.call(rbind, lapply(file_names[nameFilter], read.csv))
+```
+
+Force the same order of crops used by cropTable:
+
+```{r}
+yieldData$crop <- factor(yieldData$crop, levels = levels(cropTable$crop))
+```
+
+### Preparations
+
+Get vector of colours to represent crops:
+
+```{r}
+cropColours <- rainbow(nlevels(cropTable$crop), s = 0.8, v = 0.8, end = 0.85)
+```
+
+Precalculate ranges of ARID and yield:
+
+```{r}
+minARID = round(min(c(yieldData$p_soil_meanARID, yieldData$p_soil_meanARID_grow), na.rm = TRUE), digits = 2)
+maxARID = round(max(c(yieldData$p_soil_meanARID, yieldData$p_soil_meanARID_grow), na.rm = TRUE), digits = 2)
+
+minYield = round(min(yieldData$yield), digits = -1)
+maxYield = round(max(yieldData$yield), digits = -1)
+
+minPrecipitation_yearlyMean = round(min(parsData$precipitation_yearlyMean, na.rm = TRUE), digits = -2)
+maxPrecipitation_yearlyMean = round(max(parsData$precipitation_yearlyMean, na.rm = TRUE), digits = -2)
+
+minPrecipitation_dailyCum_plateauValue_yearlyMean = round(min(parsData$precipitation_dailyCum_plateauValue_yearlyMean, na.rm = TRUE), digits = 2)
+maxPrecipitation_dailyCum_plateauValue_yearlyMean = round(max(parsData$precipitation_dailyCum_plateauValue_yearlyMean, na.rm = TRUE), digits = 2)
+```
+
+### Summary statistics per crop
+
+```{r}
+yieldData_summary <- tapply(as.numeric(as.character(yieldData$yield)), yieldData$crop, summary)
+
+yieldData_summary <- data.frame(Reduce(rbind, yieldData_summary), row.names = names(yieldData_summary))
+```
+
+```{r}
+knitr::kable(yieldData_summary)
+```
+
+```{r}
+plotName = paste0(plots_dir, "I2/yieldPerCrop_terrainRandomSeed=", terrainRandomSeed, ".png")
+
+grScale = 2
+fontRescale = 0
+fontRescaleDay = 0
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+par(mar = c(6,5,1,1))
+
+boxplot(yield ~ factor(crop), data = yieldData,#[yieldData$yield > 0,], # show only non-zero yield 
+        ylab = expression(paste("yield (", g/m^2, ")")), xlab = "",
+        las = 2, 
+        col = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+### Effect of precipitation on ARID
+
+Plotting ARID vs precipitation yearly mean:
+
+```{r}
+plotName = paste0(plots_dir, "I2/ARIDvsPrecipitation_yearlyMean_terrainRandomSeed=", terrainRandomSeed, ".png")
+
+grScale = 2
+fontRescale = 0.5
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+layout(matrix(c(1, 2, 3, 4, 4, 4), nrow = 3, ncol = 2),
+       heights = c(10, 10, 2), widths = c(10, 3))
+
+par(mar = c(1,5,1,1), cex.lab = 0.8 * grScale)
+
+plot(c(minPrecipitation_yearlyMean, maxPrecipitation_yearlyMean),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (current year)")
+
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(getRelatedVariableWithKey(keyInCallingTable =  yieldData$randomSeed[yieldData$crop == aCrop], 
+                                   keyInCalledTable = parsData$randomSeed, 
+                                   variableInCalledTable =parsData$precipitation_yearlyMean),
+         yieldData$p_soil_meanARID[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(p_soil_meanARID ~ precipitation_yearlyMean,
+            data = data.frame(cbind(
+              p_soil_meanARID = yieldData[yieldData$crop == aCrop, "p_soil_meanARID"],
+              precipitation_yearlyMean = getRelatedVariableWithKey(yieldData$randomSeed[yieldData$crop == aCrop], 
+                                                                   parsData$randomSeed, 
+                                                                   parsData$precipitation_yearlyMean)))),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+plot(c(minPrecipitation_yearlyMean, maxPrecipitation_yearlyMean),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (grow seasons)")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(getRelatedVariableWithKey(keyInCallingTable =  yieldData$randomSeed[yieldData$crop == aCrop], 
+                                   keyInCalledTable = parsData$randomSeed, 
+                                   variableInCalledTable =parsData$precipitation_yearlyMean),
+         yieldData$p_soil_meanARID_grow[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(p_soil_meanARID_grow ~ precipitation_yearlyMean,
+            data = data.frame(cbind(
+              p_soil_meanARID_grow = yieldData[yieldData$crop == aCrop, "p_soil_meanARID_grow"],
+              precipitation_yearlyMean = getRelatedVariableWithKey(yieldData$randomSeed[yieldData$crop == aCrop], 
+                                                                   parsData$randomSeed, 
+                                                                   parsData$precipitation_yearlyMean)))),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+par(mar = c(1, 1, 1, 0.1))
+
+plot(c(minPrecipitation_yearlyMean, maxPrecipitation_yearlyMean), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+axis(3, 
+     at = seq(minPrecipitation_yearlyMean, maxPrecipitation_yearlyMean, by = 50),
+     tck = 0, lwd = 0)
+
+mtext("precipitation yearly mean (mm)", side = 1, line = -2)
+
+par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+legend(x = 0, y = 1, 
+       legend = stringi::stri_c(cropTable$S_water[order(match(cropTable$crop, levels(cropTable$crop)))], " (", levels(yieldData$crop), ")"), 
+       title = "S_water (Crop-cultivar)", 
+       fill = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Plotting ARID vs precipitation seasonal balance (plateau value):
+
+```{r}
+plotName = paste0(plots_dir, "I2/ARIDvsPrecipitation_dailyCum_plateauValue_yearlyMean_terrainRandomSeed=", terrainRandomSeed, ".png")
+
+grScale = 2
+fontRescale = 0.5
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+layout(matrix(c(1, 2, 3, 4, 4, 4), nrow = 3, ncol = 2),
+       heights = c(10, 10, 2), widths = c(10, 3))
+
+par(mar = c(1,5,1,1), cex.lab = 0.8 * grScale)
+
+plot(c(minPrecipitation_dailyCum_plateauValue_yearlyMean, maxPrecipitation_dailyCum_plateauValue_yearlyMean),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (current year)")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(getRelatedVariableWithKey(keyInCallingTable =  yieldData$randomSeed[yieldData$crop == aCrop], 
+                                   keyInCalledTable = parsData$randomSeed, 
+                                   variableInCalledTable =parsData$precipitation_dailyCum_plateauValue_yearlyMean),
+         yieldData$p_soil_meanARID[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(p_soil_meanARID ~ precipitation_yearlyMean,
+            data = data.frame(cbind(
+              p_soil_meanARID = yieldData[yieldData$crop == aCrop, "p_soil_meanARID"],
+              precipitation_yearlyMean = getRelatedVariableWithKey(yieldData$randomSeed[yieldData$crop == aCrop], 
+                                                                   parsData$randomSeed, 
+                                                                   parsData$precipitation_dailyCum_plateauValue_yearlyMean)))),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+plot(c(minPrecipitation_dailyCum_plateauValue_yearlyMean, maxPrecipitation_dailyCum_plateauValue_yearlyMean),
+     c(minARID, maxARID),
+     xaxt ='n',
+     xlab = "",
+     ylab = "mean ARID (grow seasons)")
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(getRelatedVariableWithKey(keyInCallingTable =  yieldData$randomSeed[yieldData$crop == aCrop], 
+                                   keyInCalledTable = parsData$randomSeed, 
+                                   variableInCalledTable =parsData$precipitation_dailyCum_plateauValue_yearlyMean),
+         yieldData$p_soil_meanARID_grow[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(p_soil_meanARID_grow ~ precipitation_yearlyMean,
+            data = data.frame(cbind(
+              p_soil_meanARID_grow = yieldData[yieldData$crop == aCrop, "p_soil_meanARID_grow"],
+              precipitation_yearlyMean = getRelatedVariableWithKey(yieldData$randomSeed[yieldData$crop == aCrop], 
+                                                                   parsData$randomSeed, 
+                                                                   parsData$precipitation_dailyCum_plateauValue_yearlyMean)))),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+par(mar = c(1, 1, 1, 0.1))
+
+plot(c(minPrecipitation_dailyCum_plateauValue_yearlyMean, maxPrecipitation_dailyCum_plateauValue_yearlyMean), c(0, 1), 
+     ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+axis(3, 
+     at = seq(minPrecipitation_dailyCum_plateauValue_yearlyMean, maxPrecipitation_dailyCum_plateauValue_yearlyMean, by = 0.1),
+     tck = 0, lwd = 0)
+
+mtext("precipitation plateau value (i.e. winter / summer) yearly mean (mm)", side = 1, line = -2)
+
+par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+legend(x = 0, y = 1, 
+       legend = stringi::stri_c(cropTable$S_water[order(match(cropTable$crop, levels(cropTable$crop)))], " (", levels(yieldData$crop), ")"), 
+       title = "S_water (Crop-cultivar)", 
+       fill = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+### Effect of ARID on yield
+
+Plotting absolute values of yield vs ARID:
+
+```{r}
+plotName = paste0(plots_dir, "I2/yieldVsARID_terrainRandomSeed=", terrainRandomSeed, ".png")
+
+grScale = 2
+fontRescale = 0
+fontRescaleDay = 0
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+layout(matrix(c(1, 2, 3, 3), nrow = 2, ncol = 2, byrow = FALSE),
+       widths = c(10, 3))
+
+par(mar = c(5,5,1,1), cex.lab = 0.8 * grScale)
+
+plot(c(minARID, maxARID), 
+     c(minYield, maxYield),
+     xlab = "mean ARID (current year)", 
+     ylab = expression(paste("yield (", g/m^2, ")")))
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(yieldData$p_soil_meanARID[yieldData$crop == aCrop],
+         yieldData$yield[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(yield ~ p_soil_meanARID, data = yieldData[yieldData$crop == aCrop,]),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+plot(c(minARID, maxARID), 
+     c(minYield, maxYield),
+     xlab = "mean ARID (grow season)",
+     ylab = expression(paste("yield (", g/m^2, ")")))
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(yieldData$p_soil_meanARID_grow[yieldData$crop == aCrop],
+         yieldData$yield[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(yield ~ p_soil_meanARID_grow, data = yieldData[yieldData$crop == aCrop,]),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+legend(x = 0, y = 1, 
+       legend = stringi::stri_c(cropTable$S_water[order(match(cropTable$crop, levels(cropTable$crop)))], " (", levels(yieldData$crop), ")"), 
+       title = "S_water (Crop-cultivar)", 
+       fill = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+linearModels.table <- data.frame(
+  levels(yieldData$crop),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop))
+)
+
+names(linearModels.table) <- c("crop", "correlation_Pearson", "intercept", "intercept_p", "speed", "speed_p", "adjrsquared")
+
+for (aCrop in levels(yieldData$crop))
+{
+  linearModels.table$correlation_Pearson[linearModels.table$crop == aCrop] <- 
+    cor(x = yieldData$p_soil_meanARID_grow[yieldData$crop == aCrop], y = yieldData$yield[yieldData$crop == aCrop], use = "pairwise.complete.obs")
+  
+  linearModel <- lm(yield ~ p_soil_meanARID_grow, data = yieldData[yieldData$crop == aCrop,])
+
+  linearModels.table$intercept[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,1]
+  linearModels.table$intercept_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,4]
+  linearModels.table$speed[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,1]
+  linearModels.table$speed_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,4]
+  linearModels.table$adjrsquared[linearModels.table$crop == aCrop] <- summary(linearModel)$adj.r.squared
+}
+```
+
+```{r}
+knitr::kable(linearModels.table)
+```
+
+### Yield by crop and precipitation conditions
+
+Plotting absolute values of yield vs precipitation yearly mean:
+
+```{r}
+plotName = paste0(plots_dir, "I2/yieldVsprecipitation_yearlyMean_terrainRandomSeed=", terrainRandomSeed, ".png")
+
+grScale = 2
+fontRescale = 0
+fontRescaleDay = 0
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+layout(matrix(c(1, 2), nrow = 1, ncol = 2, byrow = FALSE),
+       widths = c(10, 3))
+
+par(mar = c(5,5,1,1), cex.lab = 0.8 * grScale)
+
+plot(c(minPrecipitation_yearlyMean, maxPrecipitation_yearlyMean), 
+     c(minYield, maxYield),
+     xlab = "precipitation yearly mean (mm)",
+     ylab = expression(paste("yield (", g/m^2, ")")))
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(getRelatedVariableWithKey(keyInCallingTable =  yieldData$randomSeed[yieldData$crop == aCrop], 
+                                   keyInCalledTable = parsData$randomSeed, 
+                                   variableInCalledTable = parsData$precipitation_yearlyMean),
+         yieldData$yield[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(yield ~ precipitation_yearlyMean,
+            data = data.frame(cbind(
+              yield = yieldData[yieldData$crop == aCrop, "yield"],
+              precipitation_yearlyMean = getRelatedVariableWithKey(yieldData$randomSeed[yieldData$crop == aCrop], 
+                                                                   parsData$randomSeed, 
+                                                                   parsData$precipitation_yearlyMean)))),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+legend(x = 0, y = 1, 
+       legend = stringi::stri_c(cropTable$S_water[order(match(cropTable$crop, levels(cropTable$crop)))], " (", levels(yieldData$crop), ")"), 
+       title = "S_water (Crop-cultivar)", 
+       fill = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+linearModels.table <- data.frame(
+  levels(yieldData$crop),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop))
+)
+
+names(linearModels.table) <- c("crop", "correlation_Pearson", "intercept", "intercept_p", "speed", "speed_p", "adjrsquared")
+
+for (aCrop in levels(yieldData$crop))
+{
+  linearModels.table$correlation_Pearson[linearModels.table$crop == aCrop] <- 
+    cor(x = getRelatedVariableWithKey(keyInCallingTable =  yieldData$randomSeed[yieldData$crop == aCrop], 
+                                   keyInCalledTable = parsData$randomSeed, 
+                                   variableInCalledTable = parsData$precipitation_yearlyMean), 
+        y = yieldData$yield[yieldData$crop == aCrop], use = "pairwise.complete.obs")
+  
+  linearModel <- lm(yield ~ precipitation_yearlyMean,
+            data = data.frame(cbind(
+              yield = yieldData[yieldData$crop == aCrop, "yield"],
+              precipitation_yearlyMean = getRelatedVariableWithKey(yieldData$randomSeed[yieldData$crop == aCrop], 
+                                                                   parsData$randomSeed, 
+                                                                   parsData$precipitation_yearlyMean))))
+
+  linearModels.table$intercept[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,1]
+  linearModels.table$intercept_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,4]
+  linearModels.table$speed[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,1]
+  linearModels.table$speed_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,4]
+  linearModels.table$adjrsquared[linearModels.table$crop == aCrop] <- summary(linearModel)$adj.r.squared
+}
+```
+
+```{r}
+knitr::kable(linearModels.table)
+```
+
+Plotting absolute values of yield vs precipitation seasonal balance (plateau value):
+
+```{r}
+plotName = paste0(plots_dir, "I2/yieldVsprecipitation_dailyCum_plateauValue_yearlyMean_terrainRandomSeed=", terrainRandomSeed, ".png")
+
+grScale = 2
+fontRescale = 0
+fontRescaleDay = 0
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+layout(matrix(c(1, 2), nrow = 1, ncol = 2, byrow = FALSE),
+       widths = c(10, 3))
+
+par(mar = c(5,5,1,1), cex.lab = 0.8 * grScale)
+
+plot(c(minPrecipitation_dailyCum_plateauValue_yearlyMean, maxPrecipitation_dailyCum_plateauValue_yearlyMean), 
+     c(minYield, maxYield),
+     xlab = "precipitation plateau value (i.e. winter / summer) yearly mean (mm)",
+     ylab = expression(paste("yield (", g/m^2, ")")))
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(getRelatedVariableWithKey(keyInCallingTable =  yieldData$randomSeed[yieldData$crop == aCrop], 
+                                   keyInCalledTable = parsData$randomSeed, 
+                                   variableInCalledTable =parsData$precipitation_dailyCum_plateauValue_yearlyMean),
+         yieldData$yield[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(yield ~ precipitation_yearlyMean,
+            data = data.frame(cbind(
+              yield = yieldData[yieldData$crop == aCrop, "yield"],
+              precipitation_yearlyMean = getRelatedVariableWithKey(yieldData$randomSeed[yieldData$crop == aCrop], 
+                                                                   parsData$randomSeed, 
+                                                                   parsData$precipitation_dailyCum_plateauValue_yearlyMean)))),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+legend(x = 0, y = 1, 
+       legend = levels(yieldData$crop), 
+       title = "Crop-cultivar", 
+       fill = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+linearModels.table <- data.frame(
+  levels(yieldData$crop),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop))
+)
+
+names(linearModels.table) <- c("crop", "correlation_Pearson", "intercept", "intercept_p", "speed", "speed_p", "adjrsquared")
+
+for (aCrop in levels(yieldData$crop))
+{
+  linearModels.table$correlation_Pearson[linearModels.table$crop == aCrop] <- 
+    cor(x = getRelatedVariableWithKey(keyInCallingTable =  yieldData$randomSeed[yieldData$crop == aCrop], 
+                                      keyInCalledTable = parsData$randomSeed, 
+                                      variableInCalledTable =parsData$precipitation_dailyCum_plateauValue_yearlyMean), 
+        y = yieldData$yield[yieldData$crop == aCrop], use = "pairwise.complete.obs")
+  
+  linearModel <- lm(yield ~ precipitation_yearlyMean,
+                    data = data.frame(cbind(
+                      yield = yieldData[yieldData$crop == aCrop, "yield"],
+                      precipitation_yearlyMean = getRelatedVariableWithKey(yieldData$randomSeed[yieldData$crop == aCrop], 
+                                                                           parsData$randomSeed, 
+                                                                           parsData$precipitation_dailyCum_plateauValue_yearlyMean))))
+
+  linearModels.table$intercept[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,1]
+  linearModels.table$intercept_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,4]
+  linearModels.table$speed[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,1]
+  linearModels.table$speed_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,4]
+  linearModels.table$adjrsquared[linearModels.table$crop == aCrop] <- summary(linearModel)$adj.r.squared
+}
+```
+
+```{r}
+knitr::kable(linearModels.table)
+```
+
+### Yield by crop and river flow and length conditions
+
+Plotting absolute values of yield vs precipitation yearly mean:
+
+```{r}
+plotName = paste0(plots_dir, "I2/yieldVsriverWaterPerFlowAccumulation_terrainRandomSeed=", terrainRandomSeed, ".png")
+
+grScale = 2
+fontRescale = 0
+fontRescaleDay = 0
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+layout(matrix(c(1, 2), nrow = 1, ncol = 2, byrow = FALSE),
+       widths = c(10, 3))
+
+par(mar = c(5,5,1,1), cex.lab = 0.8 * grScale)
+
+plot(c(minPrecipitation_yearlyMean, maxPrecipitation_yearlyMean), 
+     c(minYield, maxYield),
+     xlab = "precipitation yearly mean (mm)",
+     ylab = expression(paste("yield (", g/m^2, ")")))
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(getRelatedVariableWithKey(keyInCallingTable =  yieldData$randomSeed[yieldData$crop == aCrop], 
+                                   keyInCalledTable = parsData$randomSeed, 
+                                   variableInCalledTable = parsData$riverWaterPerFlowAccumulation),
+         yieldData$yield[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(yield ~ riverWaterPerFlowAccumulation,
+            data = data.frame(cbind(
+              yield = yieldData[yieldData$crop == aCrop, "yield"],
+              riverWaterPerFlowAccumulation = getRelatedVariableWithKey(yieldData$randomSeed[yieldData$crop == aCrop], 
+                                                                        parsData$randomSeed, 
+                                                                        parsData$riverWaterPerFlowAccumulation)))),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+legend(x = 0, y = 1, 
+       legend = stringi::stri_c(cropTable$S_water[order(match(cropTable$crop, levels(cropTable$crop)))], " (", levels(yieldData$crop), ")"), 
+       title = "S_water (Crop-cultivar)", 
+       fill = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+linearModels.table <- data.frame(
+  levels(yieldData$crop),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop))
+)
+
+names(linearModels.table) <- c("crop", "correlation_Pearson", "intercept", "intercept_p", "speed", "speed_p", "adjrsquared")
+
+for (aCrop in levels(yieldData$crop))
+{
+  linearModels.table$correlation_Pearson[linearModels.table$crop == aCrop] <- 
+    cor(x = getRelatedVariableWithKey(keyInCallingTable =  yieldData$randomSeed[yieldData$crop == aCrop], 
+                                      keyInCalledTable = parsData$randomSeed, 
+                                      variableInCalledTable = parsData$riverWaterPerFlowAccumulation), 
+        y = yieldData$yield[yieldData$crop == aCrop], use = "pairwise.complete.obs")
+  
+  linearModel <- lm(yield ~ riverWaterPerFlowAccumulation,
+                    data = data.frame(cbind(
+                      yield = yieldData[yieldData$crop == aCrop, "yield"],
+                      riverWaterPerFlowAccumulation = getRelatedVariableWithKey(yieldData$randomSeed[yieldData$crop == aCrop], 
+                                                                                parsData$randomSeed, 
+                                                                                parsData$riverWaterPerFlowAccumulation))))
+
+  linearModels.table$intercept[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,1]
+  linearModels.table$intercept_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,4]
+  linearModels.table$speed[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,1]
+  linearModels.table$speed_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,4]
+  linearModels.table$adjrsquared[linearModels.table$crop == aCrop] <- summary(linearModel)$adj.r.squared
+}
+```
+
+```{r}
+knitr::kable(linearModels.table)
+```
+
+Plotting absolute values of yield vs river length (r:
+
+```{r}
+plotName = paste0(plots_dir, "I2/yieldVsriverWaterPerFlowAccumulation_terrainRandomSeed=", terrainRandomSeed, ".png")
+
+grScale = 2
+fontRescale = 0
+fontRescaleDay = 0
+
+png(plotName, width = grScale * 500, height = grScale * 300)
+
+layout(matrix(c(1, 2), nrow = 1, ncol = 2, byrow = FALSE),
+       widths = c(10, 3))
+
+par(mar = c(5,5,1,1), cex.lab = 0.8 * grScale)
+
+plot(c(minPrecipitation_yearlyMean, maxPrecipitation_yearlyMean), 
+     c(minYield, maxYield),
+     xlab = "precipitation yearly mean (mm)",
+     ylab = expression(paste("yield (", g/m^2, ")")))
+
+for (aCrop in levels(yieldData$crop))
+{
+  points(getRelatedVariableWithKey(keyInCallingTable =  yieldData$randomSeed[yieldData$crop == aCrop], 
+                                   keyInCalledTable = parsData$randomSeed, 
+                                   variableInCalledTable = terrainData$),
+         yieldData$yield[yieldData$crop == aCrop],
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         pch = 20
+  )
+  abline(lm(yield ~ riverWaterPerFlowAccumulation,
+            data = data.frame(cbind(
+              yield = yieldData[yieldData$crop == aCrop, "yield"],
+              riverWaterPerFlowAccumulation = getRelatedVariableWithKey(yieldData$randomSeed[yieldData$crop == aCrop], 
+                                                                        parsData$randomSeed, 
+                                                                        parsData$riverWaterPerFlowAccumulation)))),
+         col = cropColours[match(aCrop, levels(yieldData$crop))],
+         lwd = 2)
+}
+
+par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+
+legend(x = 0, y = 1, 
+       legend = stringi::stri_c(cropTable$S_water[order(match(cropTable$crop, levels(cropTable$crop)))], " (", levels(yieldData$crop), ")"), 
+       title = "S_water (Crop-cultivar)", 
+       fill = cropColours)
+
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+linearModels.table <- data.frame(
+  levels(yieldData$crop),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop)),
+  numeric(nlevels(yieldData$crop))
+)
+
+names(linearModels.table) <- c("crop", "correlation_Pearson", "intercept", "intercept_p", "speed", "speed_p", "adjrsquared")
+
+for (aCrop in levels(yieldData$crop))
+{
+  linearModels.table$correlation_Pearson[linearModels.table$crop == aCrop] <- 
+    cor(x = getRelatedVariableWithKey(keyInCallingTable =  yieldData$randomSeed[yieldData$crop == aCrop], 
+                                      keyInCalledTable = parsData$randomSeed, 
+                                      variableInCalledTable = parsData$riverWaterPerFlowAccumulation), 
+        y = yieldData$yield[yieldData$crop == aCrop], use = "pairwise.complete.obs")
+  
+  linearModel <- lm(yield ~ riverWaterPerFlowAccumulation,
+                    data = data.frame(cbind(
+                      yield = yieldData[yieldData$crop == aCrop, "yield"],
+                      riverWaterPerFlowAccumulation = getRelatedVariableWithKey(yieldData$randomSeed[yieldData$crop == aCrop], 
+                                                                                parsData$randomSeed, 
+                                                                                parsData$riverWaterPerFlowAccumulation))))
+
+  linearModels.table$intercept[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,1]
+  linearModels.table$intercept_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[1,4]
+  linearModels.table$speed[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,1]
+  linearModels.table$speed_p[linearModels.table$crop == aCrop] <- summary(linearModel)$coefficients[2,4]
+  linearModels.table$adjrsquared[linearModels.table$crop == aCrop] <- summary(linearModel)$adj.r.squared
+}
+```
+
+```{r}
+knitr::kable(linearModels.table)
+```

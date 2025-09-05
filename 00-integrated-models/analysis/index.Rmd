@@ -1,0 +1,4774 @@
+---
+title: "Plots and analyses produced for 'The Weather, land and crops in the Indus Village model' (Quaternary, 2021)"
+author: "Andreas Angourakis"
+date: "07/01/2022"
+output: html_document
+---
+
+This file and all other referenced in the code can be found at the repository: [https://github.com/Andros-Spica/Quaternary_Angourakis-et-al-2022](https://github.com/Andros-Spica/Quaternary_Angourakis-et-al-2022)
+
+## Load packages and define helper functions:
+
+Load packages:
+
+```{r}
+require(pander)
+require(reshape2)
+require(ggplot2)
+require(patchwork)
+require(colorspace)
+require(grid)
+require(gridExtra)
+require(png)
+```
+
+Define lookup functions to access data between tables using identifiers or 'keys':
+
+```{r}
+getRelatedVariableWithKey <- function(keyInCallingTable, keyInCalledTable, variableInCalledTable)
+{
+  return(
+    sapply(keyInCallingTable, function(x) variableInCalledTable[match(x, keyInCalledTable)])
+  )
+}
+
+getRelatedVariableWithTwoKeys <- function(firstKeyInCallingTable, secondKeyInCallingTable, 
+                                       firstKeyInCalledTable, secondKeyInCalledTable, variableInCalledTable)
+{
+  temp <- 1:length(firstKeyInCallingTable)
+  
+  for (i in 1:length(temp))
+  {
+    temp[i] <- variableInCalledTable[firstKeyInCalledTable == firstKeyInCallingTable[i] &
+                                       secondKeyInCalledTable == secondKeyInCallingTable[i]]
+  }
+  
+  return(temp)
+}
+```
+
+Define function to build table with Pearson's correlations and linear regression models for a pair of dependent and independent variables per each crop in dataset:
+
+```{r}
+linearModels.table <- function(dataset, dependentVariableName, independentVariableName)
+{
+  tableTemp <- data.frame(
+    levels(dataset$crop),
+    numeric(nlevels(dataset$crop)),
+    numeric(nlevels(dataset$crop)),
+    numeric(nlevels(dataset$crop)),
+    numeric(nlevels(dataset$crop)),
+    numeric(nlevels(dataset$crop)),
+    numeric(nlevels(dataset$crop))
+  )
+  names(tableTemp) <- c("crop", "correlation_Pearson", "intercept", "intercept_p", "speed", "speed_p", "adjrsquared")
+  
+  for (aCrop in levels(dataset$crop))
+  {
+    tableTemp$correlation_Pearson[tableTemp$crop == aCrop] <- 
+      cor(x = dataset[dataset$crop == aCrop, dependentVariableName], 
+          y = dataset[dataset$crop == aCrop, independentVariableName], 
+          use = "pairwise.complete.obs")
+    
+    linearModel <- lm(as.formula(paste0(dependentVariableName, "~", independentVariableName)), data = dataset[yieldData$crop == aCrop,])
+    
+    tableTemp$intercept[tableTemp$crop == aCrop] <- summary(linearModel)$coefficients[1,1]
+    tableTemp$intercept_p[tableTemp$crop == aCrop] <- summary(linearModel)$coefficients[1,4]
+    tableTemp$speed[tableTemp$crop == aCrop] <- summary(linearModel)$coefficients[2,1]
+    tableTemp$speed_p[tableTemp$crop == aCrop] <- summary(linearModel)$coefficients[2,4]
+    tableTemp$adjrsquared[tableTemp$crop == aCrop] <- summary(linearModel)$adj.r.squared
+  }
+  
+  rm(aCrop, linearModel)
+  
+  return(tableTemp)
+}
+```
+
+Define auxiliar function for calculating cumulative curve (extracted from weatherModel.R; see documentation folder in Weather model):
+
+```{r}
+getCumulativePrecipitationOfYear <- function(dailyPrecipitationYear)
+{
+  return(cumsum(dailyPrecipitationYear) / sum(dailyPrecipitationYear))
+}
+```
+
+## Global settings
+
+Define the format of image files to be generated (only "png" and "eps"):
+
+```{r}
+listOfImageFormats <- c("eps", "png")
+
+# eps-specific arguments (cairo_ps)
+pointSize = 12
+fallbackResolution = 600
+```
+
+## Crop table
+
+Load crop table:
+
+```{r}
+cropTable <- read.csv("models/cropsTable.csv", skip = 4)
+```
+
+Clean empty columns (generated with automatic names starting with X):
+
+```{r}
+cropTable <- cropTable[,names(cropTable)[grep("^(?!X).*$", names(cropTable), perl = TRUE)]]
+```
+
+Reorder crops for a more logical display:
+
+WARNING: doing this manually makes the script sensitive to the value of crop-selection in NetLogo. Thus, this chunk must be updated if crop-selection is changed before running experiments.
+
+```{r}
+cropTable$crop <- factor(cropTable$crop, levels = c("proso millet", "pearl millet", "rice", "barley", "wheat 1", "wheat 2"))
+```
+
+Get vector of colours to represent crops:
+
+```{r}
+cropColours <- qualitative_hcl(nlevels(cropTable$crop))
+# alternative using only base R graphics
+#cropColours <- rainbow(nlevels(cropTable$crop), s = 0.8, v = 0.8, end = 0.85)
+```
+
+```{r}
+knitr::kable(cropTable)
+```
+
+## Experiment 0
+
+Experiment 0 
+
+Experiment 0 simulates the growth and yield of crops included in 'cropTable' using the NetLogo implementation of *SIMPLE* crop model (Zhao et al. 2019), adapted as a module of the *Indus Village* model, and using daily weather variables imported from external file containing real-world data.
+
+As the reference real-world data, we use the data downloaded at NASA´s POWER access viewer (power.larc.nasa.gov/data-access-viewer/) selecting the user community 'Agroclimatology' between 01/01/1984 and 31/12/2007. The exact location used as a reference is:
+
+- Rakhigarhi, Haryana, India (Latitude: 29.1687, Longitude: 76.0687)  
+
+We selected the ICASA Format's parameters:
+
+- Precipitation (PRECTOT)  
+- Wind speed at 2m (WS2M)  
+- Relative Humidity at 2m (RH2M)  
+- Dew/frost point at 2m (T2MDEW)  
+- Maximum temperature at 2m (T2M_MAX)  
+- Minimum temperature at 2m (T2M_MIN)  
+- All sky insolation incident on a horizontal surface (ALLSKY_SFC_SW_DWN)  
+- Temperature at 2m (T2M)
+
+Load *Soil Water* (or Soil Water Balance) model code to calculate ARID given real-world data:
+
+```{r}
+source("models/soilWaterModel/estimateETr.R")
+source("models/soilWaterModel/watbal.model.R")
+``` 
+
+Load and format the real-world dataset so that they can be used in the Soil Water model:
+
+```{r}
+weatherData_rakhigarhi <- watbal.weather.file("models/weather_input/POWER_SinglePoint_Daily_19840101_20071231_029d17N_076d70E_5b401917.csv", 
+                                              year = 1984:2007)
+```
+
+Estimate reference evapotranspiration using FAO recomendations (Penman-Monteith method):
+
+```{r}
+weatherData_rakhigarhi$ETr <- estimateETr(weatherData_rakhigarhi$I, 
+                                          weatherData_rakhigarhi$T2M, 
+                                          weatherData_rakhigarhi$Tmax, 
+                                          weatherData_rakhigarhi$Tmin, 
+                                          weatherData_rakhigarhi$T2MDEW, 
+                                          weatherData_rakhigarhi$WS2M)
+```
+
+Load simulation data:
+
+```{r}
+yieldData_exp0 <- read.csv("models/output/SIMPLE-crop-model_yield-exp_type-of-experiment=weather-input-data_experiment-name=exp0_initRandomSeed=0.csv")
+```
+
+Convert `yield = 0` to `NA` when `meanARID_grow = NA` (i.e., first year simulation runs with incomplete growing seasons):
+
+```{r}
+yieldData_exp0$yield[is.na(yieldData_exp0$meanARID_grow)] <- NA
+```
+
+Force the same order of crops used by cropTable:
+
+```{r}
+yieldData_exp0$crop <- factor(yieldData_exp0$crop, levels = levels(cropTable$crop))
+```
+
+Calculate the range of ARID and productivity (yield):
+
+```{r}
+minARID_exp0 = round(min(c(yieldData_exp0$meanARID, yieldData_exp0$meanARID_grow), na.rm = TRUE), digits = 2)
+maxARID_exp0 = round(max(c(yieldData_exp0$meanARID, yieldData_exp0$meanARID_grow), na.rm = TRUE), digits = 2)
+
+minYield_exp0 = round(min(yieldData_exp0$yield, na.rm = TRUE), digits = -1)
+maxYield_exp0 = round(max(yieldData_exp0$yield, na.rm = TRUE), digits = -1)
+```
+
+Replace `precipitation_yearlyMean` and `precipitation_dailyCum_plateauValue_yearlyMean` variables with values calculated from `weatherData_rakhigarhi` to compare experiment 0 with experiment 2.
+
+This is a function to estimate the "plateau value" of a cumulative precipitation curve (one year), assuming it approximates a double logistic curve:
+
+```{r}
+estimatePlateauValue <- function(dailyPrecipitation, 
+                            # cumulative curve slope with less than this is considered a plateau:
+                            plateauMaxRate = 1/365, # daily precipitation with up to ~0.27% annualSum, which corresponds to a straight slope from 0 to 1 with no plateaus
+                            # this is the percentage of annualSum 
+                            # which dismiss plateaus at the extremes of the cumulative curve:
+                            toleranceOfProximityToExtremes = 0.005 # 0.5% of annualSum
+                            )
+{
+  annualSum = sum(dailyPrecipitation)
+  
+  cumulativeCurve <- getCumulativePrecipitationOfYear(dailyPrecipitation)
+  
+  # filter out values not in plateaus
+  daysInPlateaus <- dailyPrecipitation <= plateauMaxRate * annualSum
+  
+  # filter out values too near the first and last plateaus
+  daysMoreLikelyToBeMiddlePlateau <- 
+    cumulativeCurve > toleranceOfProximityToExtremes & 
+    cumulativeCurve < 1 - toleranceOfProximityToExtremes
+  
+  return(
+    getMode(
+      cumulativeCurve[
+        daysInPlateaus & daysMoreLikelyToBeMiddlePlateau
+        ]
+      )
+    )
+}
+
+getMode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+```
+
+```{r}
+yieldData_exp0$precipitation_yearlyMean <- rep(mean(yieldData_exp0$precipitation_yearTotal), nrow(yieldData_exp0))
+yieldData_exp0$precipitation_dailyCum_plateauValue_yearlyMean <- mean(aggregate(
+      weatherData_rakhigarhi$RAIN,
+      by = list(weatherData_rakhigarhi$year),
+      FUN = estimatePlateauValue)[,2]
+    )
+```
+
+Preliminary plotting of yield and ARID per crop:
+
+```{r}
+ggplot(data = yieldData_exp0, aes(x = meanARID_grow, y = yield, color = crop, fill = crop)) +
+      geom_point(size = 1, alpha = 0.3) +
+      geom_smooth(method = 'lm', color = 'black', fill = 'black', se = FALSE) +
+      scale_color_manual(values = cropColours, name="", guide = FALSE) +
+      scale_fill_manual(values = cropColours, name="", guide = FALSE) +
+      facet_wrap( ~ crop, ncol = 2, scales = 'free') +
+      xlab("mean ARID") +
+      ylab(expression(paste("yield (", g/m^2, ")"))) +
+      theme_light(base_size = 11 * 1) +
+      theme(axis.text = element_text(size = 15),
+            strip.background = element_rect(fill = "white"),
+            strip.text = element_text(colour = "black"))
+```
+
+Preliminary plotting of yield and T_max per crop:
+
+```{r}
+ggplot(data = yieldData_exp0, aes(x = meanT_max_grow, y = yield, color = crop, fill = crop)) +
+      geom_point(size = 1, alpha = 0.3) +
+      geom_smooth(method = 'lm', color = 'black', fill = 'black', se = FALSE) +
+      scale_color_manual(values = cropColours, name="", guide = FALSE) +
+      scale_fill_manual(values = cropColours, name="", guide = FALSE) +
+      facet_wrap( ~ crop, ncol = 2, scales = 'free') +
+      xlab("mean T_max") +
+      ylab(expression(paste("yield (", g/m^2, ")"))) +
+      theme_light(base_size = 11 * 1) +
+      theme(axis.text = element_text(size = 15),
+            strip.background = element_rect(fill = "white"),
+            strip.text = element_text(colour = "black"))
+```
+
+Experiment 0 results are plotted together with experiment 1, serving as points of comparison of the Crop model behaviour with and without the input of the Weather model.
+
+---
+
+## Experiment 1
+
+Experiment 1 is analogous to experiment 0, except that weather variables are simulated using the Weather model under the default parameter configuration, which is aimed to approximate the conditions in Rakhigarhi, Haryana, NW India, as reflected in the dataset used in experiment 0. 
+
+### Loading and preparation
+
+Load data:
+
+```{r}
+yieldData <- read.csv("models/output/SIMPLE-crop-model_yield-exp_type-of-experiment=user-defined_experiment-name=exp1_initRandomSeed=0.csv")
+```
+
+Convert `yield = 0` to `NA` when `meanARID_grow = NA` (i.e., first year simulation runs with incomplete growing seasons):
+
+```{r}
+yieldData$yield[is.na(yieldData$meanARID_grow)] <- NA
+```
+
+Force the same order of crops used by cropTable:
+
+```{r}
+yieldData$crop <- factor(yieldData$crop, levels = levels(cropTable$crop))
+```
+
+Calculate the range of ARID and productivity (yield):
+
+```{r}
+minARID = round(min(c(yieldData$meanARID, yieldData$meanARID_grow), na.rm = TRUE), digits = 2)
+maxARID = round(max(c(yieldData$meanARID, yieldData$meanARID_grow), na.rm = TRUE), digits = 2)
+
+minYield = round(min(yieldData$yield, na.rm = TRUE), digits = -1)
+maxYield = round(max(yieldData$yield, na.rm = TRUE), digits = -1)
+```
+
+Load daily simulated weather and ARID data:
+
+```{r}
+weatherData <- read.csv("models/output/SIMPLE-crop-model_yield-exp_weather_type-of-experiment=user-defined_experiment-name=exp1_initRandomSeed=0.csv")
+```
+
+Calculate ARID in real-world data:
+
+Use *Soil Water* model to calculate soil water content proportion or WATp (mm mm-1 day-1) and ARID coefficient.
+
+The first step is to set all soil parameters, here assumed to be constant (the same values used in experiment 1 simulations):
+
+```{r}
+watbalParameters <- watbal.define.param()
+```
+
+Run the model inputing parameters and dataset:
+
+```{r}
+watbalOutput_rakhigarhi <- watbal.model(watbalParameters, 
+                                        weatherData_rakhigarhi,
+                                        typeOfParValue = "nominal")
+```
+
+`watbal.model`iterates for every day in the dataset calculating soil water content, absolute and proportion (WAT, WATp), and the respective ARID coefficient.
+
+Show parameter values used here in Soil Water model (both in `watbal.model` and in the SIMPLE crop model). In experiemnt 1, they should be the same:
+
+```{r}
+knitr::kable(
+  cbind(
+    parameters = c("elevation", "albedo", "CN", "DC", "z", "FC", "WHC", "WP", "MUF"),
+    SIMPLE = as.vector(unlist(yieldData[1, c("elevation", "albedo", "CN", "DC", "z", "FC", "WHC", "WP", "MUF")])), 
+    watbal = c(200, # these values of elevation and albedo are the default in estimateETr
+               0.23, 
+               as.vector(watbalParameters[1, c("CN", "DC", "z", "FC", "WHC", "WP", "MUF")]))
+  )
+)
+```
+
+### Summaries per day of year
+
+Create data frames containing the daily summary statistics of simulations and real-world data:
+
+1. Create names vector (used for both datasets)
+
+```{r}
+weatherSummaryNames <- c("dayOfYear",
+                         "solarRadiation.mean", 
+                         "solarRadiation.sd", 
+                         "solarRadiation.max", 
+                         "solarRadiation.min", 
+                         "solarRadiation.error",
+                         "temperature.mean", 
+                         "temperature.sd", 
+                         "temperature.max", 
+                         "temperature.min",
+                         "temperature.error",
+                         "maxTemperature.mean", 
+                         "maxTemperature.max", 
+                         "maxTemperature.min",
+                         "maxTemperature.error",
+                         "minTemperature.mean", 
+                         "minTemperature.max", 
+                         "minTemperature.min",
+                         "minTemperature.error",
+                         "temperature.lowerDeviation", 
+                         "temperature.lowerDeviation.error", 
+                         "temperature.upperDeviation",
+                         "temperature.upperDeviation.error",
+                         "precipitation.mean", 
+                         "precipitation.max", 
+                         "precipitation.min",
+                         "precipitation.error",
+                         "ARID.mean",
+                         "ARID.max",
+                         "ARID.min",
+                         "ARID.error")
+```
+
+2. Simulation data
+
+```{r}
+weatherSummary <- vector("list", length(weatherSummaryNames))
+names(weatherSummary) <- weatherSummaryNames
+# OBS: the lines above produce an ERROR related to names that is inconsequential
+
+for (day in 1:365)
+{
+  weatherSummary$dayOfYear <- c(weatherSummary$dayOfYear, day)
+  
+  tempData_thisDay <- weatherData[weatherData$currentDayOfYear == day,]
+  
+  # solar radiation
+  weatherSummary$solarRadiation.mean <- c(
+    weatherSummary$solarRadiation.mean, 
+    mean(tempData_thisDay$solarRadiation, na.rm = TRUE))
+  weatherSummary$solarRadiation.sd <- c(
+    weatherSummary$solarRadiation.sd, 
+    sd(tempData_thisDay$solarRadiation, na.rm = TRUE))
+  weatherSummary$solarRadiation.max <- c(
+    weatherSummary$solarRadiation.max, 
+    max(tempData_thisDay$solarRadiation, na.rm = TRUE))
+  weatherSummary$solarRadiation.min <- c(
+    weatherSummary$solarRadiation.min, 
+    min(tempData_thisDay$solarRadiation, na.rm = TRUE))
+  weatherSummary$solarRadiation.error <- c(
+    weatherSummary$solarRadiation.error,
+    qt(0.975, 
+       length(tempData_thisDay$solarRadiation) - 1) * 
+      sd(tempData_thisDay$solarRadiation, na.rm = TRUE) /
+      sqrt(length(tempData_thisDay$solarRadiation)))
+  
+  # temperature
+  
+  ## daily mean
+  weatherSummary$temperature.mean <- c(
+    weatherSummary$temperature.mean, 
+    mean(tempData_thisDay$temperature, na.rm = TRUE))
+  weatherSummary$temperature.sd <- c(
+    weatherSummary$temperature.sd, 
+    sd(tempData_thisDay$temperature, na.rm = TRUE))
+  weatherSummary$temperature.max <- c(
+    weatherSummary$temperature.max, 
+    max(tempData_thisDay$temperature, na.rm = TRUE))
+  weatherSummary$temperature.min <- c(
+    weatherSummary$temperature.min, 
+    min(tempData_thisDay$temperature, na.rm = TRUE))
+  weatherSummary$temperature.error <- c(
+    weatherSummary$temperature.error,
+    qt(0.975, 
+       length(tempData_thisDay$temperature) - 1) * 
+      sd(tempData_thisDay$temperature, na.rm = TRUE) /
+      sqrt(length(tempData_thisDay$temperature)))
+  
+  ## daily max
+  weatherSummary$maxTemperature.mean <- c(
+    weatherSummary$maxTemperature.mean, 
+    mean(tempData_thisDay$temperature_max, na.rm = TRUE))
+  weatherSummary$maxTemperature.max <- c(
+    weatherSummary$maxTemperature.max, 
+    max(tempData_thisDay$temperature_max, na.rm = TRUE))
+  weatherSummary$maxTemperature.min <- c(
+    weatherSummary$maxTemperature.min, 
+    min(tempData_thisDay$temperature_max, na.rm = TRUE))
+  weatherSummary$maxTemperature.error <- c(
+    weatherSummary$maxTemperature.error,
+    qt(0.975, 
+       length(tempData_thisDay$temperature_max) - 1) * 
+      sd(tempData_thisDay$temperature_max, na.rm = TRUE) /
+      sqrt(length(tempData_thisDay$temperature_max)))
+  
+  ## daily min
+  weatherSummary$minTemperature.mean <- c(
+    weatherSummary$minTemperature.mean, 
+    mean(tempData_thisDay$temperature_min, na.rm = TRUE))
+  weatherSummary$minTemperature.max <- c(
+    weatherSummary$minTemperature.max, 
+    max(tempData_thisDay$temperature_min, na.rm = TRUE))
+  weatherSummary$minTemperature.min <- c(
+    weatherSummary$minTemperature.min, 
+    min(tempData_thisDay$temperature_min, na.rm = TRUE))
+  weatherSummary$minTemperature.error <- c(
+    weatherSummary$minTemperature.error,
+    qt(0.975, 
+       length(tempData_thisDay$temperature_min) - 1) * 
+      sd(tempData_thisDay$temperature_min, na.rm = TRUE) /
+      sqrt(length(tempData_thisDay$temperature_min)))
+  
+  ## daily upper and lower deviation
+  weatherSummary$temperature.lowerDeviation <- c(
+    weatherSummary$temperature.lowerDeviation, 
+    mean(tempData_thisDay$temperature - 
+           tempData_thisDay$temperature_min))
+  weatherSummary$temperature.lowerDeviation.error <- c(
+    weatherSummary$temperature.lowerDeviation.error,
+    qt(0.975, 
+       length(tempData_thisDay$temperature_min) - 1) * 
+      sd(tempData_thisDay$temperature - 
+           tempData_thisDay$temperature_min, 
+         na.rm = TRUE) /
+      sqrt(length(tempData_thisDay$temperature_min)))
+  weatherSummary$temperature.upperDeviation <- c(
+    weatherSummary$temperature.upperDeviation, 
+    mean(tempData_thisDay$temperature_max - 
+           tempData_thisDay$temperature))
+  weatherSummary$temperature.upperDeviation.error <- c(
+    weatherSummary$temperature.upperDeviation.error,
+    qt(0.975, 
+       length(tempData_thisDay$temperature_max) - 1) * 
+      sd(tempData_thisDay$temperature_max - 
+           tempData_thisDay$temperature, 
+         na.rm = TRUE) /
+      sqrt(length(tempData_thisDay$temperature_max)))
+  
+  # precipitation
+  weatherSummary$precipitation.mean <- c(
+    weatherSummary$precipitation.mean, 
+    mean(tempData_thisDay$RAIN, na.rm = TRUE))
+  weatherSummary$precipitation.max <- c(
+    weatherSummary$precipitation.max, 
+    max(tempData_thisDay$RAIN, na.rm = TRUE))
+  weatherSummary$precipitation.min <- c(
+    weatherSummary$precipitation.min, 
+    min(tempData_thisDay$RAIN, na.rm = TRUE))
+  weatherSummary$precipitation.error <- c(
+    weatherSummary$precipitation.error,
+    qt(0.975, 
+       length(tempData_thisDay$RAIN) - 1) * 
+      sd(tempData_thisDay$RAIN, na.rm = TRUE) /
+      sqrt(length(tempData_thisDay$RAIN)))
+  
+  # ARID
+  weatherSummary$ARID.mean <- c(
+    weatherSummary$ARID.mean, 
+    mean(tempData_thisDay$ARID, na.rm = TRUE))
+  weatherSummary$ARID.max <- c(
+    weatherSummary$ARID.max, 
+    max(tempData_thisDay$ARID, na.rm = TRUE))
+  weatherSummary$ARID.min <- c(
+    weatherSummary$ARID.min, 
+    min(tempData_thisDay$ARID, na.rm = TRUE))
+  weatherSummary$ARID.error <- c(
+    weatherSummary$ARID.error,
+    qt(0.975, 
+       length(tempData_thisDay$ARID) - 1) * 
+      sd(tempData_thisDay$ARID, na.rm = TRUE) /
+      sqrt(length(tempData_thisDay$ARID)))
+}
+rm(day, tempData_thisDay)
+
+weatherSummary <- data.frame(weatherSummary)
+```
+
+3. Real-world data
+
+```{r}
+weatherSummary_rakhigarhi <- vector("list", length(weatherSummaryNames))
+names(weatherSummary_rakhigarhi) <- weatherSummaryNames
+# OBS: the lines above produce an ERROR related to names that is inconsequential
+
+for (day in 1:366)
+{
+  weatherSummary_rakhigarhi$dayOfYear <- c(weatherSummary_rakhigarhi$dayOfYear, day)
+  
+  tempData <- weatherData_rakhigarhi[weatherData_rakhigarhi$day == day,]
+  
+  tempWatbalData <- watbalOutput_rakhigarhi[watbalOutput_rakhigarhi$day == day,]
+  
+  # solar radiation
+  
+  weatherSummary_rakhigarhi$solarRadiation.mean <- c(
+    weatherSummary_rakhigarhi$solarRadiation.mean, 
+    mean(tempData$I, na.rm = TRUE))
+  weatherSummary_rakhigarhi$solarRadiation.sd <- c(
+    weatherSummary_rakhigarhi$solarRadiation.sd, 
+    sd(tempData$I, na.rm = TRUE))
+  weatherSummary_rakhigarhi$solarRadiation.max <- c(
+    weatherSummary_rakhigarhi$solarRadiation.max, 
+    max(tempData$I, na.rm = TRUE))
+  weatherSummary_rakhigarhi$solarRadiation.min <- c(
+    weatherSummary_rakhigarhi$solarRadiation.min, 
+    min(tempData$I, na.rm = TRUE))
+  weatherSummary_rakhigarhi$solarRadiation.error <- c(
+    weatherSummary_rakhigarhi$solarRadiation.error,
+    qt(0.975, length(tempData$I) - 1) * 
+      sd(tempData$I, na.rm = TRUE) / 
+      sqrt(length(tempData$I)))
+  
+  # temperature
+  
+  ## daily mean
+  weatherSummary_rakhigarhi$temperature.mean <- c(
+    weatherSummary_rakhigarhi$temperature.mean, 
+    mean(tempData$T2M, na.rm = TRUE))
+  weatherSummary_rakhigarhi$temperature.sd <- c(
+    weatherSummary_rakhigarhi$temperature.sd, 
+    sd(tempData$T2M, na.rm = TRUE))
+  weatherSummary_rakhigarhi$temperature.max <- c(
+    weatherSummary_rakhigarhi$temperature.max, 
+    max(tempData$T2M, na.rm = TRUE))
+  weatherSummary_rakhigarhi$temperature.min <- c(
+    weatherSummary_rakhigarhi$temperature.min, 
+    min(tempData$T2M, na.rm = TRUE))
+  weatherSummary_rakhigarhi$temperature.error <- c(
+    weatherSummary_rakhigarhi$temperature.error,
+    qt(0.975, length(tempData$T2M) - 1) * 
+      sd(tempData$T2M, na.rm = TRUE) / 
+      sqrt(length(tempData$T2M)))
+  
+  ## daily max
+  weatherSummary_rakhigarhi$maxTemperature.mean <- c(
+    weatherSummary_rakhigarhi$maxTemperature.mean, 
+    mean(tempData$Tmax, na.rm = TRUE))
+  weatherSummary_rakhigarhi$maxTemperature.max <- c(
+    weatherSummary_rakhigarhi$maxTemperature.max, 
+    max(tempData$Tmax, na.rm = TRUE))
+  weatherSummary_rakhigarhi$maxTemperature.min <- c(
+    weatherSummary_rakhigarhi$maxTemperature.min, 
+    min(tempData$Tmax, na.rm = TRUE))
+  weatherSummary_rakhigarhi$maxTemperature.error <- c(
+    weatherSummary_rakhigarhi$maxTemperature.error,
+    qt(0.975, length(tempData$Tmax) - 1) * 
+      sd(tempData$Tmax, na.rm = TRUE) / 
+      sqrt(length(tempData$Tmax)))
+  
+  ## daily min
+  weatherSummary_rakhigarhi$minTemperature.mean <- c(
+    weatherSummary_rakhigarhi$minTemperature.mean, 
+    mean(tempData$Tmin, na.rm = TRUE))
+  weatherSummary_rakhigarhi$minTemperature.max <- c(
+    weatherSummary_rakhigarhi$minTemperature.max, 
+    max(tempData$Tmin, na.rm = TRUE))
+  weatherSummary_rakhigarhi$minTemperature.min <- c(
+    weatherSummary_rakhigarhi$minTemperature.min, 
+    min(tempData$Tmin, na.rm = TRUE))
+  weatherSummary_rakhigarhi$minTemperature.error <- c(
+    weatherSummary_rakhigarhi$minTemperature.error,
+    qt(0.975, length(tempData$Tmin) - 1) * 
+      sd(tempData$Tmin, na.rm = TRUE) / 
+      sqrt(length(tempData$Tmin)))
+  
+  ## daily lower and upper deviation
+  weatherSummary_rakhigarhi$temperature.lowerDeviation <- c(
+    weatherSummary_rakhigarhi$temperature.lowerDeviation, 
+    mean(tempData$T2M - tempData$Tmin)) 
+  weatherSummary_rakhigarhi$temperature.lowerDeviation.error <- c(
+    weatherSummary_rakhigarhi$temperature.lowerDeviation.error,
+    qt(0.975, length(tempData$Tmin) - 1) * 
+      sd(tempData$T2M - tempData$Tmin, na.rm = TRUE) / 
+      sqrt(length(tempData$Tmin)))
+  weatherSummary_rakhigarhi$temperature.upperDeviation <- c(
+    weatherSummary_rakhigarhi$temperature.upperDeviation, 
+    mean(tempData$Tmax - tempData$T2M))
+  weatherSummary_rakhigarhi$temperature.upperDeviation.error <- c(
+    weatherSummary_rakhigarhi$temperature.upperDeviation.error,
+    qt(0.975, length(tempData$Tmax) - 1) * 
+      sd(tempData$Tmax - tempData$T2M, na.rm = TRUE) / 
+      sqrt(length(tempData$Tmax)))
+  
+  # precipitation
+  weatherSummary_rakhigarhi$precipitation.mean <- c(
+    weatherSummary_rakhigarhi$precipitation.mean, 
+    mean(tempData$RAIN, na.rm = TRUE))
+  weatherSummary_rakhigarhi$precipitation.max <- c(
+    weatherSummary_rakhigarhi$precipitation.max, 
+    max(tempData$RAIN, na.rm = TRUE))
+  weatherSummary_rakhigarhi$precipitation.min <- c(
+    weatherSummary_rakhigarhi$precipitation.min, 
+    min(tempData$RAIN, na.rm = TRUE))
+  weatherSummary_rakhigarhi$precipitation.error <- c(
+    weatherSummary_rakhigarhi$precipitation.error,
+    qt(0.975, length(tempData$RAIN) - 1) * 
+      sd(tempData$RAIN, na.rm = TRUE) / 
+      sqrt(length(tempData$RAIN)))
+  
+  # ARID
+  weatherSummary_rakhigarhi$ARID.mean <- c(
+    weatherSummary_rakhigarhi$ARID.mean, 
+    mean(tempWatbalData$ARID, na.rm = TRUE))
+  weatherSummary_rakhigarhi$ARID.max <- c(
+    weatherSummary_rakhigarhi$ARID.max, 
+    max(tempWatbalData$ARID, na.rm = TRUE))
+  weatherSummary_rakhigarhi$ARID.min <- c(
+    weatherSummary_rakhigarhi$ARID.min, 
+    min(tempWatbalData$ARID, na.rm = TRUE))
+  weatherSummary_rakhigarhi$ARID.error <- c(
+    weatherSummary_rakhigarhi$ARID.error,
+    qt(0.975, 
+       length(tempWatbalData$ARID) - 1) * 
+      sd(tempWatbalData$ARID, na.rm = TRUE) /
+      sqrt(length(tempWatbalData$ARID)))
+}
+rm(day, tempData, tempWatbalData)
+
+weatherSummary_rakhigarhi <- data.frame(weatherSummary_rakhigarhi)
+```
+
+Get ranges of weather variables:
+
+```{r}
+roundToMultiple <- function(i, baseOfMultiple, roundFunction = round)
+{
+  return(match.fun(roundFunction)(i/baseOfMultiple) * baseOfMultiple)
+}
+
+rangeSolar = c(
+  roundToMultiple(min(c(weatherSummary$solarRadiation.min, weatherSummary_rakhigarhi$solarRadiation.min)), 5, floor),
+  roundToMultiple(max(c(weatherSummary$solarRadiation.max, weatherSummary_rakhigarhi$solarRadiation.max)), 5, ceiling))
+
+rangeTemp = c(
+  roundToMultiple(min(c(weatherSummary$minTemperature.min, weatherSummary_rakhigarhi$minTemperature.min)), 5, floor),
+  roundToMultiple(max(c(weatherSummary$maxTemperature.max, weatherSummary_rakhigarhi$maxTemperature.max)), 5, ceiling))
+
+rangePrecip = c(
+  roundToMultiple(min(c(weatherSummary$precipitation.min, weatherSummary_rakhigarhi$precipitation.min)), 5, floor),
+  roundToMultiple(max(c(weatherSummary$precipitation.max, weatherSummary_rakhigarhi$precipitation.max)), 5, ceiling))
+```
+
+Set colours for maximum and minimum temperature:
+
+```{r}
+maxTemperatureColour = hsv(7.3/360, 74.6/100, 70/100)
+
+minTemperatureColour = hsv(232/360, 64.6/100, 73/100)
+```
+
+### Fig - Weather variables
+
+Create figure:
+
+```{r}
+yearLengthInDays_sim = nlevels(factor(weatherSummary$dayOfYear))
+yearLengthInDays_real = nlevels(factor(weatherSummary_rakhigarhi$dayOfYear))
+
+yLabs <- c(expression(paste("solar radiation (", MJ/m^-2, ")")),
+             "temperature (C)", "precipitation (mm)", "ARID", "crop seasons")
+
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = "figures/exp1_weatherAndARID.png"
+    
+    grScale = 2
+    fontRescale = 0
+    axisTextRescale = 0
+    marginTextRescale = 0
+    leftPlotMargin = 2
+    rightPlotMargin = 4
+    cumPrecipMargins <- c(8, 1.5)
+    textMarginWeight = 2
+    cropRangesHeadLength = 0.1
+    cropRangesLineWidth = 3
+    cropRangesLabelsVerticalSpread = 14
+    cropRangesLabelsSize = 0.95
+    
+    png(plotName, width = grScale * 800, height = grScale * 1000)
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp1_weatherAndARID.eps"
+    
+    grScale = 1.2
+    fontRescale = 0.1
+    axisTextRescale = -0.1
+    marginTextRescale = -0.5
+    leftPlotMargin = 1.5
+    rightPlotMargin = 3.8
+    cumPrecipMargins <- c(6, 1.5)
+    textMarginWeight = 1
+    cropRangesHeadLength = 0.08
+    cropRangesLineWidth = 3
+    cropRangesLabelsVerticalSpread = 10
+    cropRangesLabelsSize = 0.9
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = grScale * 8,
+                        height = grScale * 10,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  nColumns = 3
+  nRowsExceptTopAndBottom = 5
+  
+  layout(rbind(1:nColumns, # top row (headers)
+               # main block with plots
+               matrix((nColumns + 1):(nColumns + (nColumns * nRowsExceptTopAndBottom)), 
+                      nrow = nRowsExceptTopAndBottom,
+                      ncol = nColumns, 
+                      byrow = FALSE),
+               # bottom row (x axis title)
+               c((nColumns + 1) + (nColumns * nRowsExceptTopAndBottom),
+                 rep(((nColumns + 1) +(nColumns * nRowsExceptTopAndBottom) + 1), nColumns - 1))),
+         widths = c(1, 10, 12),
+         heights = c(textMarginWeight, 
+                     rep(10, nRowsExceptTopAndBottom) + c(1, rep(0, nRowsExceptTopAndBottom - 2), -2), 
+                     textMarginWeight)
+  )
+  
+  # top row: empty and two headers
+  
+  par(mar = c(0, 0, 0, 0))
+  
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  
+  par(mar = c(0, leftPlotMargin, 0, 0))
+  
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  text(x = 0.5, y = 0.5, font = 4,
+       cex = grScale * (2 + fontRescale),
+       labels = "Rakhigarhi (1984-2007)")
+  
+  par(mar = c(0, 0, 0, rightPlotMargin))
+  
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  text(x = 0.45, y = 0.5, font = 4,
+       cex = grScale * (2 + fontRescale),
+       labels = "Experiment 1 (750 years)")
+  
+  # First column: y axis titles
+  
+  par(cex = grScale,
+      cex.axis = grScale * (0.8 + axisTextRescale))
+  
+  par(mar = c(0, 0, 0, 0.4))
+  
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  text(x = 0.5, y = 0.5, font = 4, 
+       cex = grScale * (0.78 + fontRescale), 
+       srt = 90,
+       labels = yLabs[1])
+  
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  text(x = 0.5, y = 0.5, font = 4, 
+       cex = grScale * (0.78 + fontRescale), 
+       srt = 90,
+       labels = yLabs[2])
+  
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  text(x = 0.5, y = 0.4, font = 4, 
+       cex = grScale * (0.78 + fontRescale), 
+       srt = 90,
+       labels = yLabs[3])
+  
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  text(x = 0.5, y = 0.6, font = 4, 
+       cex = grScale * (0.78 + fontRescale), 
+       srt = 90,
+       labels = yLabs[4])
+  
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  text(x = 0.5, y = 0.6, font = 4, 
+       cex = grScale * (0.78 + fontRescale), 
+       srt = 90,
+       labels = yLabs[5])
+  
+  #==============================================================================
+  # Second column: real-world data
+  
+  # 1. solar radiation
+  
+  par(mar = c(0.1, leftPlotMargin, 0.1, 0.1))
+  
+  plot(1:yearLengthInDays_real, 
+       weatherSummary_rakhigarhi$solarRadiation.mean, 
+       axes = FALSE,
+       ylim = rangeSolar,
+       type = "l", lwd = grScale)
+  
+  ## 95% confidence interval
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c((weatherSummary_rakhigarhi$solarRadiation.mean + weatherSummary_rakhigarhi$solarRadiation.error),
+                rev(weatherSummary_rakhigarhi$solarRadiation.mean)),
+          col = rgb(0,0,0, alpha = 0.5),
+          border = NA)
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c((weatherSummary_rakhigarhi$solarRadiation.mean - weatherSummary_rakhigarhi$solarRadiation.error),
+                rev(weatherSummary_rakhigarhi$solarRadiation.mean)),
+          col = rgb(0,0,0, alpha = 0.5),
+          border = NA)
+  
+  ## min-max interval
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c(weatherSummary_rakhigarhi$solarRadiation.max,
+                rev(weatherSummary_rakhigarhi$solarRadiation.mean)),
+          col = rgb(0,0,0, alpha = 0.3),
+          border=NA)
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c(weatherSummary_rakhigarhi$solarRadiation.min,
+                rev(weatherSummary_rakhigarhi$solarRadiation.mean)),
+          col = rgb(0,0,0, alpha = 0.3),
+          border = NA)
+  
+  # solstices
+  abline(v = 31+28+31+30+31+21, # 21 June (approx.)
+         lty = 3, lwd = grScale)
+  abline(v = 31+28+31+30+31+30+31+31+30+31+30+21, # 21 December (approx.)
+         lty = 3, lwd = grScale)
+  
+  axis(2, at = seq(rangeSolar[1], rangeSolar[2], 5))
+  
+  # 2. temperature (daily mean, max, min)
+  
+  ## daily mean
+  plot(1:yearLengthInDays_real, 
+       weatherSummary_rakhigarhi$temperature.mean, 
+       axes = FALSE,
+       ylim = rangeTemp,
+       type = "l", lwd = grScale)
+  
+  ## 95% confidence interval
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c((weatherSummary_rakhigarhi$temperature.mean + weatherSummary_rakhigarhi$temperature.error),
+                rev(weatherSummary_rakhigarhi$temperature.mean)),
+          col = rgb(0,0,0, alpha = 0.5),
+          border = NA)
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c((weatherSummary_rakhigarhi$temperature.mean - weatherSummary_rakhigarhi$temperature.error),
+                rev(weatherSummary_rakhigarhi$temperature.mean)),
+          col = rgb(0,0,0, alpha = 0.5),
+          border = NA)
+  
+  ## min-max interval
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c(weatherSummary_rakhigarhi$temperature.max,
+                rev(weatherSummary_rakhigarhi$temperature.mean)),
+          col = rgb(0,0,0, alpha = 0.3),
+          border = NA)
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c(weatherSummary_rakhigarhi$temperature.min,
+                rev(weatherSummary_rakhigarhi$temperature.mean)),
+          col = rgb(0,0,0, alpha = 0.3),
+          border = NA)
+  
+  ## daily max
+  lines(1:yearLengthInDays_real, 
+        weatherSummary_rakhigarhi$maxTemperature.mean, 
+        lwd = grScale, col = maxTemperatureColour)
+  
+  ## 95% confidence interval
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c((weatherSummary_rakhigarhi$maxTemperature.mean + weatherSummary_rakhigarhi$maxTemperature.error),
+                rev(weatherSummary_rakhigarhi$maxTemperature.mean)),
+          col = adjustcolor(maxTemperatureColour, alpha.f = 0.5),
+          border = NA)
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c((weatherSummary_rakhigarhi$maxTemperature.mean - weatherSummary_rakhigarhi$maxTemperature.error),
+                rev(weatherSummary_rakhigarhi$maxTemperature.mean)),
+          col = adjustcolor(maxTemperatureColour, alpha.f = 0.5),
+          border = NA)
+  
+  ## min-max interval
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c(weatherSummary_rakhigarhi$maxTemperature.max,
+                rev(weatherSummary_rakhigarhi$maxTemperature.mean)),
+          col = adjustcolor(maxTemperatureColour, alpha.f = 0.3),
+          border = NA)
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c(weatherSummary_rakhigarhi$maxTemperature.min,
+                rev(weatherSummary_rakhigarhi$maxTemperature.mean)),
+          col = adjustcolor(maxTemperatureColour, alpha.f = 0.3),
+          border = NA)
+  
+  ## daily min
+  lines(1:yearLengthInDays_real, 
+        weatherSummary_rakhigarhi$minTemperature.mean, 
+        lwd = grScale, col = minTemperatureColour)
+  
+  ## 95% confidence interval
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c((weatherSummary_rakhigarhi$minTemperature.mean + weatherSummary_rakhigarhi$minTemperature.error),
+                rev(weatherSummary_rakhigarhi$minTemperature.mean)),
+          col = adjustcolor(minTemperatureColour, alpha.f = 0.5),
+          border = NA)
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c((weatherSummary_rakhigarhi$minTemperature.mean - weatherSummary_rakhigarhi$minTemperature.error),
+                rev(weatherSummary_rakhigarhi$minTemperature.mean)),
+          col = adjustcolor(minTemperatureColour, alpha.f = 0.5),
+          border = NA)
+  
+  ## min-max interval
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c(weatherSummary_rakhigarhi$minTemperature.max,
+                rev(weatherSummary_rakhigarhi$minTemperature.mean)),
+          col = adjustcolor(minTemperatureColour, alpha.f = 0.3),
+          border = NA)
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c(weatherSummary_rakhigarhi$minTemperature.min,
+                rev(weatherSummary_rakhigarhi$minTemperature.mean)),
+          col = adjustcolor(minTemperatureColour, alpha.f = 0.3),
+          border = NA)
+  
+  # solstices
+  abline(v = 31+28+31+30+31+21, # 21 June (approx.)
+         lty = 3, lwd = grScale)
+  abline(v = 31+28+31+30+31+30+31+31+30+31+30+21, # 21 December (approx.)
+         lty = 3, lwd = grScale)
+  
+  axis(2, at = seq(rangeTemp[1], rangeTemp[2], 5))
+  
+  # 3. precipitation
+  
+  # cumulative curve
+  par(mar = c(cumPrecipMargins[1], leftPlotMargin, 0.1, 0.1))
+  
+  plot(c(1, yearLengthInDays_real), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  
+  
+  for (year in unique(weatherData_rakhigarhi$year))
+  {
+    lines(1:nrow(weatherData_rakhigarhi[weatherData_rakhigarhi$year == year,]), 
+          getCumulativePrecipitationOfYear(weatherData_rakhigarhi[weatherData_rakhigarhi$year == year, "RAIN"]), 
+          lwd = grScale, 
+          col = rgb(0, 0, 0, alpha = 0.05))
+  }
+  rm(year)
+  
+  # daily values
+  par(new = T,
+      mar = c(0.1, leftPlotMargin, 0.1, 0.1))
+  
+  plot(1:yearLengthInDays_real, 
+       weatherSummary_rakhigarhi$precipitation.mean, 
+       axes = FALSE,
+       ylim = rangePrecip * c(1, cumPrecipMargins[2]), 
+       type = "l", lwd = grScale)
+  
+  ## 95% confidence interval
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c((weatherSummary_rakhigarhi$precipitation.mean + weatherSummary_rakhigarhi$precipitation.error),
+                rev(weatherSummary_rakhigarhi$precipitation.mean)),
+          col = rgb(0,0,0, alpha = 0.5),
+          border = NA)
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c((weatherSummary_rakhigarhi$precipitation.mean - weatherSummary_rakhigarhi$precipitation.error),
+                rev(weatherSummary_rakhigarhi$precipitation.mean)),
+          col = rgb(0,0,0, alpha = 0.5),
+          border = NA)
+  
+  ## min-max interval
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c(weatherSummary_rakhigarhi$precipitation.max,
+                rev(weatherSummary_rakhigarhi$precipitation.mean)),
+          col = rgb(0,0,0, alpha = 0.3),
+          border=NA)
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c(weatherSummary_rakhigarhi$precipitation.min,
+                rev(weatherSummary_rakhigarhi$precipitation.mean)),
+          col = rgb(0,0,0, alpha = 0.3),
+          border = NA)
+  
+  # solstices
+  abline(v = 31+28+31+30+31+21, # 21 June (approx.)
+         lty = 3, lwd = grScale)
+  abline(v = 31+28+31+30+31+30+31+31+30+31+30+21, # 21 December (approx.)
+         lty = 3, lwd = grScale)
+  
+  axis(2, at = seq(rangePrecip[1], rangePrecip[2], 10))
+  
+  # 4. ARID
+  par(mar = c(0.1, leftPlotMargin, 0.1, 0.1))
+  
+  plot(1:yearLengthInDays_real, 
+       weatherSummary_rakhigarhi$ARID.mean, 
+       axes = FALSE,
+       ylim = c(0, 1), 
+       type = "l", lwd = grScale)
+  
+  ## 95% confidence interval
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c((weatherSummary_rakhigarhi$ARID.mean + weatherSummary_rakhigarhi$ARID.error),
+                rev(weatherSummary_rakhigarhi$ARID.mean)),
+          col = rgb(0,0,0, alpha = 0.5),
+          border = NA)
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c((weatherSummary_rakhigarhi$ARID.mean - weatherSummary_rakhigarhi$ARID.error),
+                rev(weatherSummary_rakhigarhi$ARID.mean)),
+          col = rgb(0,0,0, alpha = 0.5),
+          border = NA)
+  
+  ## min-max interval
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c(weatherSummary_rakhigarhi$ARID.max,
+                rev(weatherSummary_rakhigarhi$ARID.mean)),
+          col = rgb(0,0,0, alpha = 0.3),
+          border=NA)
+  polygon(x = c(1:yearLengthInDays_real, 
+                rev(1:yearLengthInDays_real)),
+          y = c(weatherSummary_rakhigarhi$ARID.min,
+                rev(weatherSummary_rakhigarhi$ARID.mean)),
+          col = rgb(0,0,0, alpha = 0.3),
+          border = NA)
+  
+  # solstices
+  abline(v = 31+28+31+30+31+21, # 21 June (approx.)
+         lty = 3, lwd = grScale)
+  abline(v = 31+28+31+30+31+30+31+31+30+31+30+21, # 21 December (approx.)
+         lty = 3, lwd = grScale)
+  
+  axis(2, at = seq(0, 1, 0.1))
+  
+  #5. crop growing seasons
+  par(mar = c(3, leftPlotMargin, 0.1, 0.1))
+  
+  plot(c(1, 365), c(1, nrow(cropTable)), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  
+  for (aCrop in levels(cropTable$crop))
+  {
+    tempData <- cropTable[cropTable$crop == aCrop,]
+    aCropIndex <- match(aCrop, levels(cropTable$crop))
+    
+    # winter crop
+    if (tempData$sugSowingDay > tempData$sugHarvestingDay)
+    {
+      arrows(x0 = 1, y0 = aCropIndex,
+             x1 = tempData$sugHarvestingDay, y1 = aCropIndex,
+             angle = 90, code = 3, col = cropColours[aCropIndex],
+             length = cropRangesHeadLength, lwd = cropRangesLineWidth * grScale)
+      arrows(x0 = tempData$sugSowingDay, y0 = aCropIndex,
+             x1 = 365, y1 = aCropIndex,
+             angle = 90, code = 3, col = cropColours[aCropIndex],
+             length = cropRangesHeadLength, lwd = cropRangesLineWidth * grScale)
+    }
+    else
+    {
+      arrows(x0 = tempData$sugSowingDay, y0 = aCropIndex,
+             x1 = tempData$sugHarvestingDay, y1 = aCropIndex,
+             angle = 90, code = 3, col = cropColours[aCropIndex],
+             length = cropRangesHeadLength, lwd = cropRangesLineWidth * grScale)
+    }
+  }
+  
+  # solstices
+  abline(v = 31+28+31+30+31+21, # 21 June (approx.)
+         lty = 3, lwd = grScale)
+  abline(v = 31+28+31+30+31+30+31+31+30+31+30+21, # 21 December (approx.)
+         lty = 3, lwd = grScale)
+  
+  # x axis
+  axis(1, at = c(0,
+                 31, 
+                 31+28, 
+                 31+28+31, 
+                 31+28+31+30, 
+                 31+28+31+30+31, 
+                 31+28+31+30+31+30,
+                 31+28+31+30+31+30+31, 
+                 31+28+31+30+31+30+31+31, 
+                 31+28+31+30+31+30+31+31+30, 
+                 31+28+31+30+31+30+31+31+30+31, 
+                 31+28+31+30+31+30+31+31+30+31+30, 
+                 31+28+31+30+31+30+31+31+30+31+30+31),
+       las = 2
+  )
+  
+  #==============================================================================
+  # Third column: simulated data
+  
+  # 1. solar radiation
+  
+  par(mar = c(0.1, 0.1, 0.1, rightPlotMargin))
+  
+  plot(1:yearLengthInDays_sim, 
+       weatherSummary$solarRadiation.mean, 
+       axes = FALSE,
+       ylim = rangeSolar,
+       type = "l", lwd = grScale)
+  
+  ## 95% confidence interval
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c((weatherSummary$solarRadiation.mean + weatherSummary$solarRadiation.error),
+                rev(weatherSummary$solarRadiation.mean)),
+          col = rgb(0,0,0, alpha = 0.5),
+          border = NA)
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c((weatherSummary$solarRadiation.mean - weatherSummary$solarRadiation.error),
+                rev(weatherSummary$solarRadiation.mean)),
+          col = rgb(0,0,0, alpha = 0.5),
+          border = NA)
+  
+  ## min-max interval
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c(weatherSummary$solarRadiation.max,
+                rev(weatherSummary$solarRadiation.mean)),
+          col = rgb(0,0,0, alpha = 0.3),
+          border=NA)
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c(weatherSummary$solarRadiation.min,
+                rev(weatherSummary$solarRadiation.mean)),
+          col = rgb(0,0,0, alpha = 0.3),
+          border = NA)
+  
+  # solstices
+  abline(v = 31+28+31+30+31+21, # 21 June (approx.)
+         lty = 3, lwd = grScale)
+  abline(v = 31+28+31+30+31+30+31+31+30+31+30+21, # 21 December (approx.)
+         lty = 3, lwd = grScale)
+  
+  # 2. temperature (daily mean, max, min)
+  
+  ## daily mean
+  plot(1:yearLengthInDays_sim, 
+       weatherSummary$temperature.mean, 
+       axes = FALSE,
+       ylim = rangeTemp,
+       type = "l", lwd = grScale)
+  
+  ## 95% confidence interval
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c((weatherSummary$temperature.mean + weatherSummary$temperature.error),
+                rev(weatherSummary$temperature.mean)),
+          col = rgb(0,0,0, alpha = 0.5),
+          border = NA)
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c((weatherSummary$temperature.mean - weatherSummary$temperature.error),
+                rev(weatherSummary$temperature.mean)),
+          col = rgb(0,0,0, alpha = 0.5),
+          border = NA)
+  
+  ## min-max interval
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c(weatherSummary$temperature.max,
+                rev(weatherSummary$temperature.mean)),
+          col = rgb(0,0,0, alpha = 0.3),
+          border = NA)
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c(weatherSummary$temperature.min,
+                rev(weatherSummary$temperature.mean)),
+          col = rgb(0,0,0, alpha = 0.3),
+          border = NA)
+  
+  ## daily max
+  lines(1:yearLengthInDays_sim, 
+        weatherSummary$maxTemperature.mean, 
+        lwd = grScale, col = maxTemperatureColour)
+  
+  ## 95% confidence interval
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c((weatherSummary$maxTemperature.mean + weatherSummary$maxTemperature.error),
+                rev(weatherSummary$maxTemperature.mean)),
+          col = adjustcolor(maxTemperatureColour, alpha.f = 0.5),
+          border = NA)
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c((weatherSummary$maxTemperature.mean - weatherSummary$maxTemperature.error),
+                rev(weatherSummary$maxTemperature.mean)),
+          col = adjustcolor(maxTemperatureColour, alpha.f = 0.5),
+          border = NA)
+  
+  ## min-max interval
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c(weatherSummary$maxTemperature.max,
+                rev(weatherSummary$maxTemperature.mean)),
+          col = adjustcolor(maxTemperatureColour, alpha.f = 0.3),
+          border = NA)
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c(weatherSummary$maxTemperature.min,
+                rev(weatherSummary$maxTemperature.mean)),
+          col = adjustcolor(maxTemperatureColour, alpha.f = 0.3),
+          border = NA)
+  
+  ## daily min
+  lines(1:yearLengthInDays_sim, 
+        weatherSummary$minTemperature.mean, 
+        lwd = grScale, col = minTemperatureColour)
+  
+  ## 95% confidence interval
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c((weatherSummary$minTemperature.mean + weatherSummary$minTemperature.error),
+                rev(weatherSummary$minTemperature.mean)),
+          col = adjustcolor(minTemperatureColour, alpha.f = 0.5),
+          border = NA)
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c((weatherSummary$minTemperature.mean - weatherSummary$minTemperature.error),
+                rev(weatherSummary$minTemperature.mean)),
+          col = adjustcolor(minTemperatureColour, alpha.f = 0.5),
+          border = NA)
+  
+  ## min-max interval
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c(weatherSummary$minTemperature.max,
+                rev(weatherSummary$minTemperature.mean)),
+          col = adjustcolor(minTemperatureColour, alpha.f = 0.3),
+          border = NA)
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c(weatherSummary$minTemperature.min,
+                rev(weatherSummary$minTemperature.mean)),
+          col = adjustcolor(minTemperatureColour, alpha.f = 0.3),
+          border = NA)
+  
+  # solstices
+  abline(v = 31+28+31+30+31+21, # 21 June (approx.)
+         lty = 3, lwd = grScale)
+  abline(v = 31+28+31+30+31+30+31+31+30+31+30+21, # 21 December (approx.)
+         lty = 3, lwd = grScale)
+  
+  # 3. precipitation
+  
+  # cumulative curve
+  par(mar = c(cumPrecipMargins[1], 0.1, 0.1, rightPlotMargin))
+  
+  plot(c(1, yearLengthInDays_sim), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  
+  for (randomSeed in unique(weatherData$randomSeed))
+  {
+    for (year in unique(weatherData$currentYear))
+    {
+      lines(1:nrow(weatherData[weatherData$randomSeed == randomSeed & weatherData$currentYear == year,]), 
+            getCumulativePrecipitationOfYear(weatherData[weatherData$randomSeed == randomSeed & weatherData$currentYear == year, "RAIN"]), 
+            lwd = grScale, 
+            col = rgb(0, 0, 0, alpha = 0.05))
+    }
+  }
+  rm(year, randomSeed)
+  
+  axis(4, at = seq(0, 1, 0.25))
+  mtext("cumulative annual sum", 4, line = 2,
+        cex = grScale * (1.5 + marginTextRescale))
+  
+  # daily values
+  par(new = T,
+      mar = c(0.1, 0.1, 0.1, rightPlotMargin))
+  
+  plot(1:yearLengthInDays_sim, 
+       weatherSummary$precipitation.mean, 
+       axes = FALSE,
+       ylim = rangePrecip * c(1, cumPrecipMargins[2]), 
+       type = "l", lwd = grScale)
+  
+  ## 95% confidence interval
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c((weatherSummary$precipitation.mean + weatherSummary$precipitation.error),
+                rev(weatherSummary$precipitation.mean)),
+          col = rgb(0,0,0, alpha = 0.5),
+          border = NA)
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c((weatherSummary$precipitation.mean - weatherSummary$precipitation.error),
+                rev(weatherSummary$precipitation.mean)),
+          col = rgb(0,0,0, alpha = 0.5),
+          border = NA)
+  
+  ## min-max interval
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c(weatherSummary$precipitation.max,
+                rev(weatherSummary$precipitation.mean)),
+          col = rgb(0,0,0, alpha = 0.3),
+          border=NA)
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c(weatherSummary$precipitation.min,
+                rev(weatherSummary$precipitation.mean)),
+          col = rgb(0,0,0, alpha = 0.3),
+          border = NA)
+  
+  # solstices
+  abline(v = 31+28+31+30+31+21, # 21 June (approx.)
+         lty = 3, lwd = grScale)
+  abline(v = 31+28+31+30+31+30+31+31+30+31+30+21, # 21 December (approx.)
+         lty = 3, lwd = grScale)
+  
+  # 4. ARID
+  par(mar = c(0.1, 0.1, 0.1, rightPlotMargin))
+  
+  plot(1:yearLengthInDays_sim, 
+       weatherSummary$ARID.mean, 
+       axes = FALSE,
+       ylim = c(0, 1), 
+       type = "l", lwd = grScale)
+  
+  ## 95% confidence interval
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c((weatherSummary$ARID.mean + weatherSummary$ARID.error),
+                rev(weatherSummary$ARID.mean)),
+          col = rgb(0,0,0, alpha = 0.5),
+          border = NA)
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c((weatherSummary$ARID.mean - weatherSummary$ARID.error),
+                rev(weatherSummary$ARID.mean)),
+          col = rgb(0,0,0, alpha = 0.5),
+          border = NA)
+  
+  ## min-max interval
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c(weatherSummary$ARID.max,
+                rev(weatherSummary$ARID.mean)),
+          col = rgb(0,0,0, alpha = 0.3),
+          border=NA)
+  polygon(x = c(1:yearLengthInDays_sim, 
+                rev(1:yearLengthInDays_sim)),
+          y = c(weatherSummary$ARID.min,
+                rev(weatherSummary$ARID.mean)),
+          col = rgb(0,0,0, alpha = 0.3),
+          border = NA)
+  
+  # solstices
+  abline(v = 31+28+31+30+31+21, # 21 June (approx.)
+         lty = 3, lwd = grScale)
+  abline(v = 31+28+31+30+31+30+31+31+30+31+30+21, # 21 December (approx.)
+         lty = 3, lwd = grScale)
+  
+  #5. crop growing seasons
+  par(mar = c(3, 0.1, 0.1, rightPlotMargin))
+  
+  plot(c(1, 365), c(1, nrow(cropTable)), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  
+  for (aCrop in levels(cropTable$crop))
+  {
+    tempData <- cropTable[cropTable$crop == aCrop,]
+    aCropIndex <- match(aCrop, levels(cropTable$crop))
+    
+    # winter crop
+    if (tempData$sugSowingDay > tempData$sugHarvestingDay)
+    {
+      arrows(x0 = 1, y0 = aCropIndex,
+             x1 = tempData$sugHarvestingDay, y1 = aCropIndex,
+             angle = 90, code = 3, col = cropColours[aCropIndex],
+             length = cropRangesHeadLength, lwd = cropRangesLineWidth * grScale)
+      arrows(x0 = tempData$sugSowingDay, y0 = aCropIndex,
+             x1 = yearLengthInDays_sim, y1 = aCropIndex,
+             angle = 90, code = 3, col = cropColours[aCropIndex],
+             length = cropRangesHeadLength, lwd = cropRangesLineWidth * grScale)
+    }
+    else
+    {
+      arrows(x0 = tempData$sugSowingDay, y0 = aCropIndex,
+             x1 = tempData$sugHarvestingDay, y1 = aCropIndex,
+             angle = 90, code = 3, col = cropColours[aCropIndex],
+             length = cropRangesHeadLength, lwd = cropRangesLineWidth * grScale)
+    }
+    
+    mtext(aCrop, 
+          side = 4, col = cropColours[aCropIndex],
+          padj = ((1 - aCropIndex/nrow(cropTable)) - 0.4) * cropRangesLabelsVerticalSpread, 
+          las = 2, cex = grScale * cropRangesLabelsSize)
+  }
+  
+  # solstices
+  abline(v = 31+28+31+30+31+21, # 21 June (approx.)
+         lty = 3, lwd = grScale)
+  abline(v = 31+28+31+30+31+30+31+31+30+31+30+21, # 21 December (approx.)
+         lty = 3, lwd = grScale)
+  
+  # x axis
+  axis(1, at = c(0,
+                 31, 
+                 31+28, 
+                 31+28+31, 
+                 31+28+31+30, 
+                 31+28+31+30+31, 
+                 31+28+31+30+31+30,
+                 31+28+31+30+31+30+31, 
+                 31+28+31+30+31+30+31+31, 
+                 31+28+31+30+31+30+31+31+30, 
+                 31+28+31+30+31+30+31+31+30+31, 
+                 31+28+31+30+31+30+31+31+30+31+30, 
+                 31+28+31+30+31+30+31+31+30+31+30+31),
+       las = 2
+  )
+  
+  # bottom row: empty and "day of year" or x axis title
+  
+  par(mar = c(0, 0, 0, 0))
+  
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  text(x = 0.45, y = 0.5, font = 4, 
+       cex = grScale * (0.8 + fontRescale),
+       labels = "day of year")
+  
+  dev.off()
+  
+}
+rm(imageFormat, grScale, fontRescale, yLabs, nColumns, nRowsExceptTopAndBottom, 
+   axisTextRescale, marginTextRescale, leftPlotMargin, rightPlotMargin, cumPrecipMargins, textMarginWeight,
+   tempData, aCrop, aCropIndex, cropRangesHeadLength, cropRangesLineWidth)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Display weather parameters:
+
+```{r}
+knitr::kable(t(yieldData[1, 2:26]), col.names = "default (NW India echo)")
+```
+
+### Fig - productivity (yield) per crop type (with default parameter setting)
+
+Summary statistics per crop:
+
+```{r}
+yieldData_summary <- tapply(as.numeric(as.character(yieldData$yield)), yieldData$crop, summary)
+
+yieldData_summary <- data.frame(Reduce(rbind, yieldData_summary), row.names = names(yieldData_summary))
+```
+
+```{r}
+knitr::kable(yieldData_summary)
+```
+
+```{r}
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = "figures/exp1_yieldPerCrop.png"
+    
+    grScale = 2
+    
+    png(plotName, width = grScale * 500, height = grScale * 300)
+  }
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp1_yieldPerCrop.eps"
+    
+    grScale = 2
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = 5 * grScale,
+                        height = 3 * grScale,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  par(mar = c(6,6,1,1), cex.lab = grScale, cex.axis = 0.8 * grScale)
+  
+  boxplot(yield ~ factor(crop), data = yieldData,
+          ylab = expression(paste("yield (", g/m^2, ")")), xlab = "",
+          col = cropColours)
+  # boxplot(yield ~ factor(crop), data = yieldData_exp0,
+  #         ylab = expression(paste("yield (", g/m^2, ")")), xlab = "",
+  #         col = "red")
+  stripchart(yield ~ factor(crop), data = yieldData_exp0,
+             method = "jitter",
+             col = "red", pch = 4,
+             vertical = TRUE, add = TRUE)
+  
+  dev.off()
+}
+rm(imageFormat, grScale)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+ggplot2 option:
+
+```{r}
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = "figures/exp1_yieldPerCrop_ggplot.png"
+    
+    grScale = 2
+    
+    png(plotName, width = grScale * 500, height = grScale * 300)
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp1_yieldPerCrop_ggplot.eps"
+    
+    grScale = 2
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = 5 * grScale,
+                        height = 3 * grScale,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  print({
+    ggplot(yieldData, aes(y = yield, x = crop, fill = crop)) + 
+      geom_violin(position = "dodge") +
+      geom_jitter(data = yieldData_exp0, aes(y = yield, x = crop, fill = crop), color = "red", shape = 4, width = 0.1) +
+      #coord_flip() +
+      #geom_boxplot() +
+      scale_fill_manual(values = cropColours, name="", guide = FALSE) +
+      scale_x_discrete() + 
+      theme_light(base_size = 11 * grScale) +
+      ylab(expression(paste("yield (", g/m^2, ")")))
+  })
+  dev.off()
+}
+rm(imageFormat, grScale)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+### Fig - mean daily ARID during each crop growing season versus mean ARID of the harvest calendar year
+
+```{r}
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = "figures/exp1_ARIDVsARID_grow.png"
+    
+    grScale = 2
+    
+    png(plotName, width = grScale * 500, height = grScale * 300)
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp1_ARIDVsARID_grow.eps"
+    
+    grScale = 2
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = 5 * grScale,
+                        height = 3 * grScale,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  layout(matrix(c(1, 2), nrow = 1, ncol = 2),
+         widths = c(10, 3))
+  
+  par(mar = c(5,5,1,1), cex.lab = 0.8 * grScale)
+  
+  boxplot(meanARID_grow ~ factor(crop), data = yieldData,#[yieldData$yield > 0,], # show only non-zero yield 
+          ylab = "mean ARID", xlab = "growing seasons",
+          #las = 2, 
+          col = cropColours)
+  stripchart(meanARID_grow ~ factor(crop), data = yieldData_exp0,
+             method = "jitter",
+             col = "red", pch = 4,
+             vertical = TRUE, add = TRUE)
+  
+  text(x = 0.5, y = minARID * 1.005, labels = "a", font = 2, cex = grScale)
+  
+  par(mar = c(5,1,1,1))
+  
+  xhist <- hist(yieldData$meanARID, breaks = 20, plot = FALSE)
+  barplot(xhist$counts, axes = FALSE, space = 0, horiz = TRUE,
+          xlab = "current year")
+  
+  text(x = max(xhist$counts) * 0.9, y = minARID * 1.005, labels = "b", font = 2, cex = grScale)
+  
+  xhist <- hist(yieldData_exp0$meanARID, breaks = 20, plot = FALSE)
+  barplot(xhist$counts, axes = FALSE, space = 0, horiz = TRUE, add = TRUE, col = "red")
+  
+  dev.off()
+}
+rm(imageFormat, grScale)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+ggplot2 option:
+
+```{r}
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = "figures/exp1_ARIDVsARID_grow_ggplot.png"
+    
+    grScale = 2
+    
+    png(plotName, width = grScale * 600, height = grScale * 300)
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp1_ARIDVsARID_grow_ggplot.eps"
+    
+    grScale = 2
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = 6 * grScale,
+                        height = 3 * grScale,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  # build temporary data frames where year meanARID is coded as an extra crop type
+  tempData <- yieldData[, c("crop", "meanARID_grow")]
+  tempData$crop <- sapply(tempData$crop, as.character)
+  for (year in unique(yieldData$currentYear))
+  {
+    for (randomSeed in unique(yieldData$randomSeed))
+    {
+      tempData <- rbind(tempData, 
+                        cbind(crop = "year", 
+                              meanARID_grow = yieldData[yieldData$randomSeed == randomSeed & yieldData$currentYear == year,]$meanARID[1]))
+    }
+  }
+  tempData$meanARID_grow <- as.numeric(tempData$meanARID_grow)
+  tempData$crop <- factor(tempData$crop, levels = c(levels(cropTable$crop), "year"))
+  
+  tempData_exp0 <- yieldData_exp0[, cbind("crop", "meanARID_grow")]
+  tempData_exp0$crop <- sapply(tempData_exp0$crop, as.character)
+  for (year in unique(yieldData_exp0$currentYear))
+  {
+    tempData_exp0 <- rbind(tempData_exp0, c(crop = "year", 
+                                            meanARID_grow = yieldData_exp0[yieldData_exp0$currentYear == year,]$meanARID[1]))
+  }
+  tempData_exp0$meanARID_grow <- as.numeric(tempData_exp0$meanARID_grow)
+  tempData_exp0$crop <- factor(tempData_exp0$crop, levels = c(levels(cropTable$crop), "year"))
+  
+  print({
+    (ggplot(tempData, aes(fill = crop, y = meanARID_grow, x = crop)) + 
+       geom_violin(position = "dodge") +
+       geom_jitter(data = tempData_exp0, aes(y = meanARID_grow, x = crop, fill = crop), color = "red", shape = 4, width = 0.1) +
+       #geom_boxplot() +
+       geom_hline(yintercept = mean(tempData$meanARID_grow[tempData$crop == "year"]), size = grScale) +
+       geom_hline(yintercept = mean(tempData_exp0$meanARID_grow[tempData_exp0$crop == "year"]), size = 0.5 * grScale, color = "red") +
+       scale_fill_manual(values = c(cropColours, "grey"), name="", guide = FALSE) +
+       scale_x_discrete() + 
+       theme_light(base_size = 11 * grScale) +
+       theme(axis.title.x = element_blank()) +
+       ylab("mean ARID")) +
+      ylim(minARID, maxARID)
+  })
+  
+  dev.off()
+}
+rm(imageFormat, grScale)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Use One-Way ANOVA to express the differences between crop and year-round means (simulation results):
+
+NOTE: using the `tempData`created in the last code chunk.
+
+```{r}
+anovaTable <- data.frame(
+  cbind(
+    Count = lapply(levels(tempData$crop), function(x) { nrow(tempData[tempData$crop == x, ]) }),
+    Mean = lapply(levels(tempData$crop), function(x) { mean(tempData$meanARID_grow[tempData$crop == x], na.rm = TRUE) }),
+    Variance = lapply(levels(tempData$crop), function(x) { var(tempData$meanARID_grow[tempData$crop == x], na.rm = TRUE) })
+  ),
+  row.names = levels(tempData$crop)
+)
+
+knitr::kable(anovaTable)
+```
+
+```{r}
+anova_results <- aov(meanARID_grow ~ crop, data = tempData)
+pander::pander(summary(anova_results),
+               caption = "One-Way ANOVA (dep: ARID_grow, indep: crop)")
+```
+
+Post hoc test (Holm's method):
+
+```{r}
+pairwise_ttest_results <- pairwise.t.test(tempData$meanARID_grow, tempData$crop, p.adjust.method = "holm")
+
+pander::pander(pairwise_ttest_results$p.value,
+               caption = "Post hoc pairwise t-test (Holm's method)")
+```
+
+Tukey Honest Significant Differences:
+
+```{r}
+pander::pander(TukeyHSD(anova_results, "crop")$crop,
+               caption = "Tukey Honest Significant Differences")
+```
+
+```{r}
+rm(tempData, tempData_exp0, anova_results, pairwise_ttest_results, anovaTable)
+```
+
+### Fig - mean ARID vs productivity (yield)
+
+Plotting absolute values of yield vs ARID:
+
+```{r}
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = "figures/exp1_yieldVsARID.png"
+    
+    grScale = 2
+    cex.points = 1
+    
+    png(plotName, width = grScale * 500, height = grScale * 300)
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp1_yieldVsARID.eps"
+    
+    grScale = 2
+    cex.points = 0.5
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = 5 * grScale,
+                        height = 3 * grScale,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  layout(matrix(c(1, 2, 3, 3), nrow = 2, ncol = 2, byrow = FALSE),
+         widths = c(10, 3.5))
+  
+  par(mar = c(5,5,1,1), cex.lab = 0.8 * grScale)
+  
+  plot(c(minARID, maxARID), 
+       c(minYield, maxYield),
+       xlab = "mean ARID (harvest year)", 
+       ylab = expression(paste("yield (", g/m^2, ")")))
+  
+  for (aCrop in levels(yieldData$crop))
+  {
+    points(yieldData$meanARID[yieldData$crop == aCrop],
+           yieldData$yield[yieldData$crop == aCrop],
+           col = cropColours[match(aCrop, levels(yieldData$crop))],
+           pch = 20, cex = cex.points
+    )
+    abline(lm(yield ~ meanARID, data = yieldData[yieldData$crop == aCrop,]),
+           col = cropColours[match(aCrop, levels(yieldData$crop))],
+           lwd = 2)
+  }
+  rm(aCrop)
+  
+  text(x = minARID * 1.005, y = maxYield * 0.95, labels = "a", font = 2, cex = grScale)
+  
+  plot(c(minARID, maxARID), 
+       c(minYield, maxYield),
+       xlab = "mean ARID (grow season)",
+       ylab = expression(paste("yield (", g/m^2, ")")))
+  
+  for (aCrop in levels(yieldData$crop))
+  {
+    points(yieldData$meanARID_grow[yieldData$crop == aCrop],
+           yieldData$yield[yieldData$crop == aCrop],
+           col = cropColours[match(aCrop, levels(yieldData$crop))],
+           pch = 20, cex = cex.points
+    )
+    abline(lm(yield ~ meanARID_grow, data = yieldData[yieldData$crop == aCrop,]),
+           col = cropColours[match(aCrop, levels(yieldData$crop))],
+           lwd = 2)
+  }
+  rm(aCrop)
+  
+  text(x = minARID * 1.005, y = maxYield * 0.95, labels = "b", font = 2, cex = grScale)
+  
+  par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+  
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  
+  legend(x = 0, y = 1, 
+         legend = stringi::stri_c(cropTable$S_water[order(match(cropTable$crop, levels(cropTable$crop)))], " (", levels(yieldData$crop), ")"), 
+         title = "S_water", 
+         fill = cropColours)
+  
+  dev.off()
+}
+rm(imageFormat, grScale)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+ggplot alternative:
+
+```{r}
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = "figures/exp1_yieldVsARID_ggplot.png"
+    
+    grScale = 2
+    
+    png(plotName, width = grScale * 350, height = grScale * 500)
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp1_yieldVsARID_ggplot.eps"
+    
+    grScale = 2
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = 3.5 * grScale,
+                        height = 5 * grScale,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  print({
+    
+    ggplot(data = yieldData, aes(x = meanARID_grow, y = yield, color = crop)) +
+      geom_point(size = 1, alpha = 0.3) +
+      geom_smooth(method = 'lm', color = 'black', se = FALSE) +
+      geom_point(data = yieldData_exp0, aes(x = meanARID_grow, y = yield), size = 2, shape = 4, color = 'red') +
+      geom_smooth(data = yieldData_exp0, aes(x = meanARID_grow, y = yield), method = 'lm', color = 'red', se = FALSE, linetype = "dashed") +
+      scale_color_manual(values = cropColours, name="", guide = FALSE) +
+      facet_wrap( ~ crop, ncol = 2, scales = 'free') +
+      xlab("mean ARID") +
+      ylab(expression(paste("yield (", g/m^2, ")"))) +
+      theme_light(base_size = 11 * grScale) +
+      theme(axis.text = element_text(size = 15),
+            strip.background = element_rect(fill = "white"),
+            strip.text = element_text(colour = "black"))
+    
+  })
+    
+  dev.off()
+}
+rm(imageFormat, grScale)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+knitr::kable(linearModels.table(yieldData, "yield", "meanARID_grow"), caption = "Pearson's correlation and linear model between ARID (x) and Yield (y) per crop")
+```
+
+### Fig - mean T_max vs productivity (yield)
+
+Plotting absolute values of yield vs ARID:
+
+```{r}
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = "figures/exp1_yieldVsT_max_ggplot.png"
+    
+    grScale = 2
+    
+    png(plotName, width = grScale * 350, height = grScale * 500)
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp1_yieldVsT_max_ggplot.eps"
+    
+    grScale = 2
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = 3.5 * grScale,
+                        height = 5 * grScale,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  print({
+    
+    ggplot(data = yieldData, aes(x = meanT_max_grow, y = yield, color = crop)) +
+      geom_point(size = 1, alpha = 0.3) +
+      geom_smooth(method = 'lm', color = 'black', se = FALSE) +
+      geom_point(data = yieldData_exp0, aes(x = meanT_max_grow, y = yield), size = 2, shape = 4, color = 'red') +
+      geom_smooth(data = yieldData_exp0, aes(x = meanT_max_grow, y = yield), method = 'lm', color = 'red', se = FALSE, linetype = "dashed") +
+      scale_color_manual(values = cropColours, name="", guide = FALSE) +
+      facet_wrap( ~ crop, ncol = 2, scales = 'free') +
+      xlab("mean T_max") +
+      ylab(expression(paste("yield (", g/m^2, ")"))) +
+      theme_light(base_size = 11 * grScale) +
+      theme(axis.text = element_text(size = 15),
+            strip.background = element_rect(fill = "white"),
+            strip.text = element_text(colour = "black"))
+    
+  })
+    
+  dev.off()
+}
+rm(imageFormat, grScale)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness (simulated data):
+
+```{r}
+knitr::kable(linearModels.table(yieldData, "yield", "meanT_max_grow"), caption = "Pearson's correlation and linear model between T_max (x) and Yield (y) per crop")
+```
+
+Integrated plot with yield vs mean ARID during growing season and daily maximum temperature:
+
+```{r}
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = "figures/exp1_yieldvsARIDAndTmax.png"
+    
+    grScale = 2
+    fontRescale = 1
+    
+    png(plotName, width = grScale * 600, height = grScale * 300)
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp1_yieldvsARIDAndTmax.eps"
+    
+    grScale = 2
+    fontRescale = 0.8
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = 3.5 * grScale,
+                        height = 5 * grScale,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  print({
+    (ggplot(data = yieldData, aes(y = yield, x = meanARID_grow, color = crop)) +
+       geom_point(size = 1, alpha = 0.3) +
+       geom_smooth(method = 'lm', color = 'black', se = FALSE) +
+       geom_point(data = yieldData_exp0, aes(x = meanARID_grow, y = yield), size = 2, shape = 4, color = 'red') +
+       geom_smooth(data = yieldData_exp0, aes(x = meanARID_grow, y = yield), method = 'lm', color = 'red', se = FALSE, linetype = "dashed") +
+       scale_color_discrete_qualitative(guide = FALSE) +
+       facet_wrap( ~ crop, ncol = 2, scales = 'free') +
+       ylab(expression(paste("yield (", g/m^2, ")"))) +
+       xlab("mean ARID") +
+       theme_light(base_size = 11 * grScale) +
+       theme(axis.text = element_text(size = 15 * fontRescale),
+             axis.title = element_text(size = 15 * fontRescale),
+             strip.background = element_rect(fill = "white"),
+             strip.text = element_text(colour = "black"))) +
+      (ggplot(data = yieldData, aes(y = yield, x = meanT_max_grow, color = crop)) +
+         geom_point(size = 1, alpha = 0.3) +
+         geom_smooth(method = 'lm', color = 'black', se = FALSE) +
+         geom_point(data = yieldData_exp0, aes(x = meanT_max_grow, y = yield), size = 2, shape = 4, color = 'red') +
+         geom_smooth(data = yieldData_exp0, aes(x = meanT_max_grow, y = yield), method = 'lm', color = 'red', se = FALSE, linetype = "dashed") +
+         scale_color_discrete_qualitative(guide = FALSE) +
+         facet_wrap( ~ crop, ncol = 2, scales = 'free') +
+         ylab("") +
+         xlab("mean T_max") +
+         theme_light(base_size = 11 * grScale) +
+         theme(axis.text = element_text(size = 15 * fontRescale),
+               axis.title = element_text(size = 15 * fontRescale),
+               strip.background = element_rect(fill = "white"),
+               strip.text = element_text(colour = "black"))) +
+      plot_layout(nrow = 1, widths = c(1, 1))
+  })
+  
+  dev.off()
+}
+rm(imageFormat, grScale)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Apply random forest to identify ranking of parameters and indicators that best explain variation in yield.
+
+Name parameters to consider:
+
+```{r}
+# those that make sense when considering all crops (includes crop parameters)
+pars_overall <- c(
+  "T_sum", "HI", "I_50A", "I_50B", "T_base", "T_opt", "RUE", 
+  "I_50maxH", "I_50maxW", "T_heat", "T_extreme", "S_water", 
+  "sowingDay", "harvestDay", "meanARID_grow", "meanT_max_grow" 
+)
+# those that make sense to analise variance within each crop (weather-related indicators)
+pars_perCrop <- c(
+  "meanARID_grow", "meanT_max_grow" 
+)
+```
+
+Overall, across crops:
+
+```{r}
+if(!file.exists('randomForestOutputData/randomForest_yield.RData'))
+{
+  randomForest_yield <-
+  randomForest::randomForest(
+    as.formula(paste0("yield ~ ", paste(pars_overall, collapse = '+'))),
+    data = yieldData[complete.cases(yieldData),],
+    mtry = 5,
+    ntree = 1000,
+    importance = T
+  )
+  
+  # save
+  save(randomForest_yield, file = 'randomForestOutputData/randomForest_yield.RData')
+}
+
+# load
+load('randomForestOutputData/randomForest_yield.RData')
+```
+
+Variable importance plot:
+
+```{r}
+randomForest::varImpPlot(randomForest_yield)
+```
+
+NOTE: `sowingDay`is so high in ranking only because proso millet, with its distinct season, returns substantially higher yields than all other crops.
+
+Per each crop:
+
+```{r}
+fileName = paste0('randomForestOutputData/randomForest_yield_perCrop.RData')
+  
+if(!file.exists(fileName))
+{
+  for (aCrop in cropTable$crop)
+  {
+  
+    randomForest_yield[[aCrop]] <-
+      randomForest::randomForest(
+        as.formula(paste0("yield ~ ", paste(pars_perCrop, collapse = '+'))),
+        data = yieldData[yieldData$crop == aCrop & complete.cases(yieldData),],
+        mtry = 4,
+        ntree = 1000,
+        importance = T
+      )
+  }
+  
+  # save
+  save(randomForest_yield, file = fileName)
+}
+# load
+load(fileName)
+```
+
+Variable importance plot:
+
+```{r}
+randomForest::varImpPlot(randomForest_yield[['proso millet']])
+```
+
+```{r}
+randomForest::varImpPlot(randomForest_yield[['pearl millet']])
+```
+
+```{r}
+randomForest::varImpPlot(randomForest_yield[['rice']])
+```
+
+```{r}
+randomForest::varImpPlot(randomForest_yield[['barley']])
+```
+
+```{r}
+randomForest::varImpPlot(randomForest_yield[['wheat 1']])
+```
+
+```{r}
+randomForest::varImpPlot(randomForest_yield[['wheat 2']])
+```
+
+Clear temporary objects:
+
+```{r}
+rm(watbalOutput_rakhigarhi, watbalParameters, 
+   weatherData, weatherData_rakhigarhi, weatherSummary, weatherSummary_rakhigarhi, weatherSummaryNames,
+   xhist, yieldData, yieldData_summary,
+   yearLengthInDays_real, yearLengthInDays_sim, 
+   maxARID, minARID, maxYield, minYield, rangePrecip, rangeSolar, rangeTemp, 
+   maxTemperatureColour, minTemperatureColour, 
+   plotName)
+```
+
+---
+
+## Experiment 2
+
+Experiment 2 perform the same runs of experiment 1, except by varying stochastically two weather model parameters concerning precipitation: `precipitation_yearlyMean` (average annual sum of precipitation) and `precipitation_dailyCum_plateauValue_yearlyMean` (average plateau value of the cumulative curve of daily precipitation).
+
+### Loading and preparation
+
+Load data:
+
+```{r}
+yieldData <- read.csv("models/output/SIMPLE-crop-model_yield-exp_type-of-experiment=precipitation-variation_experiment-name=exp2_initRandomSeed=0.csv")
+```
+
+Convert `yield = 0` to `NA` when `meanARID_grow = NA` (i.e., first year simulation runs with incomplete growing seasons):
+
+```{r}
+yieldData$yield[is.na(yieldData$meanARID_grow)] <- NA
+```
+
+Force the same order of crops used by cropTable:
+
+```{r}
+yieldData$crop <- factor(yieldData$crop, levels = levels(cropTable$crop))
+```
+
+Calculate the range of ARID, yield, precipitation annual sum (yearly mean) and the "plateau value" (yearly mean) of the cumulative curve of daily precipitation:
+
+```{r}
+minARID = round(min(c(yieldData$meanARID, yieldData$meanARID_grow), na.rm = TRUE), digits = 2)
+maxARID = round(max(c(yieldData$meanARID, yieldData$meanARID_grow), na.rm = TRUE), digits = 2)
+
+minYield = round(min(yieldData$yield, na.rm = TRUE), digits = -1)
+maxYield = round(max(yieldData$yield, na.rm = TRUE), digits = -1)
+
+minPrecipitation_yearlyMean = round(min(yieldData$precipitation_yearlyMean), digits = -2)
+maxPrecipitation_yearlyMean = round(max(yieldData$precipitation_yearlyMean), digits = -2)
+
+minPrecipitation_dailyCum_plateauValue_yearlyMean = round(min(yieldData$precipitation_dailyCum_plateauValue_yearlyMean), digits = 2)
+maxPrecipitation_dailyCum_plateauValue_yearlyMean = round(max(yieldData$precipitation_dailyCum_plateauValue_yearlyMean), digits = 2)
+```
+
+Display explored values of `precipitation_yearlyMean` and `precipitation_dailyCum_plateauValue_yearlyMean`:
+
+```{r}
+layout(matrix(1:2, ncol = 2))
+hist(yieldData$precipitation_yearlyMean, main = "precipitation_yearlyMean")
+hist(yieldData$precipitation_dailyCum_plateauValue_yearlyMean, main = "precipitation_dailyCum_plateauValue_yearlyMean")
+```
+
+### Fig - Effect of precipitation parametres on ARID
+
+Plotting ARID vs precipitation yearly mean and seasonal balance (plateau value):
+
+```{r}
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = "figures/exp2_ARIDvsPrecipitation.png"
+    
+    grScale = 2
+    cex.points = 1
+    
+    png(plotName, width = grScale * 500, height = grScale * 300)
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp2_ARIDvsPrecipitation.eps"
+    
+    grScale = 2
+    cex.points = 0.5
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = 5 * grScale,
+                        height = 3 * grScale,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  layout(matrix(c(1, 2, 3, 3), nrow = 2, ncol = 2, byrow = FALSE),
+         widths = c(10, 3.5))
+  
+  par(mar = c(5,5,1,1), cex.lab = 0.8 * grScale)
+  
+  plot(c(minPrecipitation_yearlyMean, maxPrecipitation_yearlyMean),
+       c(minARID, maxARID),
+       xlab = "precipitation annual sum (mm) (yearly mean)",
+       ylab = "mean ARID (growing seasons)")
+  
+  for (aCrop in levels(yieldData$crop))
+  {
+    points(yieldData$precipitation_yearlyMean[yieldData$crop == aCrop],
+           yieldData$meanARID_grow[yieldData$crop == aCrop],
+           col = cropColours[match(aCrop, levels(yieldData$crop))],
+           pch = 20, cex = cex.points
+    )
+    abline(lm(meanARID_grow ~ precipitation_yearlyMean, data = yieldData[yieldData$crop == aCrop,]),
+           col = cropColours[match(aCrop, levels(yieldData$crop))],
+           lwd = 2)
+  }
+  rm(aCrop)
+  
+  text(x = minPrecipitation_yearlyMean * 0.95, y = minARID * 1.2, labels = "a", font = 2, cex = grScale)
+  
+  plot(c(minPrecipitation_dailyCum_plateauValue_yearlyMean, maxPrecipitation_dailyCum_plateauValue_yearlyMean),
+       c(minARID, maxARID),
+       xlab = "cumulative daily precipitation plateau value (yearly mean)",
+       ylab = "mean ARID (growing seasons)")
+  
+  for (aCrop in levels(yieldData$crop))
+  {
+    points(yieldData$precipitation_dailyCum_plateauValue_yearlyMean[yieldData$crop == aCrop],
+           yieldData$meanARID_grow[yieldData$crop == aCrop],
+           col = cropColours[match(aCrop, levels(yieldData$crop))],
+           pch = 20, cex = cex.points
+    )
+    abline(lm(meanARID_grow ~ precipitation_dailyCum_plateauValue_yearlyMean, data = yieldData[yieldData$crop == aCrop,]),
+           col = cropColours[match(aCrop, levels(yieldData$crop))],
+           lwd = 2)
+  }
+  rm(aCrop)
+  
+  text(x = minPrecipitation_dailyCum_plateauValue_yearlyMean * 0.95, y = minARID * 1.2, labels = "b", font = 2, cex = grScale)
+  
+  par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+  
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  
+  legend(x = 0, y = 1, 
+         legend = stringi::stri_c(cropTable$sugSowingDay[order(match(cropTable$crop, levels(cropTable$crop)))], " (", levels(yieldData$crop), ")"), 
+         title = "sowing day of year", 
+         fill = cropColours)
+  
+  dev.off()
+}
+rm(imageFormat, grScale, cex.points)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+ggplot alternative:
+
+```{r}
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = "figures/exp2_ARIDvsPrecipitation_ggplot.png"
+    
+    grScale = 2
+    fontRescale = 1
+    
+    png(plotName, width = grScale * 600, height = grScale * 300)
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp2_ARIDvsPrecipitation_ggplot.eps"
+    
+    grScale = 2
+    fontRescale = 0.8
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = 5 * grScale,
+                        height = 3 * grScale,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  print({
+    (ggplot(data = yieldData, aes(y = meanARID_grow, x = precipitation_yearlyMean, color = crop)) +
+       geom_point(size = 1, alpha = 0.3) +
+       geom_point(data = yieldData_exp0, aes(y = meanARID_grow, x = precipitation_yearlyMean), color = "red", shape = 4) +
+       geom_smooth(method = 'lm', color = 'black', fill = 'black', se = FALSE) +
+       scale_color_discrete_qualitative(guide = FALSE) +
+       facet_wrap( ~ crop, ncol = 2) +
+       ylab("mean ARID") +
+       xlab("precipitation annual sum (mm) (yearly mean)") +
+       theme_light(base_size = 11 * grScale) +
+       theme(axis.text = element_text(size = 15 * fontRescale),
+             axis.title = element_text(size = 15 * fontRescale),
+             strip.background = element_rect(fill = "white"),
+             strip.text = element_text(colour = "black"))) +
+      (ggplot(data = yieldData, aes(y = meanARID_grow, x = precipitation_dailyCum_plateauValue_yearlyMean, color = crop)) +
+         geom_point(size = 1, alpha = 0.3) +
+         geom_point(data = yieldData_exp0, aes(y = meanARID_grow, x = precipitation_dailyCum_plateauValue_yearlyMean), color = "red", shape = 4) +
+         geom_smooth(method = 'lm', color = 'black', fill = 'black', se = FALSE) +
+         scale_color_discrete_qualitative(guide = FALSE) +
+         facet_wrap( ~ crop, ncol = 2) +
+         ylab("") +
+         xlab("cumulative daily precipitation plateau value (yearly mean)") +
+         theme_light(base_size = 11 * grScale) +
+         theme(axis.text = element_text(size = 15 * fontRescale),
+               axis.title = element_text(size = 15 * fontRescale),
+               strip.background = element_rect(fill = "white"),
+               strip.text = element_text(colour = "black"))) +
+      plot_layout(nrow = 1, widths = c(1, 1))
+  })
+  
+  dev.off()
+}
+rm(imageFormat, grScale)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness (simulated data):
+
+```{r}
+knitr::kable(linearModels.table(yieldData, "meanARID_grow", "precipitation_yearlyMean"), caption = "Pearson's correlation and linear model between precipitation annual sum yearly mean (x) and ARID (y) per crop")
+```
+
+```{r}
+knitr::kable(linearModels.table(yieldData, "meanARID_grow", "precipitation_dailyCum_plateauValue_yearlyMean"), caption = "Pearson's correlation and linear model between cumulative daily precipitation plateau value yearly mean (x) and ARID (y) per crop")
+```
+
+### Fig - Effect of precipitation parametres on yield
+
+Plotting yield vs precipitation yearly mean and seasonal balance (plateau value):
+
+```{r}
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = "figures/exp2_yieldvsPrecipitation_ggplot.png"
+    
+    grScale = 2
+    fontRescale = 1
+    
+    png(plotName, width = grScale * 600, height = grScale * 300)
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp2_yieldvsPrecipitation_ggplot.eps"
+    
+    grScale = 2
+    fontRescale = 0.8
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = 5 * grScale,
+                        height = 3 * grScale,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  print({
+    (ggplot(data = yieldData, aes(y = yield, x = precipitation_yearlyMean, color = crop)) +
+       geom_point(size = 1, alpha = 0.3) +
+       geom_point(data = yieldData_exp0, aes(y = yield, x = precipitation_yearlyMean), color = "red", shape = 4) +
+       geom_smooth(method = 'lm', color = 'black', fill = 'black', se = FALSE) +
+       scale_color_discrete_qualitative(guide = FALSE) +
+       facet_wrap( ~ crop, ncol = 2, scales = 'free') +
+       ylab(expression(paste("yield (", g/m^2, ")"))) +
+       xlab("precipitation annual sum (mm) (yearly mean)") +
+       theme_light(base_size = 11 * grScale) +
+       theme(axis.text = element_text(size = 15 * fontRescale),
+             axis.title = element_text(size = 15 * fontRescale),
+             strip.background = element_rect(fill = "white"),
+             strip.text = element_text(colour = "black"))) +
+      (ggplot(data = yieldData, aes(y = yield, x = precipitation_dailyCum_plateauValue_yearlyMean, color = crop)) +
+         geom_point(size = 1, alpha = 0.3) +
+         geom_point(data = yieldData_exp0, aes(y = yield, x = precipitation_dailyCum_plateauValue_yearlyMean), color = "red", shape = 4) +
+         geom_smooth(method = 'lm', color = 'black', fill = 'black', se = FALSE) +
+         scale_color_discrete_qualitative(guide = FALSE) +
+         facet_wrap( ~ crop, ncol = 2, scales = 'free') +
+         ylab("") +
+         xlab("cumulative daily precipitation plateau value (yearly mean)") +
+         theme_light(base_size = 11 * grScale) +
+         theme(axis.text = element_text(size = 15 * fontRescale),
+               axis.title = element_text(size = 15 * fontRescale),
+               strip.background = element_rect(fill = "white"),
+               strip.text = element_text(colour = "black"))) +
+      plot_layout(nrow = 1, widths = c(1, 1))
+  })
+  
+  dev.off()
+}
+rm(imageFormat, grScale)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+knitr::kable(linearModels.table(yieldData, "yield", "precipitation_yearlyMean"), caption = "Pearson's correlation and linear model between precipitation annual sum yearly mean (x) and yield (y) per crop")
+```
+
+```{r}
+knitr::kable(linearModels.table(yieldData, "yield", "precipitation_dailyCum_plateauValue_yearlyMean"), caption = "Pearson's correlation and linear model between cumulative daily precipitation plateau value yearly mean (x) and yield (y) per crop")
+```
+
+### Fig - Effects of precipitation parametres on yield and ARID
+
+```{r}
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = "figures/exp2_yieldAndARIDvsPrecipitation_ggplot.png"
+    
+    grScale = 2
+    fontRescale = 1
+    
+    png(plotName, width = grScale * 600, height = grScale * 600)
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp2_yieldAndARIDvsPrecipitation_ggplot.eps"
+    
+    grScale = 2
+    fontRescale = 0.8
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = 6 * grScale,
+                        height = 6 * grScale,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  print({
+    (ggplot(data = yieldData, aes(y = meanARID_grow, x = precipitation_yearlyMean, color = crop)) +
+       geom_point(size = 1, alpha = 0.3) +
+       geom_smooth(method = 'lm', color = 'black', fill = 'black', se = FALSE) +
+       scale_color_discrete_qualitative(guide = FALSE) +
+       facet_wrap( ~ crop, ncol = 2) +
+       ylab("mean ARID") +
+       xlab("") +
+       theme_light(base_size = 11 * grScale) +
+       theme(axis.text = element_text(size = 15 * fontRescale),
+             axis.title = element_text(size = 15 * fontRescale),
+             strip.background = element_rect(fill = "white"),
+             strip.text = element_text(colour = "black"))) +
+      (ggplot(data = yieldData, aes(y = meanARID_grow, x = precipitation_dailyCum_plateauValue_yearlyMean, color = crop)) +
+         geom_point(size = 1, alpha = 0.3) +
+         geom_smooth(method = 'lm', color = 'black', fill = 'black', se = FALSE) +
+         scale_color_discrete_qualitative(guide = FALSE) +
+         facet_wrap( ~ crop, ncol = 2) +
+         ylab("") +
+         xlab("") +
+         theme_light(base_size = 11 * grScale) +
+         theme(axis.text = element_text(size = 15 * fontRescale),
+               axis.title = element_text(size = 15 * fontRescale),
+               strip.background = element_rect(fill = "white"),
+               strip.text = element_text(colour = "black"))) +
+      (ggplot(data = yieldData, aes(y = yield, x = precipitation_yearlyMean, color = crop)) +
+       geom_point(size = 1, alpha = 0.3) +
+       geom_smooth(method = 'lm', color = 'black', fill = 'black', se = FALSE) +
+       scale_color_discrete_qualitative(guide = FALSE) +
+       facet_wrap( ~ crop, ncol = 2, scales = 'free') +
+       ylab(expression(paste("yield (", g/m^2, ")"))) +
+       xlab("precipitation annual sum (mm) (yearly mean)") +
+       theme_light(base_size = 11 * grScale) +
+       theme(axis.text = element_text(size = 15 * fontRescale),
+             axis.title = element_text(size = 15 * fontRescale),
+             strip.background = element_rect(fill = "white"),
+             strip.text = element_text(colour = "black"))) +
+      (ggplot(data = yieldData, aes(y = yield, x = precipitation_dailyCum_plateauValue_yearlyMean, color = crop)) +
+         geom_point(size = 1, alpha = 0.3) +
+         geom_smooth(method = 'lm', color = 'black', fill = 'black', se = FALSE) +
+         scale_color_discrete_qualitative(guide = FALSE) +
+         facet_wrap( ~ crop, ncol = 2, scales = 'free') +
+         ylab("") +
+         xlab("cumulative daily precipitation plateau value (yearly mean)") +
+         theme_light(base_size = 11 * grScale) +
+         theme(axis.text = element_text(size = 15 * fontRescale),
+               axis.title = element_text(size = 15 * fontRescale),
+               strip.background = element_rect(fill = "white"),
+               strip.text = element_text(colour = "black"))) +
+      plot_layout(nrow = 2, ncol = 2, widths = c(1, 1), heights = c(1, 1))
+  })
+  
+  dev.off()
+}
+rm(imageFormat, grScale)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Clear temporary objects:
+
+```{r}
+rm(yieldData,
+   maxARID, minARID, maxYield, minYield,
+   maxPrecipitation_yearlyMean, minPrecipitation_yearlyMean,
+   maxPrecipitation_dailyCum_plateauValue_yearlyMean, minPrecipitation_dailyCum_plateauValue_yearlyMean,
+   plotName)
+```
+
+---
+
+## Fig - terrains generated with the Land model
+
+### Loading and preparation
+
+Defining terrain random number generator seed (must be available inside "terrains" folder:
+
+```{r}
+listOfTerrainSeeds <- c("0", "35", "56", "72", "92")
+```
+
+Setting dimensions:
+
+```{r}
+figScale = 2
+terrainDim = 450 * figScale
+topHeight = 50 * figScale
+bottomHeight = 150 * figScale
+leftWidth = 150 * figScale
+internalMargin = 5 * figScale
+figWidth = terrainDim * 5 + leftWidth + 4 * internalMargin
+figHeight = terrainDim * length(listOfTerrainSeeds) + topHeight + bottomHeight + (length(listOfTerrainSeeds) - 1) * internalMargin
+```
+
+### Create separate component images
+
+Create margin header images:
+
+```{r}
+headers <- c("seed",
+             "Elevation", 
+             "Soil texture",
+             "Soil texture type",
+             "Ecological composition",
+             "Cover type")
+namesInFile <- c("seed", "elev", "soilText", "soilTextType", "ecolComp", "coverType")
+
+for (i in 1:length(headers))
+{
+  #if (i == 1) { width = leftWidth } else { width = terrainDim }
+  width = ifelse(i == 1, leftWidth, terrainDim)
+  
+  png(paste0("FigTerrains_tempFiles/FigTerrains_", namesInFile[i], ".PNG"), 
+    width = width, 
+    height = topHeight)
+
+  par(mar = rep(0, 4))
+
+  plot(c(0, 1), c(0, 1), type = "n", axes = FALSE, ann = FALSE)
+  
+  text(0.5, 0.7, cex = figScale * 3.7, adj = c(0.5, 0.5),
+       labels = headers[i])
+  
+  dev.off()
+}
+rm(i)
+
+for (seed in listOfTerrainSeeds)
+{
+  png(paste0("FigTerrains_tempFiles/FigTerrains_seed=", seed, ".PNG"), 
+    width = leftWidth, 
+    height = terrainDim)
+
+  par(mar = rep(0, 4))
+
+  plot(0:1, 0:1, type = "n", axes = FALSE, ann = FALSE)
+  
+  text(0.5, 0.5, cex = figScale * 5, adj = .5,
+       labels = seed)
+  
+  dev.off()
+}
+rm(seed)
+```
+
+Create legend images:
+
+```{r}
+# code converted from NetLogo (maximum = 255)
+elev <- 100/255 + (155/255) * seq(0, 1, length.out = 10)
+
+png("FigTerrains_tempFiles/FigTerrains_legend_elev.PNG", 
+    width = terrainDim, 
+    height = bottomHeight)
+
+par(mar = c(2,2,1,2), cex = figScale * 2)
+
+barplot(rep(100, 10), 
+        col = rgb(elev - (100/255), elev, 0), 
+        border = rgb(elev - (100/255), elev, 0),
+        axes = FALSE, space = 0) 
+mtext("min.", side = 1, line = 0.1, adj = 0, cex = figScale * 2)
+mtext("max.", side = 1, line = 0.1, adj = 1, cex = figScale * 2)
+#mtext("elevation", side = 1, line = 1.2, adj = .5, cex = figScale * 3)
+
+dev.off()
+
+#======================================================================
+
+
+soilTexture <- c("100% sand", "100% silt", "100% clay")
+soilTexture_colors <- c("red", "green", "blue")
+xy <- list(c(0.2, 1.05), 
+           c(0.2, 0.75), 
+           c(0.2, 0.45))
+
+png("FigTerrains_tempFiles/FigTerrains_legend_soilText.PNG", 
+    width = terrainDim, 
+    height = bottomHeight)
+
+par(mar = rep(0, 4))
+
+plot(0:1, 0:1, type = "n", axes = FALSE, ann = FALSE)
+
+for (i in 1:length(soilTexture))
+{
+  legend(xy[[i]][1], xy[[i]][2], 
+         legend = soilTexture[i], 
+         fill = soilTexture_colors[i], 
+         bty = "n", adj = 0.1,
+         cex = figScale * 2.5, pt.cex = figScale * 5)
+}
+rm(i)
+
+dev.off()
+
+#======================================================================
+
+soilTextureTypes <- c("Sand", "Loamy sand", "Sandy loam", 
+                      "Loam", "Silt loam", "Silty clay", 
+                      "Clay", "Clay loam", "Sandy clay loam")
+soilTextureTypes_colors <- c("#d73229", "#f16a15",  "#9d6e48", 
+                             "#eded31", "#59b03c", "#54c4c4", 
+                             "#2d8dbe", "#345da9", "#a71b6a")
+xy <- list(c(-0.08, 1),   c(0.17,  1), c(0.55,  1), 
+           c(-0.08, 0.7), c(0.17, 0.7), c(0.55, 0.7),  
+           c(-0.08, 0.4), c(0.17, 0.4), c(0.55, 0.4))
+
+png("FigTerrains_tempFiles/FigTerrains_legend_soilTextType.PNG", 
+    width = terrainDim, 
+    height = bottomHeight)
+
+par(mar = rep(0, 4))
+
+plot(0:1, 0:1, type = "n", axes = FALSE, ann = FALSE)
+
+for (i in 1:length(soilTextureTypes))
+{
+  legend(xy[[i]][1], xy[[i]][2], 
+         legend = soilTextureTypes[i], 
+         fill = soilTextureTypes_colors[i], 
+         bty = "n",  adj = 0.1,
+         cex = figScale * 1.8, pt.cex = figScale * 5)
+}
+rm(i)
+
+dev.off()
+
+#======================================================================
+
+
+ecolComp <- c("100% grass", "100% brush", "100% wood")
+ecolComp_colors <- c("red", "green", "blue")
+xy <- list(c(0.2, 1.05), 
+           c(0.2, 0.75), 
+           c(0.2, 0.45))
+
+png("FigTerrains_tempFiles/FigTerrains_legend_ecolComp.PNG", 
+    width = terrainDim, 
+    height = bottomHeight)
+
+par(mar = rep(0, 4))
+
+plot(0:1, 0:1, type = "n", axes = FALSE, ann = FALSE)
+
+for (i in 1:length(ecolComp))
+{
+  legend(xy[[i]][1], xy[[i]][2], 
+         legend = ecolComp[i], 
+         fill = ecolComp_colors[i], 
+         bty = "n", adj = 0.1,
+         cex = figScale * 2.5, pt.cex = figScale * 5)
+}
+rm(i)
+
+dev.off()
+
+#======================================================================
+
+coverTypes <- c("Wood-grass", "shrubland", "woodland")
+coverTypes_colors <- c("#c1c127", "#366d24", "#437c47")
+xy <- list(c(0.2, 1.05), 
+           c(0.2, 0.75), 
+           c(0.2, 0.45))
+
+png("FigTerrains_tempFiles/FigTerrains_legend_coverType.PNG", 
+    width = terrainDim, 
+    height = bottomHeight)
+
+par(mar = rep(0, 4))
+
+plot(0:1, 0:1, type = "n", axes = FALSE, ann = FALSE)
+
+for (i in 1:length(coverTypes))
+{
+  legend(xy[[i]][1], xy[[i]][2], 
+         legend = coverTypes[i], 
+         fill = coverTypes_colors[i], 
+         bty = "n",  adj = 0.1,
+         cex = figScale * 1.8, pt.cex = figScale * 5)
+}
+rm(i)
+
+dev.off()
+```
+
+Create blank image:
+
+```{r}
+png("FigTerrains_tempFiles/FigTerrains_blank.PNG", 
+    width = 10, 
+    height = 10)
+
+dev.off()
+```
+
+### Compose final figure
+
+Load input images:
+
+```{r}
+elevTerrains <- paste0("models/terrains/terrain_random_w=50_h=50_a=C#_fill-sinks=true_seed=", 
+                       listOfTerrainSeeds ,".PNG")
+soilTextTerrains <- paste0("models/terrains/terrain_random_w=50_h=50_a=C#_fill-sinks=true_seed=", 
+                           listOfTerrainSeeds ,"_soilTexture.PNG")
+soilTextTypeTerrains <- paste0("models/terrains/terrain_random_w=50_h=50_a=C#_fill-sinks=true_seed=", 
+                               listOfTerrainSeeds ,"_soilTextureType.PNG")
+ecolCompTerrains <- paste0("models/terrains/terrain_random_w=50_h=50_a=C#_fill-sinks=true_seed=", 
+                               listOfTerrainSeeds ,"_ecolComp.PNG")
+coverTypeTerrains <- paste0("models/terrains/terrain_random_w=50_h=50_a=C#_fill-sinks=true_seed=", 
+                               listOfTerrainSeeds ,"_coverType.PNG")
+
+numberOfColumns = 10
+numberOfRows = 11
+
+# it is important that these plots were saved as "PNG not "png"
+listOfPlots <- c("FigTerrains_tempFiles/FigTerrains_seed.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_elev.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_soilText.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_soilTextType.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_ecolComp.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_coverType.PNG",
+                 # ---
+                 paste0("FigTerrains_tempFiles/FigTerrains_seed=", listOfTerrainSeeds[1], ".PNG"),
+                 elevTerrains[1],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 soilTextTerrains[1],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 soilTextTypeTerrains[1],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 ecolCompTerrains[1],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 coverTypeTerrains[1],
+                 # ---
+                 rep("FigTerrains_tempFiles/FigTerrains_blank.PNG", numberOfColumns),
+                 # ---
+                 paste0("FigTerrains_tempFiles/FigTerrains_seed=", listOfTerrainSeeds[2], ".PNG"),
+                 elevTerrains[2],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 soilTextTerrains[2],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 soilTextTypeTerrains[2],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 ecolCompTerrains[2],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 coverTypeTerrains[2],
+                 # ---
+                 rep("FigTerrains_tempFiles/FigTerrains_blank.PNG", numberOfColumns),
+                 # ---
+                 paste0("FigTerrains_tempFiles/FigTerrains_seed=", listOfTerrainSeeds[3], ".PNG"),
+                 elevTerrains[3],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 soilTextTerrains[3],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 soilTextTypeTerrains[3],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 ecolCompTerrains[3],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 coverTypeTerrains[3],
+                 # ---
+                 rep("FigTerrains_tempFiles/FigTerrains_blank.PNG", numberOfColumns),
+                 # ---
+                 paste0("FigTerrains_tempFiles/FigTerrains_seed=", listOfTerrainSeeds[4], ".PNG"),
+                 elevTerrains[4],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 soilTextTerrains[4],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 soilTextTypeTerrains[4],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 ecolCompTerrains[4],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 coverTypeTerrains[4],
+                 # ---
+                 rep("FigTerrains_tempFiles/FigTerrains_blank.PNG", numberOfColumns),
+                 # ---
+                 paste0("FigTerrains_tempFiles/FigTerrains_seed=", listOfTerrainSeeds[5], ".PNG"),
+                 elevTerrains[5],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 soilTextTerrains[5],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 soilTextTypeTerrains[5],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 ecolCompTerrains[5],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 coverTypeTerrains[5],
+                 # ---
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_legend_elev.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_legend_soilText.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_legend_soilTextType.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_legend_ecolComp.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_legend_coverType.PNG"
+                 )
+
+grobs <- lapply(lapply(listOfPlots, png::readPNG), grid::rasterGrob)
+```
+
+Create Figure:
+
+```{r}
+widths = 85 * c(leftWidth/figWidth,
+                terrainDim/figWidth,
+                internalMargin/figWidth,
+                terrainDim/figWidth,
+                internalMargin/figWidth,
+                terrainDim/figWidth,
+                internalMargin/figWidth,
+                terrainDim/figWidth,
+                internalMargin/figWidth,
+                terrainDim/figWidth) * figScale
+heights = (figHeight/figWidth) * 85 * c(topHeight/figHeight, 
+                                        terrainDim/figHeight,
+                                        internalMargin/figHeight,
+                                        terrainDim/figHeight,
+                                        internalMargin/figHeight,
+                                        terrainDim/figHeight,
+                                        internalMargin/figHeight,
+                                        terrainDim/figHeight,
+                                        internalMargin/figHeight,
+                                        terrainDim/figHeight,
+                                        bottomHeight/figHeight) * figScale
+
+lay <- matrix(1:(numberOfColumns * numberOfRows), ncol = numberOfColumns, byrow = TRUE)
+
+png("figures/terrains.png", width = figWidth, height = figHeight)
+
+gridExtra::grid.arrange(grobs = grobs, 
+                        layout_matrix = lay,
+                        widths = unit(widths, "cm"),
+                        heights = unit(heights, "cm"))
+
+dev.off()
+```
+
+```{r}
+knitr::include_graphics("figures/terrains.png")
+```
+
+Show table with parameter values:
+
+```{r}
+terrainsData <- read.csv(
+    paste0("models/terrains/terrain_random_w=50_h=50_a=C#_fill-sinks=true_seed=", listOfTerrainSeeds[1] ,".csv"), skip = 8, nrows = 1)
+
+for (i in 2:length(listOfTerrainSeeds))
+{
+  terrainsData <- rbind(terrainsData, 
+                        read.csv(
+    paste0("models/terrains/terrain_random_w=50_h=50_a=C#_fill-sinks=true_seed=", listOfTerrainSeeds[i] ,".csv"), skip = 8, nrows = 1))
+}
+rm(i)
+  
+terrainsData <- as.data.frame(t(terrainsData[, c(86, 18:39, 91:101, 11:16)]))
+names(terrainsData) <- listOfTerrainSeeds
+```
+
+```{r}
+knitr::kable(terrainsData, 
+             format = "html",
+             col.names = rep("", 5),
+             align = c("l", "c", "c", "c"))
+```
+
+---
+
+## Fig - compare mean ARID of terrains under the same weather conditions
+
+Plot mean ARID as it is displayed in NetLogo for each of the terrains. Terrain seed is now ordered in columns in the plot grid.
+
+NOTE: because we are dealing with images taken in NetLogo beforehand, we re-use several preparation objects, images, and parameters used to plot terrains.
+
+### Loading and preparation
+
+Setting dimensions:
+
+```{r}
+figScale = 2
+terrainDim = 450 * figScale
+
+# increase top margin to give seed labels more space
+topHeight = 75 * figScale
+
+bottomHeight = 150 * figScale
+
+# set equal left (and right) margins
+leftWidth = 50 * figScale
+
+internalMargin = 5 * figScale
+
+# weight is now proportional to the number of terrain seeds, plus internal and external margins
+figWidth = terrainDim * length(listOfTerrainSeeds) + (leftWidth * 2) + (length(listOfTerrainSeeds) - 1) * internalMargin
+
+# height is now set for a single row plus space for the legend (bottomHeight)
+figHeight = terrainDim + topHeight + bottomHeight
+```
+
+### Create separate component images
+
+Create legend image:
+
+Create margin header images:
+
+```{r}
+for (seed in listOfTerrainSeeds)
+{
+  png(paste0("FigTerrainsARID_input/FigTerrainsARID_seed=", seed, ".PNG"), 
+    width = terrainDim, 
+    height = topHeight)
+
+  par(mar = rep(0, 4))
+
+  plot(0:1, 0:1, type = "n", axes = FALSE, ann = FALSE)
+  
+  text(0.5, 0.5, cex = figScale * 5, adj = .5,
+       labels = seed)
+  
+  dev.off()
+}
+rm(seed)
+```
+
+Create legend:
+
+```{r}
+# code converted from NetLogo (maximum = 255)
+ARID <- seq(0, 1, length.out = 10)
+
+png("FigTerrainsARID_input/FigTerrainsARID_legend.PNG", 
+    width = terrainDim, 
+    height = bottomHeight)
+
+par(mar = c(3,1,1,1), cex = figScale * 2)
+
+barplot(rep(100, 10), 
+        col = hsv(0, (1 - 0.8 * ARID), 0.4 + 0.6 * ARID), #rgb(ARID, 0, 0), 
+        border = rgb(ARID, 0, 0),
+        axes = FALSE, space = 0) 
+mtext("min.", side = 1, line = 0.1, adj = 0, cex = figScale * 2)
+mtext("max.", side = 1, line = 0.1, adj = 1, cex = figScale * 2)
+mtext("ARID", side = 1, line = 1.2, adj = .5, cex = figScale * 3)
+
+dev.off()
+```
+
+### Compose final figure
+
+Load input images:
+
+```{r}
+ARIDTerrains <- paste0("FigTerrainsARID_input/I2-integrated-land-crop_randomSeed=0_type-of-experiment=user-defined_terrainRandomSeed=",
+                       listOfTerrainSeeds ,"_step=365.png")
+
+numberOfColumns = 11
+numberOfRows = 3
+
+# it is important that these plots were saved as "PNG not "png"
+listOfPlots <- c(
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 paste0("FigTerrainsARID_input/FigTerrainsARID_seed=", listOfTerrainSeeds[1], ".PNG"),
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 paste0("FigTerrainsARID_input/FigTerrainsARID_seed=", listOfTerrainSeeds[2], ".PNG"),
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 paste0("FigTerrainsARID_input/FigTerrainsARID_seed=", listOfTerrainSeeds[3], ".PNG"),
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 paste0("FigTerrainsARID_input/FigTerrainsARID_seed=", listOfTerrainSeeds[4], ".PNG"),
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 paste0("FigTerrainsARID_input/FigTerrainsARID_seed=", listOfTerrainSeeds[5], ".PNG"),
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 # ---
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 ARIDTerrains[1],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 ARIDTerrains[2],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 ARIDTerrains[3],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 ARIDTerrains[4],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 ARIDTerrains[5],
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 # ---
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 "FigTerrainsARID_input/FigTerrainsARID_legend.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG",
+                 "FigTerrains_tempFiles/FigTerrains_blank.PNG"
+                 )
+
+grobs <- lapply(lapply(listOfPlots, png::readPNG), grid::rasterGrob)
+```
+
+Create Figure:
+
+```{r}
+widths = 85 * c(internalMargin/figWidth,
+                terrainDim/figWidth,
+                internalMargin/figWidth,
+                terrainDim/figWidth,
+                internalMargin/figWidth,
+                terrainDim/figWidth,
+                internalMargin/figWidth,
+                terrainDim/figWidth,
+                internalMargin/figWidth,
+                terrainDim/figWidth,
+                internalMargin/figWidth) * figScale
+heights = (figHeight/figWidth) * 85 * c(topHeight/figHeight, 
+                                        terrainDim/figHeight,
+                                        bottomHeight/figHeight) * figScale
+
+lay <- matrix(1:(numberOfColumns * numberOfRows), ncol = numberOfColumns, byrow = TRUE)
+
+png("figures/exp3_ARIDComparison.png", width = figWidth, height = figHeight)
+
+gridExtra::grid.arrange(grobs = grobs, 
+                        layout_matrix = lay,
+                        widths = unit(widths, "cm"),
+                        heights = unit(heights, "cm"))
+
+dev.off()
+```
+
+```{r}
+knitr::include_graphics("figures/exp3_ARIDComparison.png")
+```
+
+Clear temporary objects:
+
+```{r}
+rm(grobs, terrainsData,
+   elev, soilTexture, soilTexture_colors, xy, 
+   elevTerrains, soilTextTerrains, soilTextTypeTerrains,
+   soilTextureTypes, soilTextureTypes_colors,
+   figScale, terrainDim, topHeight, bottomHeight, leftWidth, internalMargin, figWidth, figHeight, width,
+   headers, namesInFile, 
+   numberOfColumns, numberOfRows, listOfPlots, 
+   widths, heights, lay)
+```
+
+Load the terrain data in the format generated by running experiments 3 and 4 in the I2 model:
+
+```{r}
+terrainData <- list()
+
+for (aTerrainSeed in listOfTerrainSeeds)
+{
+  #print(paste0("models/output/I2_yield-exp_terrainRandomSeed=", listOfTerrainSeeds[i], ".csv"))
+  terrainData[[aTerrainSeed]] <- read.csv(paste0("models/output/I2_yield-exp_terrainRandomSeed=", aTerrainSeed, ".csv"))
+}
+rm(aTerrainSeed)
+```
+
+Extract map dimensions (using first terrain in `listOfTerrainSeeds` as reference):
+
+```{r}
+minX = min(terrainData[[1]]$x)
+maxX = max(terrainData[[1]]$x)
+mapWidth = maxX - minX + 1
+
+minY = min(terrainData[[1]]$y)
+maxY = max(terrainData[[1]]$y)
+mapHeight = maxY - minY + 1
+```
+
+Calculate the number of land units with river (to be used in terrain classification):
+
+```{r}
+landUnitsWithRiverPerTerrain <- c()
+
+for (aTerrainSeed in listOfTerrainSeeds)
+{
+  landUnitsWithRiverPerTerrain <- c(landUnitsWithRiverPerTerrain, 
+                                    length(which(terrainData[[aTerrainSeed]]$flow_accumulation > mapWidth * mapHeight)))
+  # if flow accumulation is greater than the sum of all local contributions, it has a passing river
+}
+rm(aTerrainSeed)
+```
+
+---
+
+## Experiment 3
+
+Experiment 3 runs the *Indus Village*'s second integrated model, *Land Crop model*, using five selected terrains (shown above) and the default parameter configuration aimed at approximating the conditions in Haryana, NW India.
+
+### Loading and preparation 
+
+Load parameter values:
+
+```{r}
+file_names <- paste0("models/output/", list.files("models/output"))
+
+# load first terrain to initialise yieldData
+
+nameFilter <- grepl(paste0("I2_yield-exp_pars_terrainRandomSeed=", listOfTerrainSeeds[1], 
+                           "_type-of-experiment=user-defined_experiment-name=exp3"), file_names)
+
+parsData <- do.call(rbind, lapply(file_names[nameFilter], read.csv))
+
+# load the rest of terrains
+
+for (aTerrainSeed in listOfTerrainSeeds[-1])
+{
+  nameFilter <- grepl(paste0("I2_yield-exp_pars_terrainRandomSeed=", aTerrainSeed, 
+                             "_type-of-experiment=user-defined_experiment-name=exp3"), file_names)
+  
+  parsData <- rbind(parsData, do.call(rbind, lapply(file_names[nameFilter], read.csv)))
+}
+rm(aTerrainSeed)
+```
+
+Display all parameters (except cropTable and Land model parameters) default values, as used in experiments 3, 4 and 5:
+
+```{r}
+knitr::kable(t(parsData[1,-c(1, 2)]))
+```
+
+NOTE: the description of each parameter is writen as comments in the code (`I2-integrated-land-crop.nlogo`).
+
+Load all experiment 3 output files as a data frame with all terrains:
+
+```{r}
+file_names <- paste0("models/output/", list.files("models/output"))
+
+# load first terrain to initialise yieldData
+
+nameFilter <- grepl(paste0("I2_yield-exp_terrainRandomSeed=", listOfTerrainSeeds[1], 
+                           "_type-of-experiment=user-defined_experiment-name=exp3"), file_names)
+
+yieldData <- do.call(rbind, lapply(file_names[nameFilter], read.csv))
+
+# load the rest of terrains
+
+for (aTerrainSeed in listOfTerrainSeeds[-1])
+{
+  nameFilter <- grepl(paste0("I2_yield-exp_terrainRandomSeed=", aTerrainSeed, 
+                             "_type-of-experiment=user-defined_experiment-name=exp3"), file_names)
+  
+  yieldData <- rbind(yieldData, do.call(rbind, lapply(file_names[nameFilter], read.csv)))
+}
+rm(aTerrainSeed)
+```
+
+Convert `p_crop_yield = 0` to `NA` when `p_soil_meanARID_grow = NA` (i.e., first year simulation runs with incomplete growing seasons):
+
+```{r}
+yieldData$p_crop_yield[is.na(yieldData$p_soil_meanARID_grow)] <- NA
+```
+
+Force the same order of crops used by cropTable:
+
+```{r}
+yieldData$crop <- factor(yieldData$crop, levels = levels(cropTable$crop))
+```
+
+Assure that random generator seeds are interpreted as factors:
+
+```{r}
+yieldData$terrainRandomSeed <- factor(yieldData$terrainRandomSeed)
+
+yieldData$randomSeed <- factor(yieldData$randomSeed)
+```
+
+Convert production per land unit (total yield) units from g to ton:
+
+```{r}
+yieldData$p_crop_totalYield <- yieldData$p_crop_totalYield / 1E+6
+```
+
+Create factor with river/no river classification of terrains:
+
+```{r}
+hasRiver <- c("no river","river")[factor(landUnitsWithRiverPerTerrain[yieldData$terrainRandomSeed] > 1)]
+```
+
+### Fig - productivity (yield) spatial distribution
+
+Build spatial productivity (yield) matrices organised by crop and terrain:
+
+WARNING: this chunk takes a long time to run (i.e. n terrains x 2500 positions x m crops)
+
+```{r, eval=FALSE}
+meanYield_byPosCropAndTerrain <- list()
+
+for (aTerrainSeed in listOfTerrainSeeds)
+{
+  meanYield_byPosCropAndTerrain[[aTerrainSeed]] <- list()
+  
+  # initialise
+  
+  # total yield
+  meanYield_byPosCropAndTerrain[[aTerrainSeed]][["Total"]] <- matrix(rep(NA, mapWidth * mapHeight), nrow = mapHeight, ncol = mapWidth)
+  
+  for (aCrop in levels(cropTable$crop))
+  {
+    # yield per crop
+    meanYield_byPosCropAndTerrain[[aTerrainSeed]][[aCrop]] <- matrix(rep(NA, mapWidth * mapHeight), nrow = mapHeight, ncol = mapWidth)
+  }
+  
+  # fill with values
+  
+  for (i in minX:maxX)
+  {
+    for (j in minY:maxY)
+    {
+      message('\r', paste("terrain", aTerrainSeed, ", position", i, j), appendLF = FALSE)
+      
+      tempData <- yieldData[yieldData$terrainRandomSeed == aTerrainSeed &        # for this terrain
+                              yieldData$x == i & yieldData$y == j,]        # for this position  
+      
+      tempData2 <- aggregate(tempData$p_crop_yield,                  
+                             by = list(randomSeed = tempData$randomSeed,                  # by randomSeed
+                                       year = tempData$currentYear),                      # by year
+                             FUN = sum)
+      
+      # mean of the sum of crop yields per year, randomSeed, position and terrainRandomSeed
+      meanYield_byPosCropAndTerrain[[aTerrainSeed]][["Total"]][j+1, i+1] <- mean(tempData2$x, na.rm = TRUE)
+      
+      for (aCrop in levels(cropTable$crop))
+      {
+        # yield per crop
+        meanYield_byPosCropAndTerrain[[aTerrainSeed]][[aCrop]][j+1, i+1] <- 
+          mean(tempData$p_crop_yield[yieldData$crop == aCrop], na.rm = TRUE)
+      }
+    }
+  }
+}
+rm(tempData, tempData2,
+   i, j, aCrop, aTerrainSeed)
+```
+
+Store spatial matrices in files to ease the workflow (i.e. the chunk above only needs to run if the experiment data has been modified):
+
+```{r, eval=FALSE}
+for (aTerrainSeed in listOfTerrainSeeds)
+{
+  # total yield
+  write.csv(meanYield_byPosCropAndTerrain[[aTerrainSeed]][["Total"]],
+            paste0("FigTerrainYield_tempFiles/exp3_terrainRandomSeed=", aTerrainSeed, "_total.csv"))
+  
+  for (aCrop in levels(cropTable$crop))
+  {
+    # yield per crop
+    write.csv(meanYield_byPosCropAndTerrain[[aTerrainSeed]][[aCrop]],
+              paste0("FigTerrainYield_tempFiles/exp3_terrainRandomSeed=", aTerrainSeed, "_", aCrop, ".csv"))
+  }
+}
+rm(aCrop, aTerrainSeed)
+```
+
+Load data from files:
+
+```{r}
+meanYield_byPosCropAndTerrain <- list()
+
+for (aTerrainSeed in listOfTerrainSeeds)
+{
+  meanYield_byPosCropAndTerrain[[aTerrainSeed]] <- list()
+  
+  # total yield
+  meanYield_byPosCropAndTerrain[[aTerrainSeed]][["Total"]] <- 
+    data.matrix(read.csv(paste0("FigTerrainYield_tempFiles/exp3_terrainRandomSeed=", aTerrainSeed, "_total.csv"), row.names = 1))
+  
+  for (aCrop in levels(cropTable$crop))
+  {
+    # yield per crop
+    meanYield_byPosCropAndTerrain[[aTerrainSeed]][[aCrop]] <- 
+      data.matrix(read.csv(paste0("FigTerrainYield_tempFiles/exp3_terrainRandomSeed=", aTerrainSeed, "_", aCrop, ".csv"), row.names = 1))
+  }
+}
+rm(aCrop, aTerrainSeed)
+```
+
+Plot mean productivity (mean yield) as grid maps per crop and total (rows) and for each terrain (columns):
+
+```{r}
+mapGridSize = 200 #px
+topMargin = mapGridSize / 6
+leftMargin = mapGridSize / 2
+rightMargin = mapGridSize / 10
+bottomMargin = mapGridSize / 2
+
+nColumns = length(meanYield_byPosCropAndTerrain) + 2
+nRows = length(meanYield_byPosCropAndTerrain[[1]]) + 2
+
+rowNamesInMargin <- c("", gsub(" ", "\n", levels(cropTable$crop)), "total")
+
+leftMarginTextSize = 1.5
+topMarginTextSize = 1.2
+
+numBarsInLegend = 10
+
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = "figures/exp3_yieldSpatialDistribution.png"
+    
+    grScale = 2
+    fontRescale = 0
+    
+    png(plotName, width = grScale * (mapGridSize * nColumns), height = grScale * (mapGridSize * nRows))
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp3_yieldSpatialDistribution.eps"
+    
+    grScale = 1.2
+    fontRescale = 0.1
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = grScale * (mapGridSize * nColumns) / 100,
+                        height = grScale * (mapGridSize * nRows) / 100,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  layout(rbind(matrix(1:(nColumns * (nRows - 1)), 
+                nrow = nRows - 1, ncol = nColumns, byrow = FALSE),
+               rep((nColumns * (nRows - 1)) + 1, nColumns)),
+         widths = c(leftMargin, rep(mapGridSize, nColumns - 2), rightMargin),
+         heights = c(topMargin, rep(mapGridSize, nRows - 2), bottomMargin))
+  
+  par(cex = grScale)
+  
+  # First column: crop names + total
+  
+  par(mar = c(0, 0, 0, 0.4))
+  
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  text(x = 0.5, y = 0.5, font = 4, 
+       cex = grScale * (topMarginTextSize + fontRescale), 
+       labels = rowNamesInMargin[1])
+  
+  for (aCropIndex in 1:nlevels(cropTable$crop))
+  {
+    plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+    text(x = 0.5, y = 0.5, font = 4, 
+         cex = grScale * (leftMarginTextSize + fontRescale), 
+         #srt = 90,
+         labels = rowNamesInMargin[aCropIndex + 1])
+  }
+  
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  text(x = 0.5, y = 0.5, font = 4, 
+       cex = grScale * (leftMarginTextSize + fontRescale), 
+       #srt = 90,
+       labels = rowNamesInMargin[aCropIndex + 2])
+  
+  #plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  
+  # following columns per each terrain
+  
+  for (aTerrainSeed in listOfTerrainSeeds)
+  {
+    # terrain seed
+    par(mar = c(0, 0, 0, 0))
+    
+    plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+    text(x = 0.5, y = 0.5, font = 4, 
+         cex = grScale * (topMarginTextSize + fontRescale), 
+         labels = aTerrainSeed)
+    
+    # map grid for each crop
+    par(mar = c(0.1, 0.1, 0.1, 0.1), cex.axis = 0.6 * grScale)
+    
+    for (aCrop in levels(cropTable$crop))
+    {
+      # Crop colors can be used instead of the default in image() (i.e. YlOrRd color palette) 
+      # colgrp <- findInterval(c(meanYield_byPosCropAndTerrain[[aTerrainSeed]][[aCrop]]),
+      #                        seq(min(c(meanYield_byPosCropAndTerrain[[aTerrainSeed]][[aCrop]])),
+      #                            max(c(meanYield_byPosCropAndTerrain[[aTerrainSeed]][[aCrop]])),
+      #                            length.out = 10))
+      # colfunc <- colorRampPalette(c(lighten(cropColours[match(aCrop, levels(cropTable$crop))], amount = 0.9), 
+      #                               cropColours[match(aCrop, levels(cropTable$crop))]))
+      # collist <- colfunc(length(unique(colgrp))) 
+      
+      image(t(meanYield_byPosCropAndTerrain[[aTerrainSeed]][[aCrop]]),
+            col = hcl.colors(numBarsInLegend, "YlOrRd", rev = TRUE),
+            #col = collist, # activate this line to use crop colors
+            axes = FALSE, xaxt = 'n', yaxt = 'n', ann = FALSE)
+      
+      #axis(2, at = seq(0, 1, length.out = mapHeight), labels = minY:maxY)
+      #axis(1, at = seq(0, 1, length.out = mapWidth), labels = minX:maxX)
+    }
+    
+    # map grid of the total
+    # again, a grey scale can be used intead of the default
+    # colgrp <- findInterval(c(meanYield_byPosCropAndTerrain[[aTerrainSeed]][["Total"]]),
+    #                        seq(min(c(meanYield_byPosCropAndTerrain[[aTerrainSeed]][["Total"]])),
+    #                            max(c(meanYield_byPosCropAndTerrain[[aTerrainSeed]][["Total"]])),
+    #                            length.out = 10))
+    # colfunc <- colorRampPalette(c(lighten("black", amount = 0.9), "black"))
+    # collist <- colfunc(length(unique(colgrp))) 
+    
+    image(t(meanYield_byPosCropAndTerrain[[aTerrainSeed]][["Total"]]),
+          col = hcl.colors(numBarsInLegend, "YlOrRd", rev = TRUE),
+          #col = collist, # activate this line to use grey scale colors
+          axes = FALSE, xaxt = 'n', yaxt = 'n', ann = FALSE)
+  }
+  
+  # Last column: right margin
+  
+  for (i in 1:(nRows - 1))
+  {
+    plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  }
+  
+  # bottom margin
+  par(mar = c(3,20,1,20), cex = grScale) 
+  
+  barplot(rep(100, 10), 
+          col = hcl.colors(numBarsInLegend, "YlOrRd", rev = TRUE),
+          border = hcl.colors(numBarsInLegend, "YlOrRd", rev = TRUE),
+          axes = FALSE, space = 0)
+  mtext("min.", side = 1, line = 1, adj = 0, cex = grScale * 2)
+  mtext("max.", side = 1, line = 1, adj = 1, cex = grScale * 2)  
+  
+  dev.off()
+}
+rm(imageFormat, aCropIndex, aCrop, aTerrainSeed, i,
+   #colgrp, colfunc, collist,
+   mapGridSize, topMargin, leftMargin, rightMargin, bottomMargin, 
+   nColumns, nRows, rowNamesInMargin, leftMarginTextSize, topMarginTextSize, numBarsInLegend,
+   grScale, fontRescale)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+### Fig - productivity (yield) per terrain and crop
+
+```{r}
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = paste0("figures/exp3_yieldPerTerrainCrop.png")
+    
+    grScale = 2
+    
+    png(plotName, width = grScale * 800, height = grScale * 300)
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp3_yieldPerTerrainCrop.eps"
+    
+    grScale = 1.2
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = grScale * 8,
+                        height = grScale * 3,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  print({
+    ggplot(yieldData, 
+           aes(fill = terrainRandomSeed, y = p_crop_yield, x = crop)) + 
+      geom_violin(position="dodge") +
+      #geom_boxplot() +
+      scale_fill_discrete_diverging(name = "") +
+      scale_x_discrete() + 
+      facet_wrap( ~ crop, scales = 'free') +
+      theme_light(base_size = 11 * grScale) +
+      theme(axis.text.x = element_blank(),
+            axis.ticks = element_blank(),
+            axis.title.x = element_blank(),
+            strip.background = element_rect(fill = "white"),
+            strip.text = element_text(colour = "black"),
+            plot.margin = margin(l = 0, unit = "pt")) +
+      ylab(expression(paste("yield (", g/m^2, ")")))
+  })
+  dev.off()
+}
+rm(imageFormat, grScale)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+### Fig - productivity (yield) of terrains with and without river
+
+```{r}
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = paste0("figures/exp3_yieldPerTerrainCrop_river.png")
+    
+    grScale = 2
+    
+    png(plotName, width = grScale * 800, height = grScale * 300)
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp3_yieldPerTerrainCrop_river.eps"
+    
+    grScale = 1.2
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = grScale * 8,
+                        height = grScale * 3,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )             
+  }
+  
+  print({
+    ggplot(cbind(yieldData, extra = hasRiver), 
+           aes(fill = extra, y = p_crop_yield, x = extra)) + 
+      geom_violin(position="dodge") +
+      #geom_boxplot() +
+      scale_fill_discrete_diverging(name = "") +
+      scale_x_discrete() + 
+      facet_wrap( ~ crop, scales = 'free') +
+      theme_light(base_size = 11 * grScale) +
+      theme(axis.text.x = element_blank(),
+            axis.ticks = element_blank(),
+            axis.title.x = element_blank(),
+            strip.background = element_rect(fill = "white"),
+            strip.text = element_text(colour = "black"),
+            plot.margin = margin(l = 0, unit = "pt")) +
+      ylab(expression(paste("yield (", g/m^2, ")")))
+  })
+  dev.off()
+}
+rm(imageFormat, grScale)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Clear temporary objects:
+
+```{r}
+rm(file_names, nameFilter, 
+   yieldData, hasRiver,
+   meanYield_byPosCropAndTerrain, 
+   plotName)
+```
+
+---
+
+## Experiment 4
+
+Experiment 4 perform the same runs of experiment 3, except by varying stochastically `riverWaterPerFlowAccumulation`, representing the water stage increment (mm (height) / m^2 (area)) per unit of flow accumulation at the river's starting land unit.
+
+### Loading and preparation 
+
+Load parameter values:
+
+```{r}
+file_names <- paste0("models/output/", list.files("models/output"))
+
+# load first terrain to initialise yieldData
+
+nameFilter <- grepl(paste0("I2_yield-exp_pars_terrainRandomSeed=", listOfTerrainSeeds[1], 
+                           "_type-of-experiment=river-variation_experiment-name=exp4"), file_names)
+
+parsData <- do.call(rbind, lapply(file_names[nameFilter], read.csv))
+
+# load the rest of terrains
+
+for (aTerrainSeed in listOfTerrainSeeds[-1])
+{
+  nameFilter <- grepl(paste0("I2_yield-exp_pars_terrainRandomSeed=", aTerrainSeed, 
+                             "_type-of-experiment=river-variation_experiment-name=exp4"), file_names)
+  
+  parsData <- rbind(parsData, do.call(rbind, lapply(file_names[nameFilter], read.csv)))
+}
+rm(aTerrainSeed)
+```
+
+Display explored values of `riverWaterPerFlowAccumulation`:
+
+```{r}
+hist(parsData$riverWaterPerFlowAccumulation, main = "riverWaterPerFlowAccumulation")
+```
+
+```{r}
+knitr::kable(levels(factor(parsData$riverWaterPerFlowAccumulation)))
+```
+
+Load all experiment 4 output files as a data frame with all terrains:
+
+```{r}
+file_names <- paste0("models/output/", list.files("models/output"))
+
+# load first terrain to initialise yieldData
+
+nameFilter <- grepl(paste0("I2_yield-exp_terrainRandomSeed=", listOfTerrainSeeds[1], 
+                           "_type-of-experiment=river-variation_experiment-name=exp4"), file_names)
+
+yieldData <- do.call(rbind, lapply(file_names[nameFilter], read.csv))
+
+# load the rest of terrains
+
+for (aTerrainSeed in listOfTerrainSeeds[-1])
+{
+  nameFilter <- grepl(paste0("I2_yield-exp_terrainRandomSeed=", aTerrainSeed,
+                             "_type-of-experiment=river-variation_experiment-name=exp4"), file_names)
+
+  yieldData <- rbind(yieldData, do.call(rbind, lapply(file_names[nameFilter], read.csv)))
+}
+
+rm(aTerrainSeed)
+```
+
+Filter out data of land units covered by water surface (i.e. `p_ecol_%water = 100` or `p_ecol_%crop = 0`):
+
+```{r}
+yieldData <- yieldData[yieldData$p_ecol_.water < 100,]
+```
+
+Convert `p_crop_yield = 0` to `NA` when `p_soil_meanARID_grow = NA` (i.e., first year simulation runs with incomplete growing seasons):
+
+```{r}
+yieldData$p_crop_yield[is.na(yieldData$p_soil_meanARID_grow)] <- NA
+```
+
+Force the same order of crops used by cropTable:
+
+```{r}
+yieldData$crop <- factor(yieldData$crop, levels = levels(cropTable$crop))
+```
+
+Assure that random generator seeds are interpreted as factors:
+
+```{r}
+yieldData$terrainRandomSeed <- factor(yieldData$terrainRandomSeed)
+
+yieldData$randomSeed <- factor(yieldData$randomSeed)
+```
+
+Convert production per land unit (total yield) units from g to ton:
+
+```{r}
+yieldData$p_crop_totalYield <- yieldData$p_crop_totalYield / 1E+6
+```
+
+Calculate the range of ARID and productivity (yield):
+
+```{r}
+minARID = round(min(yieldData$p_soil_meanARID_grow, na.rm = TRUE), digits = 2)
+maxARID = round(max(yieldData$p_soil_meanARID_grow, na.rm = TRUE), digits = 2)
+
+minYield = round(min(yieldData$p_crop_yield, na.rm = TRUE), digits = -1)
+maxYield = round(max(yieldData$p_crop_yield, na.rm = TRUE), digits = -1)
+
+minTotalYield = round(min(yieldData$p_crop_totalYield, na.rm = TRUE), digits = 2)
+maxTotalYield = round(max(yieldData$p_crop_totalYield, na.rm = TRUE), digits = 2)
+
+minRiverWater = round(min(parsData$riverWaterPerFlowAccumulation), digits = 7)
+maxRiverWater = round(max(parsData$riverWaterPerFlowAccumulation), digits = 7)
+
+minPrecipitation_yearlyMean = round(min(parsData$precipitation_yearlyMean), digits = -2)
+maxPrecipitation_yearlyMean = round(max(parsData$precipitation_yearlyMean), digits = -2)
+
+minPrecipitation_dailyCum_plateauValue_yearlyMean = round(min(parsData$precipitation_dailyCum_plateauValue_yearlyMean), digits = 2)
+maxPrecipitation_dailyCum_plateauValue_yearlyMean = round(max(parsData$precipitation_dailyCum_plateauValue_yearlyMean), digits = 2)
+```
+
+Create factor with river/no river classification of terrains:
+
+```{r}
+hasRiver <- c("no river","river")[factor(landUnitsWithRiverPerTerrain[yieldData$terrainRandomSeed] > 1)]
+```
+
+### Fig - Effect of river flow on ARID
+
+Plotting ARID vs river flow (only terrains with river):
+
+```{r}
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = "figures/exp4_ARIDvsRiverFlow.png"
+    
+    grScale = 2
+    cex.points = 1
+    
+    png(plotName, width = grScale * 500, height = grScale * 300)
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp4_ARIDvsRiverFlow.eps"
+    
+    grScale = 2
+    cex.points = 0.5
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = grScale * 5,
+                        height = grScale * 3,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  layout(matrix(c(1, 2), nrow = 1, ncol = 2, byrow = FALSE),
+         widths = c(10, 3.5))
+  
+  par(mar = c(5,5,1,1), cex.lab = 0.8 * grScale)
+  
+  plot(c(minRiverWater, maxRiverWater),
+       c(minARID, maxARID),
+       xlab = expression(paste("river flow (mm (height) /", m^2, "(area) )")), # ( mm (height) / m^2 (area) )
+       ylab = "mean ARID (growing seasons)")
+  
+  for (aCrop in levels(yieldData$crop))
+  {
+    tempData <- yieldData[hasRiver == "river" & yieldData$crop == aCrop,]
+    
+    points(getRelatedVariableWithKey(keyInCallingTable =  tempData$randomSeed, 
+                                     keyInCalledTable = parsData$randomSeed, 
+                                     variableInCalledTable = parsData$riverWaterPerFlowAccumulation),
+           tempData$p_soil_meanARID_grow,
+           col = cropColours[match(aCrop, levels(yieldData$crop))],
+           pch = 20, cex = cex.points
+    )
+    abline(lm(p_soil_meanARID_grow ~ riverWaterPerFlowAccumulation,
+              data = data.frame(cbind(
+                p_soil_meanARID_grow = tempData$p_soil_meanARID_grow,
+                riverWaterPerFlowAccumulation = getRelatedVariableWithKey(tempData$randomSeed, 
+                                                                          parsData$randomSeed, 
+                                                                          parsData$riverWaterPerFlowAccumulation)))),
+           col = cropColours[match(aCrop, levels(yieldData$crop))],
+           lwd = 2)
+  }
+  
+  text(x = minPrecipitation_yearlyMean * 0.95, y = minARID * 1.2, labels = "a", font = 2, cex = grScale)
+  
+  par(mar = c(0, 0, 0, 0), cex = 0.8 * grScale)
+  
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  
+  legend(x = 0, y = 1, 
+         legend = stringi::stri_c(cropTable$S_water, " (", levels(yieldData$crop), ")"), 
+         title = "S_water (Crop-cultivar)", 
+         fill = cropColours)
+  
+  dev.off()
+}
+rm(imageFormat, grScale, cex.points, aCrop, tempData)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+ggplot alternative:
+
+```{r}
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = "figures/exp4_ARIDvsRiverFlow_ggplot.png"
+    
+    grScale = 2
+    
+    png(plotName, width = grScale * 350, height = grScale * 500)
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp4_ARIDvsRiverFlow_ggplot.eps"
+    
+    grScale = 2
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = grScale * 3.5,
+                        height = grScale * 5,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  tempData <- yieldData[hasRiver == "river",]
+  
+  print({
+    ggplot(data = cbind(tempData,
+                        riverFlow = getRelatedVariableWithKey(keyInCallingTable =  tempData$randomSeed, 
+                                                              keyInCalledTable = parsData$randomSeed, 
+                                                              variableInCalledTable = parsData$riverWaterPerFlowAccumulation)), 
+           aes(x = riverFlow, y = p_soil_meanARID_grow, color = crop, fill = crop)) +
+      geom_point(size = 1, alpha = 0.3) +
+      geom_smooth(method = 'lm', color = 'black', fill = 'black', se = FALSE) +
+      scale_color_manual(values = cropColours, name="", guide = FALSE) +
+      scale_fill_manual(values = cropColours, name="", guide = FALSE) +
+      facet_wrap( ~ crop, ncol = 2, scales = 'free') +
+      xlab(expression(paste("river flow (mm (height) /", m^2, "(area) )"))) +
+      ylab("mean ARID (growing seasons)") +
+      theme_light(base_size = 11 * grScale) +
+      theme(axis.text = element_text(size = 15),
+            strip.background = element_rect(fill = "white"),
+            strip.text = element_text(colour = "black"))
+  })
+  dev.off()
+}
+rm(imageFormat, grScale, tempData)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+tempData <- yieldData[hasRiver == "river",]
+tempData <- cbind(tempData[,c("crop", "p_soil_meanARID_grow")],
+                  riverFlow = getRelatedVariableWithKey(keyInCallingTable =  tempData$randomSeed, 
+                                                        keyInCalledTable = parsData$randomSeed, 
+                                                        variableInCalledTable = parsData$riverWaterPerFlowAccumulation))
+
+knitr::kable(linearModels.table(tempData, "p_soil_meanARID_grow", "riverFlow"), caption = "Pearson's correlation and linear model between river flow (x) and ARID (y) per crop")
+rm(tempData)
+```
+
+
+
+### Fig - Effect of river flow on productivity (yield) 
+
+```{r}
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = "figures/exp4_yieldvsRiverFlow_ggplot.png"
+    
+    grScale = 2
+    
+    png(plotName, width = grScale * 350, height = grScale * 500)
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp4_yieldvsRiverFlow_ggplot.eps"
+    
+    grScale = 2
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = grScale * 3.5,
+                        height = grScale * 5,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  tempData <- yieldData[hasRiver == "river",]
+  
+  print({
+    ggplot(data = cbind(tempData,
+                        riverFlow = getRelatedVariableWithKey(keyInCallingTable =  tempData$randomSeed, 
+                                                              keyInCalledTable = parsData$randomSeed, 
+                                                              variableInCalledTable = parsData$riverWaterPerFlowAccumulation)), 
+           aes(x = riverFlow, y = p_crop_yield, color = crop, fill = crop)) +
+      geom_point(size = 1, alpha = 0.3) +
+      geom_smooth(method = 'lm', color = 'black', fill = 'black', se = FALSE) +
+      scale_color_manual(values = cropColours, name="", guide = FALSE) +
+      scale_fill_manual(values = cropColours, name="", guide = FALSE) +
+      facet_wrap( ~ crop, ncol = 2, scales = 'free') +
+      xlab(expression(paste("river flow (mm (height) /", m^2, "(area) )"))) +
+      ylab(expression(paste("yield (", g/m^2, ")"))) +
+      theme_light(base_size = 11 * grScale) +
+      theme(axis.text = element_text(size = 15),
+            strip.background = element_rect(fill = "white"),
+            strip.text = element_text(colour = "black"))
+  })
+  dev.off()
+}
+rm(imageFormat, grScale, tempData)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+tempData <- yieldData[hasRiver == "river",]
+tempData <- cbind(tempData[,c("crop", "p_crop_yield")],
+                  riverFlow = getRelatedVariableWithKey(keyInCallingTable =  tempData$randomSeed, 
+                                                        keyInCalledTable = parsData$randomSeed, 
+                                                        variableInCalledTable = parsData$riverWaterPerFlowAccumulation))
+
+knitr::kable(linearModels.table(tempData, "p_crop_yield", "riverFlow"), caption = "Pearson's correlation and linear model between river flow (x) and yield (y) per crop")
+
+rm(temData)
+```
+
+Effect on total yield: 
+
+```{r}
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = "figures/exp4_totalYieldvsRiverFlow_ggplot.png"
+    
+    grScale = 2
+    
+    png(plotName, width = grScale * 350, height = grScale * 500)
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp4_totalYieldvsRiverFlow_ggplot.eps"
+    
+    grScale = 2
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = grScale * 3.5,
+                        height = grScale * 5,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  tempData <- yieldData[hasRiver == "river",]
+  
+  print({
+    ggplot(data = cbind(tempData,
+                        riverFlow = getRelatedVariableWithKey(keyInCallingTable =  tempData$randomSeed, 
+                                                              keyInCalledTable = parsData$randomSeed, 
+                                                              variableInCalledTable = parsData$riverWaterPerFlowAccumulation)), 
+           aes(x = riverFlow, y = p_crop_totalYield, color = crop, fill = crop)) +
+      geom_point(size = 1, alpha = 0.3) +
+      geom_smooth(method = 'lm', color = 'black', fill = 'black', se = FALSE) +
+      scale_color_manual(values = cropColours, name="", guide = FALSE) +
+      scale_fill_manual(values = cropColours, name="", guide = FALSE) +
+      facet_wrap( ~ crop, ncol = 2, scales = 'free') +
+      xlab(expression(paste("river flow (mm (height) /", m^2, "(area) )"))) +
+      ylab("total yield (ton) per land unit (ha)") +
+      theme_light(base_size = 11 * grScale) +
+      theme(axis.text = element_text(size = 15),
+            strip.background = element_rect(fill = "white"),
+            strip.text = element_text(colour = "black"))
+  })
+  dev.off()
+}
+rm(imageFormat, grScale)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Calculate correlation and linear models fitness:
+
+```{r}
+tempData <- yieldData[hasRiver == "river",]
+tempData <- cbind(tempData[,c("crop", "p_crop_totalYield")],
+                  riverFlow = getRelatedVariableWithKey(keyInCallingTable =  tempData$randomSeed, 
+                                                        keyInCalledTable = parsData$randomSeed, 
+                                                        variableInCalledTable = parsData$riverWaterPerFlowAccumulation))
+
+knitr::kable(linearModels.table(tempData, "p_crop_totalYield", "riverFlow"), caption = "Pearson's correlation and linear model between river flow (x) and yield (y) per crop")
+
+rm(tempData)
+```
+
+### Fig - production of land units (total yield) per terrain and crop
+
+In this and the next two figures we can observe the double-edge effect of increased river flow. At one side, more water will be distributed over more land units, stabilising ARID at lower levels throughout the year (i.e. higher yield or productivity). On the other side, however, surface water can accumulate more easily and cover larger extents or the entirety of the area of more land units; particularly those placed in the alluvium, which otherwise are the most productive.
+
+```{r}
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = paste0("figures/exp4_totalYieldPerTerrainCrop.png")
+    
+    grScale = 2
+    
+    png(plotName, width = grScale * 800, height = grScale * 300)
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp4_yieldPerTerrainCrop.eps"
+    
+    grScale = 1.2
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = grScale * 8,
+                        height = grScale * 3,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  print({
+    ggplot(yieldData, 
+           aes(fill = terrainRandomSeed, y = p_crop_totalYield, x = crop)) + 
+      geom_violin(position="dodge") +
+      #geom_boxplot() +
+      scale_fill_discrete_diverging(name = "") +
+      scale_x_discrete() + 
+      facet_wrap( ~ crop, scales = 'free') +
+      theme_light(base_size = 11 * grScale) +
+      theme(axis.text.x = element_blank(),
+            axis.ticks = element_blank(),
+            axis.title.x = element_blank(),
+            strip.background = element_rect(fill = "white"),
+            strip.text = element_text(colour = "black"),
+            plot.margin = margin(l = 0, unit = "pt")) +
+      ylab(expression(paste("yield (", g/m^2, ")")))
+  })
+  dev.off()
+}
+rm(imageFormat, grScale)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+NOTE: remember that terrains 35, 56 and 72 are the ones most affected by changes in river flow. 
+
+### Fig - production of land units (total yield) of terrains with and without river
+
+```{r}
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = paste0("figures/exp4_totalYieldPerTerrainCrop_river.png")
+    
+    grScale = 2
+    
+    png(plotName, width = grScale * 800, height = grScale * 300)
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp4_totalYieldPerTerrainAndCrop_river.eps"
+    
+    grScale = 1.2
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = grScale * 8,
+                        height = grScale * 3,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  print({
+    ggplot(cbind(yieldData, extra = hasRiver), 
+           aes(fill = extra, y = p_crop_totalYield, x = extra)) + 
+      geom_violin(position="dodge") +
+      #geom_boxplot() +
+      scale_fill_discrete_diverging(name = "") +
+      scale_x_discrete() + 
+      facet_wrap( ~ crop, scales = 'free') +
+      theme_light(base_size = 11 * grScale) +
+      theme(axis.text.x = element_blank(),
+            axis.ticks = element_blank(),
+            axis.title.x = element_blank(),
+            strip.background = element_rect(fill = "white"),
+            strip.text = element_text(colour = "black"),
+            plot.margin = margin(l = 0, unit = "pt")) +
+      ylab("total yield (ton) per land unit (ha)")
+  })
+  dev.off()
+}
+rm(imageFormat, grScale)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+### Fig - production of land units (total yield) in terrain 35 per crop and explored value of `riverWaterPerFlowAccumulation` 
+
+```{r}
+require(scales)
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = paste0("figures/exp4_totalYieldPerCropAndRiverflow.png")
+    
+    grScale = 2
+    
+    png(plotName, width = grScale * 400, height = grScale * 500)
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp4_totalYieldPerCropAndRiverflow.eps"
+    
+    grScale = 1.2
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = grScale * 4,
+                        height = grScale * 5,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  tempData <- yieldData[yieldData$terrainRandomSeed == 35,]
+  
+  tempData$riverFlow <- getRelatedVariableWithKey(keyInCallingTable =  tempData$randomSeed, 
+                                                  keyInCalledTable = parsData$randomSeed, 
+                                                  variableInCalledTable = parsData$riverWaterPerFlowAccumulation)
+  tempData$riverFlow <- signif(tempData$riverFlow * 10^5, digits = 4) 
+  tempData$riverFlow <- factor(tempData$riverFlow, 
+                               levels = sort(unique(signif(parsData$riverWaterPerFlowAccumulation * 10^5, digits = 4))))
+  #tempData$riverFlow <- factor(formatC(tempData$riverFlow, digits = 2, format = "e"), 
+  #                             levels = formatC(sort(unique(parsData$riverWaterPerFlowAccumulation)), digits = 2, format = "e"))
+  riverFlowLevels <- levels(tempData$riverFlow)
+  
+  print({
+    ggplot(data = tempData,
+           aes(fill = riverFlow, y = p_crop_totalYield, x = riverFlow)) + 
+      geom_violin(position = "dodge") +
+      #geom_boxplot() +
+      scale_fill_discrete_sequential(name = expression(paste("river flow (mm/", m^2, ")")),
+                                     labels = as.expression(sapply(riverFlowLevels, function(x) bquote(.(x) * "x" * 10^-5))),
+                                     guide = guide_legend(reverse = TRUE)) +
+      scale_x_discrete() + 
+      facet_wrap( ~ crop, scales = 'free', ncol = 1) +
+      theme_light(base_size = 11 * grScale) +
+      theme(axis.text.x = element_blank(),
+            axis.ticks = element_blank(),
+            axis.title.x = element_blank(),
+            strip.background = element_rect(fill = "white"),
+            strip.text = element_text(colour = "black"),
+            legend.title = element_text(size = 8 * grScale),
+            plot.margin = margin(l = 0, unit = "pt")) +
+      ylab("total yield (ton) per land unit (ha)")
+  })
+  dev.off()
+}
+rm(imageFormat, grScale)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Clear temporary objects:
+
+```{r, eval=FALSE}
+rm(file_names, nameFilter,
+   yieldData, parsData, hasRiver,
+   maxARID, minARID, maxYield, minYield, 
+   maxPrecipitation_yearlyMean, minPrecipitation_yearlyMean, 
+   maxPrecipitation_dailyCum_plateauValue_yearlyMean, minPrecipitation_dailyCum_plateauValue_yearlyMean,
+   maxRiverWater, minRiverWater, riverFlowLevels,
+   plotName)
+```
+
+## Experiment 5
+
+Experiment 5 perform the same runs of experiment 3, except by varying stochastically the relative frequecies of crops within each land unit. In experiments 3 and 4, frequencies were kept homogeneous and constant, while crop intensity (i.e. the extent of crops in relation to other ecological communities in a land unit) is fixed at 50% throughout all runs. Moreover, in experiments 3 and 4, crop frequency is effectively irrelevant for when analysisng ARID and productivity (yield), as these are measures independent of the relative extent of crops in land units. Frequency is relevant for crop-wise bulk production (total yield or `p_crop_totalYield`) but the comparisons made remain valid as long as frequencies are homogeneous and constant. The variation of crop frequencies in experiment 5 aims at addressing crop choice factors by evidecing the effect of relative frequencies on bulk production per land unit (i.e. sum of all elements in `p_crop_totalYield`).
+
+### Loading and preparation 
+
+Load parameter values:
+
+```{r}
+file_names <- paste0("models/output/", list.files("models/output"))
+
+# load first terrain to initialise yieldData
+
+nameFilter <- grepl(paste0("I2_yield-exp_pars_terrainRandomSeed=", listOfTerrainSeeds[1], 
+                           "_type-of-experiment=randomised-crop-frequencies_experiment-name=exp5"), file_names)
+
+parsData <- do.call(rbind, lapply(file_names[nameFilter], read.csv))
+
+# load the rest of terrains
+
+for (aTerrainSeed in listOfTerrainSeeds[-1])
+{
+  nameFilter <- grepl(paste0("I2_yield-exp_pars_terrainRandomSeed=", aTerrainSeed, 
+                             "_type-of-experiment=randomised-crop-frequencies_experiment-name=exp5"), file_names)
+  
+  parsData <- rbind(parsData, do.call(rbind, lapply(file_names[nameFilter], read.csv)))
+}
+rm(aTerrainSeed)
+```
+
+Load all experiment 5 output files as a data frame with all terrains:
+
+```{r}
+file_names <- paste0("models/output/", list.files("models/output"))
+
+# load first terrain to initialise yieldData
+
+nameFilter <- grepl(paste0("I2_yield-exp_terrainRandomSeed=", listOfTerrainSeeds[1], 
+                           "_type-of-experiment=randomised-crop-frequencies_experiment-name=exp5"), file_names)
+
+yieldData <- do.call(rbind, lapply(file_names[nameFilter], read.csv))
+
+# load the rest of terrains
+
+for (aTerrainSeed in listOfTerrainSeeds[-1])
+{
+  nameFilter <- grepl(paste0("I2_yield-exp_terrainRandomSeed=", aTerrainSeed, 
+                             "_type-of-experiment=randomised-crop-frequencies_experiment-name=exp5"), file_names)
+  
+  yieldData <- rbind(yieldData, do.call(rbind, lapply(file_names[nameFilter], read.csv)))
+}
+rm(aTerrainSeed)
+```
+
+Convert `p_crop_yield = 0` to `NA` when `p_soil_meanARID_grow = NA` (i.e., first year simulation runs with incomplete growing seasons):
+
+```{r}
+yieldData$p_crop_yield[is.na(yieldData$p_soil_meanARID_grow)] <- NA
+```
+
+Force the same order of crops used by cropTable:
+
+```{r}
+yieldData$crop <- factor(yieldData$crop, levels = levels(cropTable$crop))
+```
+
+Assure that random generator seeds are interpreted as factors:
+
+```{r}
+yieldData$terrainRandomSeed <- factor(yieldData$terrainRandomSeed)
+
+yieldData$randomSeed <- factor(yieldData$randomSeed)
+```
+
+Convert total yield units (g to ton):
+
+```{r}
+yieldData$p_crop_totalYield <- yieldData$p_crop_totalYield / 1E+6
+```
+
+Calculate the range of yield:
+
+```{r}
+minYield = round(min(yieldData$p_crop_yield, na.rm = TRUE), digits = -1)
+maxYield = round(max(yieldData$p_crop_yield, na.rm = TRUE), digits = -1)
+
+minTotalYield = round(min(yieldData$p_crop_totalYield), digits = 2)
+maxTotalYield = round(max(yieldData$p_crop_totalYield), digits = 2)
+```
+
+Create factor with river/no river classification of terrains:
+
+```{r}
+hasRiver <- c("no river","river")[factor(landUnitsWithRiverPerTerrain[yieldData$terrainRandomSeed] > 1)]
+```
+
+### Fig - Crop choice spatial distribution 
+
+Plot maps of correlations between total yield of all crops in land unit and the relative frequency of each crop.
+
+Build spatial matrices organised by crop and terrain:
+
+WARNING: this chunk takes a long time to run (i.e. n terrains x 2500 positions x m crops)
+
+```{r, eval=FALSE}
+corTotalYieldFreq_byPosCropAndTerrain <- list()
+
+for (aTerrainSeed in listOfTerrainSeeds)
+{
+  corTotalYieldFreq_byPosCropAndTerrain[[aTerrainSeed]] <- list()
+  
+  # initialise
+  
+  for (aCrop in levels(cropTable$crop))
+  {
+    # yield per crop
+    corTotalYieldFreq_byPosCropAndTerrain[[aTerrainSeed]][[aCrop]] <- matrix(rep(NA, mapWidth * mapHeight), nrow = mapHeight, ncol = mapWidth)
+  }
+  
+  # fill with values
+  
+  for (i in minX:maxX)
+  {
+    for (j in minY:maxY)
+    {
+      message('\r', paste("terrain", aTerrainSeed, ", position", i, j), appendLF = FALSE)
+      
+      tempData <- yieldData[yieldData$terrainRandomSeed == aTerrainSeed &        # for this terrain
+                              yieldData$x == i & yieldData$y == j,]        # for this position  
+      
+      # sum total yields per year/run
+      tempData2 <- aggregate(tempData$p_crop_totalYield,                  
+                             by = list(randomSeed = tempData$randomSeed,                  # by randomSeed
+                                       year = tempData$currentYear),                      # by year
+                             FUN = sum)
+
+      tempData$summedTotalYield <- getRelatedVariableWithTwoKeys(firstKeyInCallingTable = tempData$randomSeed,
+                                                                 secondKeyInCallingTable = tempData$currentYear,
+                                                                 firstKeyInCalledTable = tempData2$randomSeed,
+                                                                 secondKeyInCalledTable = tempData2$year,
+                                                                 variableInCalledTable = tempData2$x)
+      
+      for (aCrop in levels(cropTable$crop))
+      {
+        tempData3 <- tempData[tempData$crop == aCrop,]
+        
+        # correlation between frequencies and summed total yield per crop
+        corTotalYieldFreq_byPosCropAndTerrain[[aTerrainSeed]][[aCrop]][j+1, i+1] <-
+          cor(tempData3$p_crop_frequency, tempData3$summedTotalYield)
+      }
+    }
+  }
+}
+rm(aCrop, i, j, aTerrainSeed,
+   tempData, tempData2, tempData3)
+```
+
+Store spatial matrices in files to ease the workflow (i.e. the chunk above only needs to run if the experiment data has been modified):
+
+```{r, eval=FALSE}
+for (aTerrainSeed in listOfTerrainSeeds)
+{
+  for (aCrop in levels(cropTable$crop))
+  {
+    write.csv(corTotalYieldFreq_byPosCropAndTerrain[[aTerrainSeed]][[aCrop]],
+              paste0("FigTerrainYield_tempFiles/exp5_terrainRandomSeed=", aTerrainSeed, "_", aCrop, ".csv"))
+  }
+}
+rm(aTerrainSeed, aCrop)
+```
+
+Load data from files:
+
+```{r}
+corTotalYieldFreq_byPosCropAndTerrain <- list()
+
+for (aTerrainSeed in listOfTerrainSeeds)
+{
+  corTotalYieldFreq_byPosCropAndTerrain[[aTerrainSeed]] <- list()
+  
+  for (aCrop in levels(cropTable$crop))
+  {
+    # yield per crop
+    corTotalYieldFreq_byPosCropAndTerrain[[aTerrainSeed]][[aCrop]] <- 
+      data.matrix(read.csv(paste0("FigTerrainYield_tempFiles/exp5_terrainRandomSeed=", aTerrainSeed, "_", aCrop, ".csv"), row.names = 1))
+  }
+}
+rm(aTerrainSeed, aCrop)
+```
+
+Calculate range of values crop-wise and terrain-wise:
+
+```{r}
+cropwiseRange <- list()
+for (aCrop in levels(cropTable$crop))
+{
+  tempData <- c()
+  for (aTerrainSeed in listOfTerrainSeeds)
+  {
+    tempData <- c(tempData, as.vector(unlist(corTotalYieldFreq_byPosCropAndTerrain[[aTerrainSeed]][[aCrop]])))
+  }
+  cropwiseRange[[aCrop]] <- c(min(tempData), max(tempData))
+}
+
+terrainwiseRange <- list()
+for (aTerrainSeed in listOfTerrainSeeds)
+{
+  tempData <- unlist(corTotalYieldFreq_byPosCropAndTerrain[[aTerrainSeed]])
+  
+  terrainwiseRange[[aTerrainSeed]] <- c(min(tempData), max(tempData))
+}
+rm(aCrop, aTerrainSeed, tempData)
+```
+
+Plot mean total yield as grid maps per crop and total (rows) and for each terrain (columns):
+
+```{r}
+mapGridSize = 200 #px
+topMargin = mapGridSize / 6
+leftMargin = mapGridSize / 2
+rightMargin = mapGridSize / 2.5
+bottomMargin = mapGridSize / 10
+
+nColumns = length(corTotalYieldFreq_byPosCropAndTerrain) + 2
+nRows = length(corTotalYieldFreq_byPosCropAndTerrain[[1]]) + 2
+
+rowNamesInMargin <- c("", gsub(" ", "\n", levels(cropTable$crop)))
+
+leftMarginTextSize = 1.5
+topMarginTextSize = 1.2
+
+numBarsInLegend = 10
+
+for (imageFormat in listOfImageFormats)
+{
+  if (imageFormat == "png")
+  {
+    plotName = "figures/exp5_corTotalYieldFreqSpatialDistribution.png"
+    
+    grScale = 2
+    fontRescale = 0
+    
+    png(plotName, width = grScale * (mapGridSize * nColumns), height = grScale * (mapGridSize * nRows))
+  }
+  
+  if (imageFormat == "eps")
+  {
+    plotName = "figures/exp5_corTotalYieldFreqSpatialDistribution.eps"
+    
+    grScale = 1.2
+    fontRescale = 0.1
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName,
+                        width = grScale * (mapGridSize * nColumns) / 100,
+                        height = grScale * (mapGridSize * nRows) / 100,
+                        pointsize = pointSize,
+                        fallback_resolution = fallbackResolution
+    )
+  }
+  
+  layout(rbind(matrix(1:(nColumns * (nRows - 1)), 
+                      nrow = nRows - 1, ncol = nColumns, byrow = FALSE),
+               ((nColumns * (nRows - 1)) + 1):((nColumns * (nRows - 1)) + nColumns)),
+         widths = c(leftMargin, rep(mapGridSize, nColumns - 2), rightMargin),
+         heights = c(topMargin, rep(mapGridSize, nRows - 2), bottomMargin))
+  
+  par(cex = grScale)
+  
+  # First column: crop names + total
+  
+  par(mar = c(0, 0, 0, 0.4))
+  
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  text(x = 0.5, y = 0.5, font = 4, 
+       cex = grScale * (topMarginTextSize + fontRescale), 
+       labels = rowNamesInMargin[1])
+  
+  for (aCropIndex in 1:nlevels(cropTable$crop))
+  {
+    plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+    text(x = 0.5, y = 0.5, font = 4, 
+         cex = grScale * (leftMarginTextSize + fontRescale), 
+         #srt = 90,
+         labels = rowNamesInMargin[aCropIndex + 1])
+  }
+  
+  # following columns per each terrain
+  
+  for (aTerrainSeed in listOfTerrainSeeds)
+  {
+    # terrain seed
+    par(mar = c(0, 0, 0, 0))
+    
+    plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+    text(x = 0.5, y = 0.5, font = 4, 
+         cex = grScale * (topMarginTextSize + fontRescale), 
+         labels = aTerrainSeed)
+    
+    # map grid for each crop
+    par(mar = c(0.1, 0.1, 0.1, 0.1), cex.axis = 0.6 * grScale)
+    
+    for (aCrop in levels(cropTable$crop))
+    {
+      # Crop colors can be used instead of YlOrRd color palette
+      # colgrp <- findInterval(c(corTotalYieldFreq_byPosCropAndTerrain[[aTerrainSeed]][[aCrop]]),
+      #                        seq(min(c(corTotalYieldFreq_byPosCropAndTerrain[[aTerrainSeed]][[aCrop]])),
+      #                            max(c(corTotalYieldFreq_byPosCropAndTerrain[[aTerrainSeed]][[aCrop]])),
+      #                            length.out = 10))
+      # colfunc <- colorRampPalette(c(lighten(cropColours[match(aCrop, levels(cropTable$crop))], amount = 0.9), 
+      #                               cropColours[match(aCrop, levels(cropTable$crop))]))
+      # collist <- colfunc(length(unique(colgrp))) 
+      
+      image(t(corTotalYieldFreq_byPosCropAndTerrain[[aTerrainSeed]][[aCrop]]),
+            zlim = cropwiseRange[[aCrop]], # terrainwiseRange[[aTerrainSeed]],
+            col = hcl.colors(numBarsInLegend, "YlOrRd", rev = TRUE),
+            #col = collist, # activate this line to use crop colors
+            axes = FALSE, xaxt = 'n', yaxt = 'n', ann = FALSE)
+      
+      #axis(2, at = seq(0, 1, length.out = mapHeight), labels = minY:maxY)
+      #axis(1, at = seq(0, 1, length.out = mapWidth), labels = minX:maxX)
+    }
+  }
+  
+  # Last column: right margin
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  
+  # scale legend
+  par(mar = c(1, 1, 1, 3), cex = grScale)
+  
+  for (aCrop in levels(cropTable$crop))
+  {
+    barplot(rep(100, numBarsInLegend), 
+            col = hcl.colors(numBarsInLegend, "YlOrRd", rev = TRUE),
+            border = hcl.colors(numBarsInLegend, "YlOrRd", rev = TRUE),
+            axes = FALSE, space = 0, horiz = TRUE)
+    axis(side = 4, at = (0.5):(numBarsInLegend - 0.5),
+         labels = gsub("-", "\U2212", as.character(
+           round(seq(from = cropwiseRange[[aCrop]][1], to = cropwiseRange[[aCrop]][2], length.out = numBarsInLegend), 1)
+           )),
+         cex.axis = 1, las = 1)
+  }
+  
+  # bottom margin
+  
+  par(mar = c(0, 0, 0, 0))
+  
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  
+  #par(mar = c(3, 1, 1, 1), cex = grScale) 
+  
+  for (aTerrainSeed in listOfTerrainSeeds)
+  {
+    plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+    # the terrain-wise scale of values can also be shown (remember to apply terrainwise in the zlim argument in image() instead) 
+    # barplot(rep(100, numBarsInLegend), 
+    #         #names.arg = round(seq(from = min(tempData), to = max(tempData), length.out = numBarsInLegend), 2),
+    #         col = heat_hcl(numBarsInLegend, rev = TRUE),
+    #         border = heat_hcl(numBarsInLegend, rev = TRUE),
+    #         axes = FALSE, space = 0, horiz = FALSE)
+    # axis(side = 1, at = 1:numBarsInLegend, 
+    #      labels = round(seq(from = terrainwiseRange[[aTerrainSeed]][1], to = terrainwiseRange[[aTerrainSeed]][2], length.out = numBarsInLegend), 2))
+  }
+  
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  
+  dev.off()
+}
+rm(imageFormat, aCropIndex, aCrop, aTerrainSeed, i,
+   #colgrp, colfunc, collist,
+   mapGridSize, topMargin, leftMargin, rightMargin, bottomMargin, 
+   nColumns, nRows, rowNamesInMargin, leftMarginTextSize, topMarginTextSize, numBarsInLegend,
+   grScale, fontRescale)
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plotName)
+```
+
+Clear temporary objects:
+
+```{r}
+rm(yieldData, parsData,
+   corTotalYieldFreq_byPosCropAndTerrain,
+   plotName)
+```
