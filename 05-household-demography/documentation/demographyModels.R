@@ -41,7 +41,7 @@ generateParametricModelNuptiality <- function(par.c1 = 0.85, par.mu = 20, par.si
 
 grScale = 2
 
-png("fertilityModel.png", width = grScale * 800, height = grScale * 480)
+png("plots/fertilityModel.png", width = grScale * 800, height = grScale * 480)
 par(cex = grScale * 1.2)
 
 plot(c(1, 100), c(0, 1), type = "n", 
@@ -72,7 +72,7 @@ text(70, 0.5,
 
 dev.off()
 #----
-png("nuptialityModel.png", width = grScale * 800, height = grScale * 480)
+png("plots/nuptialityModel.png", width = grScale * 800, height = grScale * 480)
 par(cex = grScale * 1.2)
 
 plot(c(1, 100), c(0, 1), type = "n", 
@@ -145,7 +145,7 @@ generateCoaleDemenyLifeTable <- function(region = "north", sex = "F", level = 8)
 
 grScale = 2
 
-png("mortalityModel-levels.png", width = grScale * 800, height = grScale * 480)
+png("plots/mortalityModel-levels.png", width = grScale * 800, height = grScale * 480)
 par(cex = grScale * 1.2)
 
 plot(c(1, 151), c(0, 1), type = "n", 
@@ -166,7 +166,7 @@ legend(5, 1,
 
 dev.off()
 
-png("mortalityModel-regions.png", width = grScale * 800, height = grScale * 480)
+png("plots/mortalityModel-regions.png", width = grScale * 800, height = grScale * 480)
 par(cex = grScale * 1.2)
 
 plot(c(1, 151), c(0, 1), type = "n", 
