@@ -1,0 +1,112 @@
+---
+title: "Women Fertility"
+author: "Andreas Angourakis"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+```
+
+## Load data with fertility schedules per 5-year cohort and country
+
+```{r}
+fertility_schedules <- read_csv("data/FILE III CT and QS fits to international schedules.csv", skip = 5)
+```
+
+```{r}
+coale_trussel_fit <- fertility_schedules %>% select(`tfr`:`RE...15`)
+
+qs_fit <- fertility_schedules %>% select(`R`:`RE...21`)
+
+fertility_schedules <- fertility_schedules %>% select(`2002 SCHEDULE`:`5f45`) %>% rename(country = `2002 SCHEDULE`)
+```
+
+```{r}
+fertility_schedules_long <- fertility_schedules %>% 
+  pivot_longer(cols = `5f15`:`5f45`, names_to="cohort", values_to="asfr") %>%
+  mutate(age = 10 + 5 * match(cohort, unique(cohort)))
+```
+
+## Overview dataset
+
+```{r}
+ggplot(fertility_schedules_long, aes(x=age, y=asfr/1000, color=country)) +
+  geom_line(linewidth=1, show.legend = FALSE) +
+  labs(
+    title = "Age-specific fertility rates (schedules per country)",
+    x = "Maternal age",
+    y = "Fertility rate (births per woman‑year)",
+    color = "Model cohort"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+ggplot(filter(fertility_schedules_long, country == "Afghanistan"), aes(x=age, y=asfr/1000)) +
+  geom_line(linewidth=1) +
+  labs(
+    title = "Age-specific fertility rates (schedules per country)",
+    x = "Maternal age",
+    y = "Fertility rate (births per woman-year)",
+    color = "Model cohort"
+  ) +
+  theme_minimal()
+```
+
+## Approximate with Peristera-Kostaki model
+
+```{r}
+generatePeristeraKostaki <- function(par.c1 = 0.8, par.mu = 25, par.sigma = c(10, 10) )
+{
+  curve <- c()
+  for (i in 1:100)
+  {
+    sigma = par.sigma[1]
+    if (i > par.mu)
+    { sigma = par.sigma[2] }
+    
+    curve <- c(curve, par.c1 * exp (-1 * (((i - par.mu) / sigma) ^ 2)) )
+  }
+  
+  return(curve)
+}
+```
+
+```{r}
+pk_fit <- generatePeristeraKostaki(par.c1 = 0.3, par.mu = 25, par.sigma = c(10, 15))
+
+fertility_schedules_afghan_fit <- fertility_schedules_long %>% 
+  filter(country == "Afghanistan")
+```
+
+
+```{r}
+plot(1:100, pk_fit, type = "l", col = "blue", lty = "dashed")
+lines(fertility_schedules_afghan_fit$age, fertility_schedules_afghan_fit$asfr/1000)
+#lines(1:100, pk_fit, col = "blue", lty = "dashed")
+```
+
+
+```{r}
+ggplot(fertility_schedules_afghan_fit, aes(x=age, y=asfr/1000)) +
+  geom_line(linewidth=1) +
+  labs(
+    title = "Age-specific fertility rates (schedules per country)",
+    x = "Maternal age",
+    y = "Fertility rate (births per woman-year)",
+    color = "Model cohort"
+  ) +
+  theme_minimal()
+```
+
+
+
