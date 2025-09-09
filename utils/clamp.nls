@@ -1,0 +1,11 @@
+to-report clamp01 [ value ]
+  report min (list 1 (max (list 0 value)))
+end
+
+to-report clampMin0 [ value ]
+  report (max (list 0 value))
+end
+
+to-report clampMinMax [ value minValue maxValue ]
+  report min (list maxValue (max (list minValue value)))
+end

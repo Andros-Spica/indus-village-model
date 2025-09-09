@@ -1,0 +1,13 @@
+to-report gen-CO2 [ dayOfYear ]
+
+  ;;; get CO2 atmospheric concentration for the current day (ppm)
+
+  report (gen-annual-sinusoid-with-fluctuation
+    CO2_annualMin
+    CO2_annualMax
+    CO2_meanDailyFluctuation
+    dayOfYear
+    southHemisphere?
+  )
+
+end

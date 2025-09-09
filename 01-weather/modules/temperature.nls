@@ -1,0 +1,23 @@
+to update-temperature [ dayOfYear ]
+
+  set T gen-temperature dayOfYear
+
+  set T_min T - temperature_dailyLowerDeviation
+
+  set T_max T + temperature_dailyUpperDeviation
+
+end
+
+to-report gen-temperature [ dayOfYear ]
+
+  ;;; get temperature base level for the current day (ºC at lowest elevation)
+
+  report (gen-annual-sinusoid-with-fluctuation
+    temperature_annualMinAt2m
+    temperature_annualMaxAt2m
+    temperature_meanDailyFluctuation
+    dayOfYear
+    southHemisphere?
+  )
+
+end

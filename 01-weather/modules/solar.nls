@@ -1,0 +1,14 @@
+to-report gen-solar-radiation [ dayOfYear ]
+
+  ;;; get solar radiation for the current day (MJ/m2)
+
+  report clampMin0 (gen-annual-sinusoid-with-fluctuation
+    solar_annualMin
+    solar_annualMax
+    solar_meanDailyFluctuation
+    dayOfYear
+    southHemisphere?
+  )
+  ;;; NOTE: it might be possible to decrease solar radiation depending on the current day precipitation. Additional info on precipitation effect on solar radiation is needed.
+
+end
