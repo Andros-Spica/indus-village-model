@@ -18,6 +18,22 @@ library(dplyr)
 
 ## Load data with fertility schedules per 5-year cohort and country
 
+See also: https://ourworldindata.org/grapher/age-of-mothers-at-childbirth-by-year?country=~DZA
+
+and
+
+https://doi.org/10.1073/pnas.2318181121
+
+```{r}
+library(jsonlite)
+
+# Fetch the data
+df <- read.csv("https://ourworldindata.org/grapher/age-of-mothers-at-childbirth-by-year.csv?v=1&csvType=full&useColumnShortNames=true")
+
+# Fetch the metadata
+metadata <- fromJSON("https://ourworldindata.org/grapher/age-of-mothers-at-childbirth-by-year.metadata.json?v=1&csvType=full&useColumnShortNames=true")
+```
+
 ```{r}
 fertility_schedules <- read_csv("data/FILE III CT and QS fits to international schedules.csv", skip = 5)
 ```
@@ -51,8 +67,11 @@ ggplot(fertility_schedules_long, aes(x=age, y=asfr/1000, color=country)) +
 ```
 
 ```{r}
-ggplot(filter(fertility_schedules_long, country == "Afghanistan"), aes(x=age, y=asfr/1000)) +
+fertility_schedules_long_selection <- fertility_schedules_long %>%
+  filter(country == "India" | country == "Afghanistan" | country == "Pakistan" | country == "Bangladesh" | country == "Tanzania" | country == "Chad")
+ggplot(fertility_schedules_long_selection, aes(x=age, y=asfr/1000)) +
   geom_line(linewidth=1) +
+  facet_wrap(~country) +
   labs(
     title = "Age-specific fertility rates (schedules per country)",
     x = "Maternal age",
