@@ -809,7 +809,7 @@ end
 to-report hh_whichMembersDying
 
   ;;; density effect is distributed equally among members
-  let densityEffect get-density-effect carrying-capacity-demand carrying-capacity
+  let densityEffect get-density-effect carrying-capacity-demand carrying-capacity-effective
 
   ; returns a list with true/false values flagging which members is dying during the current year
   report map
@@ -1616,7 +1616,7 @@ CHOOSER
 type-of-experiment
 type-of-experiment
 "user-defined" "random" "defined by exp-number"
-2
+0
 
 INPUTBOX
 25
@@ -1624,7 +1624,7 @@ INPUTBOX
 147
 397
 initial-num-households
-100.0
+25.0
 1
 0
 Number
@@ -1866,7 +1866,7 @@ cdmlt-level
 cdmlt-level
 1
 25
-16.0
+8.0
 1
 1
 levels from 1 to 25
@@ -1880,7 +1880,7 @@ CHOOSER
 coale-demeny-region
 coale-demeny-region
 "west" "east" "south" "north"
-2
+0
 
 PLOT
 182
@@ -2010,7 +2010,7 @@ c1-women
 c1-women
 0
 1
-0.946
+0.9
 0.001
 1
 (default: 0.9)
@@ -2025,7 +2025,7 @@ sigma1-women
 sigma1-women
 0
 2 * 5
-2.222
+5.0
 0.001
 1
 (default: 5)
@@ -2040,7 +2040,7 @@ mu-women
 mu-women
 0
 40
-20.241
+15.0
 0.001
 1
 (default: 15)
@@ -2055,7 +2055,7 @@ c1-men
 c1-men
 0
 1
-0.953
+0.85
 0.001
 1
 (default: 0.85)
@@ -2100,7 +2100,7 @@ c1-fert
 c1-fert
 0
 1
-0.95
+0.9
 0.001
 1
 (default: 0.9)
@@ -2115,7 +2115,7 @@ sigma1-fert
 sigma1-fert
 0
 2 * 5
-3.318
+5.0
 0.001
 1
 (default: 5)
@@ -2145,7 +2145,7 @@ mu-fert
 mu-fert
 0
 40
-17.202
+15.0
 0.001
 1
 (default: 15)
@@ -2273,8 +2273,8 @@ SLIDER
 sigma2-women
 sigma2-women
 0
-2 * 5
-10.0
+2 * 10
+2.0
 0.001
 1
 (default: 5)
@@ -2288,7 +2288,7 @@ SLIDER
 sigma2-men
 sigma2-men
 0
-2 * 5
+2 * 10
 10.0
 0.001
 1
@@ -2344,7 +2344,7 @@ INPUTBOX
 249
 115
 max-population
-500000.0
+5000.0
 1
 0
 Number
