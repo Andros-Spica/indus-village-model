@@ -2540,7 +2540,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.2.2
+NetLogo 6.4.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
@@ -2589,6 +2589,48 @@ NetLogo 6.2.2
     <metric>menOut</metric>
     <metric>totalOrphans</metric>
     <steppedValueSet variable="SEED" first="0" step="1" last="99"/>
+    <enumeratedValueSet variable="cdmlt-level">
+      <value value="5"/>
+      <value value="10"/>
+      <value value="15"/>
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c1-fert">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="mu-fert">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sigma1-fert">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sigma2-fert">
+      <value value="12"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c1-women">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="mu-women">
+      <value value="25"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sigma1-women">
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sigma2-women">
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c1-men">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="mu-men">
+      <value value="25"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sigma1-men">
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sigma2-men">
+      <value value="10"/>
+    </enumeratedValueSet>
   </experiment>
   <experiment name="exp-endstates" repetitions="1" runMetricsEveryStep="false">
     <setup>setup</setup>

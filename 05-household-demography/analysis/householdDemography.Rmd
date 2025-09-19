@@ -15,6 +15,7 @@ library(randomForest)
 
 ```{r}
 plotDirectory <- "plots/"
+plot_file_format <- c("png", "eps")[1] # modify index number to change format
 ```
 
 ## Multiparameter exploration of "householdDemography v.1.1 - kinship tabu for new couples"
@@ -149,7 +150,7 @@ for (i in 1:nrow(params_sobol)) {
 Loading simulation experiments' end states:
 
 ```{r}
-endStates <- read.csv(paste0(dirname(getwd()), "simdata/v1.1/householdDemography v.1.1 - kinship tabu for new couples exp-endstates-table.csv"), skip = 6)
+endStates <- read.csv("simdata/v1.1/householdDemography v.1.1 - kinship tabu for new couples exp-endstates-table.csv", skip = 6)
 ```
 
 Process parameters in list format in NetLogo:
@@ -183,13 +184,12 @@ endStates <- cbind(
 )
 ```
 
-
 Categorise end states according to whether populations get extinct, survive and/or grow within the maximum number of simulation steps (`max-iterations`).
 
 Visualise `totalIndividuals`:
 
 ```{r}
-hist(endStates$totalIndividuals)
+hist(endStates$totalIndividuals, breaks = 50)
 ```
 
 create new categorical variable:
@@ -206,6 +206,79 @@ table(endStates$survival)
 
 ```{r}
 barplot(table(endStates$survival))
+```
+
+```{r}
+extract_age_structure <- function(char_value) {
+  split_values <- gsub("\\[|\\]", "", char_value) |>
+    strsplit(" ")
+  return(as.numeric(split_values[[1]]))
+}
+
+extract_age_structure_batch <- function(char_vector) {
+  age_struct_df <- char_vector
+  for (i in 1:nrow(char_vector)) {
+    
+  }
+}
+
+survival_cases <- endStates %>% filter(survival != "extinction ")
+
+selected_case <- survival_cases[500, ]
+
+selected_case_men <- extract_age_structure(selected_case["menAgeStructure"])
+selected_case_women <- extract_age_structure(selected_case["womenAgeStructure"])
+
+selected_case[1, "totalIndividuals"]
+
+layout(matrix(1:2, nrow = 1))
+hist(selected_case_women, breaks = 101)
+hist(selected_case_men, breaks = 101)
+```
+
+```{r}
+# Put data into long format
+age_struct_df <- tibble(
+  age = c(selected_case_men, selected_case_women),
+  sex = c(rep("Male", length(selected_case_men)), 
+          rep("Female", length(selected_case_women)))
+)
+
+# Bin ages into groups (5-year bins, adjust as needed)
+age_struct_df <- age_struct_df |>
+  mutate(age_group = cut(age, breaks = seq(0, 95, 5), right = FALSE))
+
+# Summarize counts per age group and sex
+age_struct_df_summary <- age_struct_df |>
+  count(sex, age_group)
+
+# For pyramid: make men negative
+age_struct_df_summary <- age_struct_df_summary |>
+  mutate(count = ifelse(sex == "Male", -n, n))
+```
+
+```{r}
+ggplot(age_struct_df_summary, aes(x = age_group, y = count, fill = sex)) +
+  geom_col(width = 1, color = "white") +
+  coord_flip() +
+  scale_y_continuous(labels = abs) +
+  labs(
+    title = "Population Age Pyramid",
+    x = "Age group",
+    y = "Population count"
+  ) +
+  theme_minimal()
+```
+
+
+Calculate the Peristera-Kostaki parameter ranges associated to survival:
+```{r}
+compute_param_envelope <- function(param_df, low=0.025, high=0.975){
+  apply(param_df, 2, quantile, probs = c(low, high), na.rm=TRUE) %>%
+    t() %>% as.data.frame() #%>% rename(lower = `2.5%`, upper = `97.5%`)
+}
+params_names <- gsub("-", ".", names(sobol_parameter_ranges)[7:19])
+compute_param_envelope(endStates %>% filter(survival != "extinction") %>% select(params_names))
 ```
 
 ```{r}
@@ -385,4 +458,85 @@ table(endStates$X.step. > 0)
 plot(endStates$initialNumHouseholds ~ endStates$X.step.)
 ```
 
+## Trajectories
+
+>Run experiments in NetLogo Behaviour Space using average  parameter values for parametric demographic models within the configurations with surviving population in the former experiment.
+
+Loading simulation experiments' end states:
+
+```{r}
+trajectories <- read.csv("simdata/v1.1/householdDemography v.1.1 - kinship tabu for new couples exp-trajectories-table.csv", skip = 6)
+```
+
+Process parameters in list format in NetLogo:
+
+```{r}
+extract_values_from_NetLogo_list <- function(char_vector) {
+  # Remove brackets and split each string into two parts
+  split_values <- gsub("\\[|\\]", "", char_vector) |>
+    strsplit(" ")
+
+  # Convert to numeric vectors
+  first_values <- sapply(split_values, function(x) as.numeric(x[1]))
+  second_values <- sapply(split_values, function(x) as.numeric(x[2]))
+
+  # Return as a named list
+  list(
+    first = first_values,
+    second = second_values
+  )
+}
+
+household_initial_age_distribution_range <- extract_values_from_NetLogo_list(trajectories$householdInitialAgeDistribution)
+max_couple_count_distribution_range <- extract_values_from_NetLogo_list(trajectories$maxCoupleCountDistribution)
+
+trajectories <- cbind(
+  trajectories,
+  household_initial_age_distribution_min = household_initial_age_distribution_range[[1]],
+  household_initial_age_distribution_max = household_initial_age_distribution_range[[2]],
+  max_couple_count_distribution_min = max_couple_count_distribution_range[[1]],
+  max_couple_count_distribution_max = max_couple_count_distribution_range[[2]]
+)
+```
+
+```{r}
+plot_name <- file.path(plotDirectory, paste0("HouseholdDemography-trajectories.", plot_file_format))
+
+if (plot_file_format == "png") {
+  graphic_scale <- 1
+  # font_rescale <- axis_text_rescale <- margin_text_rescale <- 0
+
+  png(plot_name, width = graphic_scale * 600, height = graphic_scale * 400)
+} else if (plot_file_format == "eps") {
+  graphic_scale = 1.2
+  # font_rescale = -0.2
+  # axis_text_rescale = -0.1
+  # margin_text_rescale = -0.5
+
+  extrafont::loadfonts(device = "postscript")
+  grDevices::cairo_ps(filename = plot_name ,
+                      pointsize = 12,
+                      width = graphic_scale * 6,
+                      height = graphic_scale * 4,
+                      onefile = FALSE,
+                      family = "sans"
+                      )
+}
+
+ggplot(trajectories[trajectories$X.step. < 100,], aes(x = X.step., y = totalIndividuals, group = X.run.number., color = cdmlt.level)) +
+  geom_line() +
+  xlab("time (years)") +
+  ylab("population (individuals)") +
+  guides(color = guide_legend(title="Coale-Demeny\nLife Table Level")) +
+  theme_minimal() +
+  theme(axis.title = element_text(size = 20 * graphic_scale),
+        axis.text = element_text(size = 10 * graphic_scale),
+        legend.text = element_text(size = 20 * graphic_scale),
+        legend.key.size = unit(2 * graphic_scale, 'lines'))
+dev.off()
+```
+
+```{r, out.width = "\\textwidth"}
+knitr::include_graphics(plot_name)
+```
 
