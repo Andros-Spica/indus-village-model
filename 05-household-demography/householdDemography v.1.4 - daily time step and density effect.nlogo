@@ -1545,8 +1545,8 @@ end
 to-report load-coale-demeny-table [ isFemale ]
 
   ;;; Coale-Demeny Life Tables Model
-  ;;; tables generated with 'cdmlt' functions in 'demoR' package
-  ;;; demoR package version 0.6.0 (2018-09-13)
+  ;;; tables generated with 'cdmlt' functions in 'demogR' package
+  ;;; demogR package version 0.6.0 (2018-09-13)
   ;;; by James Holland Jones and collaborators
   ;;; Their source:
   ;;; Coale, A., P. Demeny, and B. Vaughn. 1983.
