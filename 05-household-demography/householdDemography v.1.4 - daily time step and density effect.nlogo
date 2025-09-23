@@ -2,7 +2,7 @@
 ;;; GNU GENERAL PUBLIC LICENSE ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;  Household Demography v1.4
+;;  Household Demography v.1.4
 ;;  Copyright (C) 2021 Andreas Angourakis (andros.spica@gmail.com)
 ;;  last update Nov 2021
 ;;  available at https://www.github.com/Andros-Spica/indus-village-model
@@ -1083,8 +1083,9 @@ to hh_add-spouse [ selfIndex spouseData ]
   [
     ; The spouse is entering the system:
     ; generate and add spouse's sex and age
-    set hh_membersSex lput (not item selfIndex hh_membersSex) hh_membersSex ; opposite sex from selfIndex's
-    set hh_membersAge lput (get-initial-marriage-age (last hh_membersSex)) hh_membersAge ; get the age as a function of sex-specific nuptiality
+    let spouse-sex (not item selfIndex hh_membersSex) ; opposite sex from selfIndex's
+    set hh_membersAge lput (get-initial-marriage-age spouse-sex) hh_membersAge ; get the age as a function of sex-specific nuptiality
+    set hh_membersSex lput spouse-sex hh_membersSex
     ; new spouse assumed to never be gestating or lactating
     set hh_membersGestation lput 0 hh_membersGestation
     set hh_membersAmenorrhea lput 0 hh_membersAmenorrhea
@@ -1544,8 +1545,8 @@ end
 to-report load-coale-demeny-table [ isFemale ]
 
   ;;; Coale-Demeny Life Tables Model
-  ;;; tables generated with 'cdmlt' functions in 'demoR' package
-  ;;; demoR package version 0.6.0 (2018-09-13)
+  ;;; tables generated with 'cdmlt' functions in 'demogR' package
+  ;;; demogR package version 0.6.0 (2018-09-13)
   ;;; by James Holland Jones and collaborators
   ;;; Their source:
   ;;; Coale, A., P. Demeny, and B. Vaughn. 1983.

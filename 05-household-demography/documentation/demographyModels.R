@@ -19,6 +19,21 @@
 
 # the equation is the same for both fertility and nuptiality.
 
+generatePeristeraKostaki <- function(par.c1 = 0.8, par.mu = 25, par.sigma = c(10, 10) )
+{
+  curve <- c()
+  for (i in 1:100)
+  {
+    sigma = par.sigma[1]
+    if (i > par.mu)
+    { sigma = par.sigma[2] }
+    
+    curve <- c(curve, par.c1 * exp (-1 * (((i - par.mu) / sigma) ^ 2)) )
+  }
+  
+  return(curve)
+}
+
 generateParametricModelFertility <- function(par.c1 = 0.8, par.mu = 25, par.sigma = c(5, 10) ){
   
   curve <- c()
@@ -39,9 +54,63 @@ generateParametricModelNuptiality <- function(par.c1 = 0.85, par.mu = 20, par.si
   return(generateParametricModelFertility(par.c1 = par.c1, par.mu = par.mu, par.sigma = par.sigma ))
 }
 
-grScale = 2
+grScale = 3
 
-png("fertilityModel.png", width = grScale * 800, height = grScale * 480)
+# five variations of parameter settings
+parValues <- rbind(
+  c(0.8, 25, 5, 10),
+  c(0.95, 20, 5, 7),
+  c(0.5, 25, 3, 15),
+  c(0.42, 18, 2, 13),
+  c(0.35, 22, 8, 10)
+)
+
+png("plots/PeristeraKostakiModel.png", width = grScale * 600, height = grScale * 400)
+par(cex = grScale * 1.2)
+
+par(cex = grScale * 1.2, family = "sans",
+    mar = c(3.5, 4.1, 1.1, 0.2))
+
+plot(c(1, 100), c(0, 1), type = "n", 
+     #main = "Peristera-Kostaki equation",
+     xlab = "AGE\n",
+     ylab = ""
+)
+mtext(text = "P(x) or Probability of event\n(giving birth, marrying)", 
+      side = 2, line = 2, cex = grScale * 1.2)
+
+for (i in 1:nrow(parValues))
+{
+  lines(1:100, 
+        generatePeristeraKostaki(par.c1 = parValues[i, 1], par.mu = parValues[i, 2], 
+                                 par.sigma = c(parValues[i, 3], parValues[i, 4])), 
+        col = i, lwd = grScale * 3)
+  
+  legend(50, 1 - 0.1 * (i - 1), 
+         legend = substitute(paste(c[1], " = ", pc1, ", ", mu, " = ", pmu, ", ",
+                                   sigma[1], " = ", ps1, ", ", sigma[2], " = ", ps2), 
+                             list(pc1 = parValues[i, 1], pmu = parValues[i, 2],
+                                  ps1 = parValues[i, 3], ps2 = parValues[i, 4])), 
+         col = i,
+         lwd = grScale * 3, cex = 0.3 * grScale,
+         title = NULL, bty = "n")
+}
+
+text(80, 0.3,
+     expression(
+       paste(
+         italic("if "), x <= mu, ", ", sigma == sigma[1], italic(" else "), sigma == sigma[2]
+       )
+     ), cex = 0.4 * grScale)
+text(80, 0.2,
+     expression(
+       P(x) == c[1]*italic(e)^-(frac(x - mu, sigma))^2
+     )
+     , cex = 0.5 * grScale)
+
+dev.off()
+
+png("plots/fertilityModel.png", width = grScale * 800, height = grScale * 480)
 par(cex = grScale * 1.2)
 
 plot(c(1, 100), c(0, 1), type = "n", 
@@ -49,16 +118,17 @@ plot(c(1, 100), c(0, 1), type = "n",
      xlab = "AGE",
      ylab = "p(x)"
 )
+
 for (i in 1:10)
 {
   lines(1:100, generateParametricModelFertility(par.c1 = i * 0.1), col = i, lwd = grScale * 3)
 }
-legend(2, 1, 
-       1:10, 
-       col = 1:10,
+legend(2, 1,
+       1:length(colors),
+       col = colors,
        lwd = grScale * 3,
        title = expression(c[1]))
-text(70, 0.8, 
+text(70, 0.8,
      expression(
        paste(
          italic("if "), x <= mu, ", ", sigma == sigma[1], italic(" else "), sigma == sigma[2]
@@ -72,7 +142,7 @@ text(70, 0.5,
 
 dev.off()
 #----
-png("nuptialityModel.png", width = grScale * 800, height = grScale * 480)
+png("plots/nuptialityModel.png", width = grScale * 800, height = grScale * 480)
 par(cex = grScale * 1.2)
 
 plot(c(1, 100), c(0, 1), type = "n", 
@@ -145,7 +215,7 @@ generateCoaleDemenyLifeTable <- function(region = "north", sex = "F", level = 8)
 
 grScale = 2
 
-png("mortalityModel-levels.png", width = grScale * 800, height = grScale * 480)
+png("plots/mortalityModel-levels.png", width = grScale * 800, height = grScale * 480)
 par(cex = grScale * 1.2)
 
 plot(c(1, 151), c(0, 1), type = "n", 
@@ -166,7 +236,7 @@ legend(5, 1,
 
 dev.off()
 
-png("mortalityModel-regions.png", width = grScale * 800, height = grScale * 480)
+png("plots/mortalityModel-regions.png", width = grScale * 800, height = grScale * 480)
 par(cex = grScale * 1.2)
 
 plot(c(1, 151), c(0, 1), type = "n", 

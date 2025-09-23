@@ -58,7 +58,7 @@ densityEffectSteepness = 3
 scaleMulti = 2
 numberOfPeople = 200
 maxCarryingCapacity = 500
-png("density-effect_varying-carring-capacity.png", width = scaleMulti * 800, height = scaleMulti * 480)
+png("plots/density-effect_varying-carring-capacity.png", width = scaleMulti * 800, height = scaleMulti * 480)
 par(cex = scaleMulti * 1.2)
 plot(c(0,maxCarryingCapacity), c(-1,1), type = "n",
      main = "Density effect under variation of carrying capacity", 
@@ -86,7 +86,7 @@ dev.off()
 scaleMulti = 2
 carryingCapacity = 200
 maxNumberOfPeople = 500
-png("density-effect_varying-population.png", width = scaleMulti * 800, height = scaleMulti * 480)
+png("plots/density-effect_varying-population.png", width = scaleMulti * 800, height = scaleMulti * 480)
 par(cex = scaleMulti * 1.2)
 plot(c(0,maxNumberOfPeople), c(-1,1), type = "n",
      main = "Density effect under variation of number of people", 
@@ -112,7 +112,7 @@ dev.off()
 
 # plot density effect on mortality
 scaleMulti = 2
-png("density-effect-on-probability-of-death.png", width = 800 * scaleMulti, height = 480 * scaleMulti)
+png("plots/density-effect-on-probability-of-death.png", width = 800 * scaleMulti, height = 480 * scaleMulti)
 par(cex = 1.2 * scaleMulti)
 
 plot(c(1, 151), c(0, 1), type = "n", 
@@ -200,7 +200,7 @@ malnutritionEffectSteepness = 3
 scaleMulti = 2
 required = 2000
 maxConsumed = 4000
-png("malnutrition-effect_varying-consumed.png", width = scaleMulti * 800, height = scaleMulti * 480)
+png("plots/malnutrition-effect_varying-consumed.png", width = scaleMulti * 800, height = scaleMulti * 480)
 par(cex = scaleMulti * 1.2)
 plot(c(0,maxConsumed), c(-0.1,1), type = "n",
      main = "Malnutrition effect under variation of consumption", 
@@ -228,7 +228,7 @@ dev.off()
 scaleMulti = 2
 consumed = 2000
 maxRequired = 10000
-png("malnutrition-effect_varying-required.png", width = scaleMulti * 800, height = scaleMulti * 480)
+png("plots/malnutrition-effect_varying-required.png", width = scaleMulti * 800, height = scaleMulti * 480)
 par(cex = scaleMulti * 1.2)
 plot(c(0,maxRequired), c(-0.1,1), type = "n",
      main = "Malnutrition effect under variation of requirement", 
@@ -254,7 +254,7 @@ dev.off()
 
 # plot density effect on mortality
 scaleMulti = 2
-png("malnutrition-effect-on-probability-of-death.png", width = 800 * scaleMulti, height = 480 * scaleMulti)
+png("plots/malnutrition-effect-on-probability-of-death.png", width = 800 * scaleMulti, height = 480 * scaleMulti)
 par(cex = 1.2 * scaleMulti)
 
 plot(c(1, 151), c(0, 1), type = "n", 
@@ -358,7 +358,7 @@ numberOfIterations <- 90
 scaleMulti = 2
 consumedPerIteration <- seq(from = 2100, to = 1800, length.out = numberOfIterations)
 requiredPerIteration <- rep(2000, numberOfIterations)
-png("cumulative-malnutrition-effect_decreasing-consumed.png", width = scaleMulti * 800, height = scaleMulti * 480)
+png("plots/cumulative-malnutrition-effect_decreasing-consumed.png", width = scaleMulti * 800, height = scaleMulti * 480)
 par(cex = scaleMulti * 1.2)
 plot(c(1,numberOfIterations), c(-0.1,1), type = "n",
      main = "Malnutrition effect under decreasing consumption", 
@@ -400,7 +400,7 @@ dev.off()
 scaleMulti = 2
 consumedPerIteration <- seq(from = 1900, to = 2000, length.out = numberOfIterations)
 requiredPerIteration <- rep(2000, numberOfIterations)
-png("cumulative-malnutrition-effect_increasing-consumed.png", width = scaleMulti * 800, height = scaleMulti * 480)
+png("plots/cumulative-malnutrition-effect_increasing-consumed.png", width = scaleMulti * 800, height = scaleMulti * 480)
 par(cex = scaleMulti * 1.2)
 plot(c(1,numberOfIterations), c(-0.1,1), type = "n",
      main = "Malnutrition effect under increasing consumption", 
@@ -442,7 +442,7 @@ dev.off()
 scaleMulti = 2
 consumedPerIteration <- rep(2000, numberOfIterations)
 requiredPerIteration <- seq(from = 2000, to = 2200, length.out = numberOfIterations)
-png("cumulative-malnutrition-effect_increasing-required.png", width = scaleMulti * 800, height = scaleMulti * 480)
+png("plots/cumulative-malnutrition-effect_increasing-required.png", width = scaleMulti * 800, height = scaleMulti * 480)
 par(cex = scaleMulti * 1.2)
 plot(c(1,numberOfIterations), c(-0.1,1), type = "n",
      main = "Malnutrition effect under increasing requirements", 
@@ -484,7 +484,7 @@ dev.off()
 scaleMulti = 2
 consumedPerIteration <- rep(2000, numberOfIterations)
 requiredPerIteration <- seq(from = 2200, to = 2000, length.out = numberOfIterations)
-png("cumulative-malnutrition-effect_decreasing-required.png", width = scaleMulti * 800, height = scaleMulti * 480)
+png("plots/cumulative-malnutrition-effect_decreasing-required.png", width = scaleMulti * 800, height = scaleMulti * 480)
 par(cex = scaleMulti * 1.2)
 plot(c(1,numberOfIterations), c(-0.1,1), type = "n",
      main = "Malnutrition effect under decreasing requirements", 
