@@ -2786,10 +2786,10 @@ NetLogo 6.4.0
     <setup>setup</setup>
     <go>go</go>
     <metric>SEED</metric>
-    <metric>maturityAge</metric>
-    <metric>initialNumHouseholds</metric>
-    <metric>householdInitialAgeDistribution</metric>
-    <metric>maxCoupleCountDistribution</metric>
+    <metric>maturity-age</metric>
+    <metric>initial-num-households</metric>
+    <metric>household-initial-age-distribution</metric>
+    <metric>max-couple-count-distribution</metric>
     <metric>cdmlt-level</metric>
     <metric>coale-demeny-region</metric>
     <metric>c1-fert</metric>
@@ -2806,6 +2806,11 @@ NetLogo 6.4.0
     <metric>sigma1-men</metric>
     <metric>sigma2-women</metric>
     <metric>sigma2-men</metric>
+    <metric>carrying-capacity</metric>
+    <metric>carrying-capacity-demand</metric>
+    <metric>density-effect-scaling-factor</metric>
+    <metric>labour-demand-per-capita</metric>
+    <metric>carrying-capacity-effective</metric>
     <metric>totalHouseholds</metric>
     <metric>totalIndividuals</metric>
     <metric>totalPopulationGrowth</metric>
@@ -2826,6 +2831,48 @@ NetLogo 6.4.0
     <metric>menOut</metric>
     <metric>totalOrphans</metric>
     <steppedValueSet variable="SEED" first="0" step="1" last="99"/>
+    <enumeratedValueSet variable="cdmlt-level">
+      <value value="5"/>
+      <value value="10"/>
+      <value value="15"/>
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c1-fert">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="mu-fert">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sigma1-fert">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sigma2-fert">
+      <value value="12"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c1-women">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="mu-women">
+      <value value="25"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sigma1-women">
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sigma2-women">
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c1-men">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="mu-men">
+      <value value="25"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sigma1-men">
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sigma2-men">
+      <value value="10"/>
+    </enumeratedValueSet>
   </experiment>
   <experiment name="exp-endstates" repetitions="1" runMetricsEveryStep="false">
     <setup>setup</setup>
