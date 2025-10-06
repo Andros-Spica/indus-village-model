@@ -3,8 +3,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;  Household Demography v.1.2.2
-;;  Copyright (C) 2021 Andreas Angourakis (andros.spica@gmail.com)
-;;  last update Nov 2021
+;;  Copyright (C) 2025 Andreas Angourakis (andros.spica@gmail.com)
+;;  last update Sept 2025
 ;;  available at https://www.github.com/Andros-Spica/indus-village-model
 ;;
 ;;  This program is free software: you can redistribute it and/or modify
@@ -1454,7 +1454,7 @@ to load-experiment
   ;;; this procedure loads the values of each (explored) parameter from a csv file.
   ;;; Note that the setup will use the value set by the user for any other parameter (e.g. scenario).
 
-  let FilePath "experiments//v1.1//" ;;; create folders in the model's directory before trying to load experiments
+  let FilePath "analysis//experiments//v1.2.2//" ;;; create folders in the model's directory before trying to load experiments
   let filename (word FilePath exp-number ".txt")
   file-open filename
   while [not file-at-end?]
@@ -1495,7 +1495,7 @@ end
 
 to export-households
 
-  let FilePath "output//"
+  let FilePath "output//v1.2.2//"
 
   file-open (word FilePath behaviorspace-experiment-name behaviorspace-run-number "_households.csv")
 
@@ -1866,7 +1866,7 @@ cdmlt-level
 cdmlt-level
 1
 25
-8.0
+21.0
 1
 1
 levels from 1 to 25
@@ -2145,7 +2145,7 @@ mu-fert
 mu-fert
 0
 40
-15.0
+20.311
 0.001
 1
 (default: 15)
@@ -2344,7 +2344,7 @@ INPUTBOX
 249
 115
 max-population
-5000.0
+10000.0
 1
 0
 Number
@@ -2390,7 +2390,7 @@ par_density-effect-scaling-factor
 par_density-effect-scaling-factor
 0
 0.5
-0.1
+0.05
 0.01
 1
 (default: 0.05)
@@ -2837,8 +2837,11 @@ NetLogo 6.4.0
       <value value="15"/>
       <value value="20"/>
     </enumeratedValueSet>
+    <enumeratedValueSet variable="coale-demeny-region">
+      <value value="&quot;west&quot;"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="c1-fert">
-      <value value="0.3"/>
+      <value value="0.5"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="mu-fert">
       <value value="20"/>
@@ -2872,6 +2875,39 @@ NetLogo 6.4.0
     </enumeratedValueSet>
     <enumeratedValueSet variable="sigma2-men">
       <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-couple-count-distribution">
+      <value value="&quot;1 6&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="household-initial-age-distribution">
+      <value value="&quot;0 30&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="residence-rule">
+      <value value="&quot;matrilocal-matrilineal&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="acceptable-kinship-degree-for-couples">
+      <value value="9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-num-households">
+      <value value="25"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="par_carrying-capacity">
+      <value value="5000"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="par_density-effect-scaling-factor">
+      <value value="0.05"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="par_labour-demand-per-capita">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="type-of-experiment">
+      <value value="&quot;user-defined&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-population">
+      <value value="10000"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-iterations">
+      <value value="2000"/>
     </enumeratedValueSet>
   </experiment>
   <experiment name="exp-endstates" repetitions="1" runMetricsEveryStep="false">

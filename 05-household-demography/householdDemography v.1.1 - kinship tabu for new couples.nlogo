@@ -3,8 +3,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;  Household Demography v.1.1
-;;  Copyright (C) 2021 Andreas Angourakis (andros.spica@gmail.com)
-;;  last update Nov 2021
+;;  Copyright (C) 2025 Andreas Angourakis (andros.spica@gmail.com)
+;;  last update Sept 2025
 ;;  available at https://www.github.com/Andros-Spica/indus-village-model
 ;;
 ;;  This program is free software: you can redistribute it and/or modify
@@ -1348,7 +1348,7 @@ to load-experiment
   ;;; this procedure loads the values of each (explored) parameter from a csv file.
   ;;; Note that the setup will use the value set by the user for any other parameter (e.g. scenario).
 
-  let FilePath "experiments//v1.1//" ;;; create folders in the model's directory before trying to load experiments
+  let FilePath "analysis//experiments//v1.1//" ;;; create folders in the model's directory before trying to load experiments
   let filename (word FilePath exp-number ".txt")
   file-open filename
   while [not file-at-end?]
@@ -1841,7 +1841,7 @@ CHOOSER
 residence-rule
 residence-rule
 "patrilocal-patrilineal" "matrilocal-matrilineal"
-1
+0
 
 MONITOR
 1039
@@ -2616,10 +2616,10 @@ NetLogo 6.4.0
     <setup>setup</setup>
     <go>go</go>
     <metric>SEED</metric>
-    <metric>maturityAge</metric>
-    <metric>initialNumHouseholds</metric>
-    <metric>householdInitialAgeDistribution</metric>
-    <metric>maxCoupleCountDistribution</metric>
+    <metric>maturity-age</metric>
+    <metric>initial-num-households</metric>
+    <metric>household-initial-age-distribution</metric>
+    <metric>max-couple-count-distribution</metric>
     <metric>cdmlt-level</metric>
     <metric>coale-demeny-region</metric>
     <metric>c1-fert</metric>
@@ -2662,6 +2662,9 @@ NetLogo 6.4.0
       <value value="15"/>
       <value value="20"/>
     </enumeratedValueSet>
+    <enumeratedValueSet variable="coale-demeny-region">
+      <value value="&quot;west&quot;"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="c1-fert">
       <value value="0.3"/>
     </enumeratedValueSet>
@@ -2698,17 +2701,41 @@ NetLogo 6.4.0
     <enumeratedValueSet variable="sigma2-men">
       <value value="10"/>
     </enumeratedValueSet>
+    <enumeratedValueSet variable="max-couple-count-distribution">
+      <value value="&quot;1 6&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="household-initial-age-distribution">
+      <value value="&quot;0 30&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="residence-rule">
+      <value value="&quot;matrilocal-matrilineal&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="acceptable-kinship-degree-for-couples">
+      <value value="9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-num-households">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="type-of-experiment">
+      <value value="&quot;user-defined&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-population">
+      <value value="10000"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-iterations">
+      <value value="2000"/>
+    </enumeratedValueSet>
   </experiment>
   <experiment name="exp-endstates" repetitions="1" runMetricsEveryStep="false">
     <setup>setup</setup>
     <go>go</go>
-    <postRun>if (totalHouseholds = 0) [ export-households ]</postRun>
+    <postRun>;if (totalHouseholds = 0) [ export-households ]</postRun>
     <metric>exp-number</metric>
     <metric>SEED</metric>
-    <metric>maturityAge</metric>
-    <metric>initialNumHouseholds</metric>
-    <metric>householdInitialAgeDistribution</metric>
-    <metric>maxCoupleCountDistribution</metric>
+    <metric>maturity-age</metric>
+    <metric>initial-num-households</metric>
+    <metric>household-initial-age-distribution</metric>
+    <metric>max-couple-count-distribution</metric>
     <metric>cdmlt-level</metric>
     <metric>coale-demeny-region</metric>
     <metric>c1-fert</metric>
