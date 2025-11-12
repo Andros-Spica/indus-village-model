@@ -784,6 +784,7 @@ if (plot_file_format == "png") {
 
 p1 <- ggplot(trajectories_v11[trajectories_v11$X.step. < 600,], aes(x = X.step., y = totalIndividuals, group = X.run.number., color = cdmlt.level)) +
   geom_line(linewidth = .1) +
+  title("v.1.1") +
   xlab("time (years)") +
   ylab("population (individuals)") +
   ylim(c(0, 7000)) +
@@ -795,6 +796,7 @@ p1 <- ggplot(trajectories_v11[trajectories_v11$X.step. < 600,], aes(x = X.step.,
 p2 <- ggplot(trajectories_v122[trajectories_v122$X.step. < 600,], aes(x = X.step., y = totalIndividuals, group = X.run.number., color = cdmlt.level)) +
   geom_line(linewidth = .1) +
   geom_hline(yintercept = as.numeric(params_v122$par_carrying.capacity)) +
+  title("v.1.2.2") +
   xlab("time (years)") +
   ylab("") +
   ylim(c(0, 7000)) +
