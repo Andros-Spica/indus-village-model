@@ -1,0 +1,2310 @@
+<?xml version="1.0" encoding="utf-8"?>
+<model version="NetLogo 7.0.0-beta2" snapToGrid="false">
+  <code><![CDATA[;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; GNU GENERAL PUBLIC LICENSE ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;  Land model - v03 with flow accumulation
+;;  Copyright (C) Andreas Angourakis (andros.spica@gmail.com)
+;;  available at https://www.github.com/Andros-Spica/indus-village-model
+;;  This model includes a cleaner version of the Terrain Generator model v.2 (https://github.com/Andros-Spica/ProceduralMap-NetLogo)
+;;
+;;  This program is free software: you can redistribute it and/or modify
+;;  it under the terms of the GNU General Public License as published by
+;;  the Free Software Foundation, either version 3 of the License, or
+;;  (at your option) any later version.
+;;
+;;  This program is distributed in the hope that it will be useful,
+;;  but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;  GNU General Public License for more details.
+;;
+;;  You should have received a copy of the GNU General Public License
+;;  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+extensions [ csv ]
+
+breed [ transectLines transectLine ]
+breed [ flowHolders flowHolder ]
+
+globals
+[
+  ;;; constants
+  maxDist
+
+  ; elev_algorithm-style (GUI): style of algorithm to create land features "ranges" and "rifts".
+  ; The algorithms styles available are: "NetLogo", using auxiliary agents and
+  ; less parameters but with less control, and "C#", without agents and more
+  ; parameters.
+
+  ; flow_do-fill-sinks (GUI): whether to apply algorithm to fill all drainage "sinks" (land units
+  ;                      not on the edge of the map where there is no flow towards a neighbour).
+  ;                      Those sinks are likely to have been created by land forming algorithms.
+
+  ;;; parameters (modified copies of interface input) ===============================================================
+
+  ;;;; elevation
+  elev_numRanges                  ; number of landforming features ("ranges", "rifts").
+  elev_numRifts
+
+  elev_rangeLength                ; maximum length, in land units, of landforming features.
+  elev_riftLength
+
+  elev_rangeHeight                ; the starting elevation of landforming features.
+  elev_riftHeight                 ; These are also used as maximum and minimum elevation
+                                  ; for x,y, and valley slopes.
+
+  elev_featureAngleRange          ; the maximum change in features angle (direction every step)
+
+  elev_smoothStep                 ; the level of smoothing applied to elevation.
+                                  ; 0 = none, 1 = values are equated to the mean of neighbours.
+  elev_smoothingRadius            ; maximum distance to include land units in another's neihgbourhood.
+                                  ; Applied as a radius surrounding a land unit.
+
+  elev_xSlope                     ; the level of adjustment of elevation to x (West-East) and
+                                  ; y (North-South) slopes. 0 = no slope, 1 = no variation besides slopes.
+  elev_ySlope
+
+  elev_valleyAxisInclination      ; the level of inclination of the North-South valley.
+                                  ; 0 = centred, 1 = top-right to bottom-left diagonal.
+  elev_valleySlope                ; the level of adjustment of elevation to the North-South valley.
+                                  ; 0 = no valley, 1 = no variation besides valley.
+
+  ;;;;; used when algorithm-style = "C#"
+  elev_numProtuberances           ; numDepressions: (approximated) number of distinct
+  elev_numDepressions             ; protuberances/depressions. Consider those are acheived by aglutinating
+                                  ; elevated and depressed land units.
+
+
+  elev_rangeAggregation           ; the minimum proximity required between
+  elev_riftAggregation            ; landform features, expressed as percentage of the map's maximum distance.
+
+  elev_noise                      ; noise to be added/subtracted to elevation as the standard
+                                  ; deviation of a centred normal distribution.
+
+  ;;;;; used when algorithm-style = "NetLogo"
+  elev_inversionIterations         ; the number of iterations all land units with neighbours
+                                   ; with opposite elevation sign (i.e., if elevation = 10, neighbours with elevation < 0)
+                                   ; have their elevation exchanged with one of those neighbours.
+
+  ;;;; water flow accumulation
+  flow_riverAccumulationAtStart ; the amount of flow units added to a land unit at the edge of the map.
+                                ; These units may be transmitted following flow directions,
+                                ; drawing meanders of a passing river.
+                                ; To better scale this parameter, consider that the catchment area today of
+                                ; the entire Indus River Basin is 116,500,000 ha or 1,165,000 km^2,
+                                ; the Chenab River Basin in Pakistani Punjab is 2,615,500 ha or 26,155 km^2,
+                                ; and the Ghaggar River Basin in Haryana is 4,997,800 ha or 49,978 km^2.
+
+  ;;; variables ===============================================================
+  seaLevel                    ; elevation considered as sea level for display purposes.
+
+  landRatio                   ; the ratio of land units above or equal to seaLevel.
+  elevationDistribution       ; the set or list containing the elevation of all land units
+  minElevation                ; statistics on the elevation of land units.
+  sdElevation
+  maxElevation
+
+  landWithRiver               ; count of land units with passing river
+]
+
+patches-own
+[
+  elevation             ; average elevation above reference of the land unit (metres).
+                        ; The reference is an arbitrary elevation from which all
+                        ; algorithms will sculpt the terrain.
+
+  flow_direction        ; the numeric code for the (main) direction of flow or
+                        ; drainage within the land unit.
+                        ; Following Jenson & Domingue (1988) convention:
+                        ; NW = 64,   N = 128,        NE = 1,
+                        ; W = 32,     <CENTRE>,   E = 2,
+                        ; SW = 16,     S = 8,          SE = 4
+
+  flow_receive          ; Boolean variable stating whether or not the land unit receives
+                        ; the flow of a neighbour.
+
+  flow_accumulation     ; the amount of flow units accumulated in the land unit.
+                        ; A Flow unit is the volume of runoff water flowing from one land unit
+                        ; to another (assumed constant and without losses).
+  flow_accumulationState ; the state of the land unit regarding the calculation of flow
+                        ; accumulation (auxiliary variable).
+]
+
+breed [ mapSetters mapSetter ] ; used when elev_algorithm-style = "NetLogo"
+
+mapSetters-own [ numPoints ] ; the number of land units to be chained together as a "rift" or "range".
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; SETUP ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to create-terrain
+
+  clear-all
+
+  set-parameters
+
+  ;;; START - core procedures ;;;;;;;;;;;;;;;;;;;;;;;
+
+  setup-elevations
+
+  setup-flows
+
+  ;;; END - core procedures ;;;;;;;;;;;;;;;;;;;;;;;
+
+  set-output-stats
+
+  paint-patches
+
+  setup-patch-coordinates-labels "bottom" "left"
+
+  setup-transect
+
+  update-transects
+
+  update-plots
+
+end
+
+to set-parameters
+
+  random-seed randomSeed
+
+  set maxDist (sqrt (( (max-pxcor - min-pxcor) ^ 2) + ((max-pycor - min-pycor) ^ 2)) / 2)
+
+  ;parameters-check-1 ; in case you want to avoid zeros (optional)
+
+  if (type-of-experiment = "user-defined")
+  [
+    ;;; load parameters from user interface
+    set elev_numProtuberances par_elev_numProtuberances
+    set elev_numDepressions par_elev_numDepressions
+
+    set elev_numRanges par_elev_numRanges
+    set elev_rangeLength round ( par_elev_rangeLength * maxDist)
+    set elev_rangeHeight par_elev_rangeHeight
+    set elev_rangeAggregation par_elev_rangeAggregation
+
+    set elev_numRifts par_elev_numRifts
+    set elev_riftLength round ( par_elev_riftLength * maxDist)
+    set elev_riftHeight par_elev_riftHeight
+    set elev_riftAggregation par_elev_riftAggregation
+
+    set elev_noise par_elev_noise
+
+    set elev_featureAngleRange par_elev_featureAngleRange
+
+    set elev_inversionIterations par_elev_inversionIterations
+
+    set elev_smoothStep par_elev_smoothStep
+    set elev_smoothingRadius par_elev_smoothingRadius * maxDist
+
+    set elev_xSlope par_elev_xSlope
+    set elev_ySlope par_elev_ySlope
+
+    set elev_valleyAxisInclination par_elev_valleyAxisInclination
+    set elev_valleySlope par_elev_valleySlope
+
+    set flow_riverAccumulationAtStart par_flow_riverAccumulationAtStart
+  ]
+
+  if (type-of-experiment = "random") ; TODO
+  [
+    ;;; get random values within an arbitrary (reasonable) range of values
+    ;;; this depends on what type and scale of terrain you want
+    ;;; Here, our aim is to create inland/coastal, plain, small-scale terrains with a general flow running from N to S (e.g., 5km^2 Haryana, India)
+    set elev_numProtuberances 1 + random 10
+    set elev_numDepressions 1 + random 10
+
+    set elev_numRanges 1 + random 100
+    set elev_rangeLength round ( (random-float 100) * maxDist)
+    set elev_rangeHeight random-float 50
+    set elev_rangeAggregation random-float 1
+
+    set elev_numRifts 1 + random 100
+    set elev_riftLength round ( (random-float 100) * maxDist)
+    set elev_riftHeight -1 * random-float 50
+    set elev_riftAggregation random-float 1
+
+    set elev_noise random-float 5
+
+    set elev_featureAngleRange random-float 30
+
+    set elev_inversionIterations (random-float 2)
+
+    set elev_smoothStep 1 ; not randomised
+    set elev_smoothingRadius 0.1 * maxDist ; not randomised
+
+    set elev_xSlope random-float 0.01 ; W depression
+    set elev_ySlope random-float 0.01 ; S depression
+
+    set elev_valleyAxisInclination random-float 1
+    set elev_valleySlope random-float 0.02 ; only valley (no ridges)
+
+    set flow_riverAccumulationAtStart random 2E6
+  ]
+  if (type-of-experiment = "defined by experiment-number")
+  [
+    ;load-experiment
+  ]
+
+end
+
+to parameters-check-1
+
+  ;;; check if values were reset to 0 (comment out lines if 0 is a valid value)
+  ;;; and set default values
+
+  if (par_elev_rangeHeight = 0)                    [ set par_elev_rangeHeight                    15 ]
+  if (par_elev_riftHeight = 0)                     [ set par_elev_riftHeight                      0 ]
+  if (par_elev_noise = 0)                          [ set par_elev_noise                           1 ]
+
+  if (par_elev_numProtuberances = 0)               [ set par_elev_numProtuberances                1 ]
+  if (par_elev_numDepressions = 0)                 [ set par_elev_numDepressions                  1 ]
+
+  if (par_elev_inversionIterations = 0)            [ set par_elev_inversionIterations             5 ]
+
+  if (par_elev_numRanges = 0)                      [ set par_elev_numRanges                       1 ]
+  if (par_elev_rangeLength = 0)                    [ set par_elev_rangeLength                   100 ]
+  if (par_elev_rangeAggregation = 0)               [ set par_elev_rangeAggregation                0.75 ]
+
+  if (par_elev_numRifts = 0)                       [ set par_elev_numRifts                        1 ]
+  if (par_elev_riftLength = 0)                     [ set par_elev_riftLength                    100 ]
+  if (par_elev_riftAggregation = 0)                [ set par_elev_riftAggregation                 0.9 ]
+
+  if (par_elev_smoothStep = 0)                     [ set par_elev_smoothStep                      1 ]
+  if (par_elev_smoothingRadius = 0)                [ set par_elev_smoothingRadius                 0.1 ]
+
+  if (par_elev_xSlope = 0)                          [ set par_elev_xSlope                         0.01 ]
+  if (par_elev_ySlope = 0)                          [ set par_elev_ySlope                         0.025 ]
+  if (par_elev_valleyAxisInclination = 0)           [ set par_elev_valleyAxisInclination          0.1 ]
+  if (par_elev_valleySlope = 0)                     [ set par_elev_valleySlope                    0.02 ]
+
+  if (par_flow_riverAccumulationAtStart = 0)     [ set par_flow_riverAccumulationAtStart  1E6 ]
+
+end
+
+to parameters-to-default
+
+  ;;; set parameters to a default value
+  set par_elev_rangeHeight                   15
+  set par_elev_riftHeight                     0
+  set par_elev_noise                          1
+
+  set par_elev_numProtuberances               1
+  set par_elev_numDepressions                 1
+
+  set par_elev_inversionIterations            5
+
+  set par_elev_numRanges                      1
+  set par_elev_rangeLength                  100
+  set par_elev_rangeAggregation               0.75
+
+  set par_elev_numRifts                       1
+  set par_elev_riftLength                   100
+  set par_elev_riftAggregation                0.9
+
+  set par_elev_smoothStep                     1
+  set par_elev_smoothingRadius                0.1
+
+  set par_elev_xSlope                         0.01
+  set par_elev_ySlope                         0.025
+  set par_elev_valleyAxisInclination          0.1
+  set par_elev_valleySlope                    0.02
+
+  set par_flow_riverAccumulationAtStart       1E6
+
+end
+
+to setup-elevations
+
+  ifelse (elev_algorithm-style = "NetLogo")
+  [
+    set-landform-NetLogo
+  ]
+  [
+    set-landform-Csharp
+  ]
+
+  set-xySlope
+
+  set-valleySlope
+
+end
+
+to set-landform-NetLogo ;[ elev_numRanges elev_rangeLength elev_rangeHeight elev_numRifts elev_riftLength elev_riftHeight inversionIterations smoothingNeighborhood elevationSmoothStep]
+
+  ; Netlogo-like code
+  ask n-of elev_numRanges patches [ sprout-mapSetters 1 [ set numPoints random elev_rangeLength ] ]
+  ask n-of elev_numRifts patches with [any? turtles-here = false] [ sprout-mapSetters 1 [ set numPoints (random elev_riftLength) * -1 ] ]
+
+  let steps sum [ abs numPoints ] of mapSetters
+  repeat steps
+  [
+    ask one-of mapSetters
+    [
+      let sign 1
+      let scale elev_rangeHeight
+      if ( numPoints < 0 ) [ set sign -1 set scale elev_riftHeight ]
+      ask patch-here [ set elevation scale ]
+      set numPoints numPoints - sign
+      if (numPoints = 0) [die]
+      rt (random-exponential elev_featureAngleRange) * (1 - random-float 2)
+      forward 1
+    ]
+  ]
+
+  smooth-elevation-all
+
+  let depressedPatches patches with [elevation < 0]
+  let elevatedPatches patches with [elevation > 0]
+
+  repeat elev_inversionIterations * count patches
+  [
+    if (any? depressedPatches AND any? elevatedPatches)
+    [
+      let p_depression max-one-of depressedPatches [ count neighbors with [elevation > 0] ]
+      let p_protuberance  max-one-of elevatedPatches [ count neighbors with [elevation < 0] ]
+      let temp [elevation] of p_depression
+      ask p_depression [ set elevation [elevation] of p_protuberance ]
+      ask p_protuberance [ set elevation temp ]
+      set depressedPatches depressedPatches with [pxcor != [pxcor] of p_depression AND pycor != [pycor] of p_depression]
+      set elevatedPatches elevatedPatches with [pxcor != [pxcor] of p_protuberance AND pycor != [pycor] of p_protuberance]
+    ]
+  ]
+
+  smooth-elevation-all
+
+end
+
+to set-landform-Csharp ;[ elev_noise elev_numProtuberances elev_numRanges elev_rangeLength elev_rangeHeight rangeAggregation numDepressions elev_numRifts elev_riftLength elev_riftHeight riftAggregation smoothingNeighborhood elevationSmoothStep]
+
+  ; C#-like code
+  let p1 0
+  let sign 0
+  let len 0
+  let elev 0
+  let elev_numRiftsToDo elev_numRifts
+  let elev_numRangesToDo elev_numRifts
+
+  let protuberances n-of elev_numProtuberances patches
+  let depressions n-of elev_numDepressions patches
+
+  let maxDistBetweenRanges (1.1 - elev_rangeAggregation) * maxDist
+  let maxDistBetweenRifts (1.1 - elev_riftAggregation) * maxDist
+
+  repeat (elev_numRanges + elev_numRifts)
+  [
+    set sign -1 + 2 * (random 2)
+    if (elev_numRangesToDo = 0) [ set sign -1 ]
+    if (elev_numRiftsToDo = 0) [ set sign 1 ]
+
+    ifelse (sign = -1)
+    [
+      set elev_numRiftsToDo elev_numRiftsToDo - 1
+      set len elev_riftLength - 2
+      set elev elev_riftHeight
+      ;ifelse (any? patches with [elevation < 0]) [set p0 one-of patches with [elevation < 0]] [set p0 one-of patches]
+      set p1 one-of patches with [ distance one-of depressions < maxDistBetweenRifts ]
+    ]
+    [
+      set elev_numRangesToDo elev_numRangesToDo - 1
+      set len elev_rangeLength - 2
+      set elev elev_rangeHeight
+      set p1 one-of patches with [ distance one-of protuberances < maxDistBetweenRanges ]
+    ]
+
+    draw-elevation-pattern p1 len elev
+  ]
+
+  smooth-elevation-all
+
+  ask patches
+  [
+    set elevation elevation + random-normal 0 elev_noise
+  ]
+
+  smooth-elevation-all
+
+end
+
+to draw-elevation-pattern [ p1 len elev ]
+
+  let p2 0
+  let xDirection 0
+  let yDirection 0
+  let directionAngle 0
+
+  ask p1 [ set elevation elev set p2 one-of neighbors ]
+  set xDirection ([pxcor] of p2) - ([pxcor] of p1)
+  set yDirection ([pycor] of p2) - ([pycor] of p1)
+  ifelse (xDirection = 1 AND yDirection = 0) [ set directionAngle 0 ]
+  [ ifelse (xDirection = 1 AND yDirection = 1) [ set directionAngle 45 ]
+    [ ifelse (xDirection = 0 AND yDirection = 1) [ set directionAngle 90 ]
+      [ ifelse (xDirection = -1 AND yDirection = 1) [ set directionAngle 135 ]
+        [ ifelse (xDirection = -1 AND yDirection = 0) [ set directionAngle 180 ]
+          [ ifelse (xDirection = -1 AND yDirection = -1) [ set directionAngle 225 ]
+            [ ifelse (xDirection = 0 AND yDirection = -1) [ set directionAngle 270 ]
+              [ if (xDirection = 1 AND yDirection = -1) [ set directionAngle 315 ]]
+            ]
+          ]
+        ]
+      ]
+    ]
+  ]
+
+  repeat len
+  [
+    set directionAngle directionAngle + (random-exponential elev_featureAngleRange) * (1 - random 2)
+    set directionAngle directionAngle mod 360
+
+    set p1 p2
+    ask p2
+    [
+      set elevation elev
+      if (patch-at-heading-and-distance directionAngle 1 != nobody) [ set p2 patch-at-heading-and-distance directionAngle 1 ]
+    ]
+  ]
+
+end
+
+to smooth-elevation-all
+
+  ask patches
+  [
+    smooth-elevation
+  ]
+
+end
+
+to smooth-elevation
+
+  let smoothedElevation mean [elevation] of patches in-radius elev_smoothingRadius
+  set elevation elevation + (smoothedElevation - elevation) * elev_smoothStep
+
+end
+
+to set-xySlope
+
+  ask patches
+  [
+    set elevation (1 - elev_xSlope) * elevation + (elev_xSlope * (elev_rangeHeight - elev_riftHeight) * (pxcor - min-pxcor) / world-width)
+
+    set elevation (1 - elev_ySlope) * elevation + (elev_ySlope * (elev_rangeHeight - elev_riftHeight) * (pycor - min-pycor) / world-height)
+  ]
+
+end
+
+to set-valleySlope
+
+  ; bend terrain as a valley (valleySlope > 0) or a ridge (valleySlope < 0) following a North-South pattern
+  ask patches
+  [
+    let xValley (world-width / 2) + elev_valleyAxisInclination * (pycor - (world-height / 2))
+    set elevation (1 - elev_valleySlope) * elevation + (elev_valleySlope * (elev_rangeHeight - elev_riftHeight) * abs (xValley - pxcor))
+  ]
+
+end
+
+to setup-flows
+
+  if (flow_do-fill-sinks)
+  [
+    fill-sinks
+  ]
+
+  set-flow-directions
+
+  introduce-river-flow
+
+  set-flow-accumulations
+
+end
+
+;=======================================================================================================
+;;; START of algorithms based on:
+;;; Huang, P., Lee, K.T. A simple depression-filling method for raster and irregular elevation datasets.
+;;; J Earth Syst Sci 124, 1653–1665 (2015). https://doi.org/10.1007/s12040-015-0641-2
+;=======================================================================================================
+
+to fill-sinks
+
+  while [ count patches with [is-sink] > 0 ]
+  [
+    ask patches with [is-sink]
+    [
+      ;print (word "before: " elevation)
+      set elevation [elevation] of min-one-of neighbors [elevation] + 1E-1
+      ; the scale of this "small number" (1E-1) regulates how fast will be the calculation
+      ; and how distorted will be the depressless DEM
+      ;print (word "after: " elevation)
+    ]
+  ]
+
+end
+
+to-report is-sink ; ego = patch
+
+  let thisPatch self
+
+  report (not is-at-edge) and (elevation <= min [elevation] of neighbors);count neighbors with [elevation < [elevation] of thisPatch] = 0)
+
+end
+
+;=======================================================================================================
+;;; START of algorithms based on:
+;;; Jenson, S. K., & Domingue, J. O. (1988).
+;;; Extracting topographic structure from digital elevation data for geographic information system analysis.
+;;; Photogrammetric engineering and remote sensing, 54(11), 1593-1600.
+;;; ===BUT used elsewhere, such as in the algorithms based on:
+;;; Huang, P., Lee, K.T. A simple depression-filling method for raster and irregular elevation datasets.
+;;; J Earth Syst Sci 124, 1653–1665 (2015). https://doi.org/10.1007/s12040-015-0641-2
+;=======================================================================================================
+
+to-report get-drop-from [ aPatch ] ; ego = patch
+
+  ; "Distance- weighted drop is calculated by subtracting the neighbor’s value from the center cell’s value
+  ; and dividing by the distance from the center cell, √2 for a corner cell and one for a noncorner cell." (p. 1594)
+
+  report ([elevation] of aPatch - elevation) / (distance aPatch)
+
+end
+
+to-report is-at-edge ; ego = patch
+
+  report (pxcor = min-pxcor or pxcor = max-pxcor or pycor = min-pycor or pycor = max-pycor)
+
+end
+
+to-report has-flow-direction-code ; ego = patch
+
+  if (member? flow_direction [ 1 2 4 8 16 32 64 128 ]) [ report true ]
+
+  report false
+
+end
+
+to-report flow-direction-is [ centralPatch ]
+
+  if (flow_direction = get-flow-direction-encoding ([pxcor] of centralPatch - pxcor) ([pycor] of centralPatch - pycor))
+  [ report true ]
+
+  report false
+
+end
+
+to-report get-flow-direction-encoding [ x y ]
+
+  if (x = -1 and y = -1) [ report 16 ] ; Southwest
+  if (x = -1 and y = 0) [ report 32 ]  ; West
+  if (x = -1 and y = 1) [ report 64 ]  ; Northwest
+
+  if (x = 0 and y = -1) [ report 8 ]   ; South
+  if (x = 0 and y = 1) [ report 128 ]  ; North
+
+  if (x = 1 and y = -1) [ report 4 ]   ; Southeast
+  if (x = 1 and y = 0) [ report 2 ]    ; East
+  if (x = 1 and y = 1) [ report 1 ]    ; Northeast
+
+end
+
+to-report get-patch-in-flow-direction [ neighborEncoding ] ; ego = patch
+
+  ; 64 128 1
+  ; 32  x  2
+  ; 16  8  4
+
+  if (neighborEncoding = 16) [ report patch (pxcor - 1) (pycor - 1) ]
+  if (neighborEncoding = 32) [ report patch (pxcor - 1) (pycor) ]
+  if (neighborEncoding = 64) [ report patch (pxcor - 1) (pycor + 1) ]
+
+  if (neighborEncoding = 8) [ report patch (pxcor) (pycor - 1) ]
+  if (neighborEncoding = 128) [ report patch (pxcor) (pycor + 1) ]
+
+  if (neighborEncoding = 4) [ report patch (pxcor + 1) (pycor - 1) ]
+  if (neighborEncoding = 2) [ report patch (pxcor + 1) (pycor) ]
+  if (neighborEncoding = 1) [ report patch (pxcor + 1) (pycor + 1) ]
+
+  report nobody
+
+end
+
+to-report flow-direction-is-loop ; ego = patch
+
+  let thisPatch self
+  let dowstreamPatch get-patch-in-flow-direction flow_direction
+  ;print (word "thisPatch: " thisPatch "dowstreamPatch: " dowstreamPatch)
+
+  if (dowstreamPatch != nobody)
+  [ report [flow-direction-is thisPatch] of dowstreamPatch ]
+
+  report false
+
+end
+
+to set-flow-directions
+
+  ask patches
+  [
+    ifelse (is-at-edge)
+    [
+      ifelse ( pxcor = min-pxcor )
+      [ set flow_direction 32 ] ; west
+      [
+        ifelse ( pxcor = max-pxcor )
+        [ set flow_direction 2 ] ; east
+        [
+          ifelse ( pycor = min-pycor )
+          [ set flow_direction 8 ] ; south
+          [ set flow_direction 128 ] ; north
+        ]
+      ]
+    ]
+    [
+      set-flow-direction
+    ]
+  ]
+
+end
+
+to set-flow-direction ; ego = patch
+
+  let thisPatch self
+
+  let downstreamPatch max-one-of neighbors [get-drop-from thisPatch]
+  set flow_direction get-flow-direction-encoding ([pxcor] of downstreamPatch - pxcor) ([pycor] of downstreamPatch - pycor)
+
+end
+
+to introduce-river-flow
+
+  ; get average elevation of edges
+  let southEdgeAverageElevation  mean [elevation] of patches with [pycor = min-pycor]
+  let northEdgeAverageElevation  mean [elevation] of patches with [pycor = max-pycor]
+
+  ; find which edge has the highest average elevation
+  let highestEdge patches with [pycor = max-pycor] ; assume north
+  if (southEdgeAverageElevation > northEdgeAverageElevation)
+  [ set highestEdge patches with [pycor = min-pycor] ] ; change to south
+
+  ; give value (flow_riverAccumulationAtStart) of flow_accumulation to the lowest patch at that edge
+  ; and assign it an inward flowDirection
+  ask min-one-of highestEdge [elevation] ; a patch at the bottom of a valley
+  [
+    set flow_accumulation flow_riverAccumulationAtStart
+    let downstreamPatch min-one-of neighbors with [not is-at-edge] [elevation]
+    set flow_Direction get-flow-direction-encoding ([pxcor] of downstreamPatch - pxcor) ([pycor] of downstreamPatch - pycor)
+  ]
+
+end
+
+to set-flow-accumulations
+
+  ; From Jenson, S. K., & Domingue, J. O. (1988), p. 1594
+  ; "FLOW ACCUMULATION DATA SET
+  ; The third procedure of the conditioning phase makes use of the flow direction data set to create the flow accumulation data set,
+  ; where each cell is assigned a value equal to the number of cells that flow to it (O’Callaghan and Mark, 1984).
+  ; Cells having a flow accumulation value of zero (to which no other cells flow) generally correspond to the pattern of ridges.
+  ; Because all cells in a depressionless DEM have a path to the data set edge, the pattern formed by highlighting cells
+  ; with values higher than some threshold delineates a fully connected drainage network."
+
+  ; identify patches that receive flow and those that do not (this makes the next step much easier)
+  ask patches
+  [
+    set flow_receive false
+    set flow_accumulationState "start"
+    ;set pcolor red
+  ]
+
+  ask patches with [has-flow-direction-code]
+  [
+    let patchInFlowDirection get-patch-in-flow-direction flow_direction
+    if (patchInFlowDirection != nobody)
+    [
+      ask patchInFlowDirection
+      [
+        set flow_receive true
+        set flow_accumulationState "pending"
+        ;set pcolor yellow
+      ]
+    ]
+  ]
+
+  let maxIterations 100000 ; just as a safety measure, to avoid infinite loop
+  while [count patches with [flow_accumulationState = "pending" and not flow-direction-is-loop] > 0 and maxIterations > 0 and count patches with [flow_accumulationState = "start"] > 0 ]
+  [
+    ask one-of patches with [flow_accumulationState = "start"]
+    [
+      let downstreamPatch get-patch-in-flow-direction flow_direction
+      let nextFlow_accumulation flow_accumulation + 1
+
+      set flow_accumulationState "done"
+      ;set pcolor orange
+
+      if (downstreamPatch != nobody)
+      [
+        ask downstreamPatch
+        [
+          set flow_accumulation flow_accumulation + nextFlow_accumulation
+          if (count neighbors with [
+            get-patch-in-flow-direction flow_direction = downstreamPatch and
+            (flow_accumulationState = "pending" or flow_accumulationState = "start")
+            ] = 0
+          )
+          [
+            set flow_accumulationState "start"
+            ;set pcolor red
+          ]
+        ]
+      ]
+    ]
+
+    set maxIterations maxIterations - 1
+  ]
+
+end
+
+;=======================================================================================================
+;;; END of algorithms based on:
+;;; Jenson, S. K., & Domingue, J. O. (1988).
+;;; Extracting topographic structure from digital elevation data for geographic information system analysis.
+;;; Photogrammetric engineering and remote sensing, 54(11), 1593-1600.
+;;; ===BUT used in the algorithms based on:
+;;; Huang P C and Lee K T 2015
+;;; A simple depression-filling method for raster and irregular elevation datasets
+;;; J. Earth Syst. Sci. 124 1653–65
+;=======================================================================================================
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; OUTPUT STATS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to set-output-stats
+
+  set elevationDistribution [elevation] of patches
+
+  set minElevation min [elevation] of patches
+
+  set maxElevation max [elevation] of patches
+
+  set sdElevation standard-deviation [elevation] of patches
+
+  ;;; default seaLevel to minElevation (seaLevel afects patch color and landRatio measurement)
+  set par_seaLevel (floor minElevation) - 1
+  set seaLevel par_seaLevel
+
+  set landRatio count patches with [elevation >= seaLevel] / count patches
+
+  set landWithRiver count patches with [flow_accumulation >= flow_riverAccumulationAtStart]
+
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; DISPLAY ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to paint-patches
+
+  if (display-mode = "elevation (m)")
+  [
+    ask patches
+    [
+      set pcolor get-elevation-color elevation
+    ]
+    set-legend-elevation 10
+  ]
+  ;;; other modes of display can be added here
+
+  display-flows
+
+end
+
+to-report get-elevation-color [ elevationValue ]
+
+  let elevationGradient 0
+
+  ifelse (elevationValue < seaLevel)
+  [
+    let normSubElevation (-1) * (seaLevel - elevationValue)
+    let normSubMinElevation (-1) * (seaLevel - minElevation) + 1E-6
+    set elevationGradient 20 + (200 * (1 - normSubElevation / normSubMinElevation))
+    report rgb 0 0 elevationGradient
+  ]
+  [
+    let normSupElevation elevationValue - seaLevel
+    let normSupMaxElevation maxElevation - seaLevel + 1E-6
+    set elevationGradient 100 + (155 * (normSupElevation / normSupMaxElevation))
+    report rgb (elevationGradient - 100) elevationGradient 0
+  ]
+
+end
+
+to set-legend-elevation [ numberOfKeys ]
+
+  set-current-plot "Legend"
+
+  clear-plot
+
+  let step precision ((maxElevation - minElevation) / numberOfKeys) 4
+
+  let value maxElevation
+
+  while [ value > minElevation ]
+  [
+    create-temporary-plot-pen (word "" (precision value 4) "")
+    set-plot-pen-color get-elevation-color value
+    set value value - step
+  ]
+
+end
+
+to display-flows
+
+  if (not any? flowHolders)
+  [
+    ask patches [ sprout-flowHolders 1 [ set hidden? true ] ]
+  ]
+
+  ifelse (show-flows)
+  [
+    ask patches ;with [ has-flow-direction-code ]
+    [
+      let flow_directionHere flow_direction
+      let nextPatchInFlow get-patch-in-flow-direction flow_direction
+      let flow_accumulationHere flow_accumulation
+
+      ask one-of flowHolders-here
+      [
+        ifelse (nextPatchInFlow != nobody)
+        [
+          if (link-with one-of [flowHolders-here] of nextPatchInFlow = nobody)
+          [ create-link-with one-of [flowHolders-here] of nextPatchInFlow ]
+
+          ask link-with one-of [flowHolders-here] of nextPatchInFlow
+          [
+            set hidden? false
+            let multiplier 1E100 ^ (1 - flow_accumulationHere / (max [flow_accumulation] of patches)) / 1E100
+            set color 92 + (5 * multiplier)
+            set thickness 0.4 * ( 1 - ((color - 92) / 5))
+          ]
+        ]
+        [
+          set hidden? false
+          let multiplier 1E100 ^ (1 - flow_accumulationHere / (max [flow_accumulation] of patches)) / 1E100
+          set color 92 + (5 * multiplier)
+          if (color <= 97) [ set shape "line half" ]
+          if (color < 95) [ set shape "line half 1" ]
+          if (color < 93) [ set shape "line half 2" ]
+          set heading get-angle-in-flow-direction flow_direction
+        ]
+      ]
+    ]
+  ]
+  [
+    ask flowHolders
+    [
+      set hidden? true
+      ask my-links [ set hidden? true ]
+    ]
+  ]
+
+end
+
+to-report get-angle-in-flow-direction [ neighborEncoding ]
+
+  ; 64 128 1
+  ; 32  x  2
+  ; 16  8  4
+
+  if (neighborEncoding = 16) [ report 225 ]
+  if (neighborEncoding = 32) [ report 270 ]
+  if (neighborEncoding = 64) [ report 315 ]
+
+  if (neighborEncoding = 8) [ report 180 ]
+  if (neighborEncoding = 128) [ report 0 ]
+
+  if (neighborEncoding = 4) [ report 135 ]
+  if (neighborEncoding = 2) [ report 90 ]
+  if (neighborEncoding = 1) [ report 45 ]
+
+  report nobody
+
+end
+
+to refresh-view
+
+  update-plots
+
+  paint-patches
+
+end
+
+to refresh-view-after-seaLevel-change
+
+  set seaLevel par_seaLevel
+
+  set landRatio count patches with [elevation >= seaLevel] / count patches
+
+  update-plots
+
+  paint-patches
+
+end
+
+to setup-patch-coordinates-labels [ XcoordPosition YcoordPosition ]
+
+  let xspacing floor (world-width / patch-size)
+  let yspacing floor (world-height / patch-size)
+
+  ifelse (XcoordPosition = "bottom")
+  [
+    ask patches with [ pycor = min-pycor + 1 ]
+    [
+      if (pxcor mod xspacing = 0)
+      [ set plabel (word pxcor) ]
+    ]
+  ]
+  [
+    ask patches with [ pycor = max-pycor - 1 ]
+    [
+      if (pxcor mod xspacing = 0)
+      [ set plabel (word pxcor) ]
+    ]
+  ]
+
+  ifelse (YcoordPosition = "left")
+  [
+    ask patches with [ pxcor = min-pxcor + 1 ]
+    [
+      if (pycor mod yspacing = 0)
+      [ set plabel (word pycor) ]
+    ]
+  ]
+  [
+    ask patches with [ pycor = max-pycor - 1 ]
+    [
+      if (pycor mod yspacing = 0)
+      [ set plabel (word pycor) ]
+    ]
+  ]
+
+end
+
+to setup-transect
+
+  ask patches with [ pxcor = xTransect ]
+  [
+    sprout-transectLines 1 [ set shape "line" set heading 0 set color white ]
+  ]
+
+  ask patches with [ pycor = yTransect ]
+  [
+    sprout-transectLines 1 [ set shape "line" set heading 90 set color white ]
+  ]
+
+  if (not show-transects)
+  [
+    ask transectLines [ set hidden? true ]
+  ]
+
+end
+
+to update-transects
+
+  ifelse (show-transects)
+  [
+    ask transectLines
+    [
+      ifelse (heading = 0) [ set xcor xTransect ] [ set ycor yTransect ]
+      set hidden? false
+    ]
+  ]
+  [
+    ask transectLines [ set hidden? true ]
+  ]
+
+end
+
+to plot-horizontal-transect
+
+  foreach (n-values world-width [ j -> min-pxcor + j ])
+  [
+    x ->
+    plotxy x ([elevation] of patch x yTransect)
+  ]
+  plot-pen-up
+
+end
+
+to plot-sea-level-horizontal-transect
+
+  foreach (n-values world-width [ j -> min-pxcor + j ])
+  [
+    x ->
+    plotxy x seaLevel
+  ]
+  plot-pen-up
+
+end
+
+to plot-vertical-transect
+
+  foreach (n-values world-height [ j -> min-pycor + j ])
+  [
+    y ->
+    plotxy ([elevation] of patch xTransect y) y
+  ]
+  plot-pen-up
+
+end
+
+to plot-sea-level-vertical-transect
+
+  foreach (n-values world-height [ j -> min-pycor + j ])
+  [
+    y ->
+    plotxy seaLevel y
+  ]
+  plot-pen-up
+
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; FILE HANDLING ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to export-random-terrain
+
+  set type-of-experiment "random"
+
+  set randomSeed randomSeed + 1 ; this allows for creating multiple terrains when executing this procedure continuosly
+
+  create-terrain
+
+  export-terrain
+
+end
+
+to export-terrain
+
+  set show-transects false
+
+  update-transects
+
+  ;;; build a file name as unique to this setting as possible
+  let filePath (word "terrains//terrain_" type-of-experiment "_w=" world-width "_h=" world-height "_a=" elev_algorithm-style "_fill-sinks=" flow_do-fill-sinks "_seed=" randomSeed)
+
+  if (type-of-experiment = "user-defined") [ set filePath (word filePath "_" random 9999) ]
+  ;if (type-of-experiment = "defined by expNumber") [set filePath (word filePath "_" expNumber) ]
+
+  print filePath print length filePath ; de-bug print
+
+;;; check that filePath does not exceed 100 (not common in this context)
+  if (length filePath > 100) [ print "WARNING: file path may be too long, depending on your current directory. Decrease length of file name or increase the limit." set filePath substring filePath 0 100 ]
+
+  let filePathCSV (word filePath ".csv")
+
+  let filePathPNG (word filePath ".png")
+
+  export-view filePathPNG
+  export-world filePathCSV
+
+end
+
+to import-terrain
+
+  clear-all
+
+  ;;; load a terrain from the "terrains" folder
+  ;;; corresponding to the random seed given as a parameter in the interface
+
+  ;;; build a unique file name according to the user setting
+  let filePath (word "terrains//terrain_" type-of-experiment "_w=" world-width "_h=" world-height "_a=" elev_algorithm-style "_fill-sinks=" flow_do-fill-sinks "_seed=" randomSeed)
+
+  if (type-of-experiment = "user-defined") [ set filePath (word filePath "_" date-and-time) ]
+  ;if (type-of-experiment = "defined by expNumber") [set filePath (word filePath "_" expNumber) ]
+
+  ;;; check that filePath does not exceed 100 (not common in this context)
+  if (length filePath > 100) [ print "WARNING: file path may be too long, depending on your current directory. Decrease length of file name or increase the limit." set filePath substring filePath 0 100 ]
+
+  set filePath (word filePath ".csv")
+
+  ifelse (not file-exists? filePath)
+  [ print (word "WARNING: could not find '" filePath "'") ]
+  [
+    file-open filePath
+
+    while [not file-at-end?]
+    [
+      let thisLine csv:from-row file-read-line
+
+      if (item 0 thisLine = "GLOBALS")
+      [
+        ;;; read and set basic NetLogo globals
+        let globalNames csv:from-row file-read-line
+        let globalValues csv:from-row file-read-line
+
+        ;;; apply world dimensions
+        resize-world (item 0 globalValues) (item 1 globalValues) (item 2 globalValues) (item 3 globalValues)
+
+        ;;; read relevant globals searching for specific names
+        foreach (n-values length(globalValues) [j -> j])
+        [
+          globalIndex ->
+
+          if (item globalIndex globalNames = "display-mode") [ set display-mode read-from-string item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "elev_algorithm-style") [ set elev_algorithm-style read-from-string item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "elev_numprotuberances") [ set elev_numProtuberances item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_numdepressions") [ set elev_numDepressions item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "elev_numranges") [ set elev_numRanges item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_rangelength") [ set elev_rangeLength item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_rangeheight") [ set elev_rangeHeight item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_rangeaggregation") [ set elev_rangeAggregation item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "elev_numrifts") [ set elev_numRifts item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_riftlength") [ set elev_riftLength item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_riftheight") [ set elev_riftHeight item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_riftaggregation") [ set elev_riftAggregation item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "elev_featureanglerange") [ set elev_featureAngleRange item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_inversioniterations") [ set elev_inversionIterations item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_noise") [ set elev_noise item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_smoothstep") [ set elev_smoothStep item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_smoothingradius") [ set elev_smoothingradius item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "elev_xslope") [ set elev_xSlope item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_yslope") [ set elev_ySlope item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "elev_valleyaxisinclination") [ set elev_valleyAxisInclination item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_valleyslope") [ set elev_valleySlope item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "sealevel") [ set seaLevel item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "flow_do-fill-sinks") [ set flow_do-fill-sinks item globalIndex globalValues ]
+
+          if (item globalIndex globalNames = "flow_riveraccumulationatstart") [ set flow_riverAccumulationAtStart item globalIndex globalValues ]
+
+        ]
+      ]
+
+      if (item 0 thisLine = "TURTLES")
+      [
+        set thisLine csv:from-row file-read-line ;;; skip variable names
+        set thisLine csv:from-row file-read-line ;;; first row of data
+
+        ;;; create a auxiliar turtles
+        while [ length thisLine > 1 ]
+        [
+          if (item 8 thisLine = "{breed flowholders}")
+          [
+            create-flowHolders 1
+            [
+              set xcor item 3 thisLine
+              set ycor item 4 thisLine
+              set hidden? item 9 thisLine
+              if (xcor = max-pxcor or xcor = min-pxcor or ycor = max-pycor or ycor = min-pycor)
+              [
+                set color item 1 thisLine
+                set heading item 2 thisLine
+                set shape read-from-string item 5 thisLine
+              ]
+            ]
+          ]
+          set thisLine csv:from-row file-read-line
+        ]
+      ]
+
+      if (item 0 thisLine = "PATCHES")
+      [
+        let patchVarsNames csv:from-row file-read-line ;;; save variable names
+        set thisLine csv:from-row file-read-line ;;; first row of data
+
+        ;;; load patch variables per each patch
+        while [ length thisLine > 1 ]
+        [
+          ask patch (item 0 thisLine) (item 1 thisLine)
+          [
+            let colorRGBValues read-from-string (item 2 thisLine)
+            set pcolor rgb (item 0 colorRGBValues) (item 1 colorRGBValues) (item 2 colorRGBValues)
+
+            set elevation item 5 thisLine
+            set flow_direction item 6 thisLine
+            set flow_receive item 7 thisLine
+            set flow_accumulation item 8 thisLine
+            set flow_accumulationstate read-from-string item 9 thisLine
+          ]
+          set thisLine csv:from-row file-read-line
+        ]
+      ]
+
+      if (item 0 thisLine = "LINKS")
+      [
+        set thisLine csv:from-row file-read-line ;;; skip variable names
+
+        set thisLine csv:from-row file-read-line ;;; first row of data
+
+        ;;; create links
+        while [ length thisLine > 1 ]
+        [
+          let flowHolderEnd1 flowHolder get-flowHolder-who-from-link-data (item 0 thisLine)
+          let flowHolderEnd2 flowHolder get-flowHolder-who-from-link-data (item 1 thisLine)
+
+          ask flowHolderEnd1
+          [
+            create-link-with flowHolderEnd2
+            [
+              set color item 2 thisLine
+              set thickness item 7 thisLine
+            ]
+          ]
+          set thisLine csv:from-row file-read-line
+        ]
+      ]
+    ]
+    file-close
+  ]
+
+  set-output-stats
+
+end
+
+to-report get-flowHolder-who-from-link-data [ linkDataEntry ]
+
+  let str remove "{" linkDataEntry
+  set str remove "f" str
+  set str remove "l" str
+  set str remove "o" str
+  set str remove "w" str
+  set str remove "h" str
+  set str remove "d" str
+  set str remove "e" str
+  set str remove "r" str
+  set str remove " " str
+  report read-from-string remove "}" str
+
+end]]></code>
+  <widgets>
+    <view x="54" wrappingAllowedX="false" y="192" frameRate="30.0" minPycor="0" height="468" showTickCounter="true" patchSize="9.36" fontSize="10" wrappingAllowedY="false" width="468" tickCounterLabel="ticks" maxPycor="49" updateMode="0" maxPxcor="49" minPxcor="0"></view>
+    <input x="80" multiline="false" y="10" height="60" variable="randomSeed" type="number" width="100">0.0</input>
+    <button x="435" actionKey="3" y="100" height="35" disableUntilTicks="false" forever="false" kind="Observer" width="208" display="refresh after changing sea level">refresh-view-after-seaLevel-change</button>
+    <chooser x="45" y="87" height="60" variable="display-mode" current="0" width="138" display="display-mode">
+      <choice type="string" value="elevation (m)"></choice>
+    </chooser>
+    <slider x="276" step="1" y="90" max="round max (list maxElevation par_elev_rangeHeight)" width="150" display="par_seaLevel" height="50" min="round min (list minElevation par_elev_riftHeight)" direction="Horizontal" default="-48.0" variable="par_seaLevel" units="m"></slider>
+    <button x="191" actionKey="2" y="100" height="35" disableUntilTicks="false" forever="false" kind="Observer" width="72" display="refresh">refresh-view</button>
+    <button x="7" actionKey="1" y="17" height="47" disableUntilTicks="false" forever="false" kind="Observer" width="67" display="create">create-terrain</button>
+    <note x="947" y="18" backgroundDark="0" fontSize="11" width="71" markdown="false" height="25" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">ELEVATION</note>
+    <slider x="802" step="1" y="52" max="0" width="197" display="par_elev_riftHeight" height="50" min="-500" direction="Horizontal" default="0.0" variable="par_elev_riftHeight" units="m"></slider>
+    <monitor x="1278" precision="0" y="103" height="60" fontSize="9" width="109">elev_numRanges</monitor>
+    <input x="1144" multiline="false" y="104" height="60" variable="par_elev_numRanges" type="number" width="131">1.0</input>
+    <slider x="802" step=".01" y="220" max=".1" width="197" display="par_elev_smoothingRadius" height="50" min="0" direction="Horizontal" default="0.1" variable="par_elev_smoothingRadius"></slider>
+    <monitor x="1002" precision="2" y="216" height="60" fontSize="9" width="140">elev_smoothingRadius</monitor>
+    <monitor x="1002" precision="2" y="161" height="60" fontSize="9" width="140">elev_smoothStep</monitor>
+    <slider x="802" step="0.01" y="165" max="1" width="197" display="par_elev_smoothStep" height="50" min="0" direction="Horizontal" default="1.0" variable="par_elev_smoothStep"></slider>
+    <monitor x="1002" precision="2" y="47" height="60" fontSize="9" width="140">elev_riftHeight</monitor>
+    <monitor x="1002" precision="2" y="104" height="60" fontSize="9" width="140">elev_rangeHeight</monitor>
+    <slider x="802" step="1" y="106" max="500" width="197" display="par_elev_rangeHeight" height="50" min="0" direction="Horizontal" default="15.0" variable="par_elev_rangeHeight" units="m"></slider>
+    <monitor x="889" precision="0" y="275" height="60" fontSize="9" width="178" display="smoothing neighborhood size"><![CDATA[(word (count patches with [ distance patch 0 0 < elev_smoothingRadius ] - 1) " patches")]]></monitor>
+    <input x="1144" multiline="false" y="40" height="60" variable="par_elev_numRifts" type="number" width="131">1.0</input>
+    <monitor x="1278" precision="0" y="40" height="60" fontSize="9" width="109">elev_numRifts</monitor>
+    <slider x="799" step="1" y="344" max="360" width="207" display="par_elev_featureAngleRange" height="50" min="0" direction="Horizontal" default="5.0" variable="par_elev_featureAngleRange" units="º"></slider>
+    <monitor x="1009" precision="0" y="336" height="60" fontSize="9" width="145">elev_featureAngleRange</monitor>
+    <slider x="1392" step="1" y="108" max="100" width="230" display="par_elev_rangeLength" height="50" min="0" direction="Horizontal" default="100.0" variable="par_elev_rangeLength" units="% patches"></slider>
+    <slider x="1392" step="1" y="46" max="100" width="230" display="par_elev_riftLength" height="50" min="0" direction="Horizontal" default="100.0" variable="par_elev_riftLength" units="% patches"></slider>
+    <monitor x="1627" precision="0" y="104" height="60" fontSize="9" width="110">elev_rangeLength</monitor>
+    <monitor x="1627" precision="0" y="39" height="60" fontSize="9" width="110">elev_riftLength</monitor>
+    <slider x="1170" step="1" y="208" max="(par_elev_rangeHeight - par_elev_riftHeight) / 2" width="172" display="par_elev_noise" height="50" min="0" direction="Horizontal" default="1.0" variable="par_elev_noise" units="m"></slider>
+    <monitor x="1344" precision="2" y="202" height="60" fontSize="9" width="100">elev_noise</monitor>
+    <input x="1517" multiline="false" y="208" height="60" variable="par_elev_inversionIterations" type="number" width="167">5.0</input>
+    <input x="1171" multiline="false" y="259" height="60" variable="par_elev_numProtuberances" type="number" width="172">1.0</input>
+    <monitor x="1345" precision="0" y="261" height="60" fontSize="9" width="143">elev_numProtuberances</monitor>
+    <input x="1171" multiline="false" y="319" height="60" variable="par_elev_numDepressions" type="number" width="172">1.0</input>
+    <monitor x="1346" precision="0" y="319" height="60" fontSize="9" width="143">elev_numDepressions</monitor>
+    <slider x="1170" step="0.01" y="382" max="1" width="198" display="par_elev_rangeAggregation" height="50" min="0" direction="Horizontal" default="0.75" variable="par_elev_rangeAggregation"></slider>
+    <monitor x="1372" precision="4" y="440" height="60" fontSize="9" width="141">elev_riftAggregation</monitor>
+    <slider x="1170" step=".01" y="440" max="1" width="198" display="par_elev_riftAggregation" height="50" min="0" direction="Horizontal" default="0.9" variable="par_elev_riftAggregation"></slider>
+    <monitor x="1372" precision="4" y="378" height="60" fontSize="9" width="141">elev_rangeAggregation</monitor>
+    <chooser x="892" y="404" height="60" variable="elev_algorithm-style" current="1" width="184" display="elev_algorithm-style">
+      <choice type="string" value="NetLogo"></choice>
+      <choice type="string" value="C#"></choice>
+    </chooser>
+    <note x="1514" y="182" backgroundDark="0" fontSize="12" width="216" markdown="false" height="25" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">used when algorithm-style = NetLogo</note>
+    <note x="1231" y="182" backgroundDark="0" fontSize="12" width="183" markdown="false" height="24" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">used when algorithm-style = C#</note>
+    <slider x="45" step="1" y="143" max="max-pxcor" width="486" display="xTransect" height="50" min="min-pxcor" direction="Horizontal" default="0.0" variable="xTransect"></slider>
+    <slider x="4" step="1" y="183" max="max-pycor" width="50" display="yTransect" height="478" min="min-pycor" direction="Vertical" default="0.0" variable="yTransect"></slider>
+    <plot x="522" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="pycor" y="162" xMin="0.0" height="527" legend="false" xMax="10.0" yMin="0.0" width="160" xAxis="m" display="vertical transect">
+      <setup></setup>
+      <update>clear-plot
+set-plot-y-range (min-pycor - 1) (max-pycor + 1)
+set-plot-x-range (round min [elevation] of patches - 1) (round max [elevation] of patches + 1)</update>
+      <pen interval="1.0" mode="0" display="default" color="-16777216" legend="true">
+        <setup></setup>
+        <update>plot-vertical-transect</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="pen-1" color="-13345367" legend="true">
+        <setup></setup>
+        <update>plot-sea-level-vertical-transect</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="pen-2" color="-2674135" legend="true">
+        <setup></setup>
+        <update>plotxy  plot-x-max yTransect plotxy plot-x-min yTransect</update>
+      </pen>
+    </plot>
+    <plot x="27" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="m" y="658" xMin="0.0" height="148" legend="false" xMax="10.0" yMin="0.0" width="496" xAxis="pxcor" display="Horizontal transect">
+      <setup></setup>
+      <update>clear-plot
+set-plot-x-range (min-pxcor - 1) (max-pxcor + 1)
+set-plot-y-range (round min [elevation] of patches - 1) (round max [elevation] of patches + 1)</update>
+      <pen interval="1.0" mode="0" display="default" color="-16777216" legend="true">
+        <setup></setup>
+        <update>plot-horizontal-transect</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="pen-1" color="-13345367" legend="true">
+        <setup></setup>
+        <update>plot-sea-level-horizontal-transect</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="pen-2" color="-2674135" legend="true">
+        <setup></setup>
+        <update>plotxy xTransect plot-y-max plotxy xTransect plot-y-min</update>
+      </pen>
+    </plot>
+    <chooser x="468" y="14" height="60" variable="type-of-experiment" current="0" width="134" display="type-of-experiment">
+      <choice type="string" value="random"></choice>
+      <choice type="string" value="user-defined"></choice>
+      <choice type="string" value="defined by expNumber"></choice>
+    </chooser>
+    <button x="610" y="24" height="35" disableUntilTicks="false" forever="false" kind="Observer" width="152" display="parameters to default">parameters-to-default</button>
+    <button x="206" y="9" height="35" disableUntilTicks="false" forever="false" kind="Observer" width="110">export-terrain</button>
+    <button x="218" actionKey="9" y="47" height="35" disableUntilTicks="false" forever="false" kind="Observer" width="196" display="export-random-terrain (100x)">repeat 100 [ export-random-terrain ]</button>
+    <button x="319" y="9" height="35" disableUntilTicks="false" forever="false" kind="Observer" width="108" display="import-terrain">import-terrain
+setup-patch-coordinates-labels "bottom" "left"
+setup-transect
+update-transects
+update-plots</button>
+    <slider x="810" step="0.001" y="496" max="0.1" width="211" display="par_elev_xSlope" height="50" min="-0.1" direction="Horizontal" default="0.01" variable="par_elev_xSlope"></slider>
+    <monitor x="1229" precision="0" y="640" height="60" fontSize="11" width="100">count patches</monitor>
+    <monitor x="1327" precision="4" y="640" height="60" fontSize="11" width="100" display="maxDist">precision maxDist 4</monitor>
+    <monitor x="1425" precision="4" y="640" height="60" fontSize="11" width="101" display="land ratio">landRatio</monitor>
+    <monitor x="1639" precision="4" y="514" height="60" fontSize="11" width="100" display="maxElevation">precision maxElevation 4</monitor>
+    <monitor x="1602" precision="4" y="573" height="60" fontSize="11" width="100" display="sdElevation">precision sdElevation 4</monitor>
+    <monitor x="1563" precision="4" y="514" height="60" fontSize="11" width="100" display="minElevation">precision minElevation 4</monitor>
+    <plot x="1190" autoPlotX="true" yMax="10.0" autoPlotY="true" y="509" xMin="0.0" height="127" legend="false" xMax="10.0" yMin="0.0" width="374" xAxis="m" display="Elevation per patch">
+      <setup>set-histogram-num-bars 100
+set-plot-x-range (round min [elevation] of patches - 1) (round max [elevation] of patches + 1)</setup>
+      <update>set-histogram-num-bars 100
+set-plot-x-range (round min [elevation] of patches - 1) (round max [elevation] of patches + 1)</update>
+      <pen interval="1.0" mode="1" display="default" color="-16777216" legend="true">
+        <setup></setup>
+        <update>histogram [elevation] of patches</update>
+      </pen>
+      <pen interval="1.0" mode="1" display="pen-1" color="-2674135" legend="true">
+        <setup></setup>
+        <update><![CDATA[histogram n-values plot-y-max [j -> seaLevel]]]></update>
+      </pen>
+    </plot>
+    <slider x="810" step="0.001" y="549" max="0.1" width="211" display="par_elev_ySlope" height="50" min="-0.1" direction="Horizontal" default="0.025" variable="par_elev_ySlope"></slider>
+    <monitor x="1023" precision="4" y="653" height="60" fontSize="9" width="150">elev_valleySlope</monitor>
+    <slider x="810" step="0.001" y="656" max="0.1" width="211" display="par_elev_valleySlope" height="50" min="-0.1" direction="Horizontal" default="0.02" variable="par_elev_valleySlope"></slider>
+    <slider x="810" step="0.01" y="602" max="1" width="211" display="par_elev_valleyAxisInclination" height="50" min="0" direction="Horizontal" default="0.1" variable="par_elev_valleyAxisInclination"></slider>
+    <monitor x="1023" precision="4" y="600" height="60" fontSize="9" width="150">elev_valleyAxisInclination</monitor>
+    <monitor x="1023" precision="4" y="548" height="60" fontSize="9" width="150">elev_ySlope</monitor>
+    <monitor x="1023" precision="4" y="493" height="60" fontSize="9" width="150">elev_xSlope</monitor>
+    <switch x="688" y="168" height="40" on="true" variable="show-flows" width="104" display="show-flows"></switch>
+    <button x="674" actionKey="4" y="117" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="117" display="update transects">update-transects
+update-plots</button>
+    <switch x="665" y="77" height="40" on="false" variable="show-transects" width="125" display="show-transects"></switch>
+    <switch x="1542" y="299" height="40" on="true" variable="flow_do-fill-sinks" width="132" display="flow_do-fill-sinks"></switch>
+    <input x="1541" multiline="false" y="344" height="60" variable="par_flow_riverAccumulationAtStart" type="number" width="215">0.0</input>
+    <monitor x="1541" precision="2" y="403" height="60" fontSize="9" width="215">flow_riverAccumulationAtStart</monitor>
+    <monitor x="1528" precision="6" y="639" height="60" fontSize="9" width="100">landWithRiver</monitor>
+    <plot x="522" autoPlotX="true" yMax="1.0" autoPlotY="true" y="685" xMin="0.0" height="145" legend="true" xMax="1.0" yMin="0.0" width="216" display="Legend">
+      <setup></setup>
+      <update></update>
+      <pen interval="1.0" mode="1" display="Patch color legend" color="-1" legend="true">
+        <setup></setup>
+        <update>plot 1</update>
+      </pen>
+    </plot>
+  </widgets>
+  <info>## WHAT IS IT?
+
+this version creates rivers over the terrain generated by v1 algorithms and derives the soil moisture of patches from rivers and meters below sea level. Rivers are formed by one or more streams which start at random patches and move from patch to patch towards the least elevation. There are two algorithms implementing the movement of streams: choosing only among neighbors (`river-algorithm = "least neighbor"`), favouring connections between basins, or neighbors *AND* the patch considered (`river-algorithm = "absolute downhill"`), producing 'stump' rivers more often. Every time a stream is formed, the elevation of the patches involved is depressed by a quantity (`par_waterDepression`) and then smoothed, together with that of neighboring patches. A passing stream will add 1 unit of `water` to a patch while patches below sea level have `water` units proportional to their depth. The amount of `water` of patches is converted to units of `moisture` and then moisture is distributed to other 'dry' patches using NetLogo's primitive `diffuse` (NOTE: not ideal because it does not account for the difference in elevation). 
+
+## HOW IT WORKS
+
+(what rules the agents use to create the overall behavior of the model)
+
+## HOW TO USE IT
+
+(how to use the model, including a description of each of the items in the Interface tab)
+
+## THINGS TO NOTICE
+
+(suggested things for the user to notice while running the model)
+
+## THINGS TO TRY
+
+(suggested things for the user to try to do (move sliders, switches, etc.) with the model)
+
+## EXTENDING THE MODEL
+
+(suggested things to add or change in the Code tab to make the model more complicated, detailed, accurate, etc.)
+
+## NETLOGO FEATURES
+
+(interesting or unusual features of NetLogo that the model uses, particularly in the Code tab; or where workarounds were needed for missing features)
+
+## RELATED MODELS
+
+(models in the NetLogo Models Library and elsewhere which are of related interest)
+
+## CREDITS AND REFERENCES
+
+(a reference to the model's URL on the web if it has one, as well as any other necessary credits, citations, and links)</info>
+  <turtleShapes>
+    <shape name="default" rotatable="true" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="5"></point>
+        <point x="40" y="250"></point>
+        <point x="150" y="205"></point>
+        <point x="260" y="250"></point>
+      </polygon>
+    </shape>
+    <shape name="airplane" rotatable="true" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="0"></point>
+        <point x="135" y="15"></point>
+        <point x="120" y="60"></point>
+        <point x="120" y="105"></point>
+        <point x="15" y="165"></point>
+        <point x="15" y="195"></point>
+        <point x="120" y="180"></point>
+        <point x="135" y="240"></point>
+        <point x="105" y="270"></point>
+        <point x="120" y="285"></point>
+        <point x="150" y="270"></point>
+        <point x="180" y="285"></point>
+        <point x="210" y="270"></point>
+        <point x="165" y="240"></point>
+        <point x="180" y="180"></point>
+        <point x="285" y="195"></point>
+        <point x="285" y="165"></point>
+        <point x="180" y="105"></point>
+        <point x="180" y="60"></point>
+        <point x="165" y="15"></point>
+      </polygon>
+    </shape>
+    <shape name="arrow" rotatable="true" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="0"></point>
+        <point x="0" y="150"></point>
+        <point x="105" y="150"></point>
+        <point x="105" y="293"></point>
+        <point x="195" y="293"></point>
+        <point x="195" y="150"></point>
+        <point x="300" y="150"></point>
+      </polygon>
+    </shape>
+    <shape name="box" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="285"></point>
+        <point x="285" y="225"></point>
+        <point x="285" y="75"></point>
+        <point x="150" y="135"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="135"></point>
+        <point x="15" y="75"></point>
+        <point x="150" y="15"></point>
+        <point x="285" y="75"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="15" y="75"></point>
+        <point x="15" y="225"></point>
+        <point x="150" y="285"></point>
+        <point x="150" y="135"></point>
+      </polygon>
+      <line endX="150" startY="285" marked="false" color="255" endY="135" startX="150"></line>
+      <line endX="15" startY="135" marked="false" color="255" endY="75" startX="150"></line>
+      <line endX="285" startY="135" marked="false" color="255" endY="75" startX="150"></line>
+    </shape>
+    <shape name="bug" rotatable="true" editableColorIndex="0">
+      <circle x="96" y="182" marked="true" color="-1920102913" diameter="108" filled="true"></circle>
+      <circle x="110" y="127" marked="true" color="-1920102913" diameter="80" filled="true"></circle>
+      <circle x="110" y="75" marked="true" color="-1920102913" diameter="80" filled="true"></circle>
+      <line endX="80" startY="100" marked="true" color="-1920102913" endY="30" startX="150"></line>
+      <line endX="220" startY="100" marked="true" color="-1920102913" endY="30" startX="150"></line>
+    </shape>
+    <shape name="butterfly" rotatable="true" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="165"></point>
+        <point x="209" y="199"></point>
+        <point x="225" y="225"></point>
+        <point x="225" y="255"></point>
+        <point x="195" y="270"></point>
+        <point x="165" y="255"></point>
+        <point x="150" y="240"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="165"></point>
+        <point x="89" y="198"></point>
+        <point x="75" y="225"></point>
+        <point x="75" y="255"></point>
+        <point x="105" y="270"></point>
+        <point x="135" y="255"></point>
+        <point x="150" y="240"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="139" y="148"></point>
+        <point x="100" y="105"></point>
+        <point x="55" y="90"></point>
+        <point x="25" y="90"></point>
+        <point x="10" y="105"></point>
+        <point x="10" y="135"></point>
+        <point x="25" y="180"></point>
+        <point x="40" y="195"></point>
+        <point x="85" y="194"></point>
+        <point x="139" y="163"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="162" y="150"></point>
+        <point x="200" y="105"></point>
+        <point x="245" y="90"></point>
+        <point x="275" y="90"></point>
+        <point x="290" y="105"></point>
+        <point x="290" y="135"></point>
+        <point x="275" y="180"></point>
+        <point x="260" y="195"></point>
+        <point x="215" y="195"></point>
+        <point x="162" y="165"></point>
+      </polygon>
+      <polygon color="255" filled="true" marked="false">
+        <point x="150" y="255"></point>
+        <point x="135" y="225"></point>
+        <point x="120" y="150"></point>
+        <point x="135" y="120"></point>
+        <point x="150" y="105"></point>
+        <point x="165" y="120"></point>
+        <point x="180" y="150"></point>
+        <point x="165" y="225"></point>
+      </polygon>
+      <circle x="135" y="90" marked="false" color="255" diameter="30" filled="true"></circle>
+      <line endX="195" startY="105" marked="false" color="255" endY="60" startX="150"></line>
+      <line endX="105" startY="105" marked="false" color="255" endY="60" startX="150"></line>
+    </shape>
+    <shape name="car" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="300" y="180"></point>
+        <point x="279" y="164"></point>
+        <point x="261" y="144"></point>
+        <point x="240" y="135"></point>
+        <point x="226" y="132"></point>
+        <point x="213" y="106"></point>
+        <point x="203" y="84"></point>
+        <point x="185" y="63"></point>
+        <point x="159" y="50"></point>
+        <point x="135" y="50"></point>
+        <point x="75" y="60"></point>
+        <point x="0" y="150"></point>
+        <point x="0" y="165"></point>
+        <point x="0" y="225"></point>
+        <point x="300" y="225"></point>
+        <point x="300" y="180"></point>
+      </polygon>
+      <circle x="180" y="180" marked="false" color="255" diameter="90" filled="true"></circle>
+      <circle x="30" y="180" marked="false" color="255" diameter="90" filled="true"></circle>
+      <polygon color="255" filled="true" marked="false">
+        <point x="162" y="80"></point>
+        <point x="132" y="78"></point>
+        <point x="134" y="135"></point>
+        <point x="209" y="135"></point>
+        <point x="194" y="105"></point>
+        <point x="189" y="96"></point>
+        <point x="180" y="89"></point>
+      </polygon>
+      <circle x="47" y="195" marked="true" color="-1920102913" diameter="58" filled="true"></circle>
+      <circle x="195" y="195" marked="true" color="-1920102913" diameter="58" filled="true"></circle>
+    </shape>
+    <shape name="circle" rotatable="false" editableColorIndex="0">
+      <circle x="0" y="0" marked="true" color="-1920102913" diameter="300" filled="true"></circle>
+    </shape>
+    <shape name="circle 2" rotatable="false" editableColorIndex="0">
+      <circle x="0" y="0" marked="true" color="-1920102913" diameter="300" filled="true"></circle>
+      <circle x="30" y="30" marked="false" color="255" diameter="240" filled="true"></circle>
+    </shape>
+    <shape name="cow" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="200" y="193"></point>
+        <point x="197" y="249"></point>
+        <point x="179" y="249"></point>
+        <point x="177" y="196"></point>
+        <point x="166" y="187"></point>
+        <point x="140" y="189"></point>
+        <point x="93" y="191"></point>
+        <point x="78" y="179"></point>
+        <point x="72" y="211"></point>
+        <point x="49" y="209"></point>
+        <point x="48" y="181"></point>
+        <point x="37" y="149"></point>
+        <point x="25" y="120"></point>
+        <point x="25" y="89"></point>
+        <point x="45" y="72"></point>
+        <point x="103" y="84"></point>
+        <point x="179" y="75"></point>
+        <point x="198" y="76"></point>
+        <point x="252" y="64"></point>
+        <point x="272" y="81"></point>
+        <point x="293" y="103"></point>
+        <point x="285" y="121"></point>
+        <point x="255" y="121"></point>
+        <point x="242" y="118"></point>
+        <point x="224" y="167"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="73" y="210"></point>
+        <point x="86" y="251"></point>
+        <point x="62" y="249"></point>
+        <point x="48" y="208"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="25" y="114"></point>
+        <point x="16" y="195"></point>
+        <point x="9" y="204"></point>
+        <point x="23" y="213"></point>
+        <point x="25" y="200"></point>
+        <point x="39" y="123"></point>
+      </polygon>
+    </shape>
+    <shape name="cylinder" rotatable="false" editableColorIndex="0">
+      <circle x="0" y="0" marked="true" color="-1920102913" diameter="300" filled="true"></circle>
+    </shape>
+    <shape name="dot" rotatable="false" editableColorIndex="0">
+      <circle x="90" y="90" marked="true" color="-1920102913" diameter="120" filled="true"></circle>
+    </shape>
+    <shape name="face happy" rotatable="false" editableColorIndex="0">
+      <circle x="8" y="8" marked="true" color="-1920102913" diameter="285" filled="true"></circle>
+      <circle x="60" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <circle x="180" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <polygon color="255" filled="true" marked="false">
+        <point x="150" y="255"></point>
+        <point x="90" y="239"></point>
+        <point x="62" y="213"></point>
+        <point x="47" y="191"></point>
+        <point x="67" y="179"></point>
+        <point x="90" y="203"></point>
+        <point x="109" y="218"></point>
+        <point x="150" y="225"></point>
+        <point x="192" y="218"></point>
+        <point x="210" y="203"></point>
+        <point x="227" y="181"></point>
+        <point x="251" y="194"></point>
+        <point x="236" y="217"></point>
+        <point x="212" y="240"></point>
+      </polygon>
+    </shape>
+    <shape name="face neutral" rotatable="false" editableColorIndex="0">
+      <circle x="8" y="7" marked="true" color="-1920102913" diameter="285" filled="true"></circle>
+      <circle x="60" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <circle x="180" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <rectangle endX="240" startY="195" marked="false" color="255" endY="225" startX="60" filled="true"></rectangle>
+    </shape>
+    <shape name="face sad" rotatable="false" editableColorIndex="0">
+      <circle x="8" y="8" marked="true" color="-1920102913" diameter="285" filled="true"></circle>
+      <circle x="60" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <circle x="180" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <polygon color="255" filled="true" marked="false">
+        <point x="150" y="168"></point>
+        <point x="90" y="184"></point>
+        <point x="62" y="210"></point>
+        <point x="47" y="232"></point>
+        <point x="67" y="244"></point>
+        <point x="90" y="220"></point>
+        <point x="109" y="205"></point>
+        <point x="150" y="198"></point>
+        <point x="192" y="205"></point>
+        <point x="210" y="220"></point>
+        <point x="227" y="242"></point>
+        <point x="251" y="229"></point>
+        <point x="236" y="206"></point>
+        <point x="212" y="183"></point>
+      </polygon>
+    </shape>
+    <shape name="fish" rotatable="false" editableColorIndex="0">
+      <polygon color="-1" filled="true" marked="false">
+        <point x="44" y="131"></point>
+        <point x="21" y="87"></point>
+        <point x="15" y="86"></point>
+        <point x="0" y="120"></point>
+        <point x="15" y="150"></point>
+        <point x="0" y="180"></point>
+        <point x="13" y="214"></point>
+        <point x="20" y="212"></point>
+        <point x="45" y="166"></point>
+      </polygon>
+      <polygon color="-1" filled="true" marked="false">
+        <point x="135" y="195"></point>
+        <point x="119" y="235"></point>
+        <point x="95" y="218"></point>
+        <point x="76" y="210"></point>
+        <point x="46" y="204"></point>
+        <point x="60" y="165"></point>
+      </polygon>
+      <polygon color="-1" filled="true" marked="false">
+        <point x="75" y="45"></point>
+        <point x="83" y="77"></point>
+        <point x="71" y="103"></point>
+        <point x="86" y="114"></point>
+        <point x="166" y="78"></point>
+        <point x="135" y="60"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="30" y="136"></point>
+        <point x="151" y="77"></point>
+        <point x="226" y="81"></point>
+        <point x="280" y="119"></point>
+        <point x="292" y="146"></point>
+        <point x="292" y="160"></point>
+        <point x="287" y="170"></point>
+        <point x="270" y="195"></point>
+        <point x="195" y="210"></point>
+        <point x="151" y="212"></point>
+        <point x="30" y="166"></point>
+      </polygon>
+      <circle x="215" y="106" marked="false" color="255" diameter="30" filled="true"></circle>
+    </shape>
+    <shape name="flag" rotatable="false" editableColorIndex="0">
+      <rectangle endX="75" startY="15" marked="true" color="-1920102913" endY="300" startX="60" filled="true"></rectangle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="90" y="150"></point>
+        <point x="270" y="90"></point>
+        <point x="90" y="30"></point>
+      </polygon>
+      <line endX="90" startY="135" marked="true" color="-1920102913" endY="135" startX="75"></line>
+      <line endX="90" startY="45" marked="true" color="-1920102913" endY="45" startX="75"></line>
+    </shape>
+    <shape name="flower" rotatable="false" editableColorIndex="0">
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="135" y="120"></point>
+        <point x="165" y="165"></point>
+        <point x="180" y="210"></point>
+        <point x="180" y="240"></point>
+        <point x="150" y="300"></point>
+        <point x="165" y="300"></point>
+        <point x="195" y="240"></point>
+        <point x="195" y="195"></point>
+        <point x="165" y="135"></point>
+      </polygon>
+      <circle x="85" y="132" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="130" y="147" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="192" y="85" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="85" y="40" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="177" y="40" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="177" y="132" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="70" y="85" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="130" y="25" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="96" y="51" marked="true" color="-1920102913" diameter="108" filled="true"></circle>
+      <circle x="113" y="68" marked="false" color="255" diameter="74" filled="true"></circle>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="189" y="233"></point>
+        <point x="219" y="188"></point>
+        <point x="249" y="173"></point>
+        <point x="279" y="188"></point>
+        <point x="234" y="218"></point>
+      </polygon>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="180" y="255"></point>
+        <point x="150" y="210"></point>
+        <point x="105" y="210"></point>
+        <point x="75" y="240"></point>
+        <point x="135" y="240"></point>
+      </polygon>
+    </shape>
+    <shape name="house" rotatable="false" editableColorIndex="0">
+      <rectangle endX="255" startY="120" marked="true" color="-1920102913" endY="285" startX="45" filled="true"></rectangle>
+      <rectangle endX="180" startY="210" marked="false" color="255" endY="285" startX="120" filled="true"></rectangle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="15" y="120"></point>
+        <point x="150" y="15"></point>
+        <point x="285" y="120"></point>
+      </polygon>
+      <line endX="270" startY="120" marked="false" color="255" endY="120" startX="30"></line>
+    </shape>
+    <shape name="leaf" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="210"></point>
+        <point x="135" y="195"></point>
+        <point x="120" y="210"></point>
+        <point x="60" y="210"></point>
+        <point x="30" y="195"></point>
+        <point x="60" y="180"></point>
+        <point x="60" y="165"></point>
+        <point x="15" y="135"></point>
+        <point x="30" y="120"></point>
+        <point x="15" y="105"></point>
+        <point x="40" y="104"></point>
+        <point x="45" y="90"></point>
+        <point x="60" y="90"></point>
+        <point x="90" y="105"></point>
+        <point x="105" y="120"></point>
+        <point x="120" y="120"></point>
+        <point x="105" y="60"></point>
+        <point x="120" y="60"></point>
+        <point x="135" y="30"></point>
+        <point x="150" y="15"></point>
+        <point x="165" y="30"></point>
+        <point x="180" y="60"></point>
+        <point x="195" y="60"></point>
+        <point x="180" y="120"></point>
+        <point x="195" y="120"></point>
+        <point x="210" y="105"></point>
+        <point x="240" y="90"></point>
+        <point x="255" y="90"></point>
+        <point x="263" y="104"></point>
+        <point x="285" y="105"></point>
+        <point x="270" y="120"></point>
+        <point x="285" y="135"></point>
+        <point x="240" y="165"></point>
+        <point x="240" y="180"></point>
+        <point x="270" y="195"></point>
+        <point x="240" y="210"></point>
+        <point x="180" y="210"></point>
+        <point x="165" y="195"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="135" y="195"></point>
+        <point x="135" y="240"></point>
+        <point x="120" y="255"></point>
+        <point x="105" y="255"></point>
+        <point x="105" y="285"></point>
+        <point x="135" y="285"></point>
+        <point x="165" y="240"></point>
+        <point x="165" y="195"></point>
+      </polygon>
+    </shape>
+    <shape name="line" rotatable="true" editableColorIndex="0">
+      <line endX="150" startY="0" marked="true" color="-1920102913" endY="300" startX="150"></line>
+    </shape>
+    <shape name="line half" rotatable="true" editableColorIndex="0">
+      <line endX="150" startY="0" marked="true" color="-1920102913" endY="150" startX="150"></line>
+    </shape>
+    <shape name="line half 1" rotatable="true" editableColorIndex="0">
+      <line endX="150" startY="0" marked="true" color="-1920102913" endY="300" startX="150"></line>
+      <rectangle endX="165" startY="0" marked="true" color="-1920102913" endY="150" startX="135" filled="true"></rectangle>
+    </shape>
+    <shape name="line half 2" rotatable="true" editableColorIndex="0">
+      <line endX="150" startY="0" marked="true" color="-1920102913" endY="300" startX="150"></line>
+      <rectangle endX="180" startY="0" marked="true" color="-1920102913" endY="150" startX="120" filled="true"></rectangle>
+    </shape>
+    <shape name="pentagon" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="15"></point>
+        <point x="15" y="120"></point>
+        <point x="60" y="285"></point>
+        <point x="240" y="285"></point>
+        <point x="285" y="120"></point>
+      </polygon>
+    </shape>
+    <shape name="person" rotatable="false" editableColorIndex="0">
+      <circle x="110" y="5" marked="true" color="-1920102913" diameter="80" filled="true"></circle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="105" y="90"></point>
+        <point x="120" y="195"></point>
+        <point x="90" y="285"></point>
+        <point x="105" y="300"></point>
+        <point x="135" y="300"></point>
+        <point x="150" y="225"></point>
+        <point x="165" y="300"></point>
+        <point x="195" y="300"></point>
+        <point x="210" y="285"></point>
+        <point x="180" y="195"></point>
+        <point x="195" y="90"></point>
+      </polygon>
+      <rectangle endX="172" startY="79" marked="true" color="-1920102913" endY="94" startX="127" filled="true"></rectangle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="195" y="90"></point>
+        <point x="240" y="150"></point>
+        <point x="225" y="180"></point>
+        <point x="165" y="105"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="105" y="90"></point>
+        <point x="60" y="150"></point>
+        <point x="75" y="180"></point>
+        <point x="135" y="105"></point>
+      </polygon>
+    </shape>
+    <shape name="plant" rotatable="false" editableColorIndex="0">
+      <rectangle endX="165" startY="90" marked="true" color="-1920102913" endY="300" startX="135" filled="true"></rectangle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="135" y="255"></point>
+        <point x="90" y="210"></point>
+        <point x="45" y="195"></point>
+        <point x="75" y="255"></point>
+        <point x="135" y="285"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="165" y="255"></point>
+        <point x="210" y="210"></point>
+        <point x="255" y="195"></point>
+        <point x="225" y="255"></point>
+        <point x="165" y="285"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="135" y="180"></point>
+        <point x="90" y="135"></point>
+        <point x="45" y="120"></point>
+        <point x="75" y="180"></point>
+        <point x="135" y="210"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="165" y="180"></point>
+        <point x="165" y="210"></point>
+        <point x="225" y="180"></point>
+        <point x="255" y="120"></point>
+        <point x="210" y="135"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="135" y="105"></point>
+        <point x="90" y="60"></point>
+        <point x="45" y="45"></point>
+        <point x="75" y="105"></point>
+        <point x="135" y="135"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="165" y="105"></point>
+        <point x="165" y="135"></point>
+        <point x="225" y="105"></point>
+        <point x="255" y="45"></point>
+        <point x="210" y="60"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="135" y="90"></point>
+        <point x="120" y="45"></point>
+        <point x="150" y="15"></point>
+        <point x="180" y="45"></point>
+        <point x="165" y="90"></point>
+      </polygon>
+    </shape>
+    <shape name="sheep" rotatable="false" editableColorIndex="15">
+      <circle x="203" y="65" marked="true" color="-1" diameter="88" filled="true"></circle>
+      <circle x="70" y="65" marked="true" color="-1" diameter="162" filled="true"></circle>
+      <circle x="150" y="105" marked="true" color="-1" diameter="120" filled="true"></circle>
+      <polygon color="-1920102913" filled="true" marked="false">
+        <point x="218" y="120"></point>
+        <point x="240" y="165"></point>
+        <point x="255" y="165"></point>
+        <point x="278" y="120"></point>
+      </polygon>
+      <circle x="214" y="72" marked="false" color="-1920102913" diameter="67" filled="true"></circle>
+      <rectangle endX="179" startY="223" marked="true" color="-1" endY="298" startX="164" filled="true"></rectangle>
+      <polygon color="-1" filled="true" marked="true">
+        <point x="45" y="285"></point>
+        <point x="30" y="285"></point>
+        <point x="30" y="240"></point>
+        <point x="15" y="195"></point>
+        <point x="45" y="210"></point>
+      </polygon>
+      <circle x="3" y="83" marked="true" color="-1" diameter="150" filled="true"></circle>
+      <rectangle endX="80" startY="221" marked="true" color="-1" endY="296" startX="65" filled="true"></rectangle>
+      <polygon color="-1" filled="true" marked="true">
+        <point x="195" y="285"></point>
+        <point x="210" y="285"></point>
+        <point x="210" y="240"></point>
+        <point x="240" y="210"></point>
+        <point x="195" y="210"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="false">
+        <point x="276" y="85"></point>
+        <point x="285" y="105"></point>
+        <point x="302" y="99"></point>
+        <point x="294" y="83"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="false">
+        <point x="219" y="85"></point>
+        <point x="210" y="105"></point>
+        <point x="193" y="99"></point>
+        <point x="201" y="83"></point>
+      </polygon>
+    </shape>
+    <shape name="square" rotatable="false" editableColorIndex="0">
+      <rectangle endX="270" startY="30" marked="true" color="-1920102913" endY="270" startX="30" filled="true"></rectangle>
+    </shape>
+    <shape name="square 2" rotatable="false" editableColorIndex="0">
+      <rectangle endX="270" startY="30" marked="true" color="-1920102913" endY="270" startX="30" filled="true"></rectangle>
+      <rectangle endX="240" startY="60" marked="false" color="255" endY="240" startX="60" filled="true"></rectangle>
+    </shape>
+    <shape name="star" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="151" y="1"></point>
+        <point x="185" y="108"></point>
+        <point x="298" y="108"></point>
+        <point x="207" y="175"></point>
+        <point x="242" y="282"></point>
+        <point x="151" y="216"></point>
+        <point x="59" y="282"></point>
+        <point x="94" y="175"></point>
+        <point x="3" y="108"></point>
+        <point x="116" y="108"></point>
+      </polygon>
+    </shape>
+    <shape name="target" rotatable="false" editableColorIndex="0">
+      <circle x="0" y="0" marked="true" color="-1920102913" diameter="300" filled="true"></circle>
+      <circle x="30" y="30" marked="false" color="255" diameter="240" filled="true"></circle>
+      <circle x="60" y="60" marked="true" color="-1920102913" diameter="180" filled="true"></circle>
+      <circle x="90" y="90" marked="false" color="255" diameter="120" filled="true"></circle>
+      <circle x="120" y="120" marked="true" color="-1920102913" diameter="60" filled="true"></circle>
+    </shape>
+    <shape name="tree" rotatable="false" editableColorIndex="0">
+      <circle x="118" y="3" marked="true" color="-1920102913" diameter="94" filled="true"></circle>
+      <rectangle endX="180" startY="195" marked="false" color="-1653716737" endY="300" startX="120" filled="true"></rectangle>
+      <circle x="65" y="21" marked="true" color="-1920102913" diameter="108" filled="true"></circle>
+      <circle x="116" y="41" marked="true" color="-1920102913" diameter="127" filled="true"></circle>
+      <circle x="45" y="90" marked="true" color="-1920102913" diameter="120" filled="true"></circle>
+      <circle x="104" y="74" marked="true" color="-1920102913" diameter="152" filled="true"></circle>
+    </shape>
+    <shape name="triangle" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="30"></point>
+        <point x="15" y="255"></point>
+        <point x="285" y="255"></point>
+      </polygon>
+    </shape>
+    <shape name="triangle 2" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="30"></point>
+        <point x="15" y="255"></point>
+        <point x="285" y="255"></point>
+      </polygon>
+      <polygon color="255" filled="true" marked="false">
+        <point x="151" y="99"></point>
+        <point x="225" y="223"></point>
+        <point x="75" y="224"></point>
+      </polygon>
+    </shape>
+    <shape name="truck" rotatable="false" editableColorIndex="0">
+      <rectangle endX="195" startY="45" marked="true" color="-1920102913" endY="187" startX="4" filled="true"></rectangle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="296" y="193"></point>
+        <point x="296" y="150"></point>
+        <point x="259" y="134"></point>
+        <point x="244" y="104"></point>
+        <point x="208" y="104"></point>
+        <point x="207" y="194"></point>
+      </polygon>
+      <rectangle endX="195" startY="60" marked="false" color="-1" endY="105" startX="195" filled="true"></rectangle>
+      <polygon color="255" filled="true" marked="false">
+        <point x="238" y="112"></point>
+        <point x="252" y="141"></point>
+        <point x="219" y="141"></point>
+        <point x="218" y="112"></point>
+      </polygon>
+      <circle x="234" y="174" marked="false" color="255" diameter="42" filled="true"></circle>
+      <rectangle endX="214" startY="185" marked="true" color="-1920102913" endY="194" startX="181" filled="true"></rectangle>
+      <circle x="144" y="174" marked="false" color="255" diameter="42" filled="true"></circle>
+      <circle x="24" y="174" marked="false" color="255" diameter="42" filled="true"></circle>
+      <circle x="24" y="174" marked="true" color="-1920102913" diameter="42" filled="false"></circle>
+      <circle x="144" y="174" marked="true" color="-1920102913" diameter="42" filled="false"></circle>
+      <circle x="234" y="174" marked="true" color="-1920102913" diameter="42" filled="false"></circle>
+    </shape>
+    <shape name="turtle" rotatable="true" editableColorIndex="0">
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="215" y="204"></point>
+        <point x="240" y="233"></point>
+        <point x="246" y="254"></point>
+        <point x="228" y="266"></point>
+        <point x="215" y="252"></point>
+        <point x="193" y="210"></point>
+      </polygon>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="195" y="90"></point>
+        <point x="225" y="75"></point>
+        <point x="245" y="75"></point>
+        <point x="260" y="89"></point>
+        <point x="269" y="108"></point>
+        <point x="261" y="124"></point>
+        <point x="240" y="105"></point>
+        <point x="225" y="105"></point>
+        <point x="210" y="105"></point>
+      </polygon>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="105" y="90"></point>
+        <point x="75" y="75"></point>
+        <point x="55" y="75"></point>
+        <point x="40" y="89"></point>
+        <point x="31" y="108"></point>
+        <point x="39" y="124"></point>
+        <point x="60" y="105"></point>
+        <point x="75" y="105"></point>
+        <point x="90" y="105"></point>
+      </polygon>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="132" y="85"></point>
+        <point x="134" y="64"></point>
+        <point x="107" y="51"></point>
+        <point x="108" y="17"></point>
+        <point x="150" y="2"></point>
+        <point x="192" y="18"></point>
+        <point x="192" y="52"></point>
+        <point x="169" y="65"></point>
+        <point x="172" y="87"></point>
+      </polygon>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="85" y="204"></point>
+        <point x="60" y="233"></point>
+        <point x="54" y="254"></point>
+        <point x="72" y="266"></point>
+        <point x="85" y="252"></point>
+        <point x="107" y="210"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="119" y="75"></point>
+        <point x="179" y="75"></point>
+        <point x="209" y="101"></point>
+        <point x="224" y="135"></point>
+        <point x="220" y="225"></point>
+        <point x="175" y="261"></point>
+        <point x="128" y="261"></point>
+        <point x="81" y="224"></point>
+        <point x="74" y="135"></point>
+        <point x="88" y="99"></point>
+      </polygon>
+    </shape>
+    <shape name="wheel" rotatable="false" editableColorIndex="0">
+      <circle x="3" y="3" marked="true" color="-1920102913" diameter="294" filled="true"></circle>
+      <circle x="30" y="30" marked="false" color="255" diameter="240" filled="true"></circle>
+      <line endX="150" startY="285" marked="true" color="-1920102913" endY="15" startX="150"></line>
+      <line endX="285" startY="150" marked="true" color="-1920102913" endY="150" startX="15"></line>
+      <circle x="120" y="120" marked="true" color="-1920102913" diameter="60" filled="true"></circle>
+      <line endX="79" startY="40" marked="true" color="-1920102913" endY="269" startX="216"></line>
+      <line endX="269" startY="84" marked="true" color="-1920102913" endY="221" startX="40"></line>
+      <line endX="269" startY="216" marked="true" color="-1920102913" endY="79" startX="40"></line>
+      <line endX="221" startY="40" marked="true" color="-1920102913" endY="269" startX="84"></line>
+    </shape>
+    <shape name="wolf" rotatable="false" editableColorIndex="0">
+      <polygon color="255" filled="true" marked="false">
+        <point x="253" y="133"></point>
+        <point x="245" y="131"></point>
+        <point x="245" y="133"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="2" y="194"></point>
+        <point x="13" y="197"></point>
+        <point x="30" y="191"></point>
+        <point x="38" y="193"></point>
+        <point x="38" y="205"></point>
+        <point x="20" y="226"></point>
+        <point x="20" y="257"></point>
+        <point x="27" y="265"></point>
+        <point x="38" y="266"></point>
+        <point x="40" y="260"></point>
+        <point x="31" y="253"></point>
+        <point x="31" y="230"></point>
+        <point x="60" y="206"></point>
+        <point x="68" y="198"></point>
+        <point x="75" y="209"></point>
+        <point x="66" y="228"></point>
+        <point x="65" y="243"></point>
+        <point x="82" y="261"></point>
+        <point x="84" y="268"></point>
+        <point x="100" y="267"></point>
+        <point x="103" y="261"></point>
+        <point x="77" y="239"></point>
+        <point x="79" y="231"></point>
+        <point x="100" y="207"></point>
+        <point x="98" y="196"></point>
+        <point x="119" y="201"></point>
+        <point x="143" y="202"></point>
+        <point x="160" y="195"></point>
+        <point x="166" y="210"></point>
+        <point x="172" y="213"></point>
+        <point x="173" y="238"></point>
+        <point x="167" y="251"></point>
+        <point x="160" y="248"></point>
+        <point x="154" y="265"></point>
+        <point x="169" y="264"></point>
+        <point x="178" y="247"></point>
+        <point x="186" y="240"></point>
+        <point x="198" y="260"></point>
+        <point x="200" y="271"></point>
+        <point x="217" y="271"></point>
+        <point x="219" y="262"></point>
+        <point x="207" y="258"></point>
+        <point x="195" y="230"></point>
+        <point x="192" y="198"></point>
+        <point x="210" y="184"></point>
+        <point x="227" y="164"></point>
+        <point x="242" y="144"></point>
+        <point x="259" y="145"></point>
+        <point x="284" y="151"></point>
+        <point x="277" y="141"></point>
+        <point x="293" y="140"></point>
+        <point x="299" y="134"></point>
+        <point x="297" y="127"></point>
+        <point x="273" y="119"></point>
+        <point x="270" y="105"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="-1" y="195"></point>
+        <point x="14" y="180"></point>
+        <point x="36" y="166"></point>
+        <point x="40" y="153"></point>
+        <point x="53" y="140"></point>
+        <point x="82" y="131"></point>
+        <point x="134" y="133"></point>
+        <point x="159" y="126"></point>
+        <point x="188" y="115"></point>
+        <point x="227" y="108"></point>
+        <point x="236" y="102"></point>
+        <point x="238" y="98"></point>
+        <point x="268" y="86"></point>
+        <point x="269" y="92"></point>
+        <point x="281" y="87"></point>
+        <point x="269" y="103"></point>
+        <point x="269" y="113"></point>
+      </polygon>
+    </shape>
+    <shape name="x" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="270" y="75"></point>
+        <point x="225" y="30"></point>
+        <point x="30" y="225"></point>
+        <point x="75" y="270"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="30" y="75"></point>
+        <point x="75" y="30"></point>
+        <point x="270" y="225"></point>
+        <point x="225" y="270"></point>
+      </polygon>
+    </shape>
+  </turtleShapes>
+  <linkShapes>
+    <shape name="default" curviness="0.0">
+      <lines>
+        <line x="-0.2" visible="false">
+          <dash value="0.0"></dash>
+          <dash value="1.0"></dash>
+        </line>
+        <line x="0.0" visible="true">
+          <dash value="1.0"></dash>
+          <dash value="0.0"></dash>
+        </line>
+        <line x="0.2" visible="false">
+          <dash value="0.0"></dash>
+          <dash value="1.0"></dash>
+        </line>
+      </lines>
+      <indicator>
+        <shape name="link direction" rotatable="true" editableColorIndex="0">
+          <line endX="90" startY="150" marked="true" color="-1920102913" endY="180" startX="150"></line>
+          <line endX="210" startY="150" marked="true" color="-1920102913" endY="180" startX="150"></line>
+        </shape>
+      </indicator>
+    </shape>
+  </linkShapes>
+  <previewCommands>setup repeat 75 [ go ]</previewCommands>
+</model>

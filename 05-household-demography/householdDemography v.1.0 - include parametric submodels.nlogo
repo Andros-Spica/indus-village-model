@@ -1392,8 +1392,8 @@ end
 to-report load-coale-demeny-table [ isFemale ]
 
   ;;; Coale-Demeny Life Tables Model
-  ;;; tables generated with 'cdmlt' functions in 'demoR' package
-  ;;; demoR package version 0.6.0 (2018-09-13)
+  ;;; tables generated with 'cdmlt' functions in 'demogR' package
+  ;;; demogR package version 0.6.0 (2018-09-13)
   ;;; by James Holland Jones and collaborators
   ;;; Their source:
   ;;; Coale, A., P. Demeny, and B. Vaughn. 1983.
@@ -1926,7 +1926,7 @@ c1-women
 c1-women
 0
 1
-0.9
+0.071
 0.001
 1
 (default: 0.85)
@@ -1956,7 +1956,7 @@ mu-women
 mu-women
 0
 40
-15.0
+24.578
 0.001
 1
 (default: 15)
@@ -1971,7 +1971,7 @@ c1-men
 c1-men
 0
 1
-0.85
+0.083
 0.001
 1
 (default: 0.85)
@@ -1986,7 +1986,7 @@ mu-men
 mu-men
 0
 2 * 20
-20.0
+24.671
 0.001
 1
 (default: 20)
@@ -2001,7 +2001,7 @@ sigma1-men
 sigma1-men
 0
 2 * 5
-2.0
+5.054
 0.001
 1
 (default: 2)
@@ -2046,7 +2046,7 @@ sigma2-fert
 sigma2-fert
 0
 6 * 5
-25.205
+5.616
 0.001
 1
 (default: 10)
@@ -2190,7 +2190,7 @@ sigma2-women
 sigma2-women
 0
 2 * 5
-2.0
+5.0
 0.001
 1
 (default: 5)
@@ -2205,7 +2205,7 @@ sigma2-men
 sigma2-men
 0
 2 * 5
-10.0
+5.26
 0.001
 1
 (default: 5)
@@ -2217,7 +2217,7 @@ INPUTBOX
 160
 116
 max-iterations
-1000.0
+2000.0
 1
 0
 Number

@@ -281,18 +281,18 @@ to parameters-to-default
 
   set cdmlt-level                           8
 
-  set c1-fert                               0.9
-  set mu-fert                              15
+  set c1-fert                               0.4
+  set mu-fert                              21
   set sigma1-fert                           5
   set sigma2-fert                          10
 
-  set c1-women                              0.9
-  set mu-women                             15
+  set c1-women                              0.85
+  set mu-women                             18
   set sigma2-women                         10
   set sigma1-women                          5
 
   set c1-men                                0.85
-  set mu-men                               20
+  set mu-men                               25
   set sigma1-men                            2
   set sigma2-men                           10
 
@@ -896,7 +896,7 @@ end
 to-report hh_whichMembersDying
 
   ;;; density effect is distributed equally among members
-  let densityEffect get-density-effect-of-day carrying-capacity-demand carrying-capacity
+  let densityEffect get-density-effect-of-day carrying-capacity-demand carrying-capacity-effective
 
   ; returns a list with true/false values flagging which members is dying during the current day
   report map
@@ -1612,8 +1612,8 @@ end
 to-report load-coale-demeny-table [ isFemale ]
 
   ;;; Coale-Demeny Life Tables Model
-  ;;; tables generated with 'cdmlt' functions in 'demoR' package
-  ;;; demoR package version 0.6.0 (2018-09-13)
+  ;;; tables generated with 'cdmlt' functions in 'demogR' package
+  ;;; demogR package version 0.6.0 (2018-09-13)
   ;;; by James Holland Jones and collaborators
   ;;; Their source:
   ;;; Coale, A., P. Demeny, and B. Vaughn. 1983.
