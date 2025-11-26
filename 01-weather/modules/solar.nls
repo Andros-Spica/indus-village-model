@@ -1,3 +1,9 @@
+to update-solar-radiation
+
+  set solarRadiation gen-solar-radiation currentDayOfYear
+  
+end
+
 to-report gen-solar-radiation [ dayOfYear ]
 
   ;;; get solar radiation for the current day (MJ/m2)

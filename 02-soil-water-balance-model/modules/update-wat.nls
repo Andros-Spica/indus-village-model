@@ -1,0 +1,45 @@
+to update-WAT
+
+  ; Soil Water Balance model
+  ; Using the approach of:
+  ; 'Working with dynamic crop models: Methods, tools, and examples for agriculture and enviromnent'
+  ;  Daniel Wallach, David Makowski, James W. Jones, François Brun (2006, 2014, 2019)
+  ;  Model description in p. 24-28, R code example in p. 138-144.
+  ;  see also https://github.com/cran/ZeBook/blob/master/R/watbal.model.r
+  ; Some additional info about run off at: https://engineering.purdue.edu/mapserve/LTHIA7/documentation/scs.htm
+  ; and at: https://en.wikipedia.org/wiki/Runoff_curve_number
+
+  ; Maximum abstraction (mm; for run off)
+  let S 25400 / CN - 254
+  ; Initial Abstraction (mm; for run off)
+  let IA 0.2 * S
+  ; WATfc : Maximum Water content at field capacity (mm)
+  let WATfc FC * z
+  ; WATwp : Water content at wilting Point (mm)
+  let WATwp WP * z
+
+  ; Change in Water Before Drainage (Precipitation - Runoff)
+  let RO 0
+  if (RAIN > IA)
+  [ set RO ((RAIN - 0.2 * S) ^ 2) / (RAIN + 0.8 * S) ]
+  ; Calculating the amount of deep drainage
+  let DR 0
+  if (WAT + RAIN - RO > WATfc)
+  [ set DR DC * (WAT + RAIN - RO - WATfc) ]
+
+  ; Calculate rate of change of state variable WAT
+  ; Compute maximum water uptake by plant roots on a day, RWUM
+  let RWUM MUF * (WAT + RAIN - RO - DR - WATwp)
+  ; Calculate the amount of water lost through transpiration (TR)
+  let TR min (list RWUM ETr)
+
+  let dWAT RAIN - RO - DR - TR
+  set WAT WAT + dWAT
+
+  set WATp WAT / z
+
+  set ARID 0
+  if (TR < ETr)
+  [ set ARID 1 - TR / ETr ]
+
+end

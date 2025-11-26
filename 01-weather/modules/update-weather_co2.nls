@@ -1,0 +1,17 @@
+to update-weather
+
+  ;;; values are assigned using simple parametric models
+  ;;; alternatively, a specific time series could be used
+
+  update-temperature currentDayOfYear
+
+  update-precipitation currentDayOfYear
+
+  update-CO2
+
+  update-solar-radiation
+  set netSolarRadiation (1 - albedo) * solarRadiation
+
+  update-ETr
+
+end

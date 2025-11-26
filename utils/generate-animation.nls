@@ -1,0 +1,12 @@
+;;; To enable this module you must call the vid extension: 
+;;; extensions [ vid ]
+
+to generate-animation
+
+  setup
+  vid:start-recorder
+  repeat end-simulation-in-tick [ go vid:record-view ]
+  vid:save-recording  (word "run_" behaviorspace-run-number ".mov")
+  vid:reset-recorder
+
+end

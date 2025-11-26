@@ -232,3 +232,25 @@ to setup-patches
   ]
 
 end
+
+to go
+
+  ; --- core procedures -------------------------
+
+  update-weather
+
+  ; --- output handling ------------------------
+
+  refresh-view
+
+  ; -- time -------------------------------------
+
+  advance-time
+
+  tick
+
+  ; --- stop conditions -------------------------
+
+  if (ticks = end-simulation-in-tick) [stop]
+
+end

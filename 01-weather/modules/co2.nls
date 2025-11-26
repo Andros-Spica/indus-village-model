@@ -1,3 +1,9 @@
+to update-CO2
+
+  set CO2 gen-CO2 currentDayOfYear
+  
+end
+
 to-report gen-CO2 [ dayOfYear ]
 
   ;;; get CO2 atmospheric concentration for the current day (ppm)

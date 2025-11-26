@@ -1,3 +1,9 @@
+to update-ETr
+  
+  set ETr get-ETr
+  
+end
+
 to-report get-ETr
 
   ;;; useful references:

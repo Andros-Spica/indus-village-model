@@ -22,8 +22,8 @@
 ;;  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __includes [ 
-  "modules/setup.nls"
-  "modules/core.nls"
+  "modules/_setup_and_go.nls"
+  "modules/update-weather_co2.nls"
   "modules/temperature.nls"
   "modules/precipitation.nls"
   "modules/co2.nls"
@@ -31,6 +31,7 @@ __includes [
   "modules/evapotranspiration.nls"
   "modules/functions.nls" 
   "modules/plot.nls"
+  "../utils/time.nls"
   "../utils/clamp.nls"
 ]
 

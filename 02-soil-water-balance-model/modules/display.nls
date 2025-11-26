@@ -1,0 +1,127 @@
+to refresh-view
+
+  refresh-to-display-mode
+
+end
+
+to refresh-to-display-mode
+
+  if (display-mode = "elevation")
+  [
+    let maxElevation max [elevation] of patches
+    ask patches [ display-elevation maxElevation ]
+  ]
+
+  if (display-mode = "albedo")
+  [
+    ask patches [ display-albedo ]
+  ]
+
+  if (display-mode = "ETr")
+  [
+    let maxETr max [ETr] of patches
+    ask patches [ display-ETr maxETr ]
+  ]
+
+  if (display-mode = "drainage coefficient (DC)")
+  [
+    ask patches [ display-DC ]
+  ]
+
+  if (display-mode = "root zone depth (z)")
+  [
+    let maxZ max [z] of patches
+    ask patches [ display-z maxZ ]
+  ]
+
+  if (display-mode = "runoff curve number (CN)")
+  [
+    let maxCN max [CN] of patches
+    ask patches [ display-CN maxCN ]
+  ]
+
+  if (display-mode = "water content at field capacity (FC)")
+  [
+    let maxFC max [FC] of patches
+    ask patches [ display-FC maxFC ]
+  ]
+
+  if (display-mode = "water holding Capacity (WHC)")
+  [
+    let maxWHC max [WHC] of patches
+    ask patches [ display-WHC maxWHC ]
+  ]
+
+  if (display-mode = "soil water content (WATp)")
+  [
+    let maxWATp max [WATp] of patches
+    ask patches [ display-WATp maxWATp ]
+  ]
+
+  if (display-mode = "ARID coefficient")
+  [
+    ask patches [ display-arid ]
+  ]
+
+end
+
+to display-elevation [ maxElevation ]
+
+  let elevationGradient 100 + (155 * (elevation / maxElevation))
+  set pcolor rgb (elevationGradient - 100) elevationGradient 0
+
+end
+
+to display-albedo
+
+  set pcolor 1 + 9 * albedo
+
+end
+
+to display-ETr [ maxETr ]
+
+  set pcolor 22 + 6 * (1 - ETr / maxETr)
+
+end
+
+to display-DC
+
+  set pcolor 112 + 6 * (1 - DC)
+
+end
+
+to display-z [ maxZ ]
+
+  set pcolor 42 + 8 * (1 - z / maxZ)
+
+end
+
+to display-CN [ maxCN ]
+
+  set pcolor 72 + 6 * (1 - CN / maxCN)
+
+end
+
+to display-FC [ maxFC ]
+
+  set pcolor 82 + 6 * (1 - FC / maxFC)
+
+end
+
+to display-WHC [ maxWHC ]
+
+  set pcolor 92 + 6 * (1 - WHC / maxWHC)
+
+end
+
+to display-WATp [ maxWATp ]
+
+  set pcolor 102 + 6 * (1 - WATp / maxWATp)
+
+end
+
+to display-ARID
+
+  set pcolor 12 + 6 * (1 - ARID)
+
+end
