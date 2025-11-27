@@ -567,11 +567,9 @@ to update-weather
 
   set solarRadiation gen-solar-radiation currentDayOfYear
 
-  ask patches
-  [
-    set netSolarRadiation (1 - albedo) * solarRadiation
-    set ETr get-ETr
-  ]
+  set netSolarRadiation (1 - albedo) * solarRadiation
+  
+  set ETr get-ETr
 
 end
 
