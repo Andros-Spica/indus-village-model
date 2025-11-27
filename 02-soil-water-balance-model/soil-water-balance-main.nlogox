@@ -26,7 +26,7 @@
 __includes [
   "modules/_setup_and_go.nls"
   "modules/update-wat.nls"
-  ;;; Weather mode
+  ;;; Weather model
   "../01-weather/modules/update-weather.nls"
   "../01-weather/modules/temperature.nls"
   "../01-weather/modules/precipitation.nls"

@@ -25,7 +25,7 @@
 extensions [ csv ]
 
 __includes [
-  "modules/setup_and_go.nls"
+  "modules/_setup_and_go.nls"
   "modules/elevation.nls"
   "modules/flows.nls"
   "modules/soil.nls"
