@@ -1,0 +1,86 @@
+to-report get-variable-per-flowAccumulation [ variableName ]
+
+  let stepInSequence 1;maxFlowAccumulation / 100
+  let lengthOfSequence maxFlowAccumulation
+  let sequence (list)
+
+  if (variableName = "Depth")
+  [
+    foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
+    [
+      i ->
+      set sequence lput (get-soil-depth (get-soil-formative-erosion i)) sequence
+    ]
+  ]
+  if (variableName = "Sand")
+  [
+    foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
+    [
+      i ->
+      set sequence lput (get-soil-%sand (get-soil-formative-erosion i)) sequence
+    ]
+  ]
+  if (variableName = "Silt")
+  [
+    foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
+    [
+      i ->
+      set sequence lput (get-soil-%silt (get-soil-formative-erosion i)) sequence
+    ]
+  ]
+  if (variableName = "Clay")
+  [
+    foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
+    [
+      i ->
+      set sequence lput (get-soil-%clay (get-soil-formative-erosion i)) sequence
+    ]
+  ]
+  if (variableName = "Grass")
+  [
+    foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
+    [
+      i ->
+      if (i < max (list (3 * ecol_grassFrequencyInflection) (3 * ecol_brushFrequencyInflection) (3 * ecol_woodFrequencyInflection)) )
+      [
+        let %wood (get-%wood i)
+        let %brush (min (list (get-%brush i) (100 - %wood) ) )
+        set sequence lput (min (list
+          (get-%grass i)
+          (100 - %wood - %brush)
+          )
+        ) sequence
+      ]
+    ]
+  ]
+  if (variableName = "Brush")
+  [
+    foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
+    [
+      i ->
+      if (i < max (list (3 * ecol_grassFrequencyInflection) (3 * ecol_brushFrequencyInflection) (3 * ecol_woodFrequencyInflection)) )
+      [
+        let %wood (get-%wood i)
+        set sequence lput (min (list
+          (get-%brush i)
+          (100 - %wood)
+          )
+        ) sequence
+      ]
+    ]
+  ]
+  if (variableName = "Wood")
+  [
+    foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
+    [
+      i ->
+      if (i < max (list (3 * ecol_grassFrequencyInflection) (3 * ecol_brushFrequencyInflection) (3 * ecol_woodFrequencyInflection)) )
+      [
+        set sequence lput (get-%wood i) sequence
+      ]
+    ]
+  ]
+
+  report sequence
+
+end

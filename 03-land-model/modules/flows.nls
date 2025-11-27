@@ -1,0 +1,271 @@
+to setup-flows
+
+  if (flow_do-fill-sinks)
+  [
+    fill-sinks
+  ]
+
+  set-flow-directions
+
+  introduce-river-flow
+
+  set-flow-accumulations
+
+  ; set maximum flow accumulation as a reference excluding the flow entering through the river
+  set maxFlowAccumulation max [flow_accumulation] of patches with [flow_accumulation < flow_riverAccumulationAtStart]
+
+end
+
+;=======================================================================================================
+;;; START of algorithms based on:
+;;; Huang, P., Lee, K.T. A simple depression-filling method for raster and irregular elevation datasets.
+;;; J Earth Syst Sci 124, 1653–1665 (2015). https://doi.org/10.1007/s12040-015-0641-2
+;=======================================================================================================
+
+to fill-sinks
+
+  while [ count patches with [is-sink] > 0 ]
+  [
+    ask patches with [is-sink]
+    [
+      ;print (word "before: " elevation)
+      set elevation [elevation] of min-one-of neighbors [elevation] + 1E-1
+      ; the scale of this "small number" (1E-1) regulates how fast will be the calculation
+      ; and how distorted will be the depressless DEM
+      ;print (word "after: " elevation)
+    ]
+  ]
+
+end
+
+to-report is-sink ; ego = patch
+
+  let thisPatch self
+
+  report (not is-at-edge) and (elevation <= min [elevation] of neighbors);count neighbors with [elevation < [elevation] of thisPatch] = 0)
+
+end
+
+;=======================================================================================================
+;;; START of algorithms based on:
+;;; Jenson, S. K., & Domingue, J. O. (1988).
+;;; Extracting topographic structure from digital elevation data for geographic information system analysis.
+;;; Photogrammetric engineering and remote sensing, 54(11), 1593-1600.
+;;; ===BUT used elsewhere, such as in the algorithms based on:
+;;; Huang, P., Lee, K.T. A simple depression-filling method for raster and irregular elevation datasets.
+;;; J Earth Syst Sci 124, 1653–1665 (2015). https://doi.org/10.1007/s12040-015-0641-2
+;=======================================================================================================
+
+to-report get-drop-from [ aPatch ] ; ego = patch
+
+  ; "Distance- weighted drop is calculated by subtracting the neighbor’s value from the center cell’s value
+  ; and dividing by the distance from the center cell, √2 for a corner cell and one for a noncorner cell." (p. 1594)
+
+  report ([elevation] of aPatch - elevation) / (distance aPatch)
+
+end
+
+to-report is-at-edge ; ego = patch
+
+  report (pxcor = min-pxcor or pxcor = max-pxcor or pycor = min-pycor or pycor = max-pycor)
+
+end
+
+to-report has-flow-direction-code ; ego = patch
+
+  if (member? flow_direction [ 1 2 4 8 16 32 64 128 ]) [ report true ]
+
+  report false
+
+end
+
+to-report flow-direction-is [ centralPatch ]
+
+  if (flow_direction = get-flow-direction-encoding ([pxcor] of centralPatch - pxcor) ([pycor] of centralPatch - pycor))
+  [ report true ]
+
+  report false
+
+end
+
+to-report get-flow-direction-encoding [ x y ]
+
+  if (x = -1 and y = -1) [ report 16 ] ; Southwest
+  if (x = -1 and y = 0) [ report 32 ]  ; West
+  if (x = -1 and y = 1) [ report 64 ]  ; Northwest
+
+  if (x = 0 and y = -1) [ report 8 ]   ; South
+  if (x = 0 and y = 1) [ report 128 ]  ; North
+
+  if (x = 1 and y = -1) [ report 4 ]   ; Southeast
+  if (x = 1 and y = 0) [ report 2 ]    ; East
+  if (x = 1 and y = 1) [ report 1 ]    ; Northeast
+
+end
+
+to-report get-patch-in-flow-direction [ neighborEncoding ] ; ego = patch
+
+  ; 64 128 1
+  ; 32  x  2
+  ; 16  8  4
+
+  if (neighborEncoding = 16) [ report patch (pxcor - 1) (pycor - 1) ]
+  if (neighborEncoding = 32) [ report patch (pxcor - 1) (pycor) ]
+  if (neighborEncoding = 64) [ report patch (pxcor - 1) (pycor + 1) ]
+
+  if (neighborEncoding = 8) [ report patch (pxcor) (pycor - 1) ]
+  if (neighborEncoding = 128) [ report patch (pxcor) (pycor + 1) ]
+
+  if (neighborEncoding = 4) [ report patch (pxcor + 1) (pycor - 1) ]
+  if (neighborEncoding = 2) [ report patch (pxcor + 1) (pycor) ]
+  if (neighborEncoding = 1) [ report patch (pxcor + 1) (pycor + 1) ]
+
+  report nobody
+
+end
+
+to-report flow-direction-is-loop ; ego = patch
+
+  let thisPatch self
+  let dowstreamPatch get-patch-in-flow-direction flow_direction
+  ;print (word "thisPatch: " thisPatch "dowstreamPatch: " dowstreamPatch)
+
+  if (dowstreamPatch != nobody)
+  [ report [flow-direction-is thisPatch] of dowstreamPatch ]
+
+  report false
+
+end
+
+to set-flow-directions
+
+  ask patches
+  [
+    ifelse (is-at-edge)
+    [
+      ifelse ( pxcor = min-pxcor )
+      [ set flow_direction 32 ] ; west
+      [
+        ifelse ( pxcor = max-pxcor )
+        [ set flow_direction 2 ] ; east
+        [
+          ifelse ( pycor = min-pycor )
+          [ set flow_direction 8 ] ; south
+          [ set flow_direction 128 ] ; north
+        ]
+      ]
+    ]
+    [
+      set-flow-direction
+    ]
+  ]
+
+end
+
+to set-flow-direction ; ego = patch
+
+  let thisPatch self
+
+  let downstreamPatch max-one-of neighbors [get-drop-from thisPatch]
+  set flow_direction get-flow-direction-encoding ([pxcor] of downstreamPatch - pxcor) ([pycor] of downstreamPatch - pycor)
+
+end
+
+to introduce-river-flow
+
+  ; get average elevation of edges
+  let southEdgeAverageElevation  mean [elevation] of patches with [pycor = min-pycor]
+  let northEdgeAverageElevation  mean [elevation] of patches with [pycor = max-pycor]
+
+  ; find which edge has the highest average elevation
+  let highestEdge patches with [pycor = max-pycor] ; assume north
+  if (southEdgeAverageElevation > northEdgeAverageElevation)
+  [ set highestEdge patches with [pycor = min-pycor] ] ; change to south
+
+  ; give value (flow_riverAccumulationAtStart) of flow_accumulation to the lowest patch at that edge
+  ; and assign it an inward flowDirection
+  ask min-one-of highestEdge [elevation] ; a patch at the bottom of a valley
+  [
+    set flow_accumulation flow_riverAccumulationAtStart
+    let downstreamPatch min-one-of neighbors with [not is-at-edge] [elevation]
+    set flow_Direction get-flow-direction-encoding ([pxcor] of downstreamPatch - pxcor) ([pycor] of downstreamPatch - pycor)
+  ]
+
+end
+
+to set-flow-accumulations
+
+  ; From Jenson, S. K., & Domingue, J. O. (1988), p. 1594
+  ; "FLOW ACCUMULATION DATA SET
+  ; The third procedure of the conditioning phase makes use of the flow direction data set to create the flow accumulation data set,
+  ; where each cell is assigned a value equal to the number of cells that flow to it (O’Callaghan and Mark, 1984).
+  ; Cells having a flow accumulation value of zero (to which no other cells flow) generally correspond to the pattern of ridges.
+  ; Because all cells in a depressionless DEM have a path to the data set edge, the pattern formed by highlighting cells
+  ; with values higher than some threshold delineates a fully connected drainage network."
+
+  ; identify patches that receive flow and those that do not (this makes the next step much easier)
+  ask patches
+  [
+    set flow_receive false
+    set flow_accumulationState "start"
+    ;set pcolor red
+  ]
+
+  ask patches with [has-flow-direction-code]
+  [
+    let patchInFlowDirection get-patch-in-flow-direction flow_direction
+    if (patchInFlowDirection != nobody)
+    [
+      ask patchInFlowDirection
+      [
+        set flow_receive true
+        set flow_accumulationState "pending"
+        ;set pcolor yellow
+      ]
+    ]
+  ]
+
+  let maxIterations 100000 ; just as a safety measure, to avoid infinite loop
+  while [count patches with [flow_accumulationState = "pending" and not flow-direction-is-loop] > 0 and maxIterations > 0 and count patches with [flow_accumulationState = "start"] > 0 ]
+  [
+    ask one-of patches with [flow_accumulationState = "start"]
+    [
+      let downstreamPatch get-patch-in-flow-direction flow_direction
+      let nextFlow_accumulation flow_accumulation + 1
+
+      set flow_accumulationState "done"
+      ;set pcolor orange
+
+      if (downstreamPatch != nobody)
+      [
+        ask downstreamPatch
+        [
+          set flow_accumulation flow_accumulation + nextFlow_accumulation
+          if (count neighbors with [
+            get-patch-in-flow-direction flow_direction = downstreamPatch and
+            (flow_accumulationState = "pending" or flow_accumulationState = "start")
+            ] = 0
+          )
+          [
+            set flow_accumulationState "start"
+            ;set pcolor red
+          ]
+        ]
+      ]
+    ]
+
+    set maxIterations maxIterations - 1
+  ]
+
+end
+
+;=======================================================================================================
+;;; END of algorithms based on:
+;;; Jenson, S. K., & Domingue, J. O. (1988).
+;;; Extracting topographic structure from digital elevation data for geographic information system analysis.
+;;; Photogrammetric engineering and remote sensing, 54(11), 1593-1600.
+;;; ===BUT used in the algorithms based on:
+;;; Huang P C and Lee K T 2015
+;;; A simple depression-filling method for raster and irregular elevation datasets
+;;; J. Earth Syst. Sci. 124 1653–65
+;=======================================================================================================

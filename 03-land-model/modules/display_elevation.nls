@@ -1,0 +1,72 @@
+to refresh-view
+
+  update-plots
+
+  paint-patches
+
+end
+
+to refresh-view-after-seaLevel-change
+
+  set seaLevel par_seaLevel
+
+  set landRatio count patches with [elevation >= seaLevel] / count patches
+
+  update-plots
+
+  paint-patches
+
+end
+
+to paint-patches
+
+  if (display-mode = "elevation (m)")
+  [
+    ask patches
+    [
+      set pcolor get-elevation-color elevation
+    ]
+    set-legend-elevation 10
+  ]
+  ;;; other modes of display can be added here
+
+end
+
+to-report get-elevation-color [ elevationValue ]
+
+  let elevationGradient 0
+
+  ifelse (elevationValue < seaLevel)
+  [
+    let normSubElevation (-1) * (seaLevel - elevationValue)
+    let normSubMinElevation (-1) * (seaLevel - minElevation) + 1E-6
+    set elevationGradient 20 + (200 * (1 - normSubElevation / normSubMinElevation))
+    report rgb 0 0 elevationGradient
+  ]
+  [
+    let normSupElevation elevationValue - seaLevel
+    let normSupMaxElevation maxElevation - seaLevel + 1E-6
+    set elevationGradient 100 + (155 * (normSupElevation / normSupMaxElevation))
+    report rgb (elevationGradient - 100) elevationGradient 0
+  ]
+
+end
+
+to set-legend-elevation [ numberOfKeys ]
+
+  set-current-plot "Legend"
+
+  clear-plot
+
+  let step precision ((maxElevation - minElevation) / numberOfKeys) 4
+
+  let value maxElevation
+
+  while [ value > minElevation ]
+  [
+    create-temporary-plot-pen (word "" (precision value 4) "")
+    set-plot-pen-color get-elevation-color value
+    set value value - step
+  ]
+
+end

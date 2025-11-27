@@ -1,0 +1,78 @@
+to setup-transect
+
+  ask patches with [ pxcor = xTransect ]
+  [
+    sprout-transectLines 1 [ set shape "line" set heading 0 set color white ]
+  ]
+
+  ask patches with [ pycor = yTransect ]
+  [
+    sprout-transectLines 1 [ set shape "line" set heading 90 set color white ]
+  ]
+
+  if (not show-transects)
+  [
+    ask transectLines [ set hidden? true ]
+  ]
+
+end
+
+to update-transects
+
+  ifelse (show-transects)
+  [
+    ask transectLines
+    [
+      ifelse (heading = 0) [ set xcor xTransect ] [ set ycor yTransect ]
+      set hidden? false
+    ]
+  ]
+  [
+    ask transectLines [ set hidden? true ]
+  ]
+
+end
+
+to plot-horizontal-transect
+
+  foreach (n-values world-width [ j -> min-pxcor + j ])
+  [
+    x ->
+    plotxy x ([elevation] of patch x yTransect)
+  ]
+  plot-pen-up
+
+end
+
+to plot-sea-level-horizontal-transect
+
+  foreach (n-values world-width [ j -> min-pxcor + j ])
+  [
+    x ->
+    plotxy x seaLevel
+  ]
+  plot-pen-up
+
+end
+
+to plot-vertical-transect
+
+  foreach (n-values world-height [ j -> min-pycor + j ])
+  [
+    y ->
+    plotxy ([elevation] of patch xTransect y) y
+  ]
+  plot-pen-up
+
+end
+
+to plot-sea-level-vertical-transect
+
+  foreach (n-values world-height [ j -> min-pycor + j ])
+  [
+    y ->
+    plotxy seaLevel y
+  ]
+  plot-pen-up
+
+end

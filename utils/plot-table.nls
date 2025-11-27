@@ -1,0 +1,12 @@
+to plot-table [ values ]
+
+  let j 0
+  foreach values
+  [
+    i ->
+    plotxy j i
+    set j j + 1
+  ]
+  plot-pen-up
+
+end

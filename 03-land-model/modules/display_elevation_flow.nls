@@ -1,0 +1,147 @@
+to refresh-view
+
+  update-plots
+
+  paint-patches
+
+end
+
+to refresh-view-after-seaLevel-change
+
+  set seaLevel par_seaLevel
+
+  set landRatio count patches with [elevation >= seaLevel] / count patches
+
+  update-plots
+
+  paint-patches
+
+end
+
+to paint-patches
+
+  if (display-mode = "elevation (m)")
+  [
+    ask patches
+    [
+      set pcolor get-elevation-color elevation
+    ]
+    set-legend-elevation 10
+  ]
+  ;;; other modes of display can be added here
+
+  display-flows
+
+end
+
+to-report get-elevation-color [ elevationValue ]
+
+  let elevationGradient 0
+
+  ifelse (elevationValue < seaLevel)
+  [
+    let normSubElevation (-1) * (seaLevel - elevationValue)
+    let normSubMinElevation (-1) * (seaLevel - minElevation) + 1E-6
+    set elevationGradient 20 + (200 * (1 - normSubElevation / normSubMinElevation))
+    report rgb 0 0 elevationGradient
+  ]
+  [
+    let normSupElevation elevationValue - seaLevel
+    let normSupMaxElevation maxElevation - seaLevel + 1E-6
+    set elevationGradient 100 + (155 * (normSupElevation / normSupMaxElevation))
+    report rgb (elevationGradient - 100) elevationGradient 0
+  ]
+
+end
+
+to set-legend-elevation [ numberOfKeys ]
+
+  set-current-plot "Legend"
+
+  clear-plot
+
+  let step precision ((maxElevation - minElevation) / numberOfKeys) 4
+
+  let value maxElevation
+
+  while [ value > minElevation ]
+  [
+    create-temporary-plot-pen (word "" (precision value 4) "")
+    set-plot-pen-color get-elevation-color value
+    set value value - step
+  ]
+
+end
+
+to display-flows
+
+  if (not any? flowHolders)
+  [
+    ask patches [ sprout-flowHolders 1 [ set hidden? true ] ]
+  ]
+
+  ifelse (show-flows)
+  [
+    ask patches ;with [ has-flow-direction-code ]
+    [
+      let flow_directionHere flow_direction
+      let nextPatchInFlow get-patch-in-flow-direction flow_direction
+      let flow_accumulationHere flow_accumulation
+
+      ask one-of flowHolders-here
+      [
+        ifelse (nextPatchInFlow != nobody)
+        [
+          if (link-with one-of [flowHolders-here] of nextPatchInFlow = nobody)
+          [ create-link-with one-of [flowHolders-here] of nextPatchInFlow ]
+
+          ask link-with one-of [flowHolders-here] of nextPatchInFlow
+          [
+            set hidden? false
+            let multiplier 1E100 ^ (1 - flow_accumulationHere / (max [flow_accumulation] of patches)) / 1E100
+            set color 92 + (5 * multiplier)
+            set thickness 0.4 * ( 1 - ((color - 92) / 5))
+          ]
+        ]
+        [
+          set hidden? false
+          let multiplier 1E100 ^ (1 - flow_accumulationHere / (max [flow_accumulation] of patches)) / 1E100
+          set color 92 + (5 * multiplier)
+          if (color <= 97) [ set shape "line half" ]
+          if (color < 95) [ set shape "line half 1" ]
+          if (color < 93) [ set shape "line half 2" ]
+          set heading get-angle-in-flow-direction flow_direction
+        ]
+      ]
+    ]
+  ]
+  [
+    ask flowHolders
+    [
+      set hidden? true
+      ask my-links [ set hidden? true ]
+    ]
+  ]
+
+end
+
+to-report get-angle-in-flow-direction [ neighborEncoding ]
+
+  ; 64 128 1
+  ; 32  x  2
+  ; 16  8  4
+
+  if (neighborEncoding = 16) [ report 225 ]
+  if (neighborEncoding = 32) [ report 270 ]
+  if (neighborEncoding = 64) [ report 315 ]
+
+  if (neighborEncoding = 8) [ report 180 ]
+  if (neighborEncoding = 128) [ report 0 ]
+
+  if (neighborEncoding = 4) [ report 135 ]
+  if (neighborEncoding = 2) [ report 90 ]
+  if (neighborEncoding = 1) [ report 45 ]
+
+  report nobody
+
+end
