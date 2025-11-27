@@ -1,0 +1,97 @@
+to import-crop-table
+
+  ;;; this procedure loads the values of the crop table
+  ;;; the table contains:
+  ;;;   1. two lines of headers with comments (metadata, to be ignored)
+  ;;;   2. two lines with statements mapping the different types of data, if more than one
+  ;;;   3. the header of the table with the names of variables
+  ;;;   4. remaining rows containing row name and values
+
+  let cropsTable csv:from-file "cropsTable_SIMPLEmodel.csv"
+
+  ;;;==================================================================================================================
+  ;;; mapping coordinates (row or columns) in lines 3 and 4 (= index 2 and 3) -----------------------------------------
+  ;;; NOTE: always correct raw mapping coordinates (start at 1) into list indexes (start at 0)
+
+  ;;; line 3 (= index 2), row indexes
+
+  ;;; Types of crops rows: value 2 and 4 (= index 1 and 3)
+  let typesOfCropsRowRange (list ((item 1 (item 2 cropsTable)) - 1) ((item 3 (item 2 cropsTable)) - 1))
+
+  ;;; line 4 (= index 3), column indexes
+
+  let T_sumColumn (item 7 (item 3 cropsTable)) - 1
+
+  let HIColumn (item 9 (item 3 cropsTable)) - 1
+
+  let I_50AColumn (item 11 (item 3 cropsTable)) - 1
+
+  let I_50BColumn (item 13 (item 3 cropsTable)) - 1
+
+  let T_baseColumn (item 15 (item 3 cropsTable)) - 1
+
+  let T_optColumn (item 17 (item 3 cropsTable)) - 1
+
+  let RUEColumn (item 19 (item 3 cropsTable)) - 1
+
+  let I_50maxHColumn (item 21 (item 3 cropsTable)) - 1
+
+  let I_50maxWColumn (item 23 (item 3 cropsTable)) - 1
+
+  let T_heatColumn (item 25 (item 3 cropsTable)) - 1
+
+  let T_extColumn (item 27 (item 3 cropsTable)) - 1
+
+  let S_CO2Column (item 29 (item 3 cropsTable)) - 1
+
+  let S_waterColumn (item 31 (item 3 cropsTable)) - 1
+
+  let sugSowingDayColumn (item 33 (item 3 cropsTable)) - 1
+
+  let sugHarvestingDayColumn (item 35 (item 3 cropsTable)) - 1
+
+  let rootZoneDepthColumn (item 37 (item 3 cropsTable)) - 1
+
+  ;;;==================================================================================================================
+  ;;; extract data---------------------------------------------------------------------------------------
+
+  ;;; read variables per crop type (list of lists, matrix: crop types x variables)
+  let cropsData sublist cropsTable (item 0 typesOfCropsRowRange) (item 1 typesOfCropsRowRange + 1) ; select only those row corresponding to types of crops, if there is anything else
+
+  ;;; extract types of crops from the first column
+  set typesOfCrops map [row -> item 0 row ] cropsData
+
+  ;;; extract parameter values from the given column
+  set T_sum map [row -> item T_sumColumn row ] cropsData
+
+  set HI map [row -> item HIColumn row ] cropsData
+
+  set I_50A map [row -> item I_50AColumn row ] cropsData
+
+  set I_50B map [row -> item I_50BColumn row ] cropsData
+
+  set T_base map [row -> item T_baseColumn row ] cropsData
+
+  set T_opt map [row -> item T_optColumn row ] cropsData
+
+  set RUE map [row -> item RUEColumn row ] cropsData
+
+  set I_50maxH map [row -> item I_50maxHColumn row ] cropsData
+
+  set I_50maxW map [row -> item I_50maxWColumn row ] cropsData
+
+  set T_heat map [row -> item T_heatColumn row ] cropsData
+
+  set T_extreme map [row -> item T_extColumn row ] cropsData
+
+  set S_CO2 map [row -> item S_CO2Column row ] cropsData
+
+  set S_water map [row -> item S_waterColumn row ] cropsData
+
+  set sugSowingDay map [row -> item sugSowingDayColumn row ] cropsData
+
+  set sugHarvestingDay map [row -> item sugHarvestingDayColumn row ] cropsData
+
+  set rootZoneDepth map [row -> item rootZoneDepthColumn row ] cropsData
+
+end

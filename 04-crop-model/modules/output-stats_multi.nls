@@ -1,0 +1,48 @@
+to set-terrain-output-stats
+
+  set minElevation min [elevation] of patches
+
+  set maxElevation max [elevation] of patches
+
+end
+
+to update-output-stats
+
+  ask patches
+  [
+    update-ARID_yearSeries
+
+    update-T_max_yearSeries
+  ]
+
+end
+
+to update-ARID_yearSeries
+
+  ; if starting a new year
+  if (currentDayOfYear = 1)
+  [
+    ; save current year as last year
+    set ARID_yearSeries_lastYear ARID_yearSeries
+    ; reset ARID_yearSeries if starting a new year
+    set ARID_yearSeries (list)
+  ]
+  ; append this day ARID to ARID_yearSeries
+  set ARID_yearSeries lput ARID ARID_yearSeries
+
+end
+
+to update-T_max_yearSeries
+
+  ; if starting a new year
+  if (currentDayOfYear = 1)
+  [
+    ; save current year as last year
+    set T_max_yearSeries_lastYear T_max_yearSeries
+    ; reset ARID_yearSeries if starting a new year
+    set T_max_yearSeries (list)
+  ]
+  ; append this day T_max to T_max_yearSeries
+  set T_max_yearSeries lput T_max T_max_yearSeries
+
+end
