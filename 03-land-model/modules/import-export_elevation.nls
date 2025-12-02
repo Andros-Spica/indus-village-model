@@ -79,7 +79,7 @@ to import-terrain
 
           if (item globalIndex globalNames = "display-mode") [ set display-mode read-from-string item globalIndex globalValues ]
 
-          if (item globalIndex globalNames = "sealevel") [ set seaLevel item globalIndex globalValues ]
+          if (item globalIndex globalNames = "elev_seaLevelReferenceShift") [ set elev_seaLevelReferenceShift item globalIndex globalValues ]
 
           if (item globalIndex globalNames = "elev_algorithm-style") [ set elev_algorithm-style read-from-string item globalIndex globalValues ]
 

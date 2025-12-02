@@ -49,7 +49,7 @@ to plot-sea-level-horizontal-transect
   foreach (n-values world-width [ j -> min-pxcor + j ])
   [
     x ->
-    plotxy x seaLevel
+    plotxy x 0
   ]
   plot-pen-up
 
@@ -71,7 +71,7 @@ to plot-sea-level-vertical-transect
   foreach (n-values world-height [ j -> min-pycor + j ])
   [
     y ->
-    plotxy seaLevel y
+    plotxy 0 y
   ]
   plot-pen-up
 

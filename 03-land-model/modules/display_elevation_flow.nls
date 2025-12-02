@@ -8,13 +8,17 @@ end
 
 to refresh-view-after-seaLevel-change
 
-  set seaLevel par_seaLevel
+  set elev_seaLevelReferenceShift par_elev_seaLevelReferenceShift
 
-  set landRatio count patches with [elevation >= seaLevel] / count patches
+  ask patches
+  [
+    ;;; recentre elevation so negative values are only below sea level
+    set elevation elevation - elev_seaLevelReferenceShift
+  ]
 
-  update-plots
-
-  paint-patches
+  set-output-stats
+  
+  refresh-view
 
 end
 
@@ -38,16 +42,16 @@ to-report get-elevation-color [ elevationValue ]
 
   let elevationGradient 0
 
-  ifelse (elevationValue < seaLevel)
+  ifelse (elevationValue < 0)
   [
-    let normSubElevation (-1) * (seaLevel - elevationValue)
-    let normSubMinElevation (-1) * (seaLevel - minElevation) + 1E-6
+    let normSubElevation (-1) * (0 - elevationValue)
+    let normSubMinElevation (-1) * (0 - minElevation) + 1E-6
     set elevationGradient 20 + (200 * (1 - normSubElevation / normSubMinElevation))
     report rgb 0 0 elevationGradient
   ]
   [
-    let normSupElevation elevationValue - seaLevel
-    let normSupMaxElevation maxElevation - seaLevel + 1E-6
+    let normSupElevation elevationValue
+    let normSupMaxElevation maxElevation + 1E-6
     set elevationGradient 100 + (155 * (normSupElevation / normSupMaxElevation))
     report rgb (elevationGradient - 100) elevationGradient 0
   ]
