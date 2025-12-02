@@ -98,9 +98,9 @@ to update-TT [ cropIndex ]
 
   let deltaTT 0
 
-  ifelse ( T > item cropIndex T_base )
+  ifelse ( temperature > item cropIndex T_base )
   [
-    set deltaTT T - item cropIndex T_base
+    set deltaTT temperature - item cropIndex T_base
   ]
   [
     set deltaTT 0
@@ -130,17 +130,17 @@ end
 
 to update-f_Temp [ cropIndex ]
 
-  ifelse ( T < item cropIndex T_base )
+  ifelse ( temperature < item cropIndex T_base )
   [
     set f_Temp 0
   ]
   [
-    ifelse ( T >= item cropIndex T_opt )
+    ifelse ( temperature >= item cropIndex T_opt )
     [
       set f_Temp 1
     ]
     [
-      set f_Temp (T - item cropIndex T_base) / (item cropIndex T_opt - item cropIndex T_base)
+      set f_Temp (temperature - item cropIndex T_base) / (item cropIndex T_opt - item cropIndex T_base)
     ]
   ]
 
@@ -148,17 +148,17 @@ end
 
 to update-f_Heat [ cropIndex ]
 
-  ifelse ( T_max <= item cropIndex T_heat )
+  ifelse ( maxTemperature <= item cropIndex T_heat )
   [
     set f_Heat 1
   ]
   [
-    ifelse ( T_max > item cropIndex T_extreme )
+    ifelse ( maxTemperature > item cropIndex T_extreme )
     [
       set f_Heat 0
     ]
     [
-      set f_Heat (T_max - item cropIndex T_heat) / (item cropIndex T_extreme - item cropIndex T_heat)
+      set f_Heat (maxTemperature - item cropIndex T_heat) / (item cropIndex T_extreme - item cropIndex T_heat)
     ]
   ]
 

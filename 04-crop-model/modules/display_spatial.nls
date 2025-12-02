@@ -69,26 +69,26 @@ to refresh-to-display-mode
   ]
   if (display-mode = "albedo (%)")
   [
-    let minAlbedo min [albedo] of patches
-    let maxAlbedo max [albedo] of patches
+    let minAlbedo min [p_ecol_albedo] of patches
+    let maxAlbedo max [p_ecol_albedo] of patches
 
     let rangeAlbedo maxAlbedo - minAlbedo
     if (rangeAlbedo = 0) [ set rangeAlbedo 1 ]
 
     ask patches
     [
-      set pcolor 2 + 6 * (albedo - minAlbedo) / rangeAlbedo
+      set pcolor 2 + 6 * (p_ecol_albedo - minAlbedo) / rangeAlbedo
     ]
     set-legend-continuous-range maxAlbedo minAlbedo 2 8 6 false
   ]
   if (display-mode = "reference evapotranspiration (ETr) (mm)")
   [
-    let minETr min [ETr] of patches
-    let maxETr max [ETr] of patches
+    let minETr min [p_ETr] of patches
+    let maxETr max [p_ETr] of patches
 
     ask patches
     [
-      set pcolor 12 + 6 * (ETr - minETr) / (maxETr - minETr)
+      set pcolor 12 + 6 * (p_ETr - minETr) / (maxETr - minETr)
     ]
     set-legend-continuous-range maxETr minETr 18 12 6 true
   ]

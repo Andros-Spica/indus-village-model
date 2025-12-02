@@ -36,14 +36,14 @@ __includes [
   "modules/plot_spatial.nls"
   "modules/experiments_spatial.nls"
   ;;; Soil Water Balance model
-  "../02-soil-water-balance-model/modules/update-wat.nls"
+  "../02-soil-water-balance-model/modules/update-wat_spatial.nls"
   ;;; Weather model
   "../01-weather/modules/update-weather_co2_spatial.nls"
   "../01-weather/modules/temperature.nls"
   "../01-weather/modules/precipitation.nls"
   "../01-weather/modules/co2.nls"
   "../01-weather/modules/solar.nls"
-  "../01-weather/modules/evapotranspiration.nls"
+  "../01-weather/modules/evapotranspiration_spatial.nls"
   "../01-weather/modules/functions.nls" 
   "../01-weather/modules/plot.nls"
   "../utils/time.nls"
@@ -161,15 +161,15 @@ globals
 
   ;;;; main (these follow a seasonal pattern and apply for all patches)
 
-  T ; average temperature of current day (ºC)
-  T_max ; maximum temperature of current day (ºC)
-  T_min ; minimum temperature of current day (ºC)
+  temperature                          ; average temperature of current day (ºC) at 2 meters
+  maxTemperature                       ; maximum temperature of current day (ºC)
+  minTemperature                       ; minimum temperature of current day (ºC)
 
   CO2 ; average CO2 concentration of the current day (ppm)
 
   solarRadiation ; solar radiation of current day (MJ m-2)
 
-  RAIN ; precipitation of current day (mm)
+  precipitation                        ; precipitation of current day ( mm (height) / m^2 (area) ).
   precipitation_yearSeries
   precipitation_cumYearSeries
 
@@ -199,9 +199,9 @@ patches-own
   WATp ; Volumetric Soil Water content (fraction : mm.mm-1). calculated as WAT/z
 
   ;;;; cover
-  albedo ; canopy reflection or albedo of hypothetical grass reference crop (0.23)
-  netSolarRadiation ; net solar radiation discount canopy reflection or albedo, assuming hypothetical grass reference crop (albedo = 0.23)
-  ETr ; reference evapotranspiration
+  p_ecol_albedo ; canopy reflection or albedo of hypothetical grass reference crop (0.23)
+  p_netSolarRadiation ; net solar radiation discount canopy reflection or albedo, assuming hypothetical grass reference crop (albedo = 0.23)
+  p_ETr ; reference evapotranspiration
 
   ;;; main variables
   crop ; coded name of the crop (as specified in "cropsTable.csv". this implementation assumes a single crop is grown per patch (randomly assigned at the setup)

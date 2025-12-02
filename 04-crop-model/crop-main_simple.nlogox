@@ -156,9 +156,9 @@ globals
 
   ;;;; main (these follow a seasonal pattern and apply for all patches)
 
-  T ; average temperature of current day (ºC)
-  T_max ; maximum temperature of current day (ºC)
-  T_min ; minimum temperature of current day (ºC)
+  temperature                          ; average temperature of current day (ºC) at 2 meters
+  maxTemperature                       ; maximum temperature of current day (ºC)
+  minTemperature                       ; minimum temperature of current day (ºC)
 
   CO2 ; average CO2 concentration of the current day (ppm)
 
@@ -167,7 +167,7 @@ globals
 
   ETr ; reference evapotranspiration
 
-  RAIN ; precipitation of current day (mm)
+  precipitation                        ; precipitation of current day ( mm (height) / m^2 (area) ).
   precipitation_yearSeries
   precipitation_cumYearSeries
 
@@ -310,7 +310,7 @@ set-plot-x-range 0 (yearLengthInDays + 1)</setup>
       <update></update>
       <pen interval="1.0" mode="1" display="RAIN" color="-16777216" legend="true">
         <setup></setup>
-        <update>plot RAIN</update>
+        <update>plot precipitation</update>
       </pen>
       <pen interval="1.0" mode="0" display="ETr" color="-2674135" legend="true">
         <setup></setup>
@@ -342,15 +342,15 @@ set-plot-x-range 0 (yearLengthInDays + 1)</setup>
       <update></update>
       <pen interval="1.0" mode="0" display="mean" color="-16777216" legend="true">
         <setup></setup>
-        <update>plot T</update>
+        <update>plot temperature</update>
       </pen>
       <pen interval="1.0" mode="0" display="min" color="-13345367" legend="true">
         <setup></setup>
-        <update>plot T_min</update>
+        <update>plot minTemperature</update>
       </pen>
       <pen interval="1.0" mode="0" display="max" color="-2674135" legend="true">
         <setup></setup>
-        <update>plot T_max</update>
+        <update>plot maxTemperature</update>
       </pen>
     </plot>
     <plot x="315" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="g/m2 | mm" y="312" xMin="0.0" height="309" legend="true" xMax="10.0" yMin="0.0" width="657" xAxis="years" display="Crops yield (patch mean) and annual total precipitation">

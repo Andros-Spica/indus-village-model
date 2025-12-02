@@ -124,7 +124,7 @@ to export-yield-performance
       file-type CN file-type ","
       file-type FC file-type ","
       file-type WHC file-type ","
-      file-type albedo file-type ","
+      file-type p_ecol_albedo file-type ","
       ;;; crop, sowingDay, harvestDay
       file-type crop file-type ","
       file-type (item cropIndex T_sum) file-type ","
@@ -207,15 +207,15 @@ to export-weather-of-yield-experiment
   file-type currentYear file-type ","
   file-type currentDayOfYear file-type ","
   ;;; tempetature,temperature_max,temperature_min,
-  file-type T file-type ","
-  file-type T_max file-type ","
-  file-type T_min file-type ","
+  file-type temperature file-type ","
+  file-type maxTemperature file-type ","
+  file-type minTemperature file-type ","
   ;;; CO2,
   file-type CO2 file-type ","
   ;;; solarRadiation,
   file-type solarRadiation file-type ","
   ;;; RAIN
-  file-type RAIN
+  file-type precipitation
 
   file-print ""
 

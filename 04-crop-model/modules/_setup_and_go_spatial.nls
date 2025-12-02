@@ -334,7 +334,7 @@ to setup-patches
     set crop one-of typesOfCrops
 
     set elevation random-poisson elevation_mean ; this is only a temporal approach to test this submodel (elevation should be given by the Land model)
-    set albedo albedo_min + random-float (albedo_max - albedo_min)
+    set p_ecol_albedo albedo_min + random-float (albedo_max - albedo_min)
 
     ; z : root zone depth (mm)
     set z item (position crop typesOfCrops) rootZoneDepth
