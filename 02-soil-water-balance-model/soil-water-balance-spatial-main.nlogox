@@ -25,14 +25,14 @@
 
 __includes [
   "modules/_setup_and_go_spatial.nls"
-  "modules/update-wat.nls"
+  "modules/update-wat_spatial.nls"
   "modules/display.nls"
   ;;; Weather model
   "../01-weather/modules/update-weather_spatial.nls"
   "../01-weather/modules/temperature.nls"
   "../01-weather/modules/precipitation.nls"
   "../01-weather/modules/solar.nls"
-  "../01-weather/modules/evapotranspiration.nls"
+  "../01-weather/modules/evapotranspiration_spatial.nls"
   "../01-weather/modules/functions.nls" 
   "../01-weather/modules/plot.nls"
   "../utils/time.nls"
@@ -112,13 +112,13 @@ globals
 
   ;;;; main (these follow a seasonal pattern and apply for all patches)
 
-  T ; average temperature of current day (ºC)
-  T_max ; maximum temperature of current day (ºC)
-  T_min ; minimum temperature of current day (ºC)
+  temperature ; average temperature of current day (ºC)
+  maxTemperature ; maximum temperature of current day (ºC)
+  minTemperature ; minimum temperature of current day (ºC)
 
   solarRadiation ; solar radiation of current day (MJ m-2)
 
-  RAIN ; precipitation of current day (mm)
+  precipitation ; precipitation of current day (mm)
   precipitation_yearSeries
   precipitation_cumYearSeries
 
@@ -142,9 +142,9 @@ patches-own
   WATp ; Volumetric Soil Water content (fraction : mm.mm-1). calculated as WAT/z
 
   ;;;; cover
-  albedo ; canopy reflection or albedo of hypothetical grass reference crop (0.23)
-  netSolarRadiation ; net solar radiation discount canopy reflection or albedo, assuming hypothetical grass reference crop (albedo = 0.23)
-  ETr ; reference evapotranspiration
+  p_ecol_albedo ; canopy reflection or albedo of hypothetical grass reference crop (0.23)
+  p_netSolarRadiation ; net solar radiation discount canopy reflection or albedo, assuming hypothetical grass reference crop (albedo = 0.23)
+  p_ETr ; reference evapotranspiration
 ]
 ]]></code>
   <widgets>
@@ -236,15 +236,15 @@ set-plot-x-range 0 (yearLengthInDays + 1)</setup>
       <update></update>
       <pen interval="1.0" mode="0" display="mean" color="-16777216" legend="true">
         <setup></setup>
-        <update>plot T</update>
+        <update>plot temperature</update>
       </pen>
       <pen interval="1.0" mode="0" display="min" color="-13345367" legend="true">
         <setup></setup>
-        <update>plot T_min</update>
+        <update>plot minTemperature</update>
       </pen>
       <pen interval="1.0" mode="0" display="max" color="-2674135" legend="true">
         <setup></setup>
-        <update>plot T_max</update>
+        <update>plot maxTemperature</update>
       </pen>
     </plot>
     <plot x="289" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="MJ/m2" y="400" xMin="0.0" height="175" legend="false" xMax="10.0" yMin="0.0" width="657" xAxis="days" display="Solar radiation">
@@ -260,11 +260,11 @@ set-plot-x-range 0 (yearLengthInDays + 1)</setup>
       <update></update>
       <pen interval="1.0" mode="1" display="RAIN" color="-16777216" legend="true">
         <setup></setup>
-        <update>plot RAIN</update>
+        <update>plot precipitation</update>
       </pen>
       <pen interval="1.0" mode="0" display="mean ETr" color="-2674135" legend="true">
         <setup></setup>
-        <update>plot mean [ETr] of patches</update>
+        <update>plot mean [p_ETr] of patches</update>
       </pen>
     </plot>
     <monitor x="1328" precision="2" y="218" height="60" fontSize="9" width="210">temperature_annualMaxAt2m</monitor>

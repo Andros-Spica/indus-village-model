@@ -19,7 +19,7 @@ to refresh-to-display-mode
 
   if (display-mode = "ETr")
   [
-    let maxETr max [ETr] of patches
+    let maxETr max [p_ETr] of patches
     ask patches [ display-ETr maxETr ]
   ]
 
@@ -74,13 +74,13 @@ end
 
 to display-albedo
 
-  set pcolor 1 + 9 * albedo
+  set pcolor 1 + 9 * p_ecol_albedo
 
 end
 
 to display-ETr [ maxETr ]
 
-  set pcolor 22 + 6 * (1 - ETr / maxETr)
+  set pcolor 22 + 6 * (1 - p_ETr / maxETr)
 
 end
 

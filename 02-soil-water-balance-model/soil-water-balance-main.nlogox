@@ -110,14 +110,14 @@ globals
   WAT ; Water content in the soil profile for the rooting depth (mm)
   WATp ; Volumetric Soil Water content (fraction: mm.mm^-1). calculated as WAT/z
 
-  T ; average temperature of current day (ºC)
-  T_max ; maximum temperature of current day (ºC)
-  T_min ; minimum temperature of current day (ºC)
+  temperature ; average temperature of current day (ºC)
+  maxTemperature ; maximum temperature of current day (ºC)
+  minTemperature ; minimum temperature of current day (ºC)
 
   solarRadiation ; solar radiation of current day (MJ.m^-2)
   netSolarRadiation ; net solar radiation discount canopy reflection or albedo, assuming hypothetical grass reference crop (albedo = 0.23)
 
-  RAIN ; precipitation of current day (mm)
+  precipitation ; precipitation of current day (mm)
   precipitation_yearSeries
   precipitation_cumYearSeries
 
@@ -214,15 +214,15 @@ set-plot-x-range 0 (yearLengthInDays + 1)</setup>
       <update></update>
       <pen interval="1.0" mode="0" display="mean" color="-16777216" legend="true">
         <setup></setup>
-        <update>plot T</update>
+        <update>plot temperature</update>
       </pen>
       <pen interval="1.0" mode="0" display="min" color="-13345367" legend="true">
         <setup></setup>
-        <update>plot T_min</update>
+        <update>plot minTemperature</update>
       </pen>
       <pen interval="1.0" mode="0" display="max" color="-2674135" legend="true">
         <setup></setup>
-        <update>plot T_max</update>
+        <update>plot maxTemperature</update>
       </pen>
     </plot>
     <plot x="285" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="mm" y="583" xMin="0.0" height="305" legend="true" xMax="10.0" yMin="0.0" width="656" xAxis="days" display="precipitation">
@@ -230,7 +230,7 @@ set-plot-x-range 0 (yearLengthInDays + 1)</setup>
       <update></update>
       <pen interval="1.0" mode="1" display="RAIN" color="-16777216" legend="true">
         <setup></setup>
-        <update>plot RAIN</update>
+        <update>plot precipitation</update>
       </pen>
       <pen interval="1.0" mode="0" display="ETr" color="-2674135" legend="true">
         <setup></setup>

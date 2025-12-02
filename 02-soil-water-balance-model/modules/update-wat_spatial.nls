@@ -31,7 +31,7 @@ to update-WAT
   ; Compute maximum water uptake by plant roots on a day, RWUM
   let RWUM MUF * (WAT + precipitation - RO - DR - WATwp)
   ; Calculate the amount of water lost through transpiration (TR)
-  let TR min (list RWUM ETr)
+  let TR min (list RWUM p_ETr)
 
   let dWAT precipitation - RO - DR - TR
   set WAT WAT + dWAT
@@ -39,7 +39,7 @@ to update-WAT
   set WATp WAT / z
 
   set ARID 0
-  if (TR < ETr)
-  [ set ARID 1 - TR / ETr ]
+  if (TR < p_ETr)
+  [ set ARID 1 - TR / p_ETr ]
 
 end
