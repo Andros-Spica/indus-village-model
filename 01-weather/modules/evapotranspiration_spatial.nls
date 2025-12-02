@@ -1,10 +1,10 @@
 to update-ETr
   
-  set ETr get-ETr temperature minTemperature maxTemperature
+  set p_ETr get-ETr temperature minTemperature maxTemperature p_netSolarRadiation
   
 end
 
-to-report get-ETr [ T T_min T_max ]
+to-report get-ETr [ T T_min T_max net_solar_radiation ]
 
   ;;; useful references:
   ;;; Suleiman A A and Hoogenboom G 2007
@@ -47,7 +47,7 @@ to-report get-ETr [ T T_min T_max ]
   let C_n 900
   let C_d 0.34
 
-  let ETr_temp (0.408 * DELTA * netSolarRadiation + gamma * (C_n / (T + 273)) * windSpeed * (e_s - e_a)) / (DELTA + gamma * (1 + C_d * windSpeed))
+  let ETr_temp (0.408 * DELTA * net_solar_radiation + gamma * (C_n / (T + 273)) * windSpeed * (e_s - e_a)) / (DELTA + gamma * (1 + C_d * windSpeed))
 
   report ETr_temp
 

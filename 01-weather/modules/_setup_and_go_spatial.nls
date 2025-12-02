@@ -228,7 +228,7 @@ to setup-patches
   ask patches
   [
     set elevation random-poisson elevation_mean ; this is only a temporal approach to test this submodel (elevation should be given by the Land model)
-    set albedo albedo_min + random-float albedo_max
+    set p_ecol_albedo albedo_min + random-float albedo_max
   ]
 
 end

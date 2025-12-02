@@ -2,7 +2,7 @@ to update-precipitation [ dayOfYear ]
 
   if (dayOfYear = 1) [ generate-annual-precipitation ]
 
-  set RAIN item (dayOfYear - 1) precipitation_yearSeries
+  set precipitation item (dayOfYear - 1) precipitation_yearSeries
 
 end
 

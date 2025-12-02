@@ -11,7 +11,7 @@ to update-weather
 
   ask patches
   [
-    set netSolarRadiation (1 - albedo) * solarRadiation
+    set p_netSolarRadiation (1 - p_ecol_albedo) * solarRadiation
     update-ETr
   ]
 

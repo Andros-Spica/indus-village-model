@@ -1,10 +1,10 @@
 to update-temperature [ dayOfYear ]
 
-  set T gen-temperature dayOfYear
+  set temperature gen-temperature dayOfYear
 
-  set T_min T - temperature_dailyLowerDeviation
+  set minTemperature temperature - temperature_dailyLowerDeviation
 
-  set T_max T + temperature_dailyUpperDeviation
+  set maxTemperature temperature + temperature_dailyUpperDeviation
 
 end
 
