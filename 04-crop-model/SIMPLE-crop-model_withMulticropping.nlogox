@@ -141,15 +141,15 @@ globals
 
   ;;;; main (these follow a seasonal pattern and apply for all patches)
 
-  T ; average temperature of current day (ºC)
-  T_max ; maximum temperature of current day (ºC)
-  T_min ; minimum temperature of current day (ºC)
+  temperature ; average temperature of current day (ºC)
+  maxTemperature ; maximum temperature of current day (ºC)
+  minTemperature ; minimum temperature of current day (ºC)
 
   CO2 ; average CO2 concentration of the current day (ppm)
 
   solarRadiation ; solar radiation of current day (MJ m-2)
 
-  RAIN ; precipitation of current day (mm)
+  precipitation ; precipitation of current day (mm)
   precipitation_yearSeries
   precipitation_cumYearSeries
 
@@ -179,9 +179,9 @@ patches-own
   WATp ; Volumetric Soil Water content (fraction : mm.mm-1). calculated as WAT/z
 
   ;;;; cover
-  albedo ; canopy reflection or albedo of hypothetical grass reference crop (0.23)
-  netSolarRadiation ; net solar radiation discount canopy reflection or albedo, assuming hypothetical grass reference crop (albedo = 0.23)
-  ETr ; reference evapotranspiration
+  p_ecol_albedo ; canopy reflection or albedo of hypothetical grass reference crop (0.23)
+  p_netSolarRadiation ; net solar radiation discount canopy reflection or albedo, assuming hypothetical grass reference crop (albedo = 0.23)
+  p_ETr ; reference evapotranspiration
 
   ;;; main variables
   cropFrequency ; % of patchArea dedicated to each crop in typesOfCrop
@@ -192,8 +192,8 @@ patches-own
   totalYield ; total crop biomass harvested (g)
   ARID_yearSeries ; registers daily values of ARID of the current year (used to export data)
   ARID_yearSeries_lastYear ; saves daily values of ARID of the last year (used to export data)
-  T_max_yearSeries ; registers daily values of T_max of the current year (used to export data)
-  T_max_yearSeries_lastYear ; saves daily values of T_max of the last year (used to export data)
+  maxTemperature_yearSeries ; registers daily values of maxTemperature of the current year (used to export data)
+  maxTemperature_yearSeries_lastYear ; saves daily values of maxTemperature of the last year (used to export data)
 
   ;;; auxiliar variables
   biomass_rate ; daily change in plant biomass (g)
@@ -556,7 +556,7 @@ to setup-patches
   ask patches
   [
     set elevation random-poisson elevation_mean ; this is only a temporal approach to test this submodel (elevation should be given by the Land model)
-    set albedo albedo_min + random-float (albedo_max - albedo_min)
+    set p_ecol_albedo albedo_min + random-float (albedo_max - albedo_min)
 
     ; Water Holding Capacity of the soil (cm^3 cm^-3).
     set WHC WHC_min + random-float (WHC_max - WHC_min)
@@ -679,19 +679,19 @@ to update-weather
 
   ask patches
   [
-    set netSolarRadiation (1 - albedo) * solarRadiation
-    set ETr get-ETr
+    set p_netSolarRadiation (1 - p_ecol_albedo) * solarRadiation
+    update-ETr
   ]
 
 end
 
 to update-temperature [ dayOfYear ]
 
-  set T gen-temperature dayOfYear
+  set temperature gen-temperature dayOfYear
 
-  set T_min T - temperature_dailyLowerDeviation
+  set minTemperature temperature - temperature_dailyLowerDeviation
 
-  set T_max T + temperature_dailyUpperDeviation
+  set maxTemperature temperature + temperature_dailyUpperDeviation
 
 end
 
@@ -713,7 +713,7 @@ to update-precipitation [ dayOfYear ]
 
   if (dayOfYear = 1) [ generate-annual-precipitation ]
 
-  set RAIN item (dayOfYear - 1) precipitation_yearSeries
+  set precipitation item (dayOfYear - 1) precipitation_yearSeries
 
 end
 
@@ -746,6 +746,8 @@ to generate-annual-precipitation
 
 end
 
+end
+
 to-report gen-solar-radiation [ dayOfYear ]
 
   ;;; get solar radiation for the current day (MJ/m2)
@@ -761,21 +763,13 @@ to-report gen-solar-radiation [ dayOfYear ]
 
 end
 
-to-report gen-CO2 [ dayOfYear ]
-
-  ;;; get CO2 atmospheric concentration for the current day (ppm)
-
-  report (gen-annual-sinusoid-with-fluctuation
-    CO2_annualMin
-    CO2_annualMax
-    CO2_meanDailyFluctuation
-    dayOfYear
-    southHemisphere?
-  )
-
+to update-ETr
+  
+  set p_ETr get-ETr temperature minTemperature maxTemperature
+  
 end
 
-to-report get-ETr
+to-report get-ETr [ T T_min T_max ]
 
   ;;; useful references:
   ;;; Suleiman A A and Hoogenboom G 2007
@@ -818,7 +812,7 @@ to-report get-ETr
   let C_n 900
   let C_d 0.34
 
-  let ETr_temp (0.408 * DELTA * netSolarRadiation + gamma * (C_n / (T + 273)) * windSpeed * (e_s - e_a)) / (DELTA + gamma * (1 + C_d * windSpeed))
+  let ETr_temp (0.408 * DELTA * p_netSolarRadiation + gamma * (C_n / (T + 273)) * windSpeed * (e_s - e_a)) / (DELTA + gamma * (1 + C_d * windSpeed))
 
   report ETr_temp
 
@@ -852,27 +846,27 @@ to update-WAT
 
   ; Change in Water Before Drainage (Precipitation - Runoff)
   let RO 0
-  if (RAIN > IA)
-  [ set RO ((RAIN - 0.2 * S) ^ 2) / (RAIN + 0.8 * S) ]
+  if (precipitation > IA)
+  [ set RO ((precipitation - 0.2 * S) ^ 2) / (precipitation + 0.8 * S) ]
   ; Calculating the amount of deep drainage
   let DR 0
-  if (WAT + RAIN - RO > WATfc)
-  [ set DR DC * (WAT + RAIN - RO - WATfc) ]
+  if (WAT + precipitation - RO > WATfc)
+  [ set DR DC * (WAT + precipitation - RO - WATfc) ]
 
   ; Calculate rate of change of state variable WAT
   ; Compute maximum water uptake by plant roots on a day, RWUM
-  let RWUM MUF * (WAT + RAIN - RO - DR - WATwp)
+  let RWUM MUF * (WAT + precipitation - RO - DR - WATwp)
   ; Calculate the amount of water lost through transpiration (TR)
-  let TR min (list RWUM ETr)
+  let TR min (list RWUM p_ETr)
 
-  let dWAT RAIN - RO - DR - TR
+  let dWAT precipitation - RO - DR - TR
   set WAT WAT + dWAT
 
   set WATp WAT / z
 
   set ARID 0
-  if (TR < ETr)
-  [ set ARID 1 - TR / ETr ]
+  if (TR < p_ETr)
+  [ set ARID 1 - TR / p_ETr ]
 
 end
 
@@ -991,9 +985,9 @@ to update-TT [ cropIndex ]
 
   let deltaTT 0
 
-  ifelse ( T > item cropIndex T_base )
+  ifelse ( temperature > item cropIndex T_base )
   [
-    set deltaTT T - item cropIndex T_base
+    set deltaTT temperature - item cropIndex T_base
   ]
   [
     set deltaTT 0
@@ -1023,17 +1017,17 @@ end
 
 to update-f_Temp [ cropIndex ]
 
-  ifelse ( T < item cropIndex T_base )
+  ifelse ( temperature < item cropIndex T_base )
   [
     set f_Temp replace-item cropIndex f_Temp 0
   ]
   [
-    ifelse ( T >= item cropIndex T_opt )
+    ifelse ( temperature >= item cropIndex T_opt )
     [
       set f_Temp replace-item cropIndex f_Temp 1
     ]
     [
-      set f_Temp replace-item cropIndex f_Temp ((T - item cropIndex T_base) / (item cropIndex T_opt - item cropIndex T_base))
+      set f_Temp replace-item cropIndex f_Temp ((temperature - item cropIndex T_base) / (item cropIndex T_opt - item cropIndex T_base))
     ]
   ]
 
@@ -1041,17 +1035,17 @@ end
 
 to update-f_Heat [ cropIndex ]
 
-  ifelse ( T_max <= item cropIndex T_heat )
+  ifelse ( maxTemperature <= item cropIndex T_heat )
   [
     set f_Heat replace-item cropIndex f_Heat 1
   ]
   [
-    ifelse ( T_max > item cropIndex T_extreme )
+    ifelse ( maxTemperature > item cropIndex T_extreme )
     [
       set f_Heat replace-item cropIndex f_Heat 0
     ]
     [
-      set f_Heat replace-item cropIndex f_Heat ((T_max - item cropIndex T_heat) / (item cropIndex T_extreme - item cropIndex T_heat))
+      set f_Heat replace-item cropIndex f_Heat ((maxTemperature - item cropIndex T_heat) / (item cropIndex T_extreme - item cropIndex T_heat))
     ]
   ]
 
@@ -1107,7 +1101,7 @@ to update-output-stats
   [
     update-ARID_yearSeries
 
-    update-T_max_yearSeries
+    update-maxTemperature_yearSeries
   ]
 
 end
@@ -1127,18 +1121,18 @@ to update-ARID_yearSeries
 
 end
 
-to update-T_max_yearSeries
+to update-maxTemperature_yearSeries
 
   ; if starting a new year
   if (currentDayOfYear = 1)
   [
     ; save current year as last year
-    set T_max_yearSeries_lastYear T_max_yearSeries
+    set maxTemperature_yearSeries_lastYear maxTemperature_yearSeries
     ; reset ARID_yearSeries if starting a new year
-    set T_max_yearSeries (list)
+    set maxTemperature_yearSeries (list)
   ]
-  ; append this day T_max to T_max_yearSeries
-  set T_max_yearSeries lput T_max T_max_yearSeries
+  ; append this day maxTemperature to maxTemperature_yearSeries
+  set maxTemperature_yearSeries lput maxTemperature maxTemperature_yearSeries
 
 end
 
@@ -1217,26 +1211,26 @@ to refresh-to-display-mode
   ]
   if (display-mode = "albedo (%)")
   [
-    let minAlbedo min [albedo] of patches
-    let maxAlbedo max [albedo] of patches
+    let minAlbedo min [p_ecol_albedo] of patches
+    let maxAlbedo max [p_ecol_albedo] of patches
 
     let rangeAlbedo maxAlbedo - minAlbedo
     if (rangeAlbedo = 0) [ set rangeAlbedo 1 ]
 
     ask patches
     [
-      set pcolor 2 + 6 * (albedo - minAlbedo) / rangeAlbedo
+      set pcolor 2 + 6 * (p_ecol_albedo - minAlbedo) / rangeAlbedo
     ]
     set-legend-continuous-range maxAlbedo minAlbedo 2 8 6 false
   ]
   if (display-mode = "reference evapotranspiration (ETr) (mm)")
   [
-    let minETr min [ETr] of patches
-    let maxETr max [ETr] of patches
+    let minETr min [p_ETr] of patches
+    let maxETr max [p_ETr] of patches
 
     ask patches
     [
-      set pcolor 12 + 6 * (ETr - minETr) / (maxETr - minETr)
+      set pcolor 12 + 6 * (p_ETr - minETr) / (maxETr - minETr)
     ]
     set-legend-continuous-range maxETr minETr 18 12 6 true
   ]
@@ -1470,7 +1464,7 @@ to setup-plot-crop
 
   set-current-plot "Crops yield (patch mean) and annual total precipitation"
 
-  create-temporary-plot-pen "annual RAIN"
+  create-temporary-plot-pen "annual precipitation"
   set-plot-pen-mode 1
   set-plot-pen-color 0
 
@@ -1499,7 +1493,7 @@ to update-plot-crop
 
   if (currentDayOfYear = 2) ; skips plotting on setup
   [
-    set-current-plot-pen "annual RAIN"
+    set-current-plot-pen "annual precipitation"
     plot sum precipitation_yearSeries
   ]
 
@@ -1574,7 +1568,7 @@ to setup-yield-performance-data-file
     "precipitation_yearTotal,meanARID,"
     "x,y,elevation,DC,z,CN,FC,WHC,albedo,"
     "crop,T_sum,HI,I_50A,I_50B,T_base,T_opt,RUE,I_50maxH,I_50maxW,T_heat,T_extreme,S_CO2,S_water,sowingDay,harvestDay,rootZoneDepth"
-    "meanARID_grow,meanT_max_grow,yield"
+    "meanARID_grow,meanmaxTemperature_grow,yield"
   )
 
   file-close
@@ -1648,7 +1642,7 @@ to export-yield-performance
         file-type CN file-type ","
         file-type FC file-type ","
         file-type WHC file-type ","
-        file-type albedo file-type ","
+        file-type p_ecol_albedo file-type ","
         ;;; crop, sowingDay, harvestDay
         file-type aCrop file-type ","
         file-type (item cropIndex T_sum) file-type ","
@@ -1672,7 +1666,7 @@ to export-yield-performance
         [
           ; growing season fits the current calendar year
           file-type (mean sublist ARID_yearSeries (item cropIndex sowingDay) (item cropIndex harvestingDay)) file-type ","
-          file-type (mean sublist T_max_yearSeries (item cropIndex sowingDay) (item cropIndex harvestingDay)) file-type ","
+          file-type (mean sublist maxTemperature_yearSeries (item cropIndex sowingDay) (item cropIndex harvestingDay)) file-type ","
         ]
         [
           ; growing season spans also into last year
@@ -1684,7 +1678,7 @@ to export-yield-performance
           ]
           [
             file-type (mean sentence (sublist ARID_yearSeries 1 (item cropIndex harvestingDay)) (sublist ARID_yearSeries_lastYear (item cropIndex sowingDay) yearLengthInDays)) file-type ","
-            file-type (mean sentence (sublist T_max_yearSeries 1 (item cropIndex harvestingDay)) (sublist T_max_yearSeries_lastYear (item cropIndex sowingDay) yearLengthInDays)) file-type ","
+            file-type (mean sentence (sublist maxTemperature_yearSeries 1 (item cropIndex harvestingDay)) (sublist maxTemperature_yearSeries_lastYear (item cropIndex sowingDay) yearLengthInDays)) file-type ","
           ]
         ]
         ;;; yield
@@ -1713,7 +1707,7 @@ to setup-weather-data-file
     "currentYear,currentDayOfYear,"
     "temperature,temperature_max,temperature_min,"
     "CO2,solarRadiation,"
-    "RAIN"
+    "precipitation"
   )
 
   file-close
@@ -1733,15 +1727,15 @@ to export-weather-of-yield-experiment
   file-type currentYear file-type ","
   file-type currentDayOfYear file-type ","
   ;;; tempetature,temperature_max,temperature_min,
-  file-type T file-type ","
-  file-type T_max file-type ","
-  file-type T_min file-type ","
+  file-type temperature file-type ","
+  file-type maxTemperature file-type ","
+  file-type minTemperature file-type ","
   ;;; CO2,
   file-type CO2 file-type ","
   ;;; solarRadiation,
   file-type solarRadiation file-type ","
-  ;;; RAIN
-  file-type RAIN
+  ;;; precipitation
+  file-type precipitation
 
   file-print ""
 
@@ -2077,13 +2071,13 @@ end]]></code>
     <plot x="907" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="mm" y="1199" xMin="0.0" height="208" legend="true" xMax="10.0" yMin="0.0" width="656" xAxis="days" display="precipitation">
       <setup></setup>
       <update></update>
-      <pen interval="1.0" mode="1" display="RAIN" color="-16777216" legend="true">
+      <pen interval="1.0" mode="1" display="precipitation" color="-16777216" legend="true">
         <setup></setup>
-        <update>plot RAIN</update>
+        <update>plot precipitation</update>
       </pen>
       <pen interval="1.0" mode="0" display="ETr" color="-2674135" legend="true">
         <setup></setup>
-        <update>plot mean [ETr] of patches</update>
+        <update>plot mean [p_ETr] of patches</update>
       </pen>
     </plot>
     <plot x="907" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="MJ/m2" y="1021" xMin="0.0" height="175" legend="false" xMax="10.0" yMin="0.0" width="656" xAxis="days" display="Solar radiation">
@@ -2111,15 +2105,15 @@ end]]></code>
       <update></update>
       <pen interval="1.0" mode="0" display="mean" color="-16777216" legend="true">
         <setup></setup>
-        <update>plot T</update>
+        <update>plot temperature</update>
       </pen>
       <pen interval="1.0" mode="0" display="min" color="-13345367" legend="true">
         <setup></setup>
-        <update>plot T_min</update>
+        <update>plot minTemperature</update>
       </pen>
       <pen interval="1.0" mode="0" display="max" color="-2674135" legend="true">
         <setup></setup>
-        <update>plot T_max</update>
+        <update>plot maxTemperature</update>
       </pen>
     </plot>
     <plot x="904" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="g/m2 | mm" y="313" xMin="0.0" height="309" legend="true" xMax="10.0" yMin="0.0" width="657" xAxis="years" display="Crops yield (patch mean) and annual total precipitation">
@@ -2161,7 +2155,7 @@ end]]></code>
     <slider x="32" step="0.01" y="984" max="water-holding-capacity_max" width="231" display="water-holding-capacity_min" height="50" min="0.01" direction="Horizontal" default="0.05" variable="water-holding-capacity_min" units="cm3/cm3"></slider>
     <slider x="35" step="1" y="1112" max="runoff-curve_max" width="230" display="runoff-curve_min" height="50" min="0" direction="Horizontal" default="50.0" variable="runoff-curve_min"></slider>
     <monitor x="501" precision="2" y="984" height="60" fontSize="9" width="100" display="WHC [min, max]">(list (precision WHC_min 2) (precision WHC_max 2))</monitor>
-    <slider x="268" step="1" y="983" max="0.2" width="228" display="water-holding-capacity_max" height="50" min="water-holding-capacity_min" direction="Horizontal" default="0.0" variable="water-holding-capacity_max" units="cm3/cm3"></slider>
+    <slider x="268" step="1" y="983" max="0.2" width="228" display="water-holding-capacity_max" height="50" min="water-holding-capacity_min" direction="Horizontal" default="0.25" variable="water-holding-capacity_max" units="cm3/cm3"></slider>
     <slider x="270" step="1" y="1112" max="100" width="202" display="runoff-curve_max" height="50" min="runoff-curve_min" direction="Horizontal" default="80.0" variable="runoff-curve_max"></slider>
     <slider x="32" step="0.01" y="1048" max="drainage-coefficient_max" width="231" display="drainage-coefficient_min" height="50" min="0" direction="Horizontal" default="0.3" variable="drainage-coefficient_min"></slider>
     <slider x="268" step="1" y="1047" max="1" width="205" display="drainage-coefficient_max" height="50" min="drainage-coefficient_min" direction="Horizontal" default="1.0" variable="drainage-coefficient_max"></slider>
@@ -3128,10 +3122,10 @@ set-plot-x-range 0 (yearLengthInDays + 1)</setup>
       <setup>setup</setup>
       <go>go</go>
       <metrics>
-        <metric>T</metric>
-        <metric>T_max</metric>
-        <metric>T_min</metric>
-        <metric>RAIN</metric>
+        <metric>temperature</metric>
+        <metric>maxTemperature</metric>
+        <metric>minTemperature</metric>
+        <metric>precipitation</metric>
         <metric>solarRadiation</metric>
         <metric>ET_0</metric>
         <metric>mean [WATp] of patches</metric>

@@ -228,7 +228,7 @@ set-plot-x-range 0 (yearLengthInDays + 1)</setup>
     <plot x="285" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="mm" y="583" xMin="0.0" height="305" legend="true" xMax="10.0" yMin="0.0" width="656" xAxis="days" display="precipitation">
       <setup></setup>
       <update></update>
-      <pen interval="1.0" mode="1" display="RAIN" color="-16777216" legend="true">
+      <pen interval="1.0" mode="1" display="precipitation" color="-16777216" legend="true">
         <setup></setup>
         <update>plot precipitation</update>
       </pen>

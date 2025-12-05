@@ -11,7 +11,7 @@ to setup-plot-crop
 
   set-current-plot "Crops yield (patch mean) and annual total precipitation"
 
-  create-temporary-plot-pen "annual RAIN"
+  create-temporary-plot-pen "annual precipitation"
   set-plot-pen-mode 1
   set-plot-pen-color 0
 
@@ -40,7 +40,7 @@ to update-plot-crop
 
   if (currentDayOfYear = 2) ; skips plotting on setup
   [
-    set-current-plot-pen "annual RAIN"
+    set-current-plot-pen "annual precipitation"
     plot sum precipitation_yearSeries
   ]
 
