@@ -1,4 +1,4 @@
-to set-output-stats
+to set-terrain-output-stats
 
   set elevationDistribution [elevation] of patches
 
@@ -13,7 +13,5 @@ to set-output-stats
   set landWithRiver count patches with [flow_accumulation >= flow_riverAccumulationAtStart]
 
   set mostCommonTextureType modes [p_soil_textureType] of patches
-
-  set mostCommonCoverType modes [p_ecol_coverType] of patches
 
 end

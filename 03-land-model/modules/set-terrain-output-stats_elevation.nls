@@ -1,4 +1,4 @@
-to set-output-stats
+to set-terrain-output-stats
 
   set elevationDistribution [elevation] of patches
 
@@ -9,9 +9,5 @@ to set-output-stats
   set sdElevation standard-deviation [elevation] of patches
 
   set landRatio count patches with [elevation >= 0] / count patches
-
-  set landWithRiver count patches with [flow_accumulation >= flow_riverAccumulationAtStart]
-
-  set mostCommonTextureType modes [p_soil_textureType] of patches
 
 end

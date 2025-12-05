@@ -27,7 +27,7 @@ extensions [ csv ]
 __includes [
   "modules/_setup_and_go_elevation.nls"
   "modules/elevation.nls"
-  "modules/output-stats_elevation.nls"
+  "modules/set-terrain-output-stats_elevation.nls"
   "modules/display_elevation.nls"
   "modules/import-export_elevation.nls"
   "../utils/transect.nls"
@@ -50,6 +50,7 @@ globals
   ; parameters.
 
   ;;; parameters (modified copies of interface input) ===============================================================
+  elev_seaLevelReferenceShift            ; the shift applied to re-centre elevations, pointing to the new 0 reference as the sea level (m).
 
   ;;;; elevation
   elev_numRanges                  ; number of landforming features ("ranges", "rifts").
@@ -96,7 +97,6 @@ globals
                                    ; have their elevation exchanged with one of those neighbours.
 
   ;;; variables ===============================================================
-  elev_seaLevelReferenceShift            ; the shift applied to re-centre elevations, pointing to the new 0 reference as the sea level (m).
 
   landRatio                   ; the ratio of land units above or equal to seaLevel.
   elevationDistribution       ; the set or list containing the elevation of all land units
@@ -234,7 +234,7 @@ set-plot-x-range (round min [elevation] of patches - 1) (round max [elevation] o
       </pen>
       <pen interval="1.0" mode="1" display="pen-1" color="-2674135" legend="true">
         <setup></setup>
-        <update><![CDATA[histogram n-values plot-y-max [j -> seaLevel]]]></update>
+        <update><![CDATA[histogram n-values plot-y-max [j -> 0]]]></update>
       </pen>
     </plot>
     <slider x="810" step="0.001" y="549" max="0.1" width="211" display="par_elev_ySlope" height="50" min="-0.1" direction="Horizontal" default="0.025" variable="par_elev_ySlope"></slider>
@@ -248,7 +248,7 @@ set-plot-x-range (round min [elevation] of patches - 1) (round max [elevation] o
     <chooser x="7" y="79" height="60" variable="display-mode" current="0" width="138" display="display-mode">
       <choice type="string" value="elevation (m)"></choice>
     </chooser>
-    <slider x="228" step="1" y="86" max="round max (list maxElevation par_elev_rangeHeight)" width="237" display="par_elev_seaLevelReferenceShift" height="50" min="round min (list minElevation par_elev_riftHeight)" direction="Horizontal" default="4.0" variable="par_elev_seaLevelReferenceShift" units="m"></slider>
+    <slider x="228" step="1" y="86" max="round max (list maxElevation par_elev_rangeHeight)" width="237" display="par_elev_seaLevelReferenceShift" height="50" min="round min (list minElevation par_elev_riftHeight)" direction="Horizontal" default="-41.0" variable="par_elev_seaLevelReferenceShift" units="m"></slider>
     <button x="465" actionKey="3" y="94" height="35" disableUntilTicks="false" forever="false" kind="Observer" width="208" display="refresh after changing sea level">refresh-view-after-seaLevel-change</button>
     <switch x="688" y="401" height="40" on="false" variable="show-transects" width="125" display="show-transects"></switch>
     <button x="696" actionKey="4" y="447" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="117" display="update transects">update-transects

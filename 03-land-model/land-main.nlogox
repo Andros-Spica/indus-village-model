@@ -30,7 +30,7 @@ __includes [
   "modules/flows.nls"
   "modules/soil.nls"
   "modules/ecological-communities.nls"
-  "modules/output-stats.nls"
+  "modules/set-terrain-output-stats.nls"
   "modules/display.nls"
   "modules/get-variable-per-flowAccumulation.nls"
   "modules/import.nls"
@@ -60,6 +60,7 @@ globals
   ;                      Those sinks are likely to have been created by land forming algorithms.
 
   ;;; parameters (modified copies of interface input) ===============================================================
+  elev_seaLevelReferenceShift            ; the shift applied to re-centre elevations, pointing to the new 0 reference as the sea level (m).
 
   ;;;; elevation
   elev_numRanges                  ; number of landforming features ("ranges", "rifts").
@@ -140,7 +141,6 @@ globals
   ecol_woodFrequencyRate                 ; rate of increase in percentage of wood coverage, depending on flow_accumulation (rate or slope parameter of the logistic curve)
 
   ;;; variables ===============================================================
-  elev_seaLevelReferenceShift            ; the shift applied to re-centre elevations, pointing to the new 0 reference as the sea level (m).
 
   landRatio                   ; the ratio of land units above or equal to seaLevel.
   elevationDistribution       ; the set or list containing the elevation of all land units
@@ -311,7 +311,7 @@ set-plot-x-range (round min [elevation] of patches - 1) (round max [elevation] o
       </pen>
       <pen interval="1.0" mode="1" display="pen-1" color="-2674135" legend="true">
         <setup></setup>
-        <update><![CDATA[histogram n-values plot-y-max [j -> seaLevel]]]></update>
+        <update><![CDATA[histogram n-values plot-y-max [j -> 0]]]></update>
       </pen>
     </plot>
     <slider x="810" step="0.001" y="549" max="0.1" width="211" display="par_elev_ySlope" height="50" min="-0.1" direction="Horizontal" default="0.025" variable="par_elev_ySlope"></slider>

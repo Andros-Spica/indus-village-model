@@ -12,7 +12,7 @@ to create-terrain
 
   ;;; END - core procedures ;;;;;;;;;;;;;;;;;;;;;;;
 
-  set-output-stats
+  set-terrain-output-stats
 
   paint-patches
 

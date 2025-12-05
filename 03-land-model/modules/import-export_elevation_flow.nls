@@ -192,7 +192,7 @@ to import-terrain
     file-close
   ]
 
-  set-output-stats
+  set-terrain-output-stats
 
 end
 

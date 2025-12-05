@@ -16,7 +16,7 @@ to refresh-view-after-seaLevel-change
     set elevation elevation - elev_seaLevelReferenceShift
   ]
 
-  set-output-stats
+  set-terrain-output-stats
   
   refresh-view
 
