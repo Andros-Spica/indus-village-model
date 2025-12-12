@@ -431,7 +431,7 @@ to setup
 
   setup-transect
 
-  refresh-to-display-mode
+  refresh-view
 
   ; -- time -------------------------------------
 
@@ -912,7 +912,7 @@ to go
 
   ; --- output handling ------------------------
 
-  refresh-to-display-mode
+  refresh-view
 
   ; -- time -------------------------------------
 
@@ -953,7 +953,7 @@ to update-weather
   ask patches
   [
     set p_netSolarRadiation (1 - p_ecol_albedo / 100) * solarRadiation
-    set p_ETr get-ETr
+    update-ETr
   ]
 
 end
@@ -1034,7 +1034,13 @@ to-report gen-solar-radiation [ dayOfYear ]
 
 end
 
-to-report get-ETr
+to update-ETr
+  
+  set p_ETr get-ETr temperature minTemperature maxTemperature
+  
+end
+
+to-report get-ETr [ T T_min T_max ]
 
   ;;; useful references:
   ;;; Suleiman A A and Hoogenboom G 2007
@@ -1050,14 +1056,14 @@ to-report get-ETr
   let windSpeed 2 ; as recommended by: http://www.fao.org/3/X0490E/x0490e07.htm#estimating%20missing%20climatic%20data
 
   ;;; estimation of saturated vapour pressure (e_s) and actual vapour pressure (e_a)
-  let e_s (get-vapour-pressure maxTemperature + get-vapour-pressure minTemperature) / 2
-  let e_a get-vapour-pressure minTemperature
+  let e_s (get-vapour-pressure T_max + get-vapour-pressure T_min) / 2
+  let e_a get-vapour-pressure T_min
   ; ... in absence of dew point temperature, as recommended by
   ; http://www.fao.org/3/X0490E/x0490e07.htm#estimating%20missing%20climatic%20data
   ; however, possibly min temp > dew temp under arid conditions
 
   ;;; slope of  the  vapor  pressure-temperature  curve (kPa ºC−1)
-  let DELTA 4098 * (get-vapour-pressure temperature) / (temperature + 237.3) ^ 2
+  let DELTA 4098 * (get-vapour-pressure T) / (T + 237.3) ^ 2
 
   ;;; latent heat of vaporisation = 2.45 MJ.kg^-1
   let lambda 2.45
@@ -1077,7 +1083,7 @@ to-report get-ETr
   let C_n 900
   let C_d 0.34
 
-  let ETr_temp (0.408 * DELTA * p_netSolarRadiation + gamma * (C_n / (temperature + 273)) * windSpeed * (e_s - e_a)) / (DELTA + gamma * (1 + C_d * windSpeed))
+  let ETr_temp (0.408 * DELTA * p_netSolarRadiation + gamma * (C_n / (T + 273)) * windSpeed * (e_s - e_a)) / (DELTA + gamma * (1 + C_d * windSpeed))
 
   report ETr_temp
 
@@ -1967,11 +1973,11 @@ to refresh-view-after-seaLevel-change
 
   set-terrain-output-stats
 
-  refresh-to-display-mode
+  refresh-view
 
 end
 
-to refresh-to-display-mode
+to refresh-view
 
   ;;; several soil properties must be rescaled to enhance visualisation
   ;;; (the parametric max and min values of some of these are never realised for various reasons)
@@ -3456,7 +3462,8 @@ to-report get-logistic-growth-delta [ X maxX r ]
 
   report r * X * (1 - X / maxX)
 
-end]]></code>
+end
+]]></code>
   <widgets>
     <view x="359" wrappingAllowedX="false" y="129" frameRate="30.0" minPycor="0" height="472" showTickCounter="true" patchSize="9.36" fontSize="10" wrappingAllowedY="false" width="472" tickCounterLabel="ticks" maxPycor="49" updateMode="0" maxPxcor="49" minPxcor="0"></view>
     <chooser x="48" y="132" height="60" variable="type-of-experiment" current="1" width="170" display="type-of-experiment">
@@ -3562,7 +3569,7 @@ set-plot-y-range (round min [elevation] of patches - 1) (round max [elevation] o
       <choice type="string" value="root zone depth (mm)"></choice>
       <choice type="string" value="ARID coefficient"></choice>
     </chooser>
-    <button x="1308" y="10" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="124" display="refresh display">refresh-to-display-mode</button>
+    <button x="1308" y="10" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="124" display="refresh view">refresh-view</button>
     <switch x="1310" y="55" height="40" on="true" variable="show-flows" width="120" display="show-flows"></switch>
     <monitor x="1319" precision="4" y="104" height="60" fontSize="11" width="100" display="maxElevation">precision maxElevation 4</monitor>
     <monitor x="1096" precision="4" y="104" height="60" fontSize="11" width="100" display="sdElevation">precision sdElevation 4</monitor>
