@@ -1,35 +1,6 @@
 ;;; To enable this module you must call the csv extension: 
 ;;; extensions [ csv ]
 
-to export-terrain
-
-  ;;; make sure that display-mode is "elevation (m)" in order to avoid complications with patch colors (number vs rgb)
-  if (display-mode != "elevation (m)") [ set display-mode "elevation (m)" refresh-view ]
-
-  set show-transects false
-
-  update-transects
-
-  ;;; build a file name as unique to this setting as possible
-  let filePath (word "terrains//terrain_" type-of-experiment "_w=" world-width "_h=" world-height "_a=" elev_algorithm-style "_fill-sinks=" flow_do-fill-sinks "_seed=" randomSeed)
-
-  if (type-of-experiment = "user-defined") [ set filePath (word filePath "_" random 9999) ]
-  ;if (type-of-experiment = "defined by expNumber") [set filePath (word filePath "_" expNumber) ]
-
-  ;print filePath print length filePath ; de-bug print
-
-;;; check that filePath does not exceed 100 (not common in this context)
-  if (length filePath > 100) [ print "WARNING: file path may be too long, depending on your current directory. Decrease length of file name or increase the limit." set filePath substring filePath 0 100 ]
-
-  let filePathCSV (word filePath ".csv")
-
-  let filePathPNG (word filePath ".png")
-
-  export-view filePathPNG
-  export-world filePathCSV
-
-end
-
 to import-terrain
 
   clear-all
