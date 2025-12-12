@@ -43,6 +43,6 @@ to update-T_max_yearSeries
     set T_max_yearSeries (list)
   ]
   ; append this day T_max to T_max_yearSeries
-  set T_max_yearSeries lput T_max T_max_yearSeries
+  set T_max_yearSeries lput maxTemperature T_max_yearSeries
 
 end

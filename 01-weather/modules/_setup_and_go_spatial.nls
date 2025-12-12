@@ -120,8 +120,8 @@ to set-parameters
     set precipitation_dailyCum_maxSampleSize_yearlyMean 5 + random 20
     set precipitation_dailyCum_maxSampleSize_yearlySd 1 + random 5
 
-    set albedo_min 1E-6 + random-float 0.3
-    set albedo_max albedo_min + random-float 0.3
+    set albedo_min 1E-6 + random-float 30
+    set albedo_max albedo_min + random-float (albedo_max - albedo_min)
     set elevation_mean random-float 1000
 
     ;;; NOTES about calibration:
@@ -172,8 +172,8 @@ to parameters-check
   if (precipitation_daily-cum_max-sample-size_yearly-mean = 0)   [ set precipitation_daily-cum_max-sample-size_yearly-mean      10 ]
   if (precipitation_daily-cum_max-sample-size_yearly-sd = 0)     [ set precipitation_daily-cum_max-sample-size_yearly-sd         3 ]
 
-  if (par_albedo_min = 0)                                        [ set par_albedo_min                              0.1 ]
-  if (par_albedo_max = 0)                                        [ set par_albedo_max                              0.5 ]
+  if (par_albedo_min = 0)                                        [ set par_albedo_min                              10 ]
+  if (par_albedo_max = 0)                                        [ set par_albedo_max                              50 ]
 
   if (par_elevation_mean = 0)                                    [ set par_elevation_mean                          200 ]
 
@@ -216,8 +216,8 @@ to parameters-to-default
   set precipitation_daily-cum_max-sample-size_yearly-mean      10
   set precipitation_daily-cum_max-sample-size_yearly-sd         3
 
-  set par_albedo_min                              0.1
-  set par_albedo_max                              0.5
+  set par_albedo_min                              10
+  set par_albedo_max                              50
 
   set par_elevation_mean                          200
 

@@ -155,8 +155,8 @@ to set-parameters
     set precipitation_dailyCum_maxSampleSize_yearlyMean 5 + random 20
     set precipitation_dailyCum_maxSampleSize_yearlySd 1 + random 5
 
-    set albedo_min 1E-6 + random-float 0.3
-    set albedo_max albedo_min + random-float 0.3
+    set albedo_min 1E-6 + random-float 30
+    set albedo_max albedo_min + random-float (albedo_max - albedo_min)
     set elevation_mean random-float 1000
 
     ;;; Soil Water Balance model
@@ -345,7 +345,7 @@ to setup-patches
   ask patches
   [
     set elevation random-poisson elevation_mean ; this is only a temporal approach to test this submodel (elevation should be given by the Land model)
-    set albedo albedo_min + random-float (albedo_max - albedo_min)
+    set p_ecol_albedo albedo_min + random-float (albedo_max - albedo_min)
 
     ; Water Holding Capacity of the soil (cm^3 cm^-3).
     set WHC WHC_min + random-float (WHC_max - WHC_min)

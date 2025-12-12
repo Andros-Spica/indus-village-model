@@ -101,7 +101,7 @@ globals
 
 patches-own
 [
-  p_ecol_albedo ; canopy reflection or albedo of hypothetical grass reference crop (0.23)
+  p_ecol_albedo ; albedo or percentage of solar radiation reflected by soil or soil cover ; albedo of hypothetical grass reference crop (0.23 = 23%). See http://www.fao.org/3/X0490E/x0490e07.htm
   elevation ; elevation above sea level [m] --- within the Indus Village model, elevation is an input coming out the land model
 
   p_netSolarRadiation ; net solar radiation discount canopy reflection or albedo, assuming hypothetical grass reference crop (albedo = 0.23)
@@ -234,8 +234,8 @@ to set-parameters
     set precipitation_dailyCum_maxSampleSize_yearlyMean 5 + random 20
     set precipitation_dailyCum_maxSampleSize_yearlySd 1 + random 5
 
-    set albedo_min 1E-6 + random-float 0.3
-    set albedo_max albedo_min + random-float 0.3
+    set albedo_min 1E-6 + random-float 30
+    set albedo_max albedo_min + random-float (albedo_max - albedo_min)
     set elevation_mean random-float 1000
 
     ;;; NOTES about calibration:
@@ -286,8 +286,8 @@ to parameters-check
   if (precipitation_daily-cum_max-sample-size_yearly-mean = 0)   [ set precipitation_daily-cum_max-sample-size_yearly-mean      10 ]
   if (precipitation_daily-cum_max-sample-size_yearly-sd = 0)     [ set precipitation_daily-cum_max-sample-size_yearly-sd         3 ]
 
-  if (par_albedo_min = 0)                                        [ set par_albedo_min                              0.1 ]
-  if (par_albedo_max = 0)                                        [ set par_albedo_max                              0.5 ]
+  if (par_albedo_min = 0)                                        [ set par_albedo_min                              10 ]
+  if (par_albedo_max = 0)                                        [ set par_albedo_max                              50 ]
 
   if (par_elevation_mean = 0)                                    [ set par_elevation_mean                          200 ]
 
@@ -330,8 +330,8 @@ to parameters-to-default
   set precipitation_daily-cum_max-sample-size_yearly-mean      10
   set precipitation_daily-cum_max-sample-size_yearly-sd         3
 
-  set par_albedo_min                              0.1
-  set par_albedo_max                              0.5
+  set par_albedo_min                              10
+  set par_albedo_max                              50
 
   set par_elevation_mean                          200
 
@@ -401,7 +401,7 @@ to update-weather
 
   ask patches
   [
-    set P_netSolarRadiation (1 - p_ecol_albedo) * solarRadiation
+    set P_netSolarRadiation (1 - p_ecol_albedo / 100) * solarRadiation
     update-ETr
   ]
 
@@ -982,14 +982,14 @@ set-plot-x-range 0 (yearLengthInDays + 1)</setup>
         <update>plot mean [p_ETr] of patches</update>
       </pen>
     </plot>
-    <chooser x="1560" y="180" height="60" variable="display-mode" current="0" width="246" display="display-mode">
+    <chooser x="1560" y="180" height="60" variable="display-mode" current="2" width="246" display="display-mode">
       <choice type="string" value="elevation"></choice>
       <choice type="string" value="albedo"></choice>
       <choice type="string" value="ETr"></choice>
     </chooser>
     <monitor x="1635" precision="2" y="679" height="60" fontSize="9" width="100" display="albedo">(list albedo_min albedo_max)</monitor>
-    <slider x="1514" step="0.01" y="619" max="par_albedo_max" width="172" display="par_albedo_min" height="50" min="0" direction="Horizontal" default="0.1" variable="par_albedo_min"></slider>
-    <slider x="1691" step="0.01" y="619" max="1" width="172" display="par_albedo_max" height="50" min="par_albedo_min" direction="Horizontal" default="0.5" variable="par_albedo_max"></slider>
+    <slider x="1514" step="0.1" y="619" max="par_albedo_max" width="172" display="par_albedo_min" height="50" min="0" direction="Horizontal" default="0.5" variable="par_albedo_min" units="%"></slider>
+    <slider x="1691" step="0.1" y="619" max="100" width="172" display="par_albedo_max" height="50" min="par_albedo_min" direction="Horizontal" default="50.0" variable="par_albedo_max" units="%"></slider>
     <monitor x="1756" precision="2" y="552" height="60" fontSize="9" width="100">elevation_mean</monitor>
     <slider x="1519" step="1" y="554" max="2500" width="232" display="par_elevation_mean" height="50" min="0" direction="Horizontal" default="200.0" variable="par_elevation_mean" units="m a.s.l."></slider>
     <button x="1620" y="245" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="113" display="refresh view">refresh-view</button>

@@ -92,7 +92,7 @@ globals
   solar_meanDailyFluctuation
 
   ;;;; ETr
-  albedo_min ; canopy reflection or albedo of hypothetical grass reference crop (0.23). See http://www.fao.org/3/X0490E/x0490e07.htm
+  albedo_min
   albedo_max
   elevation_mean ; elevation above sea level [m]
 
@@ -174,7 +174,7 @@ patches-own
   WATp ; Volumetric Soil Water content (fraction : mm.mm-1). calculated as WAT/z
 
   ;;;; cover
-  p_ecol_albedo ; canopy reflection or albedo of hypothetical grass reference crop (0.23)
+  p_ecol_albedo ; albedo or percentage of solar radiation reflected by soil or soil cover ; albedo of hypothetical grass reference crop (0.23 = 23%). See http://www.fao.org/3/X0490E/x0490e07.htm
   p_netSolarRadiation ; net solar radiation discount canopy reflection or albedo, assuming hypothetical grass reference crop (albedo = 0.23)
   p_ETr ; reference evapotranspiration
 
@@ -355,8 +355,8 @@ to set-parameters
     set precipitation_dailyCum_maxSampleSize_yearlyMean 5 + random 20
     set precipitation_dailyCum_maxSampleSize_yearlySd 1 + random 5
 
-    set albedo_min 1E-6 + random-float 0.3
-    set albedo_max albedo_min + random-float 0.3
+    set albedo_min 1E-6 + random-float 30
+    set albedo_max albedo_min + random-float (albedo_max - albedo_min)
     set elevation_mean random-float 1000
 
     ;;; Soil Water Balance model
@@ -467,8 +467,8 @@ to parameters-check
   if (precipitation_daily-cum_max-sample-size_yearly-mean = 0)   [ set precipitation_daily-cum_max-sample-size_yearly-mean      10 ]
   if (precipitation_daily-cum_max-sample-size_yearly-sd = 0)     [ set precipitation_daily-cum_max-sample-size_yearly-sd         3 ]
 
-  if (par_albedo_min = 0)                                        [ set par_albedo_min                              0.1 ]
-  if (par_albedo_max = 0)                                        [ set par_albedo_max                              0.5 ]
+  if (par_albedo_min = 0)                                        [ set par_albedo_min                              10 ]
+  if (par_albedo_max = 0)                                        [ set par_albedo_max                              50 ]
 
   if (par_elevation_mean = 0)                                    [ set par_elevation_mean                          200 ]
 
@@ -517,8 +517,8 @@ to parameters-to-default
   set precipitation_daily-cum_max-sample-size_yearly-mean      10
   set precipitation_daily-cum_max-sample-size_yearly-sd         3
 
-  set par_albedo_min                                            0.1
-  set par_albedo_max                                            0.5
+  set par_albedo_min                                           10
+  set par_albedo_max                                           50
 
   set par_elevation_mean                                      200
 
@@ -623,7 +623,7 @@ to update-weather
 
   ask patches
   [
-    set p_netSolarRadiation (1 - p_ecol_albedo) * solarRadiation
+    set p_netSolarRadiation (1 - p_ecol_albedo / 100) * solarRadiation
     update-ETr
   ]
 
@@ -2089,8 +2089,8 @@ set-plot-x-range 0 (yearLengthInDays + 1)</setup>
     <monitor x="1969" precision="2" y="832" height="60" fontSize="9" width="301">precipitation_dailyCum_nSamples_yearlySd</monitor>
     <monitor x="1969" precision="2" y="773" height="60" fontSize="9" width="301">precipitation_dailyCum_nSamples_yearlyMean</monitor>
     <monitor x="437" precision="2" y="1171" height="60" fontSize="9" width="117" display="albedo [min, max]">(list (precision albedo_min 2) (precision albedo_max 2))</monitor>
-    <slider x="257" step="0.01" y="1172" max="1" width="172" display="par_albedo_max" height="50" min="par_albedo_min" direction="Horizontal" default="1.0" variable="par_albedo_max"></slider>
-    <slider x="80" step="0.01" y="1172" max="par_albedo_max" width="172" display="par_albedo_min" height="50" min="0" direction="Horizontal" default="0.1" variable="par_albedo_min"></slider>
+    <slider x="257" step="0.1" y="1172" max="100" width="172" display="par_albedo_max" height="50" min="par_albedo_min" direction="Horizontal" default="50.0" variable="par_albedo_max" units="%"></slider>
+    <slider x="80" step="0.1" y="1172" max="par_albedo_max" width="172" display="par_albedo_min" height="50" min="0" direction="Horizontal" default="10.0" variable="par_albedo_min" units="%"></slider>
     <monitor x="464" precision="2" y="1108" height="60" fontSize="9" width="100" display="CN [min, max]">(list (precision CN_min 2) (precision CN_max 2))</monitor>
     <monitor x="467" precision="2" y="1043" height="60" fontSize="9" width="100" display="DC [min, max]">(list (precision DC_min 2) (precision DC_max 2))</monitor>
     <slider x="256" step="1" y="1045" max="1" width="205" display="drainage-coefficient_max" height="50" min="drainage-coefficient_min" direction="Horizontal" default="1.0" variable="drainage-coefficient_max"></slider>
