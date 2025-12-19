@@ -1,0 +1,13 @@
+to-report extract-subtable [ table startColumnIndex endColumnIndex ]
+
+  let subtable (list)
+  let columnsCount ((endColumnIndex + 1) - startColumnIndex)
+  foreach n-values columnsCount [ j -> j ]
+  [
+    i ->
+    let columnIndex startColumnIndex + i
+    set subtable lput (map [row -> item columnIndex row ] table) subtable
+  ]
+  report subtable
+
+end
