@@ -214,8 +214,8 @@ to set-parameters
   set WAT z * FC
 
   ;;; sowing/harvest dates are initialised as the ones suggested in cropTable.csv
-  set sowingDay sugSowingDay
-  set harvestingDay sugHarvestingDay
+  set sowingDay crop_sugSowingDay
+  set harvestingDay crop_sugHarvestingDay
 
 end
 

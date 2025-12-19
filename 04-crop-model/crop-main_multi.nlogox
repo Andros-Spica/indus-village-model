@@ -28,7 +28,7 @@ extensions [csv vid]
 
 __includes [
   "modules/_setup_and_go_multi.nls"
-  "modules/import-crop-table.nls"
+  "modules/import-crop-table_co2.nls"
   "modules/update-crops_multi.nls"
   "modules/display_multi.nls"
   "modules/output-stats_multi.nls"
@@ -139,25 +139,25 @@ globals
   ;;;; de facto constants (extracted from cropsTable.csv)
   ;;;; the above are lists of floats
   ;;;; Species-specific
-  RUE ; Radiation use efficiency (above ground only and without respiration) (g MJ−1 m-2)
-  T_base ; Base temperature for phenology development and growth (ºC)
-  T_opt ; Optimal temperature for biomass growth (ºC)
-  I_50maxH ; The maximum daily reduction in I50B due to heat stress (ºC d)
-  I_50maxW ; The maximum daily reduction in I50B due to drought stress (ºC d)
-  T_heat ; Threshold temperature to start accelerating senescence from heat stress (ºC). In the Zhao et al. 2019, named as T_max
-  T_extreme ; The extreme temperature threshold when RUE becomes 0 due to heat stress (ºC)
-  S_CO2 ; sensitivity of crop RUE (Relative increase in RUE) per ppm elevated CO2 above 350 ppm
-  S_Water ; sensitivity of crop RUE to the ARID index (representing water shortage; see below)
+  crop_RUE                            ; Radiation use efficiency (above ground only and without respiration) (g MJ−1 m-2)
+  crop_T_base                         ; Base temperature for phenology development and growth (ºC)
+  crop_T_opt                          ; Optimal temperature for biomass growth (ºC)
+  crop_I_50maxH                       ; The maximum daily reduction in I50B due to heat stress (ºC d)
+  crop_I_50maxW                       ; The maximum daily reduction in I50B due to drought stress (ºC d)
+  crop_T_heat                         ; Threshold temperature to start accelerating senescence from heat stress (ºC). In the Zhao et al. 2019, named as T_max
+  crop_T_extreme                      ; The extreme temperature threshold when RUE becomes 0 due to heat stress (ºC)
+  crop_S_CO2 ; sensitivity of crop RUE (Relative increase in RUE) per ppm elevated CO2 above 350 ppm
+  crop_S_Water                        ; sensitivity of crop RUE to the ARID index (representing water shortage; see below)
   ;;;; Cultivar-specific
-  T_sum ; Cumulative temperature requirement from sowing to maturity (ºC d)
-  HI ; Potential harvest index
-  I_50A ; Cumulative temperature requirement for leaf area development to intercept 50% of radiation (ºC d)
-  I_50B ; Cumulative temperature till maturity to reach 50% radiation interception due to leaf senescence (ºC d)
+  crop_T_sum                          ; Cumulative temperature requirement from sowing to maturity (ºC d)
+  crop_HI                             ; Potential harvest index
+  crop_I_50A                          ; Cumulative temperature requirement for leaf area development to intercept 50% of radiation (ºC d)
+  crop_I_50B                          ; Cumulative temperature till maturity to reach 50% radiation interception due to leaf senescence (ºC d)
   ;;;; management
-  sugSowingDay ; sowing day (day of year)
-  sugHarvestingDay ; harvesting day (day of year)
+  crop_sugSowingDay                   ; sowing day (day of year)
+  crop_sugHarvestingDay               ; harvesting day (day of year)
   ;;;; root
-  rootZoneDepth ; root zone depth (mm)
+  crop_rootZoneDepth                  ; root zone depth (mm)
 
   ;;; variables
   ;;;; time tracking

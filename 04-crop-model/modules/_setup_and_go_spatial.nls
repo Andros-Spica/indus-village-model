@@ -220,8 +220,8 @@ to set-parameters
   ]
 
   ;;; sowing/harvest dates are initialised as the ones suggested in cropTable.csv
-  set sowingDay sugSowingDay
-  set harvestingDay sugHarvestingDay
+  set sowingDay crop_sugSowingDay
+  set harvestingDay crop_sugHarvestingDay
 
 end
 
@@ -337,7 +337,7 @@ to setup-patches
     set p_ecol_albedo albedo_min + random-float (albedo_max - albedo_min)
 
     ; z : root zone depth (mm)
-    set z item (position crop typesOfCrops) rootZoneDepth
+    set z item (position crop typesOfCrops) crop_rootZoneDepth
 
     ; Water Holding Capacity of the soil (cm^3 cm^-3).
     set WHC WHC_min + random-float (WHC_max - WHC_min)

@@ -227,8 +227,8 @@ to set-parameters
   set cropSelection read-from-string crops-selected
 
   ;;; sowing/harvest dates are initialised as the ones suggested in cropTable.csv
-  set sowingDay sugSowingDay
-  set harvestingDay sugHarvestingDay
+  set sowingDay crop_sugSowingDay
+  set harvestingDay crop_sugHarvestingDay
 
 end
 
@@ -387,7 +387,7 @@ to setup-crops
   set cropFrequency map [i -> 100 * i / cropFrequencyTotal] cropFrequency
 
   ;;; set root zone depth as weighted mean of crops
-  set z sum (map [ [i j] -> (i / 100) * j ] cropFrequency rootZoneDepth)
+  set z sum (map [ [i j] -> (i / 100) * j ] cropFrequency crop_rootZoneDepth)
 
   ;;; initialise all crop related variables as list where items correspond to crops
   set TT n-values (length typesOfCrops) [ j -> 0 ]

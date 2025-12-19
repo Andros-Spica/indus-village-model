@@ -24,8 +24,8 @@ to update-crops
     if ( is-ripe cropIndex )
     [
       ;;; calculate harvest yield
-      ifelse (item cropIndex TT >= item cropIndex T_sum)
-      [ set yield replace-item cropIndex yield (item cropIndex biomass * item cropIndex HI) ]
+      ifelse (item cropIndex TT >= item cropIndex crop_T_sum)
+      [ set yield replace-item cropIndex yield (item cropIndex biomass * item cropIndex crop_HI) ]
       [ set yield replace-item cropIndex yield 0 ]
       ;;; reset biomass and auxiliary variables
       reset-crop-variables cropIndex
@@ -84,11 +84,11 @@ to update-biomass [ cropIndex ]
 
   update-f_Water cropIndex
 
-  set I_50Blocal replace-item cropIndex I_50Blocal ((item cropIndex I_50B) + (item cropIndex I_50maxW) * (1 - item cropIndex f_Water) + (item cropIndex I_50maxH) * (1 - item cropIndex f_Heat))
+  set I_50Blocal replace-item cropIndex I_50Blocal ((item cropIndex crop_I_50B) + (item cropIndex crop_I_50maxW) * (1 - item cropIndex f_Water) + (item cropIndex crop_I_50maxH) * (1 - item cropIndex f_Heat))
 
   update-f_Solar cropIndex
 
-  set biomass_rate replace-item cropIndex biomass_rate (solarRadiation * (item cropIndex RUE) * (item cropIndex f_Solar) * (item cropIndex f_CO2) * (item cropIndex f_Temp) * (clampMin0 (min (list (item cropIndex f_Heat) (item cropIndex f_Water)))))
+  set biomass_rate replace-item cropIndex biomass_rate (solarRadiation * (item cropIndex crop_RUE) * (item cropIndex f_Solar) * (item cropIndex f_CO2) * (item cropIndex f_Temp) * (clampMin0 (min (list (item cropIndex f_Heat) (item cropIndex f_Water)))))
 
   set biomass replace-item cropIndex biomass (item cropIndex biomass + item cropIndex biomass_rate)
 
@@ -98,9 +98,9 @@ to update-TT [ cropIndex ]
 
   let deltaTT 0
 
-  ifelse ( temperature > item cropIndex T_base )
+  ifelse ( temperature > item cropIndex crop_T_base )
   [
-    set deltaTT temperature - item cropIndex T_base
+    set deltaTT temperature - item cropIndex crop_T_base
   ]
   [
     set deltaTT 0
@@ -119,10 +119,10 @@ to update-f_CO2 [ cropIndex ]
   [
     ifelse ( CO2 > 700 )
     [
-      set f_CO2 replace-item cropIndex f_CO2 (1 + (item cropIndex S_CO2) * 350)
+      set f_CO2 replace-item cropIndex f_CO2 (1 + (item cropIndex crop_S_CO2) * 350)
     ]
     [
-      set f_CO2 replace-item cropIndex f_CO2 (1 + (item cropIndex S_CO2) * (CO2 - 350))
+      set f_CO2 replace-item cropIndex f_CO2 (1 + (item cropIndex crop_S_CO2) * (CO2 - 350))
     ]
   ]
 
@@ -130,17 +130,17 @@ end
 
 to update-f_Temp [ cropIndex ]
 
-  ifelse ( temperature < item cropIndex T_base )
+  ifelse ( temperature < item cropIndex crop_T_base )
   [
     set f_Temp replace-item cropIndex f_Temp 0
   ]
   [
-    ifelse ( temperature >= item cropIndex T_opt )
+    ifelse ( temperature >= item cropIndex crop_T_opt )
     [
       set f_Temp replace-item cropIndex f_Temp 1
     ]
     [
-      set f_Temp replace-item cropIndex f_Temp ((temperature - item cropIndex T_base) / (item cropIndex T_opt - item cropIndex T_base))
+      set f_Temp replace-item cropIndex f_Temp ((temperature - item cropIndex crop_T_base) / (item cropIndex crop_T_opt - item cropIndex crop_T_base))
     ]
   ]
 
@@ -148,17 +148,17 @@ end
 
 to update-f_Heat [ cropIndex ]
 
-  ifelse ( maxTemperature <= item cropIndex T_heat )
+  ifelse ( maxTemperature <= item cropIndex crop_T_heat )
   [
     set f_Heat replace-item cropIndex f_Heat 1
   ]
   [
-    ifelse ( maxTemperature > item cropIndex T_extreme )
+    ifelse ( maxTemperature > item cropIndex crop_T_extreme )
     [
       set f_Heat replace-item cropIndex f_Heat 0
     ]
     [
-      set f_Heat replace-item cropIndex f_Heat ((maxTemperature - item cropIndex T_heat) / (item cropIndex T_extreme - item cropIndex T_heat))
+      set f_Heat replace-item cropIndex f_Heat ((maxTemperature - item cropIndex crop_T_heat) / (item cropIndex crop_T_extreme - item cropIndex crop_T_heat))
     ]
   ]
 
@@ -166,13 +166,13 @@ end
 
 to update-f_Water [ cropIndex ]
 
-  set f_Water replace-item cropIndex f_Water (1 - (item cropIndex S_Water) * ARID)
+  set f_Water replace-item cropIndex f_Water (1 - (item cropIndex crop_S_Water) * ARID)
 
 end
 
 to update-f_Solar [ cropIndex ]
 
-  let f_Solar_early (f_Solar_max / (1 + e ^ (-0.01 * (item cropIndex TT - item cropIndex I_50A))))
+  let f_Solar_early (f_Solar_max / (1 + e ^ (-0.01 * (item cropIndex TT - item cropIndex crop_I_50A))))
 
   let f_Solar_late (f_Solar_max / (1 + e ^ (-0.01 * (item cropIndex TT - item cropIndex I_50Blocal))))
 

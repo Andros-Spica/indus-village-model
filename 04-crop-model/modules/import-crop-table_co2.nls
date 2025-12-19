@@ -84,6 +84,8 @@ to import-crop-table
 
   set crop_T_extreme map [row -> item T_extColumn row ] cropsData
 
+  set crop_S_CO2 map [row -> item S_CO2Column row ] cropsData
+
   set crop_S_water map [row -> item S_waterColumn row ] cropsData
 
   set crop_sugSowingDay map [row -> item sugSowingDayColumn row ] cropsData
