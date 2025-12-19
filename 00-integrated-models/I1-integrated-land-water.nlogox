@@ -425,7 +425,7 @@ to setup
 
   set-terrain-output-stats
 
-  update-output-stats
+  update-land-water-output-stats
 
   setup-patch-coordinates-labels "bottom" "left"
 
@@ -1924,7 +1924,7 @@ to set-terrain-output-stats
 
 end
 
-to update-output-stats
+to update-land-water-output-stats
 
   set meanRunOffCurveNumber mean [p_soil_runOffCurveNumber] of patches
 

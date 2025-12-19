@@ -1,0 +1,27 @@
+to update-land-water-output-stats
+
+  set meanRunOffCurveNumber mean [p_soil_runOffCurveNumber] of patches
+
+  set mostCommonCoverType modes [p_ecol_coverType] of patches
+
+  ask patches
+  [
+    update-ARID_yearSeries
+  ]
+
+end
+
+to update-ARID_yearSeries
+
+  ; if starting a new year
+  if (currentDayOfYear = 1)
+  [
+    ; save current year as last year
+    set p_soil_ARID_yearSeries_lastYear p_soil_ARID_yearSeries
+    ; reset p_soil_ARID_yearSeries if starting a new year
+    set p_soil_ARID_yearSeries (list)
+  ]
+  ; append this day ARID to ARID_yearSeries
+  set p_soil_ARID_yearSeries lput p_soil_ARID p_soil_ARID_yearSeries
+
+end

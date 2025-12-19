@@ -1,0 +1,328 @@
+to setup-river-water
+
+  ask patches with [flow_accumulation > flow_riverAccumulationAtStart] ; patches containing the river
+  [
+    set p_water flow_accumulation * riverWaterPerFlowAccumulation
+  ]
+
+end
+
+;=======================================================================================================
+;;; soil water balance model is based on:
+;;; 'Working with dynamic crop models: Methods, tools, and examples for agriculture and enviromnent'
+;;; Daniel Wallach, David Makowski, James W. Jones, François Brun (2006, 2014, 2019)
+;;; Model description in p. 24-28, R code example in p. 138-144.
+;;; see also https://github.com/cran/ZeBook/blob/master/R/watbal.model.r
+;;; Some additional info about run off at: https://engineering.purdue.edu/mapserve/LTHIA7/documentation/scs.htm
+;;; and at: https://en.wikipedia.org/wiki/Runoff_curve_number
+;;;
+;;; flow algorithms are based on:
+;;; Jenson, S. K., & Domingue, J. O. (1988).
+;;; Extracting topographic structure from digital elevation data for geographic information system analysis.
+;;; Photogrammetric engineering and remote sensing, 54(11), 1593-1600.
+;;; ===BUT used elsewhere, such as in the algorithms based on:
+;;; Huang, P., Lee, K.T. A simple depression-filling method for raster and irregular elevation datasets.
+;;; J Earth Syst Sci 124, 1653–1665 (2015). https://doi.org/10.1007/s12040-015-0641-2
+;;; See also: "02-Soil-Water-Balance-model" and "03-land-model" directory within "indus-village-model".
+;=======================================================================================================
+
+to update-water
+
+  reset-sea-water
+
+  add-river-water
+
+  add-precipitation-water
+
+  solve-runoff-exchange
+
+  solve-inundation-exchange
+
+  drain-soil-water
+
+  ask patches [ set p_ecol_%water (get-%water-surface p_water) ]
+
+end
+
+to reset-sea-water
+
+  ;;; add water to fill below sea level elevation (depth)
+  ask patches with [elevation < 0]
+  [
+    set p_water -1 * elevation * 1000
+  ]
+
+end
+
+to add-river-water
+
+  ask patches with [flow_accumulation > flow_riverAccumulationAtStart] ; patches containing the river or only starting point: = flow_riverAccumulationAtStart + 1]
+  [
+    set p_water flow_riverAccumulationAtStart * riverWaterPerFlowAccumulation ; no accumulation in river between one day to the other
+  ]
+
+end
+
+to add-precipitation-water
+
+  ask patches
+  [
+    ; 1m^2 (area) -> 1mm (precipitation)
+    set p_water p_water + precipitation
+  ]
+
+end
+
+to solve-runoff-exchange
+
+  ; The runoff exchange algorithm uses the same logic that was used to calculate flow_accumulation in the Land model.
+  ;
+  ; From Jenson, S. K., & Domingue, J. O. (1988), p. 1594
+  ; "FLOW ACCUMULATION DATA SET
+  ; The third procedure of the conditioning phase makes use of the flow direction data set to create the flow accumulation data set,
+  ; where each cell is assigned a value equal to the number of cells that flow to it (O’Callaghan and Mark, 1984).
+  ; Cells having a flow accumulation value of zero (to which no other cells flow) generally correspond to the pattern of ridges.
+  ; Because all cells in a depressionless DEM have a path to the data set edge, the pattern formed by highlighting cells
+  ; with values higher than some threshold delineates a fully connected drainage network. As the threshold value is increased,
+  ; the density of the drainage network decreases. The flow accumulation data set that was calculated for the numeric example
+  ; is shown in Table 2d, and the visual example is shown in Plate 1c."
+
+  ; identify patches that receive flow and those that do not (this makes the next step much easier)
+  ask patches
+  [
+    set flow_accumulationState "start"
+    ;set pcolor red
+  ]
+
+  ask patches with [has-flow-direction-code]
+  [
+    let patchInFlowDirection get-patch-in-flow-direction flow_direction
+    if (patchInFlowDirection != nobody)
+    [
+      ask patchInFlowDirection
+      [
+        set flow_accumulationState "pending"
+        ;set pcolor yellow
+      ]
+    ]
+  ]
+
+  ; main process: progressively compare water between start and next pending patch in flow, record effective runoff of start patch, and update water in pending patch.
+  let maxIterations 100000 ; just as a safety measure, to avoid infinite loop
+  while [count patches with [flow_accumulationState = "pending" and not flow-direction-is-loop] > 0 and maxIterations > 0 and count patches with [flow_accumulationState = "start"] > 0 ]
+  [
+    ask one-of patches with [flow_accumulationState = "start"]
+    [
+      let thisPatch self
+      let downstreamPatch get-patch-in-flow-direction flow_direction
+
+      ; calculate runoff and infiltration in soil
+      set-runoff
+      infiltrate-soil-water
+
+      set flow_accumulationState "done"
+      ;set pcolor orange
+
+      if (downstreamPatch != nobody)
+      [
+        try-send-runoff-to downstreamPatch
+
+        ask downstreamPatch
+        [
+          if (count neighbors with [
+            get-patch-in-flow-direction flow_direction = downstreamPatch and
+            (flow_accumulationState = "pending" or flow_accumulationState = "start")
+            ] = 0
+          )
+          [
+            set flow_accumulationState "start"
+            ;set pcolor red
+          ]
+        ]
+      ]
+    ]
+
+    set maxIterations maxIterations - 1
+  ]
+
+end
+
+to set-runoff
+
+  ; Maximum abstraction (mm; for run off)
+  let maximumAbstraction 25400 / p_soil_runOffCurveNumber - 254
+
+  ; Initial Abstraction (mm; for run off)
+  let initialAbstraction 0.2 * maximumAbstraction
+
+  ; Change in Water Before Drainage (p_water - p_runoff)
+  set p_runoff 0
+  if (p_water > initialAbstraction)
+  [ set p_runoff ((p_water - 0.2 * maximumAbstraction) ^ 2) / (p_water + 0.8 * maximumAbstraction) ]
+
+  ; add incoming river water at river start to replace runoff
+  if (flow_accumulation = flow_riverAccumulationAtStart + 1)
+  [
+    set p_water p_water + flow_riverAccumulationAtStart * riverWaterPerFlowAccumulation
+  ]
+
+end
+
+to try-send-runoff-to [ downstreamPatch ]
+
+  ;;; from the perspective of a patch,
+  ;;; try to send the current runoff to another patch,
+  ;;; considering the elevation change produced by water accumulation
+
+  ;;; algorithm based on:
+  ;;; Yang L E, Scheffran J, Süsser D, Dawson R and Chen Y D 2018 Assessment of Flood Losses with Household Responses:
+  ;;; Agent-Based Simulation in an Urban Catchment Area Environ. Model. Assess. 23 369–88
+  ;;; http://link.springer.com/10.1007/s10666-018-9597-3
+
+  let thisPatch_h1 elevation
+  let thisPatch_h2 p_runoff / 1000 ; in m
+
+  let downstreamPatch_h1 [elevation] of downstreamPatch
+  let downstreamPatch_h2 [p_water / 1000] of downstreamPatch ; in m
+
+  ;;; schematics:
+
+  ;==== case 1: h1 of A is higher than (h2 of B) + (h2 - h1) of A
+  ;
+  ;----- h2 ----|
+  ;----- h1 ----|                      |----- h1 ----|
+  ;             |                --->  |             |----- h2 ----|
+  ;             |----- h2 ----|        |             |             |
+  ;             |----- h1 ----|        |             |----- h1 ----|
+  ;______A______|______B______|        |______A______|______B______|
+
+  ;==== case 2: h1 of A is lower than (h2 of B) + (h2 - h1) of A
+  ;
+  ;----- h2 ----|                      _ _ _ _h2_ _ _ _ _ _ h2_ _ _
+  ;             |----- h2 ----|        |             |             |
+  ;----- h1 ----|             |  --->  |----- h1 ----|             |
+  ;             |             |        |             |             |
+  ;             |----- h1 ----|        |             |----- h1 ----|
+  ;______A______|______B______|        |______A______|______B______|
+
+  ;==== case 3: next downstream patch (B) is already overflowed (h2 of B > h2 of A)
+  ;
+  ;             |----- h2 ----|
+  ;             |             |        |----- h2 ----|----- h2 ----|
+  ;----- h2 ----|             |  --->  |             |             |
+  ;----- h1 ----|             |        |----- h1 ----|             |
+  ;             |----- h1 ----|        |             |----- h1 ----|
+  ;______A______|______B______|        |______A______|______B______|
+
+  ;print self
+  ;;; case 1:
+  ;;; if the elevation with water of the downstream patch is lower, even after transferring all runoff
+  ifelse (thisPatch_h1 > downstreamPatch_h1 + downstreamPatch_h2 + thisPatch_h2)
+  [;print "case 1"
+    ;;; all runoff is transfered downstream
+    ask downstreamPatch
+    [
+      ;;; update water downstream (receives all runoff)
+      ;print (word p_water " + " thisPatch_h2 " * 1000 = " p_water + thisPatch_h2 * 1000)
+      set p_water p_water + thisPatch_h2 * 1000 ; in mm
+    ]
+  ]
+  [;print "case 2 & 3" print (word self ", h1=" thisPatch_h1 ", h2=" thisPatch_h2 "; " downstreamPatch ", h1=" downstreamPatch_h1 ", h2=" downstreamPatch_h2 )
+    ;;; case 2 & case 3
+    ;;; runoff is equaly distributed
+    ask downstreamPatch
+    [
+      ;;; update water downstream
+      set p_water 0.5 * (downstreamPatch_h1 + downstreamPatch_h2 + thisPatch_h1 + thisPatch_h2) - downstreamPatch_h1
+      ;print (word "0.5 * (" downstreamPatch_h1 " + " downstreamPatch_h2 " + " thisPatch_h1 " + " thisPatch_h2 ") - " downstreamPatch_h1 " = " p_water)
+      set p_water p_water * 1000 ; in mm
+    ]
+    ;;; update (effective) runoff (this should be the last instance this patch runoff can be modified during a time step)
+    set p_runoff 0.5 * (downstreamPatch_h1 + downstreamPatch_h2 + thisPatch_h1 + thisPatch_h2) - downstreamPatch_h1
+    set p_runoff p_runoff * 1000 ; in mm
+
+    ;;; update water after runoff substraction
+    set p_water 0.5 * (thisPatch_h1 + thisPatch_h2 + downstreamPatch_h1 + downstreamPatch_h2) - thisPatch_h1
+    ;print (word "0.5 * (" thisPatch_h1 " + " thisPatch_h2 " + " downstreamPatch_h1 " + " downstreamPatch_h2 ") - " thisPatch_h1 " = " p_water)
+    set p_water p_water * 1000 ; in mm
+    ;print (word "total height (m): thisPatch = " (elevation + p_water / 1000) " ; downstreamPatch = " [(elevation + p_water / 1000)] of downstreamPatch)
+  ]
+;print "================================================"
+end
+
+to solve-inundation-exchange
+
+  ;;; case 3 in try-send-runoff-to can make water depth plus elevation to be uneven between neighbouring patches.
+  ;;; particularly when the value of riverWaterPerFlowAccumulation is relatively high (>>1E-4)
+
+  ;;; get the (initial) set of patches with excess water depth
+  let patchesWithExcess patches with [has-excess-water-depth]
+
+  let maxIterations 10000 ; just as a safety measure, to avoid infinite loop
+  ;;; iteratively solve each patch with excess water depth
+  while [any? patchesWithExcess and maxIterations > 0]
+  [
+    ask one-of patchesWithExcess
+    [
+      ;;; get the entire neighborhood (neighbors + this patch)
+      let neighborhood (patch-set self neighbors)
+
+      ;;; get the sum of surface water depth (in m) for the entire neighborhood
+      let sumNeighborhoodWaterDepth sum [p_water / 1000] of neighborhood
+
+      ;;; set all water in neighborhood to zero
+      ask neighborhood [ set p_water 0 ]
+
+      ;;; iterate n times, where n is the neighborhood sum divided by errorToleranceThreshold (rounded value)
+      repeat round (sumNeighborhoodWaterDepth / errorToleranceThreshold)
+      [
+        ;;; get the lowest patch in the neighborhood
+        ;;; NOTE: height is elevation (m) + surfaceWater (mm) / 1000
+        ask min-one-of neighborhood [get-height]
+        [
+          ;;; add errorToleranceThreshold * 1000 to the amount of surface water depth (mm)
+          set p_water p_water + errorToleranceThreshold * 1000
+        ]
+      ]
+
+      ;;; ask neighbors and neighbors of neighbors (excluding this patch) to update patchesWithExcess
+      ;;; NOTE: this piece of code is effective and much faster than asking all patches to update patchesWithExcess
+
+      ;;; exclude this patch from patchesWithExcess
+      set patchesWithExcess other patchesWithExcess
+
+      ;;; get extended neighborhood
+      let extendedNeighborhood other (patch-set neighbors ([neighbors] of neighbors))
+
+      ask extendedNeighborhood
+      [
+        ;;; check if this patch has excess water depth,
+        ;;; than add or exclude it from patchesWithExcess
+        ifelse (has-excess-water-depth)
+        [
+          set patchesWithExcess (patch-set self patchesWithExcess)
+        ]
+        [
+          set patchesWithExcess other patchesWithExcess
+        ]
+      ]
+    ]
+
+    set maxIterations maxIterations - 1
+  ]
+
+end
+
+to-report get-height
+
+  report elevation + p_water / 1000
+
+end
+
+to-report has-excess-water-depth
+
+  let sourceHeight get-height
+
+  report p_water > 0 and any? neighbors with [sourceHeight - get-height > errorToleranceThreshold]
+
+end

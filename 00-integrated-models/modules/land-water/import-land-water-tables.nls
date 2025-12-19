@@ -1,0 +1,306 @@
+to import-hydrologic-soil-groups-table
+
+  ;;; SOURCE: table in page A-1,
+  ;;; Cronshey R G 1986 Urban Hydrology for Small Watersheds, Technical Release 55 (TR-55).
+  ;;; United States Department of Agriculture, Soil Conservation Service, Engineering Division.
+
+  ;;; this procedure loads the values of the hydrologic soil groups table
+  ;;; the table contains:
+  ;;;   1. two lines of headers with comments (metadata, to be ignored)
+  ;;;   2. two lines with statements mapping the different types of data, if more than one
+  ;;;   3. the header of the table with the names of variables
+  ;;;   4. remaining rows containing row name and values
+
+  let hydrologicSoilGroupTable csv:from-file "hydrologicSoilGroupTable.csv"
+
+  ;;;==================================================================================================================
+  ;;; mapping coordinates (row or columns) in lines 3 and 4 (= index 2 and 3) -----------------------------------------
+  ;;; NOTE: always correct raw mapping coordinates (start at 1) into list indexes (start at 0)
+
+  ;;; line 3 (= index 2), row indexes
+  let textureTypesRowRange (list ((item 1 (item 2 hydrologicSoilGroupTable)) - 1) ((item 3 (item 2 hydrologicSoilGroupTable)) - 1))
+
+  ;;; line 4 (= index 3), column indexes
+  ;;; Types of soil according to % of sand, silt and clay (ternary diagram) established by USDA
+  let textureTypeColumn (item 1 (item 3 hydrologicSoilGroupTable)) - 1
+
+  ;;; USDA classification of soils according to water infiltration (A, B, C, and D; see reference in csv file)
+  let HydrologycSoilGroupsColumn (item 3 (item 3 hydrologicSoilGroupTable)) - 1
+
+  ;;;==================================================================================================================
+  ;;; extract data---------------------------------------------------------------------------------------
+
+  ;;; read variables (list of lists, matrix: texture types x hydrologic soil groups)
+  let hydrologicSoilGroupsData sublist hydrologicSoilGroupTable (item 0 textureTypesRowRange) (item 1 textureTypesRowRange + 1)
+
+  ;;; extract type of texture
+  set soil_textureType map [row -> item textureTypeColumn row ] hydrologicSoilGroupsData
+
+  ;;; extract hydrologic soil group
+  set soil_hydrologicSoilGroups map [row -> item HydrologycSoilGroupsColumn row ] hydrologicSoilGroupsData
+
+end
+
+to import-runoff-curve-number-table
+
+  ;;; SOURCE: table 2.2,
+  ;;; Cronshey R G 1986 Urban Hydrology for Small Watersheds, Technical Release 55 (TR-55).
+  ;;; United States Department of Agriculture, Soil Conservation Service, Engineering Division.
+
+  ;;; this procedure loads the values of the run off curve number table
+  ;;; the table contains:
+  ;;;   1. two lines of headers with comments (metadata, to be ignored)
+  ;;;   2. two lines with statements mapping the different types of data, if more than one
+  ;;;   3. the header of the table with the names of variables
+  ;;;   4. remaining rows containing row name and values
+
+  let runOffCurveNumberTable csv:from-file "runOffCurveNumberTable.csv"
+
+  ;;;==================================================================================================================
+  ;;; mapping coordinates (row or columns) in lines 3 and 4 (= index 2 and 3) -----------------------------------------
+  ;;; NOTE: always correct raw mapping coordinates (start at 1) into list indexes (start at 0)
+
+  ;;; line 3 (= index 2), row indexes
+  let typesOfCoverRowRange (list ((item 1 (item 2 runOffCurveNumberTable)) - 1) ((item 3 (item 2 runOffCurveNumberTable)) - 1))
+
+  ;;; line 4 (= index 3), column indexes
+  ;;; types of soil cover
+  let coverTypeColumn (item 1 (item 3 runOffCurveNumberTable)) - 1
+
+  ;;; types of soil treatment (if applies)
+  let TreatmentColumn (item 3 (item 3 runOffCurveNumberTable)) - 1
+
+  ;;; types of soil hydrologic condition (if applies)
+  let HydrologicConditionColumn (item 5 (item 3 runOffCurveNumberTable)) - 1
+
+  ;;; Columns holding data for the four Hydrologic soil groups: value 8 and 10 (=item 7 and 9)
+  let HydrologycSoilGroupsColumns (list ((item 7 (item 3 runOffCurveNumberTable)) - 1) ((item 9 (item 3 runOffCurveNumberTable)) - 1) )
+
+  ;;;==================================================================================================================
+  ;;; extract data---------------------------------------------------------------------------------------
+
+  ;;; read variables (list of lists, matrix: cover types-treatment-condition x hydrologic soil groups)
+  let runOffCurveNumberData sublist runOffCurveNumberTable (item 0 typesOfCoverRowRange) (item 1 typesOfCoverRowRange + 1) ; select only those rows corresponding to data on types of cover
+
+  ;;; extract cover, treatment and hydrologic condition
+  let coverTreatmentAndHydrologicCondition (
+    map [row -> (word (item coverTypeColumn row) " | " (item TreatmentColumn row) " | " (item HydrologicConditionColumn row) ) ] runOffCurveNumberData
+    )
+
+  ;;; extract curve number table
+  set soil_runOffCurveNumberTable extract-subtable runOffCurveNumberData (item 0 HydrologycSoilGroupsColumns) (item 1 HydrologycSoilGroupsColumns)
+
+  ;;; combine with cover-treatment-hydrologic condition
+  set soil_runOffCurveNumberTable fput coverTreatmentAndHydrologicCondition soil_runOffCurveNumberTable
+
+end
+
+to import-soil-water-table
+
+  ;;; SOURCE (TO-DO: FIND BETTER SOURCES!):
+  ;;; 1. Plant & Soil Sciences eLibrary, Lesson: Soils - Part 2: Physical Properties
+  ;;;    of Soil and Soil Water, page 10 (Soil Water), Table 2.6.
+  ;;;    https://passel2.unl.edu/view/lesson/0cff7943f577/10
+  ;;;    Conservation Service, Engineering Division
+  ;;; 2. Rain Machine support documentation, "Zones", "Soil Types", Table.
+  ;;;    https://support.rainmachine.com/hc/en-us/articles/228001248-Soil-Types
+  ;;; 3. SWAT theoretical documentation 2009, p. 148, Table 2:3-1,
+  ;;;    https://swat.tamu.edu/media/99192/swat2009-theory.pdf
+
+  ;;; this procedure loads the values of the soil water table
+  ;;; the table contains:
+  ;;;   1. two lines of headers with comments (metadata, to be ignored)
+  ;;;   2. two lines with statements mapping the different types of data, if more than one
+  ;;;   3. the header of the table with the names of variables
+  ;;;   4. remaining rows containing row name and values
+
+  let soilWaterTable csv:from-file "soilWaterTable.csv"
+
+  ;;;==================================================================================================================
+  ;;; mapping coordinates (row or columns) in lines 3 and 4 (= index 2 and 3) -----------------------------------------
+  ;;; NOTE: always correct raw mapping coordinates (start at 1) into list indexes (start at 0)
+
+  ;;; line 3 (= index 2), row indexes
+  let textureTypesRowRange (list ((item 1 (item 2 soilWaterTable)) - 1) ((item 3 (item 2 soilWaterTable)) - 1))
+
+  ;;; line 4 (= index 3), column indexes
+  ;;; Types of soil according to % of sand, silt and clay (ternary diagram) established by USDA
+  let textureTypeColumn (item 1 (item 3 soilWaterTable)) - 1
+
+  ;;; values of field capacity (fraction of soil volume) per texture type
+  let fieldCapacityColumn (item 3 (item 3 soilWaterTable)) - 1
+
+  ;;; values of saturation (fraction of soil volume) per texture type
+  let saturationColumn (item 5 (item 3 soilWaterTable)) - 1
+
+  ;;; values of intake rate (mm/hour) per texture type
+  let intakeRateColumn (item 7 (item 3 soilWaterTable)) - 1
+
+  ;;; values of minimum and maximum water holding capacity (in/ft) per texture type
+  let minWaterHoldingCapacityColumn (item 9 (item 3 soilWaterTable)) - 1
+  let maxWaterHoldingCapacityColumn (item 11 (item 3 soilWaterTable)) - 1
+
+  ;;;==================================================================================================================
+  ;;; extract data---------------------------------------------------------------------------------------
+
+  ;;; read variables (list of lists, matrix: texture types x soil water variables)
+  let soilWaterData sublist soilWaterTable (item 0 textureTypesRowRange) (item 1 textureTypesRowRange + 1)
+
+  ;;; types of texture must be exactly the same that is extracted from the Hydrologic Soil Group table
+
+  ;;; extract field capacity
+  set soil_fieldCapacity map [row -> item fieldCapacityColumn row ] soilWaterData
+
+  ;;; extract saturation
+  set soil_saturation map [row -> item saturationColumn row ] soilWaterData
+
+  ;;; extract intake rate
+  set soil_intakeRate map [row -> item intakeRateColumn row ] soilWaterData
+
+  ;;; extract water holding capacity
+  set soil_minWaterHoldingCapacity map [row -> item minWaterHoldingCapacityColumn row ] soilWaterData
+  set soil_maxWaterHoldingCapacity map [row -> item maxWaterHoldingCapacityColumn row ] soilWaterData
+
+end
+
+to import-albedo-table
+
+  ;;; SOURCE:
+  ;;; Values are informed on (not derived from) the following sources:
+
+  ;;; Houldcroft C J, Grey W M F, Barnsley M, Taylor C M, Los S O and North P R J (2009).
+  ;;; New vegetation Albedo parameters and global fields of soil background Albedo derived from MODIS for use in a climate model,
+  ;;; J. Hydrometeorol., 10: 183–98.
+  ;;; https://doi.org/10.1175/2008JHM1021.1
+
+  ;;; Table 2 in:
+  ;;; Gao F, Schaaf C B, Strahler A H, Roesch A, Lucht W and Dickinson R (2005).
+  ;;; MODIS bidirectional reflectance distribution function and albedo Climate Modeling
+  ;;; Grid products and the variability of albedo major global vegetation types,
+  ;;; Journal of Geophysical Research D: Atmospheres, 110(1): 1–13.
+  ;;; https://doi.org/10.1029/2004JD005190
+
+  ;;; also https://en.wikipedia.org/wiki/Albedo
+
+  ;;; this procedure loads the values of the albedo table
+  ;;; the table contains:
+  ;;;   1. two lines of headers with comments (metadata, to be ignored)
+  ;;;   2. two lines with statements mapping the different types of data, if more than one
+  ;;;   3. the header of the table with the names of variables
+  ;;;   4. remaining rows containing row name and values
+
+  let albedoTable csv:from-file "albedoTable.csv"
+
+  ;;;==================================================================================================================
+  ;;; mapping coordinates (row or columns) in lines 3 and 4 (= index 2 and 3) -----------------------------------------
+  ;;; NOTE: always correct raw mapping coordinates (start at 1) into list indexes (start at 0)
+
+  ;;; line 3 (= index 2), row indexes
+  let typesOfCoverRowRange (list ((item 1 (item 2 albedoTable)) - 1) ((item 3 (item 2 albedoTable)) - 1))
+
+  ;;; line 4 (= index 3), column indexes
+  ;;; broadband range
+  ;;; types of soil cover
+  let coverTypeColumn (item 1 (item 3 albedoTable)) - 1
+
+  ;;; albedo (%)
+  let albedoColumn (item 3 (item 3 albedoTable)) - 1
+
+  ;;;==================================================================================================================
+  ;;; extract data---------------------------------------------------------------------------------------
+
+  ;;; read variables (list of lists, matrix: cover types x albedo)
+  let albedoData sublist albedoTable (item 0 typesOfCoverRowRange) (item 1 typesOfCoverRowRange + 1) ; select only those rows corresponding to data on types of cover
+
+  ;;; extract cover types
+  let coverType map [row -> item coverTypeColumn row ] albedoData
+
+  ;;; extract albedo (%)
+  let albedo map [row -> item albedoColumn row ] albedoData
+
+  ;;; combine with cover types with albedo values
+  set ecol_albedoTable (list coverType albedo)
+
+end
+
+to import-ecological-component-table
+
+  ;;; SOURCE:
+  ;;; Values are informed on (not derived from) the following sources:
+
+  ;;; "source: on root depth:
+  ;;; Foxx T S, Tierney G D and Williams J M (1984).
+  ;;; Rooting depths of plants relative to biological and environmental factors 26
+  ;;; Online: http://permalink.lanl.gov/object/tr?what=info:lanl-repo/lareport/LA-10254-MS 00318770.pdf
+
+  ;;; on biomass:
+  ;;; Wu Z, Dye D, Vogel J and Middleton B (2016).
+  ;;; Estimating forest and woodland aboveground biomass using active and passive remote sensing Photogramm.
+  ;;; Eng. Remote Sensing 82 271–81.
+  ;;; Online: https://doi.org/10.14358/PERS.82.4.271
+
+  ;;; Li A, Dhakal S, Glenn N, Spaete L, Shinneman D, Pilliod D, Arkle R and McIlroy S (2017).
+  ;;; Lidar Aboveground Vegetation Biomass Estimates in Shrublands: Prediction, Uncertainties and Application to Coarser Scales
+  ;;; Remote Sens. 9 903
+  ;;; Online: http://www.mdpi.com/2072-4292/9/9/903
+
+  ;;; Navarro Cerrillo R M and Blanco Oyonarte P (2006).
+  ;;; Estimation of above-ground biomass in shrubland ecosystems of southern Spain
+  ;;; Investig. Agrar. Sist. y Recur. For. 15 197.
+  ;;; Online: https://www.researchgate.net/publication/28126747"
+
+  ;;; this procedure loads the values of the ecological component table
+  ;;; the table contains:
+  ;;;   1. two lines of headers with comments (metadata, to be ignored)
+  ;;;   2. two lines with statements mapping the different types of data, if more than one
+  ;;;   3. the header of the table with the names of variables
+  ;;;   4. remaining rows containing row name and values
+
+  let ecologicalCommunityTable csv:from-file "ecologicalCommunityTable.csv"
+
+  ;;;==================================================================================================================
+  ;;; mapping coordinates (row or columns) in lines 3 and 4 (= index 2 and 3) -----------------------------------------
+  ;;; NOTE: always correct raw mapping coordinates (start at 1) into list indexes (start at 0)
+
+  ;;; line 3 (= index 2), row indexes
+  let typesOfEcologicalComponentRowRange (list ((item 1 (item 2 ecologicalCommunityTable)) - 1) ((item 3 (item 2 ecologicalCommunityTable)) - 1))
+
+  ;;; line 4 (= index 3), column indexes
+  ;;; broadband range
+  ;;; types of soil cover
+  let ecologicalComponentTypeColumn (item 1 (item 3 ecologicalCommunityTable)) - 1
+
+  ;;; maximum root depth (mm)
+  let maxRootDepthColumn (item 3 (item 3 ecologicalCommunityTable)) - 1
+
+  ;;; biomass (g/m^2)
+  let biomassColumn (item 5 (item 3 ecologicalCommunityTable)) - 1
+
+  ;;; recovery lag (days)
+  let recoveryLagColumn (item 7 (item 3 ecologicalCommunityTable)) - 1
+
+  ;;; water stress sensitivity (%maxAffected/%total*day)
+  let waterStressSensitivityColumn (item 9 (item 3 ecologicalCommunityTable)) - 1
+
+  ;;;==================================================================================================================
+  ;;; extract data---------------------------------------------------------------------------------------
+
+  ;;; read variables (list of lists, matrix: ecological component types x max root depth-biomass-recovery lag-water stress sensitivity)
+  let ecologicalComponentData sublist ecologicalCommunityTable (item 0 typesOfEcologicalComponentRowRange) (item 1 typesOfEcologicalComponentRowRange + 1) ; select only those rows corresponding to data on types of cover
+
+  ;;; extract ecological component names
+  set ecol_ecologicalComponents map [row -> item ecologicalComponentTypeColumn row ] ecologicalComponentData
+
+  ;;; extract maximum root depth
+  set ecol_maxRootDepth map [row -> item maxRootDepthColumn row ] ecologicalComponentData
+
+  ;;; extract biomass
+  set ecol_biomass map [row -> item biomassColumn row ] ecologicalComponentData
+
+  ;;; extract recovery lag
+  set ecol_recoveryLag map [row -> item recoveryLagColumn row ] ecologicalComponentData
+
+  ;;; extract water stress sensitivity
+  set ecol_waterStressSensitivity map [row -> item waterStressSensitivityColumn row ] ecologicalComponentData
+
+end
