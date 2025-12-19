@@ -30,6 +30,7 @@ __includes [
   "modules/set-terrain-output-stats_elevation.nls"
   "modules/display_elevation.nls"
   "modules/import-export_elevation.nls"
+  "modules/get-recentred-elevation.nls"
   "../utils/transect.nls"
   "../utils/patch-coord-labels.nls"
   "../utils/plot-table.nls"
@@ -99,7 +100,6 @@ globals
   ;;; variables ===============================================================
 
   landRatio                   ; the ratio of land units above or equal to seaLevel.
-  elevationDistribution       ; the set or list containing the elevation of all land units
   minElevation                ; statistics on the elevation of land units.
   sdElevation
   maxElevation

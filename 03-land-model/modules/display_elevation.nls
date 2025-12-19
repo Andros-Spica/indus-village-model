@@ -16,7 +16,7 @@ to refresh-view-after-seaLevel-change
   ask patches
   [
     ;;; recentre elevation so negative values are only below sea level
-    set elevation elevation - elev_seaLevelReferenceShift
+    set elevation get-recentred-elevation elevation elev_seaLevelReferenceShift
   ]
 
   set-terrain-output-stats

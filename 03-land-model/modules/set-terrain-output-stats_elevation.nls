@@ -1,7 +1,5 @@
 to set-terrain-output-stats
 
-  set elevationDistribution [elevation] of patches
-
   set minElevation min [elevation] of patches
 
   set maxElevation max [elevation] of patches
