@@ -4,7 +4,7 @@
 ;;; GNU GENERAL PUBLIC LICENSE ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;  Household Demography v.1.2.2
+;;  Household Demography v.1.4.1
 ;;  Copyright (C) 2021 Andreas Angourakis (andros.spica@gmail.com)
 ;;  last update Nov 2021
 ;;  available at https://www.github.com/Andros-Spica/indus-village-model
@@ -35,8 +35,11 @@ breed [ households household ]
 globals
 [
   ;;; constants
-  maturity-age                     ; defaults to 15 years old; it affects the minimum age acceptable for individuals to keep a household without older individuals
+  maturity-age-in-years              ; defaults to 15 years old; it affects the minimum age acceptable for individuals to keep a household without older individuals
+  gestation-period-in-days           ; assumed here as a constant fixed at 280
+
   density-effect-steepness
+  year-length-in-days
 
   ;;; demography tables
   fertilityTable
@@ -48,14 +51,18 @@ globals
   householdInitialAgeDistribution ; (list minimum maximum)
   maxCoupleCountDistribution      ; (list minimum maximum)
   acceptableKinshipDegreeForCouples ; degree of kinship acceptable between two individuals forming a new couple (1 = same household, 0.5 = level one relationship, etc.)
+  amenorrheaPeriodInDays          ; length in days of the postpartum amenorrhea periodInDays
+  ; value guide: 23 (3 weeks, minimal), 42 (6 weeks, if not lactating), 180 (6 months or 24 weeks, average), 540 (18 months or 64 weeks, intentional delay, medical recommendation)
 
-  carrying-capacity               ; carrying capacity or maximum number of people that can be sustained, i.e. mortality is increased in prportion to closeness of population to it (density effect)
+  carrying-capacity               ; carrying capacity or maximum number of people that can be sustained feed, i.e. mortality is increased in proportion to closeness of population to it (density effect)
   carrying-capacity-demand        ; number of adult equivalents (units of carrying capacity) that need to be currently sustained
-  density-effect-scaling-factor   ; the maximum additional death probability (scaling factor for density-dependent mortality)
-  labour-demand-per-capita ; share of labour adult equivalent to sustain one adult equivalent
-  carrying-capacity-effective     ; effective carrying capacity, weighted by the current contribution of available labour
+  density-effect-scaling-factor     ; the maximum additional death probability (scaling factor for density-dependent mortality)
 
   ;;; variables
+  ;;;; time tracking
+  currentYear
+  currentDayOfYear
+
   ;;;; auxiliar
   ; these are lists of string-coded individuals
   womenToMarry                   ; single individuals selected to marry ("<household who> <member index>")
@@ -65,7 +72,8 @@ globals
   ;;;; counters and final measures
   totalHouseholds                ; count households (integer)
   totalIndividuals               ; sum of members of households (integer)
-  totalPopulationGrowth          ; % of last totalIndividuals
+  totalIndividualsLastYear
+  totalPopulationGrowth          ; % of last year's totalIndividuals
   totalWomen                     ; sum of female members of households (integer)
   totalMen                       ; sum of male members of households (integer)
   femaleRatio                    ; total number of women over total number of individuals (float)
@@ -73,14 +81,30 @@ globals
   menAgeStructure                ; merge list of all households male members ages (list of integers)
   womenFirstAgeGroup             ; count of women with age from 0 to 4 years old (base of typical population pyramid) (integer)
   menFirstAgeGroup               ; count of men with age from 0 to 4 years old (base of typical population pyramid) (integer)
-  womenBirths                    ; number of births (integer)
-  menBirths
-  womenDeaths                    ; number of deaths (integer)
-  menDeaths
-  womenIn                        ; number of individuals entering the system (generated for couple creation with external population) (integer)
-  menIn
-  womenOut                       ; number of individuals exiting the system (due to couple creation with external population) (integer)
-  menOut
+  womenBirthsToday               ; number of births (integer)
+  womenBirthsThisYear
+  womenBirthsLastYear
+  menBirthsToday
+  menBirthsThisYear
+  menBirthsLastYear
+  womenDeathsToday                    ; number of deaths (integer)
+  womenDeathsThisYear
+  womenDeathsLastYear
+  menDeathsToday
+  menDeathsThisYear
+  menDeathsLastYear
+  womenInToday                        ; number of individuals entering the system (generated for couple creation with external population) (integer)
+  womenInThisYear
+  womenInLastYear
+  menInToday
+  menInThisYear
+  menInLastYear
+  womenOutToday                       ; number of individuals exiting the system (due to couple creation with external population) (integer)
+  womenOutThisYear
+  womenOutLastYear
+  menOutToday
+  menOutThisYear
+  menOutLastYear
   totalOrphans                   ; number of children moving from an household where all adults are dead
 ]
 
@@ -89,14 +113,18 @@ globals
 households-own
 [
   hh_lineage                     ; identifier of the lineage history of a household (list of integers; integers are household 'who's)
-  hh_age                         ; number of years during which the household existed (integer)
+  hh_age                         ; number of days during which the household existed (integer)
   hh_maxCoupleCount              ; max. number of couples accepted within a household (integer)
-  hh_membersAge                  ; ages of every household member (list of integer)
+  hh_membersAge                  ; ages of every household member in days (list of integer)
   hh_membersSex                  ; sex of every household member (list of true/false, i.e. is female?)
   hh_membersMarriage             ; couple index of every member (list of integers; 0-Inf: couple index, -1: member is single)
+  hh_membersGestation            ; whether members are female and currently in the gestation or pregnancy period
+  hh_membersAmenorrhea            ; whether members are female and currently in postpartum amenorrhea period
 
   ;;; auxiliar
   hh_memberIndexesToDelete
+
+  hh_tellYourStory
 ]
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -107,17 +135,27 @@ to setup
 
   clear-all
 
+  ; --- loading/testing parameters -----------
+
   set-constants
 
   set-parameters
 
   build-demography-tables
 
+  ; --- core procedures ----------------------
+
+  set currentDayOfYear 1
+
   setup-households
 
-  reset-counters
+  ; --- counters -----------------------------
+
+  reset-counters-day
 
   update-counters
+
+  ; --- tick ---------------------------------
 
   reset-ticks
 
@@ -125,8 +163,14 @@ end
 
 to set-constants
 
-  ; parameter set to default value (constant)
-  set maturity-age 15
+  ; "constants" are variables that will not be explored as parameters
+  ; and may be used during a simulation.
+
+  set year-length-in-days 365
+
+  set maturity-age-in-years 15
+
+  set gestation-period-in-days 280 ; 280 (40 weeks)
 
   set density-effect-steepness 3
 
@@ -144,6 +188,8 @@ to set-parameters
   set householdInitialAgeDistribution read-from-string ( word "[" household-initial-age-distribution "]")
   set maxCoupleCountDistribution read-from-string ( word "[" max-couple-count-distribution "]")
 
+  set amenorrheaPeriodInDays amenorrhea-period * 7 ; conversion from weeks to days
+
   if (type-of-experiment = "user-defined")
   [
     ;;; load parameters from user interface
@@ -153,7 +199,6 @@ to set-parameters
 
     set carrying-capacity par_carrying-capacity
     set density-effect-scaling-factor par_density-effect-scaling-factor
-    set labour-demand-per-capita par_labour-demand-per-capita
   ]
   if (type-of-experiment = "random")
   [
@@ -179,9 +224,9 @@ to set-parameters
     set cdmlt-level 1 + random 25
     set coale-demeny-region item random 4 (list "west" "east" "south" "north")
     set c1-fert max (list 1E-6 (random-float 1))
-    set mu-fert maturity-age + (random 40 - maturity-age)
-    set sigma1-fert max (list 1E-6 (random-float (mu-fert - maturity-age)))
-    set sigma2-fert max (list 1E-6 (random-float ((30 + maturity-age) - mu-fert)))
+    set mu-fert maturity-age-in-years + (random 40 - maturity-age-in-years)
+    set sigma1-fert max (list 1E-6 (random-float (mu-fert - maturity-age-in-years)))
+    set sigma2-fert max (list 1E-6 (random-float ((30 + maturity-age-in-years) - mu-fert)))
     set residence-rule item random 2 (list "patrilocal-patrilineal" "matrilocal-matrilineal")
     set acceptableKinshipDegreeForCouples random 10
     set c1-women max (list 1E-6 (random-float 1))
@@ -195,11 +240,6 @@ to set-parameters
 
     set carrying-capacity 100 + random-float 900
     set density-effect-scaling-factor 0.05 + random-float 0.1
-    set labour-demand-per-capita 0.3 + random-float 0.6
-  ]
-  if (type-of-experiment = "defined by exp-number")
-  [
-    load-experiment
   ]
 
   ; check parameters values
@@ -221,14 +261,17 @@ to parameters-check1
   if (mu-women = 0)                             [ set mu-women                             15 ]
   if (mu-men = 0)                               [ set mu-men                               20 ]
   if (sigma1-fert = 0)                          [ set sigma1-fert                           5 ]
+  if (sigma2-fert = 0)                          [ set sigma2-fert                          10 ]
   if (sigma1-women = 0)                         [ set sigma1-women                          5 ]
   if (sigma1-men = 0)                           [ set sigma1-men                            2 ]
   if (sigma2-fert = 0)                          [ set sigma2-fert                           2 ]
-  if (sigma2-women = 0)                         [ set sigma2-women                          2 ]
+  if (sigma2-women = 0)                         [ set sigma2-women                         10 ]
   if (sigma2-men = 0)                           [ set sigma2-men                           10 ]
 
   if (carrying-capacity = 0)                    [ set carrying-capacity                   200 ]
-  if (density-effect-scaling-factor = 0)        [ set density-effect-scaling-factor         0.1 ]
+  if (density-effect-scaling-factor = 0)        [ set density-effect-scaling-factor         0.05 ]
+
+  if (amenorrhea-period = 0)                    [ set amenorrhea-period                    24 ]
 
   ;;; string type inputs (vector of values)
   if (household-initial-age-distribution = 0 or
@@ -241,9 +284,6 @@ end
 to parameters-to-default
 
   ;;; set parameters to a default value
-  set max-iterations                     2000
-  set max-population                     5000
-
   set initial-num-households               25
 
   set cdmlt-level                           8
@@ -251,10 +291,11 @@ to parameters-to-default
   set c1-fert                               0.9
   set mu-fert                              15
   set sigma1-fert                           5
+  set sigma2-fert                          10
 
   set c1-women                              0.9
   set mu-women                             15
-  set sigma2-women                          2
+  set sigma2-women                         10
   set sigma1-women                          5
 
   set c1-men                                0.85
@@ -264,9 +305,10 @@ to parameters-to-default
 
   set household-initial-age-distribution   "0 30"
   set max-couple-count-distribution        "1 6"
+  set amenorrhea-period                    24
 
   set carrying-capacity                   200
-  set density-effect-scaling-factor         0.1
+  set density-effect-scaling-factor         0.05
 
 end
 
@@ -321,25 +363,46 @@ end
 
 to go
 
-  reset-counters
+  ; --- core procedures -------------------------
+
+  reset-counters-day
 
   update-households
 
   update-counters
 
-  if (totalHouseholds = 0 or
-    ticks = max-iterations or
-    totalIndividuals > max-population)
+  ; -- time -------------------------------------
+
+  advance-time
+
+  tick
+  ;print "-------tick----"
+
+  ; --- stop conditions -------------------------
+
+  if (totalHouseholds = 0)
   [
     ;if (length behaviorspace-experiment-name > 0 and count households > 0) [ export-households ]
     stop
   ]
-  ;print "-------tick----"
-  tick
 
 end
 
 ;;; GLOBAL ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to advance-time
+
+  set currentDayOfYear currentDayOfYear + 1
+
+  if (currentDayOfYear > year-length-in-days)
+  [
+    set currentYear currentYear + 1
+    set currentDayOfYear 1
+    
+    if (member? true [hh_tellYourStory] of households) [ print (word "A new year starts.") ]
+  ]
+
+end
 
 to update-households
 
@@ -371,14 +434,6 @@ end
 
 to apply-mortality
 
-  let labour-available sum [hh_get-total-labour] of households
-  let labour-required carrying-capacity * labour-demand-per-capita
-  let laboured-share 1
-  if (labour-available < labour-required)
-  [ set laboured-share labour-available / labour-required ]
-
-  set carrying-capacity-effective carrying-capacity * laboured-share
-
   set carrying-capacity-demand sum [hh_get-total-carrying-capacity-demand] of households
 
   ask households
@@ -400,7 +455,7 @@ end
 
 to build-lists-to-marry
 
-  ; initialize population lists of marrying candidates for this year
+  ; initialize population lists of marrying candidates for this day
   set womenToMarry (list)
   set menToMarry (list)
 
@@ -599,10 +654,10 @@ to create-couple-external [ singleData ]
     ; account for the new individual coming in
     ifelse (not singleSex)
     [
-      set womenIn womenIn + 1 ; if single is male, the new individual is female
+      set womenInToday womenInToday + 1 ; if single is male, the new individual is female
     ]
     [
-      set menIn menIn + 1
+      set menInToday menInToday + 1
     ]
   ]
   [
@@ -631,10 +686,10 @@ to create-couple-external [ singleData ]
     ; account for the single individual going out
     ifelse (singleSex)
     [
-      set womenOut womenOut + 1 + childrenMovingOut
+      set womenOutToday womenOutToday + 1 + childrenMovingOut
     ]
     [
-      set menOut menOut + 1 + childrenMovingOut
+      set menOutToday menOutToday + 1 + childrenMovingOut
     ]
   ]
 
@@ -651,7 +706,7 @@ end
 
 to manage-orphanhood
 
-  ; initialize population lists of orphan children for this year
+  ; initialize population lists of orphan children for this day
   set orphanList (list)
 
   ; go through every household checking if there is at least one adult and, if not,
@@ -690,6 +745,7 @@ to hh_initialise
   set hh_age get-initial-household-age
   set hh_maxCoupleCount get-initial-max-couple-count
   set hh_memberIndexesToDelete (list)
+  set hh_tellYourStory false
 
   hh_initialise-members
 
@@ -700,7 +756,9 @@ end
 
 to-report get-initial-household-age
 
-  report item 0 householdInitialAgeDistribution + random (item 1 householdInitialAgeDistribution - item 0 householdInitialAgeDistribution + 1)
+  let ageInYears item 0 householdInitialAgeDistribution + random (item 1 householdInitialAgeDistribution - item 0 householdInitialAgeDistribution + 1)
+
+  report (ageInYears * year-length-in-days) + (random year-length-in-days)
 
 end
 
@@ -714,14 +772,16 @@ to hh_initialise-members
 
   hh_reset-members
 
-  ; assures that at least two member are above (fertility age + household age) and have different sex
+  ; assures that at least two members are above (fertility age + household age), have different sex and are coupled
   foreach (list 0 1)
   [
     ?1 ->
     set hh_membersSex lput (?1 = 0) hh_membersSex
     let marriageAge (get-initial-marriage-age (item ?1 hh_membersSex))
-    set hh_membersAge lput (min (list (hh_age + marriageAge) 100)) hh_membersAge
+    set hh_membersAge lput (hh_age + marriageAge) hh_membersAge
     set hh_membersMarriage lput 0 hh_membersMarriage ; this couple will have the 0 index
+    set hh_membersGestation lput 0 hh_membersGestation
+    set hh_membersAmenorrhea lput 0 hh_membersAmenorrhea
   ]
 
   ; calculate offspring and offspring age
@@ -729,15 +789,37 @@ to hh_initialise-members
   let i hh_age
   repeat hh_age
   [
-    ; get the probability of the couple having descendence for a past year i
-    ; i.e. woman fertility at the corresponding age
-    set offspringProb get-fertility ((item 0 hh_membersAge) - i)
-
-    ; test the probability and add the offspring with the corresponding age
-    if (random-float 1 < offspringProb)
+    ; check fertility only if woman is not in postpartum amenorrhea
+    ifelse (item 0 hh_membersAmenorrhea = 0)
     [
-      hh_add-offspring i ; a child with i years old
+      ; get the probability of the couple having descendence for a past day i
+      ; i.e. woman fertility at the corresponding age
+      set offspringProb get-fertility-of-day ((item 0 hh_membersAge) - i)
+
+      ; test the fertility probability and mark gestation
+      if (random-float 1 < offspringProb)
+      [
+        ; mark the female as gestating a child
+        set hh_membersGestation replace-item 0 hh_membersGestation gestation-period-in-days
+      ]
+
+      ; advance gestation, if any, and, if it comes to 0, add the offspring with the corresponding age and account for mother amenorrhea
+      if (item 0 hh_membersGestation > 0)
+      [
+        set hh_membersGestation replace-item 0 hh_membersGestation (max (list 0 (item 0 hh_membersGestation - 1)))
+        if (item 0 hh_membersGestation = 0)
+        [
+          hh_add-offspring i ; a child with i days old
+
+          ; account for the postpartum amenorrhea period, discouting child age
+          set hh_membersAmenorrhea replace-item 0 hh_membersAmenorrhea amenorrheaPeriodInDays
+        ]
+      ]
     ]
+    [
+      set hh_membersAmenorrhea replace-item 0 hh_membersAmenorrhea (max (list 0 (amenorrheaPeriodInDays - i)))
+    ]
+
     set i i - 1
   ]
 
@@ -745,20 +827,20 @@ end
 
 to-report get-initial-marriage-age [ isFemale ]
 
-  ; get a marriage age as a stochastic function of nuptiality rates in earlier years
+  ; get a marriage age in days as a stochastic function of nuptiality rates in earlier years
   let notMarried true
-  let age 0
+  let ageInYears 0
 
-  while [notMarried AND age < 100]
+  while [notMarried AND ageInYears < 100]
   [
-    if ((get-nuptiality isFemale age) > random-float 1)
+    if ((get-nuptiality isFemale ageInYears) > random-float 1)
     [
       set notMarried false
     ]
-    set age age + 1
+    set ageInYears ageInYears + 1
   ]
 
-  report age
+  report (ageInYears * year-length-in-days) + (random year-length-in-days)
 
 end
 
@@ -784,24 +866,25 @@ to hh_update-members-survival
 
   ; applies age-specific mortality rates and delete dying members
 
-  ; get a list with true/false values flagging which members is dying during the current year
+  ; get a list with true/false values flagging which members is dying during the current day
   let dying? hh_whichMembersDying
 
   ; iterate for the members from last to first, eliminating those that should be dying
-  let index (hh_count-members) - 1
+  let memberIndex (hh_count-members) - 1
   repeat hh_count-members
   [
-    if (item index dying?)
+    if (item memberIndex dying?)
     [
       ; add to mortality
-      ifelse (item index hh_membersSex)
-      [ set womenDeaths womenDeaths + 1 ]
-      [ set menDeaths menDeaths + 1 ]
+      ifelse (item memberIndex hh_membersSex)
+      [ set womenDeathsToday womenDeathsToday + 1 ]
+      [ set menDeathsToday menDeathsToday + 1 ]
 
-      ;print (word "member from " self " dies with age " (item index hh_membersAge))
-      hh_delete-member index
+      if (hh_tellYourStory) [ print (word "Member " memberIndex " from " self " dies with age " (item memberIndex hh_membersAge) ".") ]
+
+      hh_delete-member memberIndex
     ]
-    set index index - 1
+    set memberIndex memberIndex - 1
   ]
 
   hh_update-marriages-after-deaths
@@ -811,13 +894,13 @@ end
 to-report hh_whichMembersDying
 
   ;;; density effect is distributed equally among members
-  let densityEffect get-density-effect carrying-capacity-demand carrying-capacity-effective
+  let densityEffect get-density-effect-of-day carrying-capacity-demand carrying-capacity
 
-  ; returns a list with true/false values flagging which members is dying during the current year
+  ; returns a list with true/false values flagging which members is dying during the current day
   report map
   [
     i ->
-    (random-float 1 < get-net-mortality (item i hh_membersSex) (item i hh_membersAge) densityEffect)
+    (random-float 1 < get-net-mortality-of-day (item i hh_membersSex) (item i hh_membersAge) densityEffect)
   ] hh_membersIndexes
 
 end
@@ -829,10 +912,11 @@ to hh_update-marriages-after-deaths
   [
     i ->
     if (item i hh_membersMarriage != -1                                           ; if the member is married
-      and length filter [j -> j = item i hh_membersMarriage] hh_membersMarriage = 1) ; and her/his partner died this year (so she/he is the only member with the marriage index)
+      and length filter [j -> j = item i hh_membersMarriage] hh_membersMarriage = 1) ; and her/his partner died this day (so she/he is the only member with the marriage index)
     [
       set hh_membersMarriage replace-item i hh_membersMarriage -1
-      ;print (word "a member of " self " has lost her/his partner.")
+
+      if (hh_tellYourStory) [ print (word "Member " i " of " self " has lost her/his partner.") ]
     ]
   ]
 
@@ -842,7 +926,7 @@ to hh_set-members-to-marry
 
   ; applies age-specific nuptiality rates
 
-  ; iterate for each member, finding which one is marrying during the current year, according to age cohort and sex
+  ; iterate for each member, finding which one is marrying during the current day, according to age cohort and sex
   foreach hh_membersIndexes
   [
     i ->
@@ -850,7 +934,7 @@ to hh_set-members-to-marry
     [
       let sex item i hh_membersSex
 
-      if (random-float 1 < get-nuptiality sex (item i hh_membersAge))  ; passes nuptiality test according to age
+      if (random-float 1 < get-nuptiality-of-day sex (item i hh_membersAge))  ; passes nuptiality test according to age
       [
         ifelse (sex)
         [
@@ -873,7 +957,7 @@ to hh_try-to-add-couple [ selfIndex spouseData ]
   ifelse (tooManyCouples)
   [
     ; the new couple must found a new household, descending from self's household
-    ;print "household fission"
+
     hh_household-fission selfIndex spouseData
   ]
   [
@@ -889,7 +973,7 @@ to hh_household-fission [ selfIndex spouseData ]
   ; adding self and spouse and
   ; deleting them from the respective parent households
 
-  ;print (word self " is fissioning")
+  if (hh_tellYourStory) [ print (word "Household " selfIndex " fissions.") ]
 
   let selfHousehold self
 
@@ -926,7 +1010,7 @@ end
 to hh_add-couple [ selfIndex spouseData ]
 
   ; add spouse to self's household
-  ;print (word "adding couple to " self)
+  if (hh_tellYourStory) [ print (word "Household " selfIndex " forms a new couple (receives an spouse).") ]
 
   hh_add-spouse selfIndex spouseData
 
@@ -939,24 +1023,45 @@ end
 
 to hh_reproduce
 
-  ; iterate for the members, up to the number of couples,
-  ; testing women for the corresponding fertility rate
-  ; and generates a new born individual if passing test.
-
   let couplesToTest hh_count-couples
+
+  ; decrease amenorrhea time, when greater than 0
+  set hh_membersAmenorrhea map [ i -> ifelse-value (i > 0) [i - 1] [i] ] hh_membersAmenorrhea
 
   foreach hh_membersIndexes
   [
-    i ->
-    ; there is still a couple to consider and the member is female
-    if (couplesToTest > 0 and item i hh_membersSex)
+    memberIndex ->
+
+    ; advance women gestation, if any, and, if it comes to 0,
+    ; add the new offspring and account for mother postpartum amenorrhea
+    if (item memberIndex hh_membersGestation > 0)
     [
-      if (random-float 1 < get-fertility (item i hh_membersAge))
+      set hh_membersGestation replace-item memberIndex hh_membersGestation (max (list 0 (item memberIndex hh_membersGestation - 1)))
+      if (item memberIndex hh_membersGestation = 0)
       [
-        ;print get-fertility (item i hh_membersAge)
         hh_add-offspring 0 ; add a newborn
-        ;print (word "a new member is born in " self)
+
+        set hh_membersAmenorrhea replace-item memberIndex hh_membersAmenorrhea amenorrheaPeriodInDays
+
+        if (hh_tellYourStory) [ print (word "Member " memberIndex " of household " self " give birth to a new child.") ]
       ]
+    ]
+
+    ; iterate for the members, up to the number of couples,
+    ; testing women for the corresponding fertility rate and gestation/amenorrhea states
+    ; and, if passing test, marking women as gestating.
+
+    ; there is still a couple to consider and the member is female and not currently gestation or lactating
+    if (couplesToTest > 0 and item memberIndex hh_membersSex and (item memberIndex hh_membersGestation = 0) and (item memberIndex hh_membersAmenorrhea = 0))
+    [
+      if (random-float 1 < get-fertility-of-day (item memberIndex hh_membersAge))
+      [
+        ; mark the female as gestating a child
+        set hh_membersGestation replace-item 0 hh_membersGestation gestation-period-in-days
+
+        if (hh_tellYourStory) [ print (word "Member " memberIndex " of household " self " is pregnant with a new child.") ]
+      ]
+
       set couplesToTest couplesToTest - 1
     ]
   ]
@@ -969,19 +1074,19 @@ to hh_disolve-if-no-adults
   if (hh_is-infants-only)
   [
     ; there is no adult in this household, so the children will enter the orphanList so they can be adopted later
-    ;print (word "all remaining individuals in " self " are children: is female = " hh_membersSex ", ages = " hh_membersAge ". They are now in the orphan list.")
+    if (hh_tellYourStory) [ print (word "All remaining individuals in household " self " are children: is female = " hh_membersSex ", ages = " hh_membersAge ". They are now in the orphan list.") ]
 
     ; iterate for the members from last to first
-    let index (hh_count-members) - 1
+    let memberIndex (hh_count-members) - 1
     repeat hh_count-members
     [
       ; add children data (sex, age) to the orphan list (they are distributed among other households once aging procedures are done)
-      set orphanList lput (list (item index hh_membersSex) (item index hh_membersAge) ) orphanList
+      set orphanList lput (list (item memberIndex hh_membersSex) (item memberIndex hh_membersAge) ) orphanList
 
       ; and delete them from the current household (eventualy erasing it)
-      hh_delete-member index
+      hh_delete-member memberIndex
 
-      set index index - 1
+      set memberIndex memberIndex - 1
     ]
   ]
 
@@ -993,19 +1098,22 @@ to hh_add-spouse [ selfIndex spouseData ]
   ifelse (item 0 spouseData = -1)
   [
     ; The spouse is entering the system:
-    ; generate and add spouse's age and sex
+    ; generate and add spouse's sex and age
     let spouse-sex (not item selfIndex hh_membersSex) ; opposite sex from selfIndex's
-    set hh_membersAge lput (get-initial-marriage-age spouse-sex) hh_membersAge
+    set hh_membersAge lput (get-initial-marriage-age spouse-sex) hh_membersAge ; get the age as a function of sex-specific nuptiality
     set hh_membersSex lput spouse-sex hh_membersSex
+    ; new spouse assumed to never be gestating or lactating
+    set hh_membersGestation lput 0 hh_membersGestation
+    set hh_membersAmenorrhea lput 0 hh_membersAmenorrhea
 
-    ;print (word "new spouse added to " self ": is female = " (last hh_membersSex) ", age = " (last hh_membersAge))
+    if (hh_tellYourStory) [ print (word "New spouse added to household " self ": is female = " (last hh_membersSex) ", age = " (last hh_membersAge) ".") ]
   ]
   [
     ; The spouse is already in the system:
     ; copy spouse
     hh_add-member-from spouseData
 
-    ;print (word "spouse moving from " (Household (item 1 spouseData)) " to " self ": is female = " (last hh_membersSex) ", age = " (last hh_membersAge))
+    if (hh_tellYourStory) [ print (word "Spouse moving from household " (item 1 spouseData) " to " self ": is female = " (last hh_membersSex) ", age = " (last hh_membersAge) ".") ]
   ]
 
 end
@@ -1017,6 +1125,8 @@ to hh_add-member-from [ memberData ]
 
   set hh_membersAge lput item index ([hh_membersAge] of aHousehold) hh_membersAge
   set hh_membersSex lput item index ([hh_membersSex] of aHousehold) hh_membersSex
+  set hh_membersGestation lput item index ([hh_membersGestation] of aHousehold) hh_membersGestation
+  set hh_membersAmenorrhea lput item index ([hh_membersAmenorrhea] of aHousehold) hh_membersAmenorrhea
 
   ; add member to deletion queue of original parent household
   ask aHousehold
@@ -1033,10 +1143,12 @@ to hh_add-offspring [ initialAge ]
   set hh_membersAge lput initialAge hh_membersAge
   set hh_membersSex lput (random 2 = 0) hh_membersSex
   set hh_membersMarriage lput -1 hh_membersMarriage ; any offspring will be single
+  set hh_membersGestation lput 0 hh_membersGestation
+  set hh_membersAmenorrhea lput 0 hh_membersAmenorrhea
 
   ifelse (last hh_membersSex)
-  [ set womenBirths womenBirths + 1 ]
-  [ set menBirths menBirths + 1 ]
+  [ set womenBirthsToday womenBirthsToday + 1 ]
+  [ set menBirthsToday menBirthsToday + 1 ]
 
 end
 
@@ -1049,8 +1161,11 @@ to hh_add-orphan [ orphanData ]
   set hh_membersAge lput (item 1 orphanData) hh_membersAge
   set hh_membersMarriage lput -1 hh_membersMarriage ; any orphan is assumed single
   ;(when children "marry", they will share the household with the spouse. If they are found an orphan is because the spouse is either dead or is also an orphan)
+  ; girls (women under maturity age) are assumed not to be in gestation or amenorrhea states
+  set hh_membersGestation lput 0 hh_membersGestation
+  set hh_membersAmenorrhea lput 0 hh_membersAmenorrhea
 
-  ;print (word "the orphan (is female = " (item 0 orphanData) ", age = " (item 1 orphanData) ") is adopted by " self ": are females = " hh_membersSex ", ages = " hh_membersAge )
+  if (hh_tellYourStory) [ print (word "The orphan (is female = " (item 0 orphanData) ", age = " (item 1 orphanData) ") is adopted by household " self " ( females = " hh_membersSex ", ages = " hh_membersAge ").") ]
 
 end
 
@@ -1062,9 +1177,9 @@ to hh_delete-members-in-queue
   ; delete members in queue following decreasing order (so indexes still to go remain valid)
   foreach sort-by > (remove-duplicates hh_memberIndexesToDelete)
   [
-    i ->
+    memberIndex ->
     ; delete member from this household
-    hh_delete-member i
+    hh_delete-member memberIndex
   ]
 
   ; reset queue
@@ -1079,6 +1194,8 @@ to hh_delete-member [ index ]
   set hh_membersMarriage remove-item index hh_membersMarriage
   ; if the member was married, it will imply that there will be an odd number of married members,
   ; thus discounting a couple in hh_count-couples
+  set hh_membersGestation remove-item index hh_membersGestation
+  set hh_membersAmenorrhea remove-item index hh_membersAmenorrhea
 
   if (hh_count-members = 0) [ die ] ; delete empty household
 
@@ -1091,25 +1208,31 @@ to-report hh_is-infants-only
 
   foreach sort-by > hh_memberIndexesToDelete
   [
-    i ->
-    set membersAgeNotInQueueToDelete remove-item i membersAgeNotInQueueToDelete
+    memberIndex ->
+    set membersAgeNotInQueueToDelete remove-item memberIndex membersAgeNotInQueueToDelete
   ]
 
   if (length membersAgeNotInQueueToDelete = 0) [ report false ] ; report false in case there is no members that are not in queue to deletion
 
-  report reduce and (map [i -> i < maturity-age] membersAgeNotInQueueToDelete)
+  ; get maturity age in days
+  let maturityAge maturity-age-in-years * year-length-in-days
+
+  report reduce and (map [i -> i < maturityAge] membersAgeNotInQueueToDelete)
 
 end
 
 to-report hh_count-members
 
-  report length hh_membersAge
+  report length hh_membersSex
 
 end
 
 to-report hh_count-children
 
-  report length filter [i -> i < maturity-age] hh_membersAge
+  ; get maturity age in days
+  let maturityAge maturity-age-in-years * year-length-in-days
+
+  report length filter [i -> i < maturityAge] hh_membersAge
 
 end
 
@@ -1143,25 +1266,13 @@ to-report hh_get-total-carrying-capacity-demand
 
 end
 
-to-report hh_get-total-labour
-
-  let labour 0
-
-  foreach hh_membersAge
-  [
-    i ->
-    set labour labour + (get-labour-at-age i)
-  ]
-
-  report labour
-
-end
-
 to hh_reset-members
 
   set hh_membersAge (list)
   set hh_membersSex (list)
   set hh_membersMarriage (list)
+  set hh_membersGestation (list)
+  set hh_membersAmenorrhea (list)
 
   set hh_memberIndexesToDelete (list)
 
@@ -1171,41 +1282,85 @@ end
 ;;; Demographic rates 'getters' ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-to-report get-fertility [ age ]
+to-report get-fertility-of-day [ ageInDays ]
 
-  report item age fertilityTable
+  let ageInYears get-age-in-years-old ageInDays
+
+  let probPregnancy (get-fertility ageInYears)
+
+  set probPregnancy 1 - (1 - probPregnancy) ^ (1 / year-length-in-days)
+
+  report probPregnancy
 
 end
 
-to-report get-nuptiality [ isFemale age ]
+to-report get-fertility [ ageInYears ]
+
+  report (item ageInYears fertilityTable)
+
+end
+
+to-report get-nuptiality-of-day [ isFemale ageInDays ]
+
+  let ageInYears get-age-in-years-old ageInDays
+
+  let probMarry (get-nuptiality isFemale ageInYears)
+
+  set probMarry 1 - (1 - probMarry) ^ (1 / year-length-in-days)
+
+  report probMarry
+
+end
+
+to-report get-nuptiality [ isFemale ageInYears ]
+
+  let probMarry 0
 
   ifelse (isFemale)
   [
-    report item age nuptialityTable-women
+    set probMarry item ageInYears nuptialityTable-women
   ]
   [
-    report item age nuptialityTable-men
+    set probMarry item ageInYears nuptialityTable-men
   ]
+
+  report probMarry
 
 end
 
-to-report get-mortality [ isFemale age ]
+to-report get-net-mortality-of-day [ isFemale age densityEffect ]
 
-  ifelse (isFemale)
-  [
-    report item age mortalityTable-women
-  ]
-  [
-    report item age mortalityTable-men
-  ]
-
-end
-
-to-report get-net-mortality [ isFemale age densityEffect ]
-
-  let mortality (get-mortality isFemale age)
+  let mortality (get-mortality-of-day isFemale age)
 
   report clamp01 (mortality + densityEffect)
+
+end
+
+to-report get-mortality-of-day [ isFemale ageInDays ]
+
+  let ageInYears get-age-in-years-old ageInDays
+
+  let probDying (get-mortality isFemale ageInYears)
+
+  set probDying 1 - (1 - probDying) ^ (1 / year-length-in-days)
+
+  report probDying
+
+end
+
+to-report get-mortality [ isFemale ageInYears ]
+
+  let probDying 0
+
+  ifelse (isFemale)
+  [
+    set probDying item ageInYears mortalityTable-women
+  ]
+  [
+    set probDying item ageInYears mortalityTable-men
+  ]
+
+  report probDying
 
 end
 
@@ -1219,9 +1374,11 @@ to-report get-density-effect [ carryingCapacityDemand carryingCapacity ]
 
 end
 
-to-report get-carrying-capacity-demand-at-age [ age ]
+to-report get-carrying-capacity-demand-at-age [ ageInDays ]
 
   let my-carrying-capacity-demand 1
+
+  let age get-age-in-years-old ageInDays
 
   if (age < 15) [ set my-carrying-capacity-demand (age / 15) ^ 1.2 ]
 
@@ -1231,15 +1388,21 @@ to-report get-carrying-capacity-demand-at-age [ age ]
 
 end
 
-to-report get-labour-at-age [ age ]
+to-report get-density-effect-of-day [ carryingCapacityDemand carryingCapacity ]
 
-  let labour 1
+  let densityEffect get-density-effect carryingCapacityDemand carryingCapacity
+  
+  set densityEffect clamp01 densityEffect
 
-  if (age < 15) [ set labour (age / 15) ^ 10 ]
+  let densityEffectOfDay 1 - (1 - densityEffect) ^ (1 / year-length-in-days)
 
-  if (age > 45) [ set labour (45 / age) ^ 10 ]
+  report densityEffectOfDay
 
-  report labour
+end
+
+to-report get-age-in-years-old [ ageInDays ]
+
+  report floor (ageInDays / year-length-in-days)
 
 end
 
@@ -1247,20 +1410,13 @@ end
 ;;; COUNTERS AND MEASURES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-to reset-counters
+to reset-counters-day
 
-  set womenBirths 0
-  set menBirths 0
-  set womenDeaths 0
-  set menDeaths 0
+  set womenBirthsToday 0
+  set menBirthsToday 0
+  set womenDeathsToday 0
+  set menDeathsToday 0
 
-end
-
-to update-counters
-
-  set totalHouseholds count households
-  let oldTotalIndividual totalIndividuals
-  set totalIndividuals 0
   set totalWomen 0
   set totalMen 0
   set femaleRatio -1
@@ -1269,33 +1425,78 @@ to update-counters
   set womenFirstAgeGroup 0
   set menFirstAgeGroup 0
 
+end
+
+to update-counters
+
+  set totalHouseholds count households
+  set totalIndividuals 0
+
   ask households
   [
     foreach hh_membersIndexes
     [
-      i ->
-      ifelse (item i hh_membersSex)
+      memberIndex ->
+      let ageInYears get-age-in-years-old (item memberIndex hh_membersAge)
+      ifelse (item memberIndex hh_membersSex)
       [
         set totalWomen totalWomen + 1
-        set womenAgeStructure lput item i hh_membersAge womenAgeStructure
-        if (item i hh_membersAge < 5)
+        set womenAgeStructure lput ageInYears womenAgeStructure
+        if (ageInYears < 5)
         [ set womenFirstAgeGroup womenFirstAgeGroup + 1 ]
       ]
       [
         set totalMen totalMen + 1
-        set menAgeStructure lput item i hh_membersAge menAgeStructure
-        if (item i hh_membersAge < 5)
+        set menAgeStructure lput ageInYears menAgeStructure
+        if (ageInYears < 5)
         [ set menFirstAgeGroup menFirstAgeGroup + 1 ]
       ]
       set totalIndividuals totalIndividuals + 1
     ]
   ]
 
-  carefully [ set totalPopulationGrowth 100 * (totalIndividuals - oldTotalIndividual) / oldTotalIndividual ] [ ]
-
   carefully [ set femaleRatio totalWomen / totalIndividuals ] [ set femaleRatio "" ]
 
   carefully [ set totalOrphans length orphanList ] [ set totalOrphans 0 ]
+
+  set womenBirthsThisYear womenBirthsThisYear + womenBirthsToday
+  set menBirthsThisYear menBirthsThisYear + menBirthsToday
+  set womenDeathsThisYear womenDeathsThisYear + womenDeathsToday
+  set menDeathsThisYear menDeathsThisYear + menDeathsToday
+  set womenInThisYear womenInThisYear + womenInToday
+  set menInThisYear menInThisYear + menInToday
+  set womenOutThisYear womenOutThisYear + womenOutToday
+  set menOutThisYear menOutThisYear + menOutToday
+  
+  if (currentDayOfYear = year-length-in-days)
+  [
+    carefully [ set totalPopulationGrowth 100 * (totalIndividuals - totalIndividualsLastYear) / totalIndividualsLastYear ] [ ]
+    set totalIndividualsLastYear totalIndividuals
+    
+    set womenBirthsLastYear womenBirthsThisYear
+    set menBirthsLastYear menBirthsThisYear
+    set womenDeathsLastYear womenDeathsThisYear
+    set menDeathsLastYear menDeathsThisYear
+    set womenInLastYear womenInThisYear
+    set menInLastYear menInThisYear
+    set womenOutLastYear womenOutThisYear
+    set menOutLastYear menOutThisYear
+    
+    reset-counters-year
+  ]
+
+end
+
+to reset-counters-year
+
+  set womenBirthsThisYear 0
+  set menBirthsThisYear 0
+  set womenDeathsThisYear 0
+  set menDeathsThisYear 0
+  set womenInThisYear 0
+  set menInThisYear 0
+  set womenOutThisYear 0
+  set menOutThisYear 0
 
 end
 
@@ -1447,50 +1648,6 @@ to-report load-coale-demeny-table [ isFemale ]
 
 end
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;; Parametrization from file ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-to load-experiment
-
-  ;;; this procedure loads the values of each (explored) parameter from a csv file.
-  ;;; Note that the setup will use the value set by the user for any other parameter (e.g. scenario).
-
-  let FilePath "experiments//v1.1//" ;;; create folders in the model's directory before trying to load experiments
-  let filename (word FilePath exp-number ".txt")
-  file-open filename
-  while [not file-at-end?]
-    [
-      ;;; the values of the file must follow this same order
-
-      set initialNumHouseholds file-read
-      set householdInitialAgeDistribution (list (file-read) (file-read))
-      set maxCoupleCountDistribution (list (file-read) (file-read))
-      set acceptableKinshipDegreeForCouples file-read
-
-      set cdmlt-level file-read
-
-      set c1-fert file-read
-      set mu-fert file-read
-      set sigma1-fert file-read
-      set sigma2-fert file-read
-
-      set c1-women file-read
-      set mu-women file-read
-      set sigma1-women file-read
-      set sigma2-women file-read
-      set c1-men file-read
-      set mu-men file-read
-      set sigma1-men file-read
-      set sigma2-men file-read
-
-      set max-iterations 2000
-      set max-population 10000
-    ]
-  file-close
-
-end
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; EXPORT DATA ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1538,13 +1695,95 @@ to-report clampMinMax [ value minValue maxValue ]
   report min (list maxValue (max (list minValue value)))
 end]]></code>
   <widgets>
-    <view x="358" wrappingAllowedX="true" y="10" frameRate="30.0" minPycor="-9" height="308" showTickCounter="true" patchSize="16.0" fontSize="10" wrappingAllowedY="true" width="308" tickCounterLabel="ticks" maxPycor="9" updateMode="0" maxPxcor="9" minPxcor="-9"></view>
-    <button x="15" actionKey="1" y="10" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="63">setup</button>
-    <button x="93" actionKey="2" y="11" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="55">go</button>
-    <button x="159" actionKey="3" y="11" height="40" disableUntilTicks="false" forever="true" kind="Observer" width="55">go</button>
-    <slider x="332" step="0.01" y="471" max="0.5" width="323" display="par_density-effect-scaling-factor" height="50" min="0" direction="Horizontal" default="0.05" variable="par_density-effect-scaling-factor" units="(default: 0.05)"></slider>
-    <slider x="30" step="1" y="472" max="1000" width="292" display="par_carrying-capacity" height="50" min="0" direction="Horizontal" default="5000.0" variable="par_carrying-capacity" units="indiv. (default: 200)"></slider>
-    <plot x="682" autoPlotX="true" yMax="10.0" autoPlotY="true" y="12" xMin="0.0" height="191" legend="true" xMax="10.0" yMin="0.0" width="464" display="Population">
+    <view x="341" wrappingAllowedX="true" y="11" frameRate="30.0" minPycor="-9" height="308" showTickCounter="true" patchSize="16.0" fontSize="10" wrappingAllowedY="true" width="308" tickCounterLabel="ticks" maxPycor="9" updateMode="0" maxPxcor="9" minPxcor="-9"></view>
+    <slider x="17" step="1" y="512" max="1000" width="267" display="par_carrying-capacity" height="50" min="0" direction="Horizontal" default="535.0" variable="par_carrying-capacity" units="indiv. (default: 200)"></slider>
+    <slider x="302" step="0.01" y="512" max="0.5" width="297" display="par_density-effect-scaling-factor" height="50" min="0" direction="Horizontal" default="0.06" variable="par_density-effect-scaling-factor" units="(default: 0.05)"></slider>
+    <slider x="454" step="0.001" y="1121" max="2 * 5" width="201" display="sigma2-men" height="50" min="0" direction="Horizontal" default="10.0" variable="sigma2-men" units="(default: 10)"></slider>
+    <slider x="454" step="0.001" y="1070" max="2 * 5" width="201" display="sigma1-men" height="50" min="0" direction="Horizontal" default="2.0" variable="sigma1-men" units="(default: 2)"></slider>
+    <slider x="454" step="0.001" y="1018" max="2 * 20" width="201" display="mu-men" height="50" min="0" direction="Horizontal" default="20.0" variable="mu-men" units="(default: 20)"></slider>
+    <slider x="454" step="0.001" y="966" max="1" width="201" display="c1-men" height="50" min="0" direction="Horizontal" default="1.0" variable="c1-men" units="(default: 0.85)"></slider>
+    <slider x="244" step="0.001" y="1121" max="2 * 5" width="209" display="sigma2-women" height="50" min="0" direction="Horizontal" default="10.0" variable="sigma2-women" units="(default: 5)"></slider>
+    <slider x="244" step="0.001" y="1070" max="2 * 5" width="209" display="sigma1-women" height="50" min="0" direction="Horizontal" default="2.0" variable="sigma1-women" units="(default: 5)"></slider>
+    <slider x="244" step="0.001" y="1018" max="40" width="209" display="mu-women" height="50" min="0" direction="Horizontal" default="20.0" variable="mu-women" units="(default: 15)"></slider>
+    <chooser x="245" y="634" height="60" variable="coale-demeny-region" current="2" width="141" display="coale-demeny-region">
+      <choice type="string" value="west"></choice>
+      <choice type="string" value="east"></choice>
+      <choice type="string" value="south"></choice>
+      <choice type="string" value="north"></choice>
+    </chooser>
+    <slider x="248" step="0.001" y="739" max="1" width="210" display="c1-fert" height="50" min="0" direction="Horizontal" default="1.0" variable="c1-fert" units="(default: 0.9)"></slider>
+    <slider x="248" step="0.001" y="849" max="2 * 5" width="235" display="sigma1-fert" height="50" min="0" direction="Horizontal" default="4.0" variable="sigma1-fert" units="(default: 5)"></slider>
+    <slider x="249" step="0.001" y="904" max="6 * 5" width="234" display="sigma2-fert" height="50" min="0" direction="Horizontal" default="15.0" variable="sigma2-fert" units="(default: 10)"></slider>
+    <slider x="248" step="0.001" y="794" max="40" width="208" display="mu-fert" height="50" min="0" direction="Horizontal" default="17.0" variable="mu-fert" units="(default: 15)"></slider>
+    <slider x="244" step="0.001" y="966" max="1" width="209" display="c1-women" height="50" min="0" direction="Horizontal" default="1.0" variable="c1-women" units="(default: 0.9)"></slider>
+    <slider x="243" step="1" y="579" max="25" width="214" display="cdmlt-level" height="50" min="1" direction="Horizontal" default="16.0" variable="cdmlt-level" units="levels from 1 to 25"></slider>
+    <plot x="10" autoPlotX="false" yMax="10.0" autoPlotY="false" y="964" xMin="0.0" height="186" legend="false" xMax="10.0" yMin="0.0" width="226" xAxis="age" display="nuptiality (prob. marrying)">
+      <setup></setup>
+      <update>clear-plot
+set-plot-x-range 0 55
+set-plot-y-range -0.001 (precision (max (list max nuptialityTable-women max nuptialityTable-men) + 0.001) 4)</update>
+      <pen interval="1.0" mode="0" display="default" color="-5298144" legend="true">
+        <setup></setup>
+        <update>plot-table nuptialityTable-women</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="pen-1" color="-14070903" legend="true">
+        <setup></setup>
+        <update>plot-table nuptialityTable-men</update>
+      </pen>
+    </plot>
+    <plot x="10" autoPlotX="false" yMax="10.0" autoPlotY="false" y="753" xMin="0.0" height="201" legend="false" xMax="10.0" yMin="0.0" width="226" xAxis="age" display="fertility (prob. of giving birth)">
+      <setup></setup>
+      <update>clear-plot
+set-plot-x-range 0 55
+set-plot-y-range -0.001 (precision (max fertilityTable + 0.001) 4)</update>
+      <pen interval="1.0" mode="0" display="default" color="-5298144" legend="true">
+        <setup></setup>
+        <update>plot-table fertilityTable</update>
+      </pen>
+    </plot>
+    <button x="514" y="575" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="109" display="refresh tables">build-demography-tables
+update-plots</button>
+    <plot x="10" autoPlotX="false" yMax="10.0" autoPlotY="false" y="565" xMin="0.0" height="182" legend="false" xMax="10.0" yMin="0.0" width="226" xAxis="age" display="mortality (prob. dying)">
+      <setup></setup>
+      <update>clear-plot
+set-plot-x-range 0 100
+set-plot-y-range -0.001 (precision (max (list max mortalityTable-women max mortalityTable-men) + 0.001) 4)</update>
+      <pen interval="1.0" mode="0" display="default" color="-5298144" legend="true">
+        <setup></setup>
+        <update>plot-table mortalityTable-women</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="pen-1" color="-14070903" legend="true">
+        <setup></setup>
+        <update>plot-table mortalityTable-men</update>
+      </pen>
+    </plot>
+    <input x="14" multiline="false" y="116" height="60" variable="SEED" type="number" width="100">5.0</input>
+    <chooser x="11" y="183" height="60" variable="type-of-experiment" current="0" width="178" display="type-of-experiment">
+      <choice type="string" value="user-defined"></choice>
+      <choice type="string" value="random"></choice>
+      <choice type="string" value="defined by exp-number"></choice>
+    </chooser>
+    <input x="119" multiline="false" y="116" height="60" variable="max-iterations" type="number" width="100">2000.0</input>
+    <input x="194" multiline="false" y="183" height="60" variable="exp-number" type="number" width="100">1.0</input>
+    <input x="223" multiline="false" y="116" height="60" variable="max-population" type="number" width="101">10000.0</input>
+    <monitor x="51" precision="0" y="55" height="60" fontSize="11" width="100">currentYear</monitor>
+    <monitor x="165" precision="0" y="55" height="60" fontSize="11" width="114">currentDayOfYear</monitor>
+    <monitor x="207" precision="0" y="447" height="60" fontSize="9" width="186">maxCoupleCountDistribution</monitor>
+    <input x="9" multiline="false" y="448" height="60" variable="max-couple-count-distribution" type="string" width="196">1 6</input>
+    <note x="26" y="431" backgroundDark="0" fontSize="9" width="155" markdown="false" height="18" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">value format: minimum maximum</note>
+    <monitor x="207" precision="17" y="372" height="60" fontSize="9" width="187">houseHoldInitialAgeDistribution</monitor>
+    <input x="8" multiline="false" y="371" height="60" variable="household-initial-age-distribution" type="string" width="197">0 30</input>
+    <input x="9" multiline="false" y="295" height="60" variable="initial-num-households" type="number" width="147">100.0</input>
+    <monitor x="162" precision="0" y="295" height="60" fontSize="9" width="138">initialNumHouseholds</monitor>
+    <button x="164" y="248" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="152" display="parameters to default">parameters-to-default</button>
+    <button x="21" y="248" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="135">export-households</button>
+    <slider x="418" step="1" y="460" max="64" width="192" display="amenorrhea-period" height="50" min="2" direction="Horizontal" default="2.0" variable="amenorrhea-period" units="weeks"></slider>
+    <slider x="392" step="1" y="407" max="10" width="261" display="acceptable-kinship-degree-for-couples" height="50" min="0" direction="Horizontal" default="9.0" variable="acceptable-kinship-degree-for-couples"></slider>
+    <chooser x="439" y="338" height="60" variable="residence-rule" current="1" width="157" display="residence-rule">
+      <choice type="string" value="patrilocal-patrilineal"></choice>
+      <choice type="string" value="matrilocal-matrilineal"></choice>
+    </chooser>
+    <plot x="669" autoPlotX="true" yMax="10.0" autoPlotY="true" y="15" xMin="0.0" height="191" legend="true" xMax="10.0" yMin="0.0" width="464" display="Population">
       <setup></setup>
       <update></update>
       <pen interval="1.0" mode="0" display="total" color="-16777216" legend="true">
@@ -1564,68 +1803,53 @@ end]]></code>
         <update>plot carrying-capacity</update>
       </pen>
     </plot>
-    <input x="17" multiline="false" y="62" height="60" variable="SEED" type="number" width="100">0.0</input>
-    <chooser x="14" y="129" height="60" variable="type-of-experiment" current="0" width="178" display="type-of-experiment">
-      <choice type="string" value="user-defined"></choice>
-      <choice type="string" value="random"></choice>
-      <choice type="string" value="defined by exp-number"></choice>
-    </chooser>
-    <input x="122" multiline="false" y="62" height="60" variable="max-iterations" type="number" width="100">2000.0</input>
-    <button x="41" y="203" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="135">export-households</button>
-    <input x="197" multiline="false" y="129" height="60" variable="exp-number" type="number" width="100">1.0</input>
-    <input x="226" multiline="false" y="62" height="60" variable="max-population" type="number" width="101">10000.0</input>
-    <button x="184" y="203" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="152" display="parameters to default">parameters-to-default</button>
-    <monitor x="182" precision="0" y="250" height="60" fontSize="9" width="138">initialNumHouseholds</monitor>
-    <input x="29" multiline="false" y="250" height="60" variable="initial-num-households" type="number" width="147">25.0</input>
-    <input x="28" multiline="false" y="326" height="60" variable="household-initial-age-distribution" type="string" width="197">0 30</input>
-    <monitor x="227" precision="17" y="327" height="60" fontSize="9" width="187">houseHoldInitialAgeDistribution</monitor>
-    <note x="46" y="386" backgroundDark="0" fontSize="9" width="155" markdown="false" height="18" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">value format: minimum maximum</note>
-    <input x="29" multiline="false" y="403" height="60" variable="max-couple-count-distribution" type="string" width="196">1 6</input>
-    <monitor x="227" precision="0" y="402" height="60" fontSize="9" width="186">maxCoupleCountDistribution</monitor>
-    <slider x="417" step="1" y="405" max="10" width="261" display="acceptable-kinship-degree-for-couples" height="50" min="0" direction="Horizontal" default="9.0" variable="acceptable-kinship-degree-for-couples"></slider>
-    <chooser x="464" y="336" height="60" variable="residence-rule" current="1" width="157" display="residence-rule">
-      <choice type="string" value="patrilocal-patrilineal"></choice>
-      <choice type="string" value="matrilocal-matrilineal"></choice>
-    </chooser>
-    <plot x="680" autoPlotX="true" yMax="10.0" autoPlotY="true" y="263" xMin="0.0" height="242" legend="true" xMax="10.0" yMin="0.0" width="464" display="Births and deaths">
+    <monitor x="1178" precision="2" y="800" height="60" fontSize="11" width="100" display="% 0-4 (women)">100 * womenFirstAgeGroup / totalWomen</monitor>
+    <monitor x="1280" precision="2" y="799" height="60" fontSize="11" width="100" display="% 0-4 (men)">100 * menFirstAgeGroup / totalMen</monitor>
+    <plot x="1135" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="mean members age" y="882" xMin="0.0" height="262" legend="false" xMax="10.0" yMin="0.0" width="290" xAxis="members count" display="Household structure">
       <setup></setup>
-      <update></update>
-      <pen interval="1.0" mode="0" display="women deaths" color="-11053225" legend="true">
+      <update>clear-plot</update>
+      <pen interval="1.0" mode="2" display="" color="-16777216" legend="true">
         <setup></setup>
-        <update>plot womenDeaths</update>
-      </pen>
-      <pen interval="1.0" mode="0" display="men deaths" color="-4539718" legend="true">
-        <setup></setup>
-        <update>plot menDeaths</update>
-      </pen>
-      <pen interval="1.0" mode="0" display="births" color="-14439633" legend="true">
-        <setup></setup>
-        <update>plot womenBirths + menBirths</update>
-      </pen>
-      <pen interval="1.0" mode="0" display="deaths" color="-16777216" legend="true">
-        <setup></setup>
-        <update>plot womenDeaths + menDeaths</update>
-      </pen>
-      <pen interval="1.0" mode="0" display="women births" color="-13210332" legend="true">
-        <setup></setup>
-        <update>plot womenBirths</update>
-      </pen>
-      <pen interval="1.0" mode="0" display="men births" color="-11881837" legend="true">
-        <setup></setup>
-        <update>plot menBirths</update>
+        <update>ask households [ plotxy (length hh_membersAge) (mean hh_membersAge) ]</update>
       </pen>
     </plot>
-    <monitor x="682" precision="4" y="204" height="60" fontSize="11" width="155" display="women immigration rate">womenIn / totalWomen</monitor>
-    <monitor x="845" precision="4" y="204" height="60" fontSize="11" width="140" display="women emigration rate">womenOut / totalWomen</monitor>
-    <monitor x="993" precision="4" y="204" height="60" fontSize="11" width="134" display="men immigration rate">menIn / totalMen</monitor>
-    <monitor x="1134" precision="4" y="204" height="60" fontSize="11" width="135" display="men emigration rate">menOut / totalMen</monitor>
-    <monitor x="1156" precision="2" y="41" height="60" fontSize="14" width="210" display="total population growth (%)">totalPopulationGrowth</monitor>
-    <monitor x="1157" precision="0" y="103" height="60" fontSize="11" width="100" display="orphans count">totalOrphans</monitor>
-    <monitor x="1154" precision="4" y="301" height="60" fontSize="11" width="114" display="women birth rate">womenBirths / totalWomen</monitor>
-    <monitor x="1272" precision="4" y="301" height="60" fontSize="11" width="100" display="men birth rate">menBirths / totalMen</monitor>
-    <monitor x="1155" precision="4" y="364" height="60" fontSize="11" width="113" display="women death rate">womenDeaths / totalWomen</monitor>
-    <monitor x="1273" precision="4" y="364" height="60" fontSize="11" width="100" display="men death rate">menDeaths / totalMen</monitor>
-    <plot x="680" autoPlotX="true" yMax="10.0" autoPlotY="true" y="681" xMin="0.0" height="195" legend="true" xMax="10.0" yMin="0.0" width="464" display="maxCoupleCount and actual count">
+    <monitor x="1248" precision="4" y="107" height="60" fontSize="11" width="100">femaleRatio</monitor>
+    <plot x="670" autoPlotX="true" yMax="10.0" autoPlotY="true" y="882" xMin="0.0" height="263" legend="true" xMax="10.0" yMin="0.0" width="461" display="Age structure (population)">
+      <setup>set-histogram-num-bars 20
+set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)</setup>
+      <update>set-plot-y-range 0 10
+;set-histogram-num-bars 20
+carefully [ set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure) ] [ ]</update>
+      <pen interval="1.0" mode="1" display="women" color="-2674135" legend="true">
+        <setup></setup>
+        <update>carefully [ histogram womenAgeStructure ] [ ]</update>
+      </pen>
+      <pen interval="1.0" mode="1" display="men" color="-13345367" legend="true">
+        <setup></setup>
+        <update>carefully [ histogram menAgeStructure ] [ ]</update>
+      </pen>
+    </plot>
+    <plot x="1136" autoPlotX="true" yMax="10.0" autoPlotY="true" y="606" xMin="0.0" height="169" legend="false" xMax="10.0" yMin="0.0" width="284" display="couple count per household">
+      <setup>set-plot-y-range -0.001 (item 1 maxCoupleCountDistribution + 0.01)</setup>
+      <update></update>
+      <pen interval="1.0" mode="1" display="default" color="-16777216" legend="true">
+        <setup></setup>
+        <update>histogram [hh_count-couples] of households</update>
+      </pen>
+    </plot>
+    <plot x="667" autoPlotX="true" yMax="10.0" autoPlotY="true" y="512" xMin="0.0" height="167" legend="true" xMax="10.0" yMin="0.0" width="464" display="Households">
+      <setup></setup>
+      <update></update>
+      <pen interval="1.0" mode="0" display="households" color="-16777216" legend="true">
+        <setup>plot totalHouseholds</setup>
+        <update>plot totalHouseholds</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="couples" color="-7500403" legend="true">
+        <setup></setup>
+        <update>plot sum [hh_count-couples] of households</update>
+      </pen>
+    </plot>
+    <plot x="667" autoPlotX="true" yMax="10.0" autoPlotY="true" y="684" xMin="0.0" height="195" legend="true" xMax="10.0" yMin="0.0" width="464" display="maxCoupleCount and actual count">
       <setup>set-plot-y-range -1 (1 + item 1 maxCoupleCountDistribution)</setup>
       <update></update>
       <pen interval="1.0" mode="0" display="max. mean" color="-8053223" legend="true">
@@ -1653,112 +1877,45 @@ end]]></code>
         <update>carefully [ plot min [hh_count-couples] of households ] [ ]</update>
       </pen>
     </plot>
-    <plot x="680" autoPlotX="true" yMax="10.0" autoPlotY="true" y="509" xMin="0.0" height="167" legend="true" xMax="10.0" yMin="0.0" width="464" display="Households">
+    <monitor x="1260" precision="4" y="367" height="60" fontSize="11" width="100" display="men death rate">menDeathsLastYear / totalMen</monitor>
+    <monitor x="1142" precision="4" y="367" height="60" fontSize="11" width="113" display="women death rate">womenDeathsLastYear / totalWomen</monitor>
+    <monitor x="1259" precision="4" y="304" height="60" fontSize="11" width="100" display="men birth rate">menBirthsLastYear / totalMen</monitor>
+    <monitor x="1141" precision="4" y="304" height="60" fontSize="11" width="114" display="women birth rate">womenBirthsLastYear / totalWomen</monitor>
+    <monitor x="1144" precision="0" y="106" height="60" fontSize="11" width="100" display="orphans count">totalOrphans</monitor>
+    <monitor x="1143" precision="2" y="44" height="60" fontSize="14" width="210" display="total population growth (% last year)">totalPopulationGrowth</monitor>
+    <monitor x="1121" precision="4" y="207" height="60" fontSize="11" width="135" display="men emigration rate">menOutLastYear / totalMen</monitor>
+    <monitor x="980" precision="4" y="207" height="60" fontSize="11" width="134" display="men immigration rate">menInLastYear / totalMen</monitor>
+    <monitor x="832" precision="4" y="207" height="60" fontSize="11" width="140" display="women emigration rate">womenOutLastYear / totalWomen</monitor>
+    <monitor x="669" precision="4" y="207" height="60" fontSize="11" width="155" display="women immigration rate">womenInLastYear / totalWomen</monitor>
+    <plot x="667" autoPlotX="true" yMax="10.0" autoPlotY="true" y="266" xMin="0.0" height="242" legend="true" xMax="10.0" yMin="0.0" display="Births and deaths (last year)" width="464" sizeVersion="0">
       <setup></setup>
       <update></update>
-      <pen interval="1.0" mode="0" display="households" color="-16777216" legend="true">
-        <setup>plot totalHouseholds</setup>
-        <update>plot totalHouseholds</update>
-      </pen>
-      <pen interval="1.0" mode="0" display="couples" color="-7500403" legend="true">
+      <pen interval="1.0" mode="1" display="women deaths" color="-1604481" legend="true">
         <setup></setup>
-        <update>plot sum [hh_count-couples] of households</update>
+        <update>if (currentDayOfYear = year-length-in-days) [ plot -1 * womenDeathsLastYear ]</update>
+      </pen>
+      <pen interval="1.0" mode="1" display="women births" color="-5298144" legend="true">
+        <setup></setup>
+        <update>if (currentDayOfYear = year-length-in-days) [ plot womenBirthsLastYear ]</update>
+      </pen>
+      <pen interval="1.0" mode="1" display="men births" color="-14070903" legend="true">
+        <setup></setup>
+        <update>if (currentDayOfYear = year-length-in-days) [ plot womenBirthsLastYear + menBirthsLastYear ]</update>
+      </pen>
+      <pen interval="1.0" mode="1" display="men deaths" color="-8020277" legend="true">
+        <setup></setup>
+        <update>if (currentDayOfYear = year-length-in-days) [ plot -1 * (womenDeathsLastYear + menDeathsLastYear) ]</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="0" color="-7500403" legend="true">
+        <setup></setup>
+        <update>if (currentDayOfYear = year-length-in-days) [ plot 0 ]</update>
       </pen>
     </plot>
-    <plot x="1149" autoPlotX="true" yMax="10.0" autoPlotY="true" y="603" xMin="0.0" height="169" legend="false" xMax="10.0" yMin="0.0" width="284" display="couple count per household">
-      <setup>set-plot-y-range -0.001 (item 1 maxCoupleCountDistribution + 0.01)</setup>
-      <update></update>
-      <pen interval="1.0" mode="1" display="default" color="-16777216" legend="true">
-        <setup></setup>
-        <update>histogram [hh_count-couples] of households</update>
-      </pen>
-    </plot>
-    <plot x="683" autoPlotX="true" yMax="10.0" autoPlotY="true" y="879" xMin="0.0" height="263" legend="true" xMax="10.0" yMin="0.0" width="461" display="Age structure (population)">
-      <setup>set-histogram-num-bars 20
-set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)</setup>
-      <update>set-plot-y-range 0 10
-;set-histogram-num-bars 20
-carefully [ set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure) ] [ ]</update>
-      <pen interval="1.0" mode="1" display="women" color="-2674135" legend="true">
-        <setup></setup>
-        <update>carefully [ histogram womenAgeStructure ] [ ]</update>
-      </pen>
-      <pen interval="1.0" mode="1" display="men" color="-13345367" legend="true">
-        <setup></setup>
-        <update>carefully [ histogram menAgeStructure ] [ ]</update>
-      </pen>
-    </plot>
-    <monitor x="1261" precision="4" y="104" height="60" fontSize="11" width="100">femaleRatio</monitor>
-    <plot x="1148" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="mean members age" y="879" xMin="0.0" height="262" legend="false" xMax="10.0" yMin="0.0" width="290" xAxis="members count" display="Household structure">
-      <setup></setup>
-      <update>clear-plot</update>
-      <pen interval="1.0" mode="2" display="" color="-16777216" legend="true">
-        <setup></setup>
-        <update>ask households [ plotxy (length hh_membersAge) (mean hh_membersAge) ]</update>
-      </pen>
-    </plot>
-    <monitor x="1293" precision="2" y="796" height="60" fontSize="11" width="100" display="% 0-4 (men)">100 * menFirstAgeGroup / totalMen</monitor>
-    <monitor x="1191" precision="2" y="797" height="60" fontSize="11" width="100" display="% 0-4 (women)">100 * womenFirstAgeGroup / totalWomen</monitor>
-    <plot x="31" autoPlotX="false" yMax="10.0" autoPlotY="false" y="575" xMin="0.0" height="182" legend="false" xMax="10.0" yMin="0.0" width="226" xAxis="age" display="mortality (prob. dying)">
-      <setup></setup>
-      <update>clear-plot
-set-plot-x-range 0 100
-set-plot-y-range -0.001 (precision (max (list max mortalityTable-women max mortalityTable-men) + 0.001) 4)</update>
-      <pen interval="1.0" mode="0" display="default" color="-5298144" legend="true">
-        <setup></setup>
-        <update>plot-table mortalityTable-women</update>
-      </pen>
-      <pen interval="1.0" mode="0" display="pen-1" color="-14070903" legend="true">
-        <setup></setup>
-        <update>plot-table mortalityTable-men</update>
-      </pen>
-    </plot>
-    <slider x="475" step="0.001" y="1131" max="2 * 5" width="201" display="sigma2-men" height="50" min="0" direction="Horizontal" default="10.0" variable="sigma2-men" units="(default: 10)"></slider>
-    <slider x="475" step="0.001" y="1080" max="2 * 5" width="201" display="sigma1-men" height="50" min="0" direction="Horizontal" default="2.0" variable="sigma1-men" units="(default: 2)"></slider>
-    <slider x="475" step="0.001" y="1028" max="2 * 20" width="201" display="mu-men" height="50" min="0" direction="Horizontal" default="20.0" variable="mu-men" units="(default: 20)"></slider>
-    <slider x="475" step="0.001" y="976" max="1" width="201" display="c1-men" height="50" min="0" direction="Horizontal" default="0.85" variable="c1-men" units="(default: 0.85)"></slider>
-    <slider x="265" step="0.001" y="1131" max="2 * 5" width="209" display="sigma2-women" height="50" min="0" direction="Horizontal" default="2.0" variable="sigma2-women" units="(default: 5)"></slider>
-    <slider x="265" step="0.001" y="1080" max="2 * 5" width="209" display="sigma1-women" height="50" min="0" direction="Horizontal" default="5.0" variable="sigma1-women" units="(default: 5)"></slider>
-    <slider x="265" step="0.001" y="1028" max="40" width="209" display="mu-women" height="50" min="0" direction="Horizontal" default="15.0" variable="mu-women" units="(default: 15)"></slider>
-    <chooser x="266" y="644" height="60" variable="coale-demeny-region" current="0" width="141" display="coale-demeny-region">
-      <choice type="string" value="west"></choice>
-      <choice type="string" value="east"></choice>
-      <choice type="string" value="south"></choice>
-      <choice type="string" value="north"></choice>
-    </chooser>
-    <slider x="269" step="0.001" y="749" max="1" width="210" display="c1-fert" height="50" min="0" direction="Horizontal" default="0.9" variable="c1-fert" units="(default: 0.9)"></slider>
-    <slider x="269" step="0.001" y="859" max="2 * 5" width="235" display="sigma1-fert" height="50" min="0" direction="Horizontal" default="5.0" variable="sigma1-fert" units="(default: 5)"></slider>
-    <slider x="270" step="0.001" y="914" max="6 * 5" width="234" display="sigma2-fert" height="50" min="0" direction="Horizontal" default="15.0" variable="sigma2-fert" units="(default: 10)"></slider>
-    <slider x="269" step="0.001" y="804" max="40" width="208" display="mu-fert" height="50" min="0" direction="Horizontal" default="20.0" variable="mu-fert" units="(default: 15)"></slider>
-    <slider x="265" step="0.001" y="976" max="1" width="209" display="c1-women" height="50" min="0" direction="Horizontal" default="0.9" variable="c1-women" units="(default: 0.9)"></slider>
-    <slider x="264" step="1" y="589" max="25" width="214" display="cdmlt-level" height="50" min="1" direction="Horizontal" default="21.0" variable="cdmlt-level" units="levels from 1 to 25"></slider>
-    <plot x="31" autoPlotX="false" yMax="10.0" autoPlotY="false" y="974" xMin="0.0" height="186" legend="false" xMax="10.0" yMin="0.0" width="226" xAxis="age" display="nuptiality (prob. marrying)">
-      <setup></setup>
-      <update>clear-plot
-set-plot-x-range 0 55
-set-plot-y-range -0.001 (precision (max (list max nuptialityTable-women max nuptialityTable-men) + 0.001) 4)</update>
-      <pen interval="1.0" mode="0" display="default" color="-5298144" legend="true">
-        <setup></setup>
-        <update>plot-table nuptialityTable-women</update>
-      </pen>
-      <pen interval="1.0" mode="0" display="pen-1" color="-14070903" legend="true">
-        <setup></setup>
-        <update>plot-table nuptialityTable-men</update>
-      </pen>
-    </plot>
-    <plot x="31" autoPlotX="false" yMax="10.0" autoPlotY="false" y="763" xMin="0.0" height="201" legend="false" xMax="10.0" yMin="0.0" width="226" xAxis="age" display="fertility (prob. of giving birth)">
-      <setup></setup>
-      <update>clear-plot
-set-plot-x-range 0 55
-set-plot-y-range -0.001 (precision (max fertilityTable + 0.001) 4)</update>
-      <pen interval="1.0" mode="0" display="default" color="-5298144" legend="true">
-        <setup></setup>
-        <update>plot-table fertilityTable</update>
-      </pen>
-    </plot>
-    <button x="535" y="585" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="109" display="refresh tables">build-demography-tables
-update-plots</button>
-    <slider x="209" step="0.01" y="523" max="1" width="252" display="par_labour-demand-per-capita" height="50" min="0" direction="Horizontal" default="0.6" variable="par_labour-demand-per-capita" units="indiv."></slider>
+    <button x="200" actionKey="4" y="11" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="72" display="+ 25 years">repeat 25 * 365 [ go ]</button>
+    <button x="136" actionKey="3" y="11" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="59" display="+ year">repeat 365 [ go ]</button>
+    <button x="19" actionKey="1" y="11" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="55">setup</button>
+    <button x="78" actionKey="2" y="11" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="55">go</button>
+    <button x="275" actionKey="5" y="11" height="40" disableUntilTicks="false" forever="true" kind="Observer" width="55">go</button>
   </widgets>
   <info>## Development notes
 
