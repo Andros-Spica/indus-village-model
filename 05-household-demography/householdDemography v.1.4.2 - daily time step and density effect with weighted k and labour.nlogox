@@ -47,11 +47,11 @@ globals
   mortalityTable-women mortalityTable-men
 
   ;;; modified parameters
-  initialNumHouseholds
-  householdInitialAgeDistribution ; (list minimum maximum)
-  maxCoupleCountDistribution      ; (list minimum maximum)
-  acceptableKinshipDegreeForCouples ; degree of kinship acceptable between two individuals forming a new couple (1 = same household, 0.5 = level one relationship, etc.)
-  amenorrheaPeriodInDays          ; length in days of the postpartum amenorrhea periodInDays
+  initial-num-households
+  household-initial-age-distribution ; (list minimum maximum)
+  max-couple-count-distribution      ; (list minimum maximum)
+  acceptable-kinship-degree-for-couples ; degree of kinship acceptable between two individuals forming a new couple (1 = same household, 0.5 = level one relationship, etc.)
+  amenorrhea-period-in-days          ; length in days of the postpartum amenorrhea periodInDays
   ; value guide: 23 (3 weeks, minimal), 42 (6 weeks, if not lactating), 180 (6 months or 24 weeks, average), 540 (18 months or 64 weeks, intentional delay, medical recommendation)
 
   carrying-capacity               ; carrying capacity or maximum number of people that can be sustained feed, i.e. mortality is increased in proportion to closeness of population to it (density effect)
@@ -187,17 +187,17 @@ to set-parameters
   parameters-check1
 
   ;;; setup parameters depending on the type of experiment
-  set householdInitialAgeDistribution read-from-string ( word "[" household-initial-age-distribution "]")
-  set maxCoupleCountDistribution read-from-string ( word "[" max-couple-count-distribution "]")
+  set household-initial-age-distribution read-from-string ( word "[" par_household-initial-age-distribution "]")
+  set max-couple-count-distribution read-from-string ( word "[" par_max-couple-count-distribution "]")
 
-  set amenorrheaPeriodInDays amenorrhea-period * 7 ; conversion from weeks to days
+  set amenorrhea-period-in-days amenorrhea-period-in-weeks * 7 ; conversion from weeks to days
 
   if (type-of-experiment = "user-defined")
   [
     ;;; load parameters from user interface
-    set initialNumHouseholds initial-num-households
+    set initial-num-households par_initial-num-households
 
-    set acceptableKinshipDegreeForCouples acceptable-kinship-degree-for-couples
+    set acceptable-kinship-degree-for-couples par_acceptable-kinship-degree-for-couples
 
     set carrying-capacity par_carrying-capacity
     set density-effect-scaling-factor par_density-effect-scaling-factor
@@ -206,21 +206,21 @@ to set-parameters
   if (type-of-experiment = "random")
   [
     ;;; use values from user interface as a maximum for random uniform distributions
-    set initialNumHouseholds 1 + random initial-num-households ; at least one household
-    set householdInitialAgeDistribution (list
-      (1 + random (item 0 householdInitialAgeDistribution))   ; minimum
+    set initial-num-households 1 + random par_initial-num-households ; at least one household
+    set household-initial-age-distribution (list
+      (1 + random (item 0 household-initial-age-distribution))   ; minimum
       (
-        (item 0 householdInitialAgeDistribution)
+        (item 0 household-initial-age-distribution)
         + 1
-        + random ((item 1 householdInitialAgeDistribution) - (item 0 householdInitialAgeDistribution))
+        + random ((item 1 household-initial-age-distribution) - (item 0 household-initial-age-distribution))
       )   ; maximum
       )
-    set maxCoupleCountDistribution (list
-      (1 + random (item 0 maxCoupleCountDistribution))   ; minimum
+    set max-couple-count-distribution (list
+      (1 + random (item 0 max-couple-count-distribution))   ; minimum
       (
-        (item 0 maxCoupleCountDistribution)
+        (item 0 max-couple-count-distribution)
         + 1
-        + random ((item 1 maxCoupleCountDistribution) - (item 0 maxCoupleCountDistribution))
+        + random ((item 1 max-couple-count-distribution) - (item 0 max-couple-count-distribution))
       )   ; maximum
       )
 
@@ -231,7 +231,7 @@ to set-parameters
     set sigma1-fert max (list 1E-6 (random-float (mu-fert - maturity-age-in-years)))
     set sigma2-fert max (list 1E-6 (random-float ((30 + maturity-age-in-years) - mu-fert)))
     set residence-rule item random 2 (list "patrilocal-patrilineal" "matrilocal-matrilineal")
-    set acceptableKinshipDegreeForCouples random 10
+    set acceptable-kinship-degree-for-couples random 10
     set c1-women max (list 1E-6 (random-float 1))
     set c1-men max (list 1E-6 (random-float 1))
     set mu-women random 40
@@ -255,7 +255,7 @@ to parameters-check1
 
   ;;; check if values were reset to 0
   ;;; and set default values
-  if (initial-num-households = 0)               [ set initial-num-households               25 ]
+  if (par_initial-num-households = 0)               [ set par_initial-num-households               25 ]
 
   if (cdmlt-level = 0)                          [ set cdmlt-level                           8 ]
   if (c1-fert = 0)                              [ set c1-fert                               0.9 ]
@@ -275,20 +275,20 @@ to parameters-check1
   if (carrying-capacity = 0)                    [ set carrying-capacity                   200 ]
   if (density-effect-scaling-factor = 0)        [ set density-effect-scaling-factor         0.05 ]
 
-  if (amenorrhea-period = 0)                    [ set amenorrhea-period                    24 ]
+  if (amenorrhea-period-in-weeks = 0)                    [ set amenorrhea-period-in-weeks                    24 ]
 
   ;;; string type inputs (vector of values)
-  if (household-initial-age-distribution = 0 or
-    length household-initial-age-distribution = 1)   [ set household-initial-age-distribution   "0 30" ]
-  if (max-couple-count-distribution = 0 or
-    length max-couple-count-distribution = 1)        [ set max-couple-count-distribution        "1 6" ]
+  if (par_household-initial-age-distribution = 0 or
+    length par_household-initial-age-distribution = 1)   [ set par_household-initial-age-distribution   "0 30" ]
+  if (par_max-couple-count-distribution = 0 or
+    length par_max-couple-count-distribution = 1)        [ set par_max-couple-count-distribution        "1 6" ]
 
 end
 
 to parameters-to-default
 
   ;;; set parameters to a default value
-  set initial-num-households               25
+  set par_initial-num-households               25
 
   set cdmlt-level                           8
 
@@ -307,9 +307,9 @@ to parameters-to-default
   set sigma1-men                            2
   set sigma2-men                           10
 
-  set household-initial-age-distribution   "0 30"
-  set max-couple-count-distribution        "1 6"
-  set amenorrhea-period                    24
+  set par_household-initial-age-distribution   "0 30"
+  set par_max-couple-count-distribution        "1 6"
+  set amenorrhea-period-in-weeks                    24
 
   set carrying-capacity                   200
   set density-effect-scaling-factor         0.05
@@ -319,11 +319,11 @@ end
 to parameters-check2
 
   ;;; initial parameter check (e.g., avoiding division per zero error)
-  check-par-is-positive "initialNumHouseholds" initialNumHouseholds
+  check-par-is-positive "initial-num-households" initial-num-households
 
   ;;; check if given min values are less than max values
-  check-par-is-range "householdInitialAgeDistribution" householdInitialAgeDistribution
-  check-par-is-range "maxCoupleCountDistribution" maxCoupleCountDistribution
+  check-par-is-range "household-initial-age-distribution" household-initial-age-distribution
+  check-par-is-range "max-couple-count-distribution" max-couple-count-distribution
 
 end
 
@@ -350,7 +350,7 @@ end
 to setup-households
 
   ;;; create households (position are not relevant)
-  repeat initialNumHouseholds
+  repeat initial-num-households
   [
     create-households 1
     [
@@ -593,7 +593,7 @@ to-report couple-is-acceptable [ womanHousehold manHousehold ]
 
   ; case 2 (complex, more flexible/general, includes case 1):
   ; woman and man share the same lineage (greater risk of inbreeding)
-  report (get-kinship-degree womanHousehold manHousehold > acceptableKinshipDegreeForCouples)
+  report (get-kinship-degree womanHousehold manHousehold > acceptable-kinship-degree-for-couples)
 
 end
 
@@ -768,7 +768,7 @@ end
 
 to-report get-initial-household-age
 
-  let ageInYears item 0 householdInitialAgeDistribution + random (item 1 householdInitialAgeDistribution - item 0 householdInitialAgeDistribution + 1)
+  let ageInYears item 0 household-initial-age-distribution + random (item 1 household-initial-age-distribution - item 0 household-initial-age-distribution + 1)
 
   report (ageInYears * year-length-in-days) + (random year-length-in-days)
 
@@ -776,7 +776,7 @@ end
 
 to-report get-initial-max-couple-count
 
-  report item 0 maxCoupleCountDistribution + random (item 1 maxCoupleCountDistribution - item 0 maxCoupleCountDistribution + 1)
+  report item 0 max-couple-count-distribution + random (item 1 max-couple-count-distribution - item 0 max-couple-count-distribution + 1)
 
 end
 
@@ -824,12 +824,12 @@ to hh_initialise-members
           hh_add-offspring i ; a child with i days old
 
           ; account for the postpartum amenorrhea period, discouting child age
-          set hh_membersAmenorrhea replace-item 0 hh_membersAmenorrhea amenorrheaPeriodInDays
+          set hh_membersAmenorrhea replace-item 0 hh_membersAmenorrhea amenorrhea-period-in-days
         ]
       ]
     ]
     [
-      set hh_membersAmenorrhea replace-item 0 hh_membersAmenorrhea (max (list 0 (amenorrheaPeriodInDays - i)))
+      set hh_membersAmenorrhea replace-item 0 hh_membersAmenorrhea (max (list 0 (amenorrhea-period-in-days - i)))
     ]
 
     set i i - 1
@@ -1053,7 +1053,7 @@ to hh_reproduce
       [
         hh_add-offspring 0 ; add a newborn
 
-        set hh_membersAmenorrhea replace-item memberIndex hh_membersAmenorrhea amenorrheaPeriodInDays
+        set hh_membersAmenorrhea replace-item memberIndex hh_membersAmenorrhea amenorrhea-period-in-days
 
         if (hh_tellYourStory) [ print (word "Member " memberIndex " of household " self " give birth to a new child.") ]
       ]
@@ -1776,7 +1776,7 @@ end]]></code>
     <monitor x="1140" precision="4" y="367" height="60" fontSize="11" width="113" display="women death rate">womenDeathsLastYear / totalWomen</monitor>
     <monitor x="1258" precision="4" y="367" height="60" fontSize="11" width="100" display="men death rate">menDeathsLastYear / totalMen</monitor>
     <plot x="665" autoPlotX="true" yMax="10.0" autoPlotY="true" y="684" xMin="0.0" height="195" legend="true" xMax="10.0" yMin="0.0" width="464" display="maxCoupleCount and actual count">
-      <setup>set-plot-y-range -1 (1 + item 1 maxCoupleCountDistribution)</setup>
+      <setup>set-plot-y-range -1 (1 + item 1 max-couple-count-distribution)</setup>
       <update></update>
       <pen interval="1.0" mode="0" display="max. mean" color="-8053223" legend="true">
         <setup></setup>
@@ -1816,7 +1816,7 @@ end]]></code>
       </pen>
     </plot>
     <plot x="1134" autoPlotX="true" yMax="10.0" autoPlotY="true" y="606" xMin="0.0" height="169" legend="false" xMax="10.0" yMin="0.0" width="284" display="couple count per household">
-      <setup>set-plot-y-range -0.001 (item 1 maxCoupleCountDistribution + 0.01)</setup>
+      <setup>set-plot-y-range -0.001 (item 1 max-couple-count-distribution + 0.01)</setup>
       <update></update>
       <pen interval="1.0" mode="1" display="default" color="-16777216" legend="true">
         <setup></setup>
@@ -1869,21 +1869,9 @@ carefully [ set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)
         <update>plot carrying-capacity</update>
       </pen>
     </plot>
-    <chooser x="437" y="338" height="60" variable="residence-rule" current="1" width="157" display="residence-rule">
-      <choice type="string" value="patrilocal-patrilineal"></choice>
-      <choice type="string" value="matrilocal-matrilineal"></choice>
-    </chooser>
-    <slider x="390" step="1" y="407" max="10" width="261" display="acceptable-kinship-degree-for-couples" height="50" min="0" direction="Horizontal" default="9.0" variable="acceptable-kinship-degree-for-couples"></slider>
-    <slider x="416" step="1" y="460" max="64" width="192" display="amenorrhea-period" height="50" min="2" direction="Horizontal" default="2.0" variable="amenorrhea-period" units="weeks"></slider>
     <button x="19" y="248" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="135">export-households</button>
     <button x="162" y="248" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="152" display="parameters to default">parameters-to-default</button>
-    <monitor x="160" precision="0" y="295" height="60" fontSize="9" width="138">initialNumHouseholds</monitor>
-    <input x="7" multiline="false" y="295" height="60" variable="initial-num-households" type="number" width="147">100.0</input>
-    <input x="6" multiline="false" y="371" height="60" variable="household-initial-age-distribution" type="string" width="197">0 30</input>
-    <monitor x="205" precision="17" y="372" height="60" fontSize="9" width="187">houseHoldInitialAgeDistribution</monitor>
     <note x="24" y="431" backgroundDark="0" fontSize="9" width="155" markdown="false" height="18" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">value format: minimum maximum</note>
-    <input x="7" multiline="false" y="448" height="60" variable="max-couple-count-distribution" type="string" width="196">1 6</input>
-    <monitor x="205" precision="0" y="447" height="60" fontSize="9" width="186">maxCoupleCountDistribution</monitor>
     <monitor x="163" precision="0" y="55" height="60" fontSize="11" width="114">currentDayOfYear</monitor>
     <monitor x="49" precision="0" y="55" height="60" fontSize="11" width="100">currentYear</monitor>
     <input x="221" multiline="false" y="116" height="60" variable="max-population" type="number" width="101">10000.0</input>
@@ -1895,8 +1883,6 @@ carefully [ set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)
       <choice type="string" value="defined by exp-number"></choice>
     </chooser>
     <input x="12" multiline="false" y="116" height="60" variable="SEED" type="number" width="100">5.0</input>
-    <slider x="300" step="0.01" y="512" max="0.5" width="297" display="par_density-effect-scaling-factor" height="50" min="0" direction="Horizontal" default="0.06" variable="par_density-effect-scaling-factor" units="(default: 0.05)"></slider>
-    <slider x="15" step="1" y="512" max="1000" width="267" display="par_carrying-capacity" height="50" min="0" direction="Horizontal" default="1000.0" variable="par_carrying-capacity" units="indiv. (default: 200)"></slider>
     <plot x="8" autoPlotX="false" yMax="10.0" autoPlotY="false" y="609" xMin="0.0" height="182" legend="false" xMax="10.0" yMin="0.0" width="226" xAxis="age" display="mortality (prob. dying)">
       <setup></setup>
       <update>clear-plot
@@ -1957,6 +1943,20 @@ set-plot-y-range -0.001 (precision (max fertilityTable + 0.001) 4)</update>
     <slider x="301" step="0.01" y="563" max="1" width="298" display="par_labour-demand-per-capita" height="50" min="0" direction="Horizontal" default="0.6" variable="par_labour-demand-per-capita" units="indiv."></slider>
     <button x="513" y="634" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="109" display="refresh tables">build-demography-tables
 update-plots</button>
+    <input x="6" multiline="false" y="371" height="60" variable="par_household-initial-age-distribution" type="string" width="221">0 30</input>
+    <input x="7" multiline="false" y="448" height="60" variable="par_max-couple-count-distribution" type="string" width="210">1 6</input>
+    <monitor x="211" precision="0" y="447" height="60" fontSize="9" width="186">max-couple-count-distribution</monitor>
+    <monitor x="220" precision="17" y="370" height="60" fontSize="9" width="197">household-initial-age-distribution</monitor>
+    <slider x="419" step="1" y="332" max="64" width="225" display="amenorrhea-period-in-weeks" height="50" min="2" direction="Horizontal" default="2.0" variable="amenorrhea-period-in-weeks" units="weeks"></slider>
+    <chooser x="455" y="383" height="60" variable="residence-rule" current="1" width="157" display="residence-rule">
+      <choice type="string" value="patrilocal-patrilineal"></choice>
+      <choice type="string" value="matrilocal-matrilineal"></choice>
+    </chooser>
+    <slider x="396" step="1" y="449" max="10" width="278" display="par_acceptable-kinship-degree-for-couples" height="50" min="0" direction="Horizontal" default="9.0" variable="par_acceptable-kinship-degree-for-couples"></slider>
+    <slider x="9" step="1" y="512" max="1000" width="273" display="par_carrying-capacity" height="50" min="0" direction="Horizontal" default="1000.0" variable="par_carrying-capacity" units="indiv. (default: 200)"></slider>
+    <slider x="300" step="0.01" y="512" max="0.5" width="309" display="par_density-effect-scaling-factor" height="50" min="0" direction="Horizontal" default="0.06" variable="par_density-effect-scaling-factor" units="(default: 0.05)"></slider>
+    <monitor x="180" precision="0" y="295" height="60" fontSize="9" width="152">initial-num-households</monitor>
+    <input x="7" multiline="false" y="295" height="60" variable="par_initial-num-households" type="number" width="163">100.0</input>
   </widgets>
   <info>## Development notes
 
@@ -2847,9 +2847,9 @@ ISSUES:
       <metrics>
         <metric>SEED</metric>
         <metric>maturityAge</metric>
-        <metric>initialNumHouseholds</metric>
-        <metric>householdInitialAgeDistribution</metric>
-        <metric>maxCoupleCountDistribution</metric>
+        <metric>initial-num-households</metric>
+        <metric>household-initial-age-distribution</metric>
+        <metric>max-couple-count-distribution</metric>
         <metric>cdmlt-level</metric>
         <metric>coale-demeny-region</metric>
         <metric>c1-fert</metric>
@@ -2857,7 +2857,7 @@ ISSUES:
         <metric>sigma1-fert</metric>
         <metric>sigma2-fert</metric>
         <metric>residence-rule</metric>
-        <metric>acceptable-kinship-degree-for-couples</metric>
+        <metric>par_acceptable-kinship-degree-for-couples</metric>
         <metric>c1-women</metric>
         <metric>c1-men</metric>
         <metric>mu-women</metric>
@@ -2896,9 +2896,9 @@ ISSUES:
       <metrics>
         <metric>SEED</metric>
         <metric>maturityAge</metric>
-        <metric>initialNumHouseholds</metric>
-        <metric>householdInitialAgeDistribution</metric>
-        <metric>maxCoupleCountDistribution</metric>
+        <metric>initial-num-households</metric>
+        <metric>household-initial-age-distribution</metric>
+        <metric>max-couple-count-distribution</metric>
         <metric>cdmlt-level</metric>
         <metric>coale-demeny-region</metric>
         <metric>c1-fert</metric>
@@ -2906,7 +2906,7 @@ ISSUES:
         <metric>sigma1-fert</metric>
         <metric>sigma2-fert</metric>
         <metric>residence-rule</metric>
-        <metric>acceptable-kinship-degree-for-couples</metric>
+        <metric>par_acceptable-kinship-degree-for-couples</metric>
         <metric>c1-women</metric>
         <metric>c1-men</metric>
         <metric>mu-women</metric>

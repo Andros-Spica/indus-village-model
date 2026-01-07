@@ -43,10 +43,10 @@ globals
   mortalityTable-women mortalityTable-men
 
   ;;; modified parameters
-  initialNumHouseholds
-  householdInitialAgeDistribution ; (list minimum maximum)
-  maxCoupleCountDistribution      ; (list minimum maximum)
-  acceptableKinshipDegreeForCouples ; degree of kinship acceptable between two individuals forming a new couple (1 = same household, 0.5 = level one relationship, etc.)
+  initial-num-households
+  household-initial-age-distribution ; (list minimum maximum)
+  max-couple-count-distribution      ; (list minimum maximum)
+  acceptable-kinship-degree-for-couples ; degree of kinship acceptable between two individuals forming a new couple (1 = same household, 0.5 = level one relationship, etc.)
 
   ;;; variables
   ;;;; auxiliar
@@ -132,34 +132,34 @@ to set-parameters
   parameters-check1
 
   ;;; setup parameters depending on the type of experiment
-  set householdInitialAgeDistribution read-from-string ( word "[" household-initial-age-distribution "]")
-  set maxCoupleCountDistribution read-from-string ( word "[" max-couple-count-distribution "]")
+  set household-initial-age-distribution read-from-string ( word "[" par_household-initial-age-distribution "]")
+  set max-couple-count-distribution read-from-string ( word "[" par_max-couple-count-distribution "]")
 
   if (type-of-experiment = "user-defined")
   [
     ;;; load parameters from user interface
-    set initialNumHouseholds initial-num-households
+    set initial-num-households par_initial-num-households
 
-    set acceptableKinshipDegreeForCouples acceptable-kinship-degree-for-couples
+    set acceptable-kinship-degree-for-couples par_acceptable-kinship-degree-for-couples
   ]
   if (type-of-experiment = "random")
   [
     ;;; use values from user interface as a maximum for random uniform distributions
-    set initialNumHouseholds 1 + random initial-num-households ; at least one household
-    set householdInitialAgeDistribution (list
-      (1 + random (item 0 householdInitialAgeDistribution))   ; minimum
+    set initial-num-households 1 + random par_initial-num-households ; at least one household
+    set household-initial-age-distribution (list
+      (1 + random (item 0 household-initial-age-distribution))   ; minimum
       (
-        (item 0 householdInitialAgeDistribution)
+        (item 0 household-initial-age-distribution)
         + 1
-        + random ((item 1 householdInitialAgeDistribution) - (item 0 householdInitialAgeDistribution))
+        + random ((item 1 household-initial-age-distribution) - (item 0 household-initial-age-distribution))
       )   ; maximum
       )
-    set maxCoupleCountDistribution (list
-      (1 + random (item 0 maxCoupleCountDistribution))   ; minimum
+    set max-couple-count-distribution (list
+      (1 + random (item 0 max-couple-count-distribution))   ; minimum
       (
-        (item 0 maxCoupleCountDistribution)
+        (item 0 max-couple-count-distribution)
         + 1
-        + random ((item 1 maxCoupleCountDistribution) - (item 0 maxCoupleCountDistribution))
+        + random ((item 1 max-couple-count-distribution) - (item 0 max-couple-count-distribution))
       )   ; maximum
       )
 
@@ -170,7 +170,7 @@ to set-parameters
     set sigma1-fert max (list 1E-6 (random-float (mu-fert - maturity-age)))
     set sigma2-fert max (list 1E-6 (random-float ((30 + maturity-age) - mu-fert)))
     set residence-rule item random 2 (list "patrilocal-patrilineal" "matrilocal-matrilineal")
-    set acceptableKinshipDegreeForCouples random 10
+    set acceptable-kinship-degree-for-couples random 10
     set c1-women max (list 1E-6 (random-float 1))
     set c1-men max (list 1E-6 (random-float 1))
     set mu-women random 40
@@ -194,7 +194,7 @@ to parameters-check1
 
   ;;; check if values were reset to 0
   ;;; and set default values
-  if (initial-num-households = 0)               [ set initial-num-households               25 ]
+  if (par_initial-num-households = 0)               [ set par_initial-num-households               25 ]
 
   if (cdmlt-level = 0)                          [ set cdmlt-level                           8 ]
   if (c1-fert = 0)                              [ set c1-fert                               0.9 ]
@@ -211,10 +211,10 @@ to parameters-check1
   if (sigma2-men = 0)                           [ set sigma2-men                           10 ]
 
   ;;; string type inputs (vector of values)
-  if (household-initial-age-distribution = 0 or
-    length household-initial-age-distribution = 1)   [ set household-initial-age-distribution   "0 30" ]
-  if (max-couple-count-distribution = 0 or
-    length max-couple-count-distribution = 1)        [ set max-couple-count-distribution        "1 6" ]
+  if (par_household-initial-age-distribution = 0 or
+    length par_household-initial-age-distribution = 1)   [ set par_household-initial-age-distribution   "0 30" ]
+  if (par_max-couple-count-distribution = 0 or
+    length par_max-couple-count-distribution = 1)        [ set par_max-couple-count-distribution        "1 6" ]
 
 end
 
@@ -224,7 +224,7 @@ to parameters-to-default
   set max-iterations                     2000
   set max-population                     5000
 
-  set initial-num-households               25
+  set par_initial-num-households               25
 
   set cdmlt-level                           8
 
@@ -242,19 +242,19 @@ to parameters-to-default
   set sigma1-men                            2
   set sigma2-men                           10
 
-  set household-initial-age-distribution   "0 30"
-  set max-couple-count-distribution        "1 6"
+  set par_household-initial-age-distribution   "0 30"
+  set par_max-couple-count-distribution        "1 6"
 
 end
 
 to parameters-check2
 
   ;;; initial parameter check (e.g., avoiding division per zero error)
-  check-par-is-positive "initialNumHouseholds" initialNumHouseholds
+  check-par-is-positive "initial-num-households" initial-num-households
 
   ;;; check if given min values are less than max values
-  check-par-is-range "householdInitialAgeDistribution" householdInitialAgeDistribution
-  check-par-is-range "maxCoupleCountDistribution" maxCoupleCountDistribution
+  check-par-is-range "household-initial-age-distribution" household-initial-age-distribution
+  check-par-is-range "max-couple-count-distribution" max-couple-count-distribution
 
 end
 
@@ -281,7 +281,7 @@ end
 to setup-households
 
   ;;; create households (position are not relevant)
-  repeat initialNumHouseholds
+  repeat initial-num-households
   [
     create-households 1
     [
@@ -493,7 +493,7 @@ to-report couple-is-acceptable [ womanHousehold manHousehold ]
 
   ; case 2 (complex, more flexible/general, includes case 1):
   ; woman and man share the same lineage (greater risk of inbreeding)
-  report (get-kinship-degree womanHousehold manHousehold > acceptableKinshipDegreeForCouples)
+  report (get-kinship-degree womanHousehold manHousehold > acceptable-kinship-degree-for-couples)
 
 end
 
@@ -667,13 +667,13 @@ end
 
 to-report get-initial-household-age
 
-  report item 0 householdInitialAgeDistribution + random (item 1 householdInitialAgeDistribution - item 0 householdInitialAgeDistribution + 1)
+  report item 0 household-initial-age-distribution + random (item 1 household-initial-age-distribution - item 0 household-initial-age-distribution + 1)
 
 end
 
 to-report get-initial-max-couple-count
 
-  report item 0 maxCoupleCountDistribution + random (item 1 maxCoupleCountDistribution - item 0 maxCoupleCountDistribution + 1)
+  report item 0 max-couple-count-distribution + random (item 1 max-couple-count-distribution - item 0 max-couple-count-distribution + 1)
 
 end
 
@@ -1357,10 +1357,10 @@ to load-experiment
     [
       ;;; the values of the file must follow this same order
 
-      set initialNumHouseholds file-read
-      set householdInitialAgeDistribution (list (file-read) (file-read))
-      set maxCoupleCountDistribution (list (file-read) (file-read))
-      set acceptableKinshipDegreeForCouples file-read
+      set initial-num-households file-read
+      set household-initial-age-distribution (list (file-read) (file-read))
+      set max-couple-count-distribution (list (file-read) (file-read))
+      set acceptable-kinship-degree-for-couples file-read
 
       set cdmlt-level file-read
 
@@ -1417,10 +1417,9 @@ to export-households
 end]]></code>
   <widgets>
     <view x="351" wrappingAllowedX="true" y="14" frameRate="30.0" minPycor="-9" height="308" showTickCounter="true" patchSize="16.0" fontSize="10" wrappingAllowedY="true" width="308" tickCounterLabel="ticks" maxPycor="9" updateMode="0" maxPxcor="9" minPxcor="-9"></view>
-    <button x="15" actionKey="1" y="10" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="63">setup</button>
     <button x="91" actionKey="2" y="11" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="55">go</button>
     <input x="6" multiline="false" y="60" height="60" variable="SEED" type="number" width="100">1.0</input>
-    <chooser x="3" y="127" height="60" variable="type-of-experiment" current="2" width="178" display="type-of-experiment">
+    <chooser x="3" y="127" height="60" variable="type-of-experiment" current="0" width="178" display="type-of-experiment">
       <choice type="string" value="user-defined"></choice>
       <choice type="string" value="random"></choice>
       <choice type="string" value="defined by exp-number"></choice>
@@ -1429,15 +1428,8 @@ end]]></code>
     <input x="111" multiline="false" y="60" height="60" variable="max-iterations" type="number" width="100">2000.0</input>
     <button x="30" y="201" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="135">export-households</button>
     <input x="186" multiline="false" y="127" height="60" variable="exp-number" type="number" width="100">65.0</input>
-    <input x="215" multiline="false" y="60" height="60" variable="max-population" type="number" width="101">10000.0</input>
+    <input x="215" multiline="false" y="60" height="60" variable="max-population" type="number" width="101">5000.0</input>
     <button x="173" y="201" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="152" display="parameters to default">parameters-to-default</button>
-    <monitor x="171" precision="0" y="248" height="60" fontSize="9" width="138">initialNumHouseholds</monitor>
-    <input x="18" multiline="false" y="248" height="60" variable="initial-num-households" type="number" width="147">50.0</input>
-    <input x="17" multiline="false" y="324" height="60" variable="household-initial-age-distribution" type="string" width="197">0 30</input>
-    <monitor x="216" precision="17" y="325" height="60" fontSize="9" width="187">houseHoldInitialAgeDistribution</monitor>
-    <note x="35" y="384" backgroundDark="0" fontSize="9" width="155" markdown="false" height="18" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">value format: minimum maximum</note>
-    <input x="18" multiline="false" y="401" height="60" variable="max-couple-count-distribution" type="string" width="196">1 6</input>
-    <monitor x="216" precision="0" y="400" height="60" fontSize="9" width="186">maxCoupleCountDistribution</monitor>
     <plot x="20" autoPlotX="false" yMax="10.0" autoPlotY="false" y="724" xMin="0.0" height="201" legend="false" xMax="10.0" yMin="0.0" width="226" xAxis="age" display="fertility (prob. of giving birth)">
       <setup></setup>
       <update>clear-plot
@@ -1454,8 +1446,7 @@ set-plot-y-range -0.001 (precision (max fertilityTable + 0.001) 4)</update>
 set-plot-x-range 0 100
 set-plot-y-range -0.001 (precision (max (list max mortalityTable-women max mortalityTable-men) + 0.001) 4)</update>
       <pen interval="1.0" mode="0" display="default" color="-5298144" legend="true">
-        <setup>
-</setup>
+        <setup></setup>
         <update>plot-table mortalityTable-women</update>
       </pen>
       <pen interval="1.0" mode="0" display="pen-1" color="-14070903" legend="true">
@@ -1477,32 +1468,27 @@ set-plot-y-range -0.001 (precision (max (list max nuptialityTable-women max nupt
         <update>plot-table nuptialityTable-men</update>
       </pen>
     </plot>
-    <slider x="406" step="1" y="403" max="10" width="261" display="acceptable-kinship-degree-for-couples" height="50" min="0" direction="Horizontal" default="8.0" variable="acceptable-kinship-degree-for-couples"></slider>
-    <chooser x="453" y="334" height="60" variable="residence-rule" current="1" width="157" display="residence-rule">
-      <choice type="string" value="patrilocal-patrilineal"></choice>
-      <choice type="string" value="matrilocal-matrilineal"></choice>
-    </chooser>
     <button x="235" y="478" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="109" display="refresh tables">build-demography-tables
 update-plots</button>
-    <slider x="253" step="1" y="550" max="25" width="214" display="cdmlt-level" height="50" min="1" direction="Horizontal" default="23.0" variable="cdmlt-level" units="levels from 1 to 25"></slider>
-    <slider x="254" step="0.001" y="937" max="1" width="209" display="c1-women" height="50" min="0" direction="Horizontal" default="0.07" variable="c1-women" units="(default: 0.9)"></slider>
-    <slider x="258" step="0.001" y="765" max="40" width="208" display="mu-fert" height="50" min="0" direction="Horizontal" default="26.133" variable="mu-fert" units="(default: 15)"></slider>
+    <slider x="253" step="1" y="550" max="25" width="214" display="cdmlt-level" height="50" min="1" direction="Horizontal" default="8.0" variable="cdmlt-level" units="levels from 1 to 25"></slider>
+    <slider x="254" step="0.001" y="937" max="1" width="209" display="c1-women" height="50" min="0" direction="Horizontal" default="0.9" variable="c1-women" units="(default: 0.9)"></slider>
+    <slider x="258" step="0.001" y="765" max="40" width="208" display="mu-fert" height="50" min="0" direction="Horizontal" default="15.0" variable="mu-fert" units="(default: 15)"></slider>
     <slider x="259" step="0.001" y="875" max="6 * 5" width="234" display="sigma2-fert" height="50" min="0" direction="Horizontal" default="7.695" variable="sigma2-fert" units="(default: 10)"></slider>
-    <slider x="258" step="0.001" y="820" max="2 * 5" width="235" display="sigma1-fert" height="50" min="0" direction="Horizontal" default="8.805" variable="sigma1-fert" units="(default: 5)"></slider>
-    <slider x="258" step="0.001" y="710" max="1" width="210" display="c1-fert" height="50" min="0" direction="Horizontal" default="0.098" variable="c1-fert" units="(default: 0.9)"></slider>
+    <slider x="258" step="0.001" y="820" max="2 * 5" width="235" display="sigma1-fert" height="50" min="0" direction="Horizontal" default="5.0" variable="sigma1-fert" units="(default: 5)"></slider>
+    <slider x="258" step="0.001" y="710" max="1" width="210" display="c1-fert" height="50" min="0" direction="Horizontal" default="0.9" variable="c1-fert" units="(default: 0.9)"></slider>
     <chooser x="255" y="605" height="60" variable="coale-demeny-region" current="2" width="141" display="coale-demeny-region">
       <choice type="string" value="west"></choice>
       <choice type="string" value="east"></choice>
       <choice type="string" value="south"></choice>
       <choice type="string" value="north"></choice>
     </chooser>
-    <slider x="254" step="0.001" y="989" max="40" width="209" display="mu-women" height="50" min="0" direction="Horizontal" default="17.539" variable="mu-women" units="(default: 15)"></slider>
-    <slider x="254" step="0.001" y="1041" max="2 * 5" width="209" display="sigma1-women" height="50" min="0" direction="Horizontal" default="16.883" variable="sigma1-women" units="(default: 5)"></slider>
-    <slider x="254" step="0.001" y="1092" max="2 * 5" width="209" display="sigma2-women" height="50" min="0" direction="Horizontal" default="1.148" variable="sigma2-women" units="(default: 5)"></slider>
-    <slider x="464" step="0.001" y="937" max="1" width="201" display="c1-men" height="50" min="0" direction="Horizontal" default="0.836" variable="c1-men" units="(default: 0.85)"></slider>
-    <slider x="464" step="0.001" y="989" max="2 * 20" width="201" display="mu-men" height="50" min="0" direction="Horizontal" default="19.883" variable="mu-men" units="(default: 20)"></slider>
-    <slider x="464" step="0.001" y="1041" max="2 * 5" width="201" display="sigma1-men" height="50" min="0" direction="Horizontal" default="8.273" variable="sigma1-men" units="(default: 2)"></slider>
-    <slider x="464" step="0.001" y="1092" max="2 * 5" width="201" display="sigma2-men" height="50" min="0" direction="Horizontal" default="4.117" variable="sigma2-men" units="(default: 10)"></slider>
+    <slider x="254" step="0.001" y="989" max="40" width="209" display="mu-women" height="50" min="0" direction="Horizontal" default="15.0" variable="mu-women" units="(default: 15)"></slider>
+    <slider x="254" step="0.001" y="1041" max="2 * 5" width="209" display="sigma1-women" height="50" min="0" direction="Horizontal" default="5.0" variable="sigma1-women" units="(default: 5)"></slider>
+    <slider x="254" step="0.001" y="1092" max="2 * 5" width="209" display="sigma2-women" height="50" min="0" direction="Horizontal" default="2.0" variable="sigma2-women" units="(default: 5)"></slider>
+    <slider x="464" step="0.001" y="937" max="1" width="201" display="c1-men" height="50" min="0" direction="Horizontal" default="0.85" variable="c1-men" units="(default: 0.85)"></slider>
+    <slider x="464" step="0.001" y="989" max="2 * 20" width="201" display="mu-men" height="50" min="0" direction="Horizontal" default="20.0" variable="mu-men" units="(default: 20)"></slider>
+    <slider x="464" step="0.001" y="1041" max="2 * 5" width="201" display="sigma1-men" height="50" min="0" direction="Horizontal" default="2.0" variable="sigma1-men" units="(default: 2)"></slider>
+    <slider x="464" step="0.001" y="1092" max="2 * 5" width="201" display="sigma2-men" height="50" min="0" direction="Horizontal" default="10.0" variable="sigma2-men" units="(default: 10)"></slider>
     <plot x="671" autoPlotX="true" yMax="10.0" autoPlotY="true" y="10" xMin="0.0" height="191" legend="true" xMax="10.0" yMin="0.0" width="464" display="Population">
       <setup></setup>
       <update></update>
@@ -1558,7 +1544,7 @@ update-plots</button>
     <monitor x="1144" precision="4" y="362" height="60" fontSize="11" width="113" display="women death rate">womenDeaths / totalWomen</monitor>
     <monitor x="1262" precision="4" y="362" height="60" fontSize="11" width="100" display="men death rate">menDeaths / totalMen</monitor>
     <plot x="669" autoPlotX="true" yMax="10.0" autoPlotY="true" y="679" xMin="0.0" height="195" legend="true" xMax="10.0" yMin="0.0" width="464" display="maxCoupleCount and actual count">
-      <setup>set-plot-y-range -1 (1 + item 1 maxCoupleCountDistribution)</setup>
+      <setup>set-plot-y-range -1 (1 + item 1 max-couple-count-distribution)</setup>
       <update></update>
       <pen interval="1.0" mode="0" display="max. mean" color="-8053223" legend="true">
         <setup></setup>
@@ -1598,7 +1584,7 @@ update-plots</button>
       </pen>
     </plot>
     <plot x="1138" autoPlotX="true" yMax="10.0" autoPlotY="true" y="601" xMin="0.0" height="169" legend="false" xMax="10.0" yMin="0.0" width="284" display="couple count per household">
-      <setup>set-plot-y-range -0.001 (item 1 maxCoupleCountDistribution + 0.01)</setup>
+      <setup>set-plot-y-range -0.001 (item 1 max-couple-count-distribution + 0.01)</setup>
       <update></update>
       <pen interval="1.0" mode="1" display="default" color="-16777216" legend="true">
         <setup></setup>
@@ -1631,6 +1617,19 @@ carefully [ set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)
     </plot>
     <monitor x="1282" precision="2" y="794" height="60" fontSize="11" width="100" display="% 0-4 (men)">100 * menFirstAgeGroup / totalMen</monitor>
     <monitor x="1180" precision="2" y="795" height="60" fontSize="11" width="100" display="% 0-4 (women)">100 * womenFirstAgeGroup / totalWomen</monitor>
+    <input x="18" multiline="false" y="248" height="60" variable="par_initial-num-households" type="number" width="164">25.0</input>
+    <monitor x="184" precision="0" y="249" height="60" fontSize="9" width="146">initial-num-households</monitor>
+    <slider x="384" step="1" y="410" max="10" width="281" display="par_acceptable-kinship-degree-for-couples" height="50" min="0" direction="Horizontal" default="8.0" variable="par_acceptable-kinship-degree-for-couples"></slider>
+    <note x="23" y="390" backgroundDark="0" fontSize="9" width="155" markdown="false" height="18" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">value format: minimum maximum</note>
+    <chooser x="441" y="340" height="60" variable="residence-rule" current="1" width="157" display="residence-rule">
+      <choice type="string" value="patrilocal-patrilineal"></choice>
+      <choice type="string" value="matrilocal-matrilineal"></choice>
+    </chooser>
+    <input x="5" multiline="false" y="330" height="60" variable="par_household-initial-age-distribution" type="string" width="219">0 30</input>
+    <monitor x="219" precision="17" y="330" height="60" fontSize="9" width="198">household-initial-age-distribution</monitor>
+    <input x="6" multiline="false" y="407" height="60" variable="par_max-couple-count-distribution" type="string" width="206">1 6</input>
+    <monitor x="204" precision="0" y="406" height="60" fontSize="9" width="186">max-couple-count-distribution</monitor>
+    <button x="15" actionKey="1" y="10" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="63">setup</button>
   </widgets>
   <info>## Development notes
 
@@ -2521,9 +2520,9 @@ ISSUES:
       <metrics>
         <metric>SEED</metric>
         <metric>maturityAge</metric>
-        <metric>initialNumHouseholds</metric>
-        <metric>householdInitialAgeDistribution</metric>
-        <metric>maxCoupleCountDistribution</metric>
+        <metric>initial-num-households</metric>
+        <metric>household-initial-age-distribution</metric>
+        <metric>max-couple-count-distribution</metric>
         <metric>cdmlt-level</metric>
         <metric>coale-demeny-region</metric>
         <metric>c1-fert</metric>
@@ -2531,7 +2530,7 @@ ISSUES:
         <metric>sigma1-fert</metric>
         <metric>sigma2-fert</metric>
         <metric>residence-rule</metric>
-        <metric>acceptable-kinship-degree-for-couples</metric>
+        <metric>par_acceptable-kinship-degree-for-couples</metric>
         <metric>c1-women</metric>
         <metric>c1-men</metric>
         <metric>mu-women</metric>
@@ -2572,9 +2571,9 @@ ISSUES:
         <metric>exp-number</metric>
         <metric>SEED</metric>
         <metric>maturityAge</metric>
-        <metric>initialNumHouseholds</metric>
-        <metric>householdInitialAgeDistribution</metric>
-        <metric>maxCoupleCountDistribution</metric>
+        <metric>initial-num-households</metric>
+        <metric>household-initial-age-distribution</metric>
+        <metric>max-couple-count-distribution</metric>
         <metric>cdmlt-level</metric>
         <metric>coale-demeny-region</metric>
         <metric>c1-fert</metric>
@@ -2582,7 +2581,7 @@ ISSUES:
         <metric>sigma1-fert</metric>
         <metric>sigma2-fert</metric>
         <metric>residence-rule</metric>
-        <metric>acceptable-kinship-degree-for-couples</metric>
+        <metric>par_acceptable-kinship-degree-for-couples</metric>
         <metric>c1-women</metric>
         <metric>c1-men</metric>
         <metric>mu-women</metric>
