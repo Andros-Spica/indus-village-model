@@ -1,0 +1,106 @@
+to apply-mortality
+
+  let labour-available sum [hh_get-total-labour] of households
+  let labour-required carrying-capacity * labour-demand-per-capita
+  let laboured-share 1
+  if (labour-available < labour-required)
+  [ set laboured-share labour-available / labour-required ]
+
+  set carrying-capacity-effective carrying-capacity * laboured-share
+
+  set carrying-capacity-demand sum [hh_get-total-carrying-capacity-demand] of households
+
+  ask households
+  [
+    hh_update-members-survival
+  ]
+
+end
+
+to hh_update-members-survival
+
+  ; applies age-specific mortality rates and delete dying members
+
+  ; get a list with true/false values flagging which members is dying during the current year
+  let dying? hh_whichMembersDying
+
+  ; iterate for the members from last to first, eliminating those that should be dying
+  let index (hh_count-members) - 1
+  repeat hh_count-members
+  [
+    if (item index dying?)
+    [
+      ; add to mortality
+      ifelse (item index hh_membersSex)
+      [ set womenDeaths womenDeaths + 1 ]
+      [ set menDeaths menDeaths + 1 ]
+
+      ;print (word "member from " self " dies with age " (item index hh_membersAge))
+      hh_delete-member index
+    ]
+    set index index - 1
+  ]
+
+  hh_update-marriages-after-deaths
+
+end
+
+to-report hh_whichMembersDying
+
+  ;;; density effect is distributed equally among members
+  let densityEffect get-density-effect carrying-capacity-demand carrying-capacity-effective
+
+  ; returns a list with true/false values flagging which members is dying during the current year
+  report map
+  [
+    i ->
+    (random-float 1 < get-mortality-prob (item i hh_membersSex) (item i hh_membersAge) densityEffect)
+  ] hh_membersIndexes
+
+end
+
+to hh_update-marriages-after-deaths
+
+  ; update hh_membersMarriage to consider any widow/widower as single
+  foreach hh_membersIndexes
+  [
+    i ->
+    if (item i hh_membersMarriage != -1                                           ; if the member is married
+      and length filter [j -> j = item i hh_membersMarriage] hh_membersMarriage = 1) ; and her/his partner died this year (so she/he is the only member with the marriage index)
+    [
+      set hh_membersMarriage replace-item i hh_membersMarriage -1
+      ;print (word "a member of " self " has lost her/his partner.")
+    ]
+  ]
+
+end
+
+to-report get-mortality-prob [ isFemale age densityEffect ]
+
+  let mortality (get-mortality-prob-from-table isFemale age)
+
+  report clamp01 (mortality + densityEffect)
+
+end
+
+to-report get-mortality-prob-from-table [ isFemale age ]
+
+  ifelse (isFemale)
+  [
+    report item age mortalityTable-women
+  ]
+  [
+    report item age mortalityTable-men
+  ]
+
+end
+
+to-report get-density-effect [ carryingCapacityDemand carryingCapacity ]
+
+  ; For example, in https://www.wolframalpha.com/, use:
+  ;plot 0.05*(x / 200) ^ 3 for x=1..1000
+  let densityEffect density-effect-scaling-factor * (carryingCapacityDemand / (carryingCapacity + 1E-6)) ^ density-effect-steepness
+
+  report densityEffect
+
+end

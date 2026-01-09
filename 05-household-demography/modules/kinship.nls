@@ -1,0 +1,36 @@
+to-report get-kinship-degree [ household1 household2 ]
+
+  ; get the lineage IDs differentiating between longer and shorter (if they have, in fact, a different length)
+  let lineage1 [hh_lineage] of household1
+  let lineage2 [hh_lineage] of household2
+
+;  print (word household1 " has lineage " lineage1)
+;  print (word household2 " has lineage " lineage2)
+
+  let numberOfCommonElements 0
+
+  ; iterate for every element in the shorter lineage ID, until finds a different element or ends the the sequence
+  foreach n-values (min (list (length lineage1) (length lineage2))) [j -> j]
+  [
+    i ->
+    ; if still did not found a different element (i.e. numberOfCommonElements < i)
+    ; and the elements match
+    if (numberOfCommonElements = i and (item i lineage1 = item i lineage2))
+    [
+      set numberOfCommonElements numberOfCommonElements + 1
+    ]
+  ]
+
+  ; get the total number of different elements in lineage IDs (i.e., number of household splits separating household1 and household2)
+  let numberOfDifferentElements sum (list (length lineage1 - numberOfCommonElements) (length lineage1 - numberOfCommonElements))
+
+  ; case examples:
+  ; between [1 2 1 5] and  [1 2 3 7],  it is 4 (diff. elements are 1 5 and 3 7)
+  ; between [15 3 1 2] and [15 4 1 2], it is 6 (diff. elements are 3 1 2 and 4 1 2)
+  ; between [6 3 8] and    [6 3],      it is 1 (diff. element is 8). Household [6 3 8] was formed with a member of the household [6 3]
+
+;  print (word "kinship degree: " numberOfDifferentElements)
+
+  report numberOfDifferentElements
+
+end

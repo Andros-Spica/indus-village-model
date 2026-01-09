@@ -1,0 +1,54 @@
+to apply-fertility
+
+  ask households
+  [
+    hh_reproduce
+  ]
+
+end
+
+to hh_reproduce
+
+  ; iterate for the members, up to the number of couples,
+  ; testing women for the corresponding fertility rate
+  ; and generates a new born individual if passing test.
+
+  let couplesToTest hh_count-couples
+
+  foreach hh_membersIndexes
+  [
+    i ->
+    ; there is still a couple to consider and the member is female
+    if (couplesToTest > 0 and item i hh_membersSex)
+    [
+      if (random-float 1 < get-fertility (item i hh_membersAge))
+      [
+        ;print get-fertility (item i hh_membersAge)
+        hh_add-offspring 0 ; add a newborn
+        ;print (word "a new member is born in " self)
+      ]
+      set couplesToTest couplesToTest - 1
+    ]
+  ]
+
+end
+
+to hh_add-offspring [ initialAge ]
+
+  ; add a newborn to the household
+  ; the specification of initialAge is needed to use this in setup
+  set hh_membersAge lput initialAge hh_membersAge
+  set hh_membersSex lput (random 2 = 0) hh_membersSex
+  set hh_membersMarriage lput -1 hh_membersMarriage ; any offspring will be single
+
+  ifelse (last hh_membersSex)
+  [ set womenBirths womenBirths + 1 ]
+  [ set menBirths menBirths + 1 ]
+
+end
+
+to-report get-fertility [ age ]
+
+  report item age fertilityTable
+
+end

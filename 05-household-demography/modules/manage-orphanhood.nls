@@ -1,0 +1,65 @@
+to manage-orphanhood
+
+  ; initialize population lists of orphan children for this year
+  set orphanList (list)
+
+  ; go through every household checking if there is at least one adult and, if not,
+  ; placing all infants in the orphan list and erasing them from the household until eventually the household is disolved
+  ask households
+  [
+    hh_disolve-if-no-adults
+  ]
+
+  if (any? households) ; do it only in case there is any household left
+  [
+    ; distribute orphans randomly among surviving households
+    foreach n-values length orphanList [ j -> j ]
+    [
+      i ->
+
+      ask one-of households
+      [
+        hh_add-orphan (item i orphanList)
+      ]
+    ]
+  ]
+
+end
+
+to hh_disolve-if-no-adults
+
+  ; check if the household is left without any adult
+  if (hh_is-infants-only)
+  [
+    ; there is no adult in this household, so the children will enter the orphanList so they can be adopted later
+    ;print (word "all remaining individuals in " self " are children: is female = " hh_membersSex ", ages = " hh_membersAge ". They are now in the orphan list.")
+
+    ; iterate for the members from last to first
+    let index (hh_count-members) - 1
+    repeat hh_count-members
+    [
+      ; add children data (sex, age) to the orphan list (they are distributed among other households once aging procedures are done)
+      set orphanList lput (list (item index hh_membersSex) (item index hh_membersAge) ) orphanList
+
+      ; and delete them from the current household (eventualy erasing it)
+      hh_delete-member index
+
+      set index index - 1
+    ]
+  ]
+
+end
+
+to hh_add-orphan [ orphanData ]
+
+  ; add an orphan child to the household
+  ; orphanData is assumed to be: [ <sex> <age> ]
+
+  set hh_membersSex lput (item 0 orphanData) hh_membersSex
+  set hh_membersAge lput (item 1 orphanData) hh_membersAge
+  set hh_membersMarriage lput -1 hh_membersMarriage ; any orphan is assumed single
+  ;(when children "marry", they will share the household with the spouse. If they are found an orphan is because the spouse is either dead or is also an orphan)
+
+  ;print (word "the orphan (is female = " (item 0 orphanData) ", age = " (item 1 orphanData) ") is adopted by " self ": are females = " hh_membersSex ", ages = " hh_membersAge )
+
+end

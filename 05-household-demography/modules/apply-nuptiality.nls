@@ -1,0 +1,364 @@
+to apply-nuptiality
+
+  build-lists-to-marry
+
+  try-to-form-couples
+
+  clear-former-memberships
+
+end
+
+to build-lists-to-marry
+
+  ; initialize population lists of marrying candidates for this year
+  set womenToMarry (list)
+  set menToMarry (list)
+
+  ; fill lists (random order)
+  ask households
+  [
+    ; add to the womenToMarry/menToMarry any women/men that should be marrying, accordint to the nuptiality model
+    hh_set-members-to-marry
+  ]
+
+  ;print (word "womenToMarry: " womenToMarry)
+  ;print (word "menToMarry: " menToMarry)
+
+end
+
+to try-to-form-couples
+
+  ; iterate for every women and men to marry until all form couples
+  ; or are included in the womenWithoutMatch/menWithoutMatch lists
+
+  ; iterate for every women to marry
+  foreach n-values (length womenToMarry) [i -> i]
+  [
+    womanIndex ->
+
+    ; initialise this women as single (null husband index in menToMarry)
+    let husbandIndex -1
+
+    ; iterate for every men still to marry (this loop is skipped if there is no menToMarry)
+    foreach n-values (length menToMarry) [i -> i]
+    [
+      manIndex ->
+
+      ; try to create couple if still did not found husband
+      if (husbandIndex = -1)
+      [
+        ; create-couple returns true only if the procedure could form the couple
+        if (create-couple (item womanIndex womenToMarry) (item manIndex menToMarry))
+        [
+          set husbandIndex manIndex
+        ]
+      ]
+    ]
+
+    ifelse (husbandIndex = -1)
+    [
+      ; if no husband was found within this population, create the new couple with this woman and an external man
+      create-couple-external (item womanIndex womenToMarry)
+    ]
+    [
+      ; if husband was found within this population, remove him from menToMarry list
+      set menToMarry remove-item husbandIndex menToMarry
+    ]
+  ]
+
+  ; iterate for every men still to marry, creating new couples with external women
+  foreach n-values (length menToMarry) [i -> i]
+  [
+    manIndex ->
+    create-couple-external (item manIndex menToMarry)
+  ]
+
+end
+
+to clear-former-memberships
+
+  ; delete recently married individuals from their parent household
+  ask households
+  [
+    hh_delete-members-in-queue
+  ]
+
+end
+
+to-report create-couple [ womanData manData ]
+
+  let womanHousehold item 0 womanData
+  let womanIndex item 1 womanData
+  let manHousehold item 0 manData
+  let manIndex item 1 manData
+
+;  print (word "index " womanIndex " in " [hh_membersAge] of womanHousehold ", female, " womanHousehold)
+;  print (word "index " manIndex " in " [hh_membersAge] of manHousehold ", male, " manHousehold)
+
+  ; first, test if new couple vulnerates any tabu
+  ifelse (couple-is-acceptable womanHousehold manHousehold)
+  [
+    if (residence-rule = "patrilocal-patrilineal")
+    [
+      ask manHousehold
+      [
+        hh_try-to-add-couple manIndex womanData
+      ]
+    ]
+    if (residence-rule = "matrilocal-matrilineal")
+    [
+      ask womanHousehold
+      [
+        hh_try-to-add-couple womanIndex manData
+      ]
+    ]
+    ;;; Other residence rules can be added here
+;    print "couple is acceptable."
+
+    report true
+  ]
+  [
+;    print "couple is not acceptable."
+
+    report false
+  ]
+
+end
+
+to-report couple-is-acceptable [ womanHousehold manHousehold ]
+
+  ; two options:
+  ; 1. not at the same household,
+  ; 2. not of the same lineage
+
+  ; case 1 (simple): woman and man are in the same household
+  ;if (womanHousehold = manHousehold) [ report false ]
+
+  ; case 2 (complex, more flexible/general, includes case 1):
+  ; woman and man share the same lineage (greater risk of inbreeding)
+  report (get-kinship-degree womanHousehold manHousehold > acceptable-kinship-degree-for-couples)
+
+end
+
+to create-couple-external [ singleData ]
+
+  let singleHousehold item 0 singleData
+  let singleIndex item 1 singleData
+  let singleSex [item singleIndex hh_membersSex] of singleHousehold
+
+;  print (word "Member " singleIndex " in " singleHousehold " (ages = " [hh_membersAge] of singleHousehold ", sex = " [hh_membersSex] of singleHousehold ") is marring outside the system."  )
+
+  ; find out if the new couple imply a new individual to be entering the system
+  let newIndividualIn
+  (
+    ; a new individual comes in either when...
+    ; ...the single is a woman and the residence rule is matrilocal (husband comes in)
+    (singleSex and residence-rule = "matrilocal-matrilineal")
+    or
+    ; ...the single is a men and the residence rule is patrilocal (wife comes in)
+    ((not singleSex) and residence-rule = "patrilocal-patrilineal")
+  )
+
+  ifelse (newIndividualIn)
+  [
+    ; a new individual is entering the system...
+
+    ; try to add a new couple in singleHousehold
+    ask singleHousehold
+    [
+      hh_try-to-add-couple singleIndex [ -1 -1 ] ; pass spouse data as a NULL value (messaging it should be generated)
+    ]
+
+    ; account for the new individual coming in
+    ifelse (not singleSex)
+    [
+      set womenIn womenIn + 1 ; if single is male, the new individual is female
+    ]
+    [
+      set menIn menIn + 1
+    ]
+  ]
+  [
+    ; the single individual is the one moving, so exiting the system...
+
+;    print (word "individual from " singleHousehold " moving out the system: is female = " singleSex ", age = " (item singleIndex [hh_membersAge] of singleHousehold) )
+
+    ; add the single individual (and any children left alone) to the deletion queue of singleHousehold
+    let childrenMovingOut 0
+    ask singleHousehold
+    [
+;      ifelse (hh_is-infants-only)
+;      [
+;        ;print (word "all remaining individuals in " singleHousehold " are children: ages including single adult = " hh_membersAge )
+;        ; add all members to deletion queue since the household would have only children (assuming they are moving out with the single individual)
+;        set hh_memberIndexesToDelete hh_membersIndexes
+;
+;        set childrenMovingOut hh_count-children
+;      ]
+;      [
+        ; add the single individual to the deletion queue, avoiding duplicates
+        set hh_memberIndexesToDelete remove-duplicates (lput singleIndex hh_memberIndexesToDelete)
+;      ]
+    ]
+
+    ; account for the single individual going out
+    ifelse (singleSex)
+    [
+      set womenOut womenOut + 1 + childrenMovingOut
+    ]
+    [
+      set menOut menOut + 1 + childrenMovingOut
+    ]
+  ]
+
+end
+
+to hh_set-members-to-marry
+
+  ; applies age-specific nuptiality rates
+
+  ; iterate for each member, finding which one is marrying during the current year, according to age cohort and sex
+  foreach hh_membersIndexes
+  [
+    i ->
+    if (item i hh_membersMarriage = -1) ; member is not married
+    [
+      let sex item i hh_membersSex
+
+      if (random-float 1 < get-nuptiality sex (item i hh_membersAge))  ; passes nuptiality test according to age
+      [
+        ifelse (sex)
+        [
+          set womenToMarry lput (list self i) womenToMarry
+        ]
+        [
+          set menToMarry lput (list self i) menToMarry
+        ]
+      ]
+    ]
+  ]
+
+end
+
+to hh_try-to-add-couple [ selfIndex spouseData ]
+
+  ; check if new couple fits in self's household
+  let tooManyCouples (hh_count-couples + 1) > hh_maxCoupleCount
+
+  ifelse (tooManyCouples)
+  [
+    ; the new couple must found a new household, descending from self's household
+    ;print "household fission"
+    hh_household-fission selfIndex spouseData
+  ]
+  [
+    ; the new couple can stay in the self's parent household
+    hh_add-couple selfIndex spouseData
+  ]
+
+end
+
+to hh_household-fission [ selfIndex spouseData ]
+
+  ; creates a new household descending from self household,
+  ; adding self and spouse and
+  ; deleting them from the respective parent households
+
+  ;print (word self " is fissioning")
+
+  let selfHousehold self
+
+  ; create new household w/ self and spouse
+  hatch 1
+  [
+    ; expand lineage ID by adding this household 'who' to the lineage ID of the parent household
+    set hh_lineage lput who [hh_lineage] of selfHousehold
+    ; !!!
+
+    set hh_age 0
+    ; inherit hh_maxCoupleCount value from parent household
+
+    hh_reset-members
+
+    ; add self
+    hh_add-member-from (list selfHousehold selfIndex)
+    ; add spouse
+    hh_add-spouse 0 spouseData ; 0 is the index of the self individual in the new household
+
+    ; account for the new couple
+    set hh_membersMarriage lput 0 hh_membersMarriage ; 0 because this is the first couple of the new household
+    set hh_membersMarriage lput 0 hh_membersMarriage
+
+    ; initialise list of members to delete (used during apply-nuptiality)
+    set hh_memberIndexesToDelete (list)
+
+    ;;; move to empty or less crowded patch, just in sake of visualisation
+    move-to min-one-of patches [count households-here]
+  ]
+
+end
+
+to hh_add-couple [ selfIndex spouseData ]
+
+  ; add spouse to self's household
+  ;print (word "adding couple to " self)
+
+  hh_add-spouse selfIndex spouseData
+
+  ; account for the new couple
+  let newCoupleIndex 1 + max hh_membersMarriage ; create a new couple index
+  set hh_membersMarriage replace-item selfIndex hh_membersMarriage newCoupleIndex ; update self's marriage status
+  set hh_membersMarriage lput newCoupleIndex hh_membersMarriage ; add another corresponding to the spouse
+
+end
+
+to hh_add-spouse [ selfIndex spouseData ]
+
+  ; if spouseData is NULL -> [ -1 -1 ]
+  ifelse (item 0 spouseData = -1)
+  [
+    ; The spouse is entering the system:
+    ; generate and add spouse's age and sex
+    let spouse-sex (not item selfIndex hh_membersSex) ; opposite sex from selfIndex's
+    set hh_membersAge lput (get-initial-marriage-age spouse-sex) hh_membersAge
+    set hh_membersSex lput spouse-sex hh_membersSex
+
+    ;print (word "new spouse added to " self ": is female = " (last hh_membersSex) ", age = " (last hh_membersAge))
+  ]
+  [
+    ; The spouse is already in the system:
+    ; copy spouse
+    hh_add-member-from spouseData
+
+    ;print (word "spouse moving from " (Household (item 1 spouseData)) " to " self ": is female = " (last hh_membersSex) ", age = " (last hh_membersAge))
+  ]
+
+end
+
+to hh_add-member-from [ memberData ]
+
+  let aHousehold item 0 memberData
+  let index item 1 memberData
+
+  set hh_membersAge lput item index ([hh_membersAge] of aHousehold) hh_membersAge
+  set hh_membersSex lput item index ([hh_membersSex] of aHousehold) hh_membersSex
+
+  ; add member to deletion queue of original parent household
+  ask aHousehold
+  [
+    set hh_memberIndexesToDelete lput index hh_memberIndexesToDelete
+  ]
+
+end
+
+to-report get-nuptiality [ isFemale age ]
+
+  ifelse (isFemale)
+  [
+    report item age nuptialityTable-women
+  ]
+  [
+    report item age nuptialityTable-men
+  ]
+
+end
