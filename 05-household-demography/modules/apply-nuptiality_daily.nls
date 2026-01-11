@@ -172,10 +172,10 @@ to create-couple-external [ singleData ]
     ; account for the new individual coming in
     ifelse (not singleSex)
     [
-      set womenIn womenIn + 1 ; if single is male, the new individual is female
+      set womenInToday womenInToday + 1 ; if single is male, the new individual is female
     ]
     [
-      set menIn menIn + 1
+      set menInToday menInToday + 1
     ]
   ]
   [
@@ -184,7 +184,7 @@ to create-couple-external [ singleData ]
 ;    print (word "individual from " singleHousehold " moving out the system: is female = " singleSex ", age = " (item singleIndex [hh_membersAge] of singleHousehold) )
 
     ; add the single individual (and any children left alone) to the deletion queue of singleHousehold
-    let childrenMovingOut 0
+    let childrenMovingOutToday 0
     ask singleHousehold
     [
 ;      ifelse (hh_is-infants-only)
@@ -204,10 +204,10 @@ to create-couple-external [ singleData ]
     ; account for the single individual going out
     ifelse (singleSex)
     [
-      set womenOut womenOut + 1 + childrenMovingOut
+      set womenOutToday womenOutToday + 1 + childrenMovingOutToday
     ]
     [
-      set menOut menOut + 1 + childrenMovingOut
+      set menOutToday menOutToday + 1 + childrenMovingOutToday
     ]
   ]
 
@@ -225,7 +225,7 @@ to hh_set-members-to-marry
     [
       let sex item i hh_membersSex
 
-      if (random-float 1 < get-nuptiality-prob sex (item i hh_membersAge))  ; passes nuptiality test according to age
+      if (random-float 1 < get-nuptiality-prob-of-day sex (item i hh_membersAge))  ; passes nuptiality test according to age
       [
         ifelse (sex)
         [
@@ -318,19 +318,22 @@ to hh_add-spouse [ selfIndex spouseData ]
   ifelse (item 0 spouseData = -1)
   [
     ; The spouse is entering the system:
-    ; generate and add spouse's age and sex
+    ; generate and add spouse's sex and age
     let spouse-sex (not item selfIndex hh_membersSex) ; opposite sex from selfIndex's
-    set hh_membersAge lput (get-initial-marriage-age spouse-sex) hh_membersAge
+    set hh_membersAge lput (get-initial-marriage-age spouse-sex) hh_membersAge ; get the age as a function of sex-specific nuptiality
     set hh_membersSex lput spouse-sex hh_membersSex
+    ; new spouse assumed to never be gestating or lactating
+    set hh_membersGestation lput 0 hh_membersGestation
+    set hh_membersAmenorrhea lput 0 hh_membersAmenorrhea
 
-    ;print (word "new spouse added to " self ": is female = " (last hh_membersSex) ", age = " (last hh_membersAge))
+    if (hh_tellYourStory) [ print (word "New spouse added to household " self ": is female = " (last hh_membersSex) ", age = " (last hh_membersAge) ".") ]
   ]
   [
     ; The spouse is already in the system:
     ; copy spouse
     hh_add-member-from spouseData
 
-    ;print (word "spouse moving from " (Household (item 1 spouseData)) " to " self ": is female = " (last hh_membersSex) ", age = " (last hh_membersAge))
+    if (hh_tellYourStory) [ print (word "Spouse moving from household " (item 1 spouseData) " to " self ": is female = " (last hh_membersSex) ", age = " (last hh_membersAge) ".") ]
   ]
 
 end
@@ -342,6 +345,8 @@ to hh_add-member-from [ memberData ]
 
   set hh_membersAge lput item index ([hh_membersAge] of aHousehold) hh_membersAge
   set hh_membersSex lput item index ([hh_membersSex] of aHousehold) hh_membersSex
+  set hh_membersGestation lput item index ([hh_membersGestation] of aHousehold) hh_membersGestation
+  set hh_membersAmenorrhea lput item index ([hh_membersAmenorrhea] of aHousehold) hh_membersAmenorrhea
 
   ; add member to deletion queue of original parent household
   ask aHousehold
@@ -351,14 +356,30 @@ to hh_add-member-from [ memberData ]
 
 end
 
-to-report get-nuptiality-prob [ isFemale age ]
+to-report get-nuptiality-prob-of-day [ isFemale ageInDays ]
+
+  let ageInYears get-age-in-years-old ageInDays
+
+  let probMarry (get-nuptiality-prob-from-table isFemale ageInYears)
+
+  set probMarry 1 - (1 - probMarry) ^ (1 / year-length-in-days)
+
+  report probMarry
+
+end
+
+to-report get-nuptiality-prob-from-table [ isFemale ageInYears ]
+
+  let probMarry 0
 
   ifelse (isFemale)
   [
-    report item age nuptialityTable-women
+    set probMarry item ageInYears nuptialityTable-women
   ]
   [
-    report item age nuptialityTable-men
+    set probMarry item ageInYears nuptialityTable-men
   ]
+
+  report probMarry
 
 end

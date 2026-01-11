@@ -1,0 +1,89 @@
+to apply-fertility
+
+  ask households
+  [
+    hh_reproduce
+  ]
+
+end
+
+to hh_reproduce
+
+  let couplesToTest hh_count-couples
+
+  ; decrease amenorrhea time, when greater than 0
+  set hh_membersAmenorrhea map [ i -> ifelse-value (i > 0) [i - 1] [i] ] hh_membersAmenorrhea
+
+  foreach hh_membersIndexes
+  [
+    memberIndex ->
+
+    ; advance women gestation, if any, and, if it comes to 0,
+    ; add the new offspring and account for mother postpartum amenorrhea
+    if (item memberIndex hh_membersGestation > 0)
+    [
+      set hh_membersGestation replace-item memberIndex hh_membersGestation (max (list 0 (item memberIndex hh_membersGestation - 1)))
+      if (item memberIndex hh_membersGestation = 0)
+      [
+        hh_add-offspring 0 ; add a newborn
+
+        set hh_membersAmenorrhea replace-item memberIndex hh_membersAmenorrhea amenorrhea-period-in-days
+
+        if (hh_tellYourStory) [ print (word "Member " memberIndex " of household " self " give birth to a new child.") ]
+      ]
+    ]
+
+    ; iterate for the members, up to the number of couples,
+    ; testing women for the corresponding fertility rate and gestation/amenorrhea states
+    ; and, if passing test, marking women as gestating.
+
+    ; there is still a couple to consider and the member is female and not currently gestation or lactating
+    if (couplesToTest > 0 and item memberIndex hh_membersSex and (item memberIndex hh_membersGestation = 0) and (item memberIndex hh_membersAmenorrhea = 0))
+    [
+      if (random-float 1 < get-fertility-of-day (item memberIndex hh_membersAge))
+      [
+        ; mark the female as gestating a child
+        set hh_membersGestation replace-item 0 hh_membersGestation gestation-period-in-days
+
+        if (hh_tellYourStory) [ print (word "Member " memberIndex " of household " self " is pregnant with a new child.") ]
+      ]
+
+      set couplesToTest couplesToTest - 1
+    ]
+  ]
+
+end
+
+to hh_add-offspring [ initialAge ]
+
+  ; add a newborn to the household
+  ; the specification of initialAge is needed to use this in setup
+  set hh_membersAge lput initialAge hh_membersAge
+  set hh_membersSex lput (random 2 = 0) hh_membersSex
+  set hh_membersMarriage lput -1 hh_membersMarriage ; any offspring will be single
+  set hh_membersGestation lput 0 hh_membersGestation
+  set hh_membersAmenorrhea lput 0 hh_membersAmenorrhea
+
+  ifelse (last hh_membersSex)
+  [ set womenBirthsToday womenBirthsToday + 1 ]
+  [ set menBirthsToday menBirthsToday + 1 ]
+
+end
+
+to-report get-fertility-of-day [ ageInDays ]
+
+  let ageInYears get-age-in-years-old ageInDays
+
+  let probPregnancy (get-fertility-from-table ageInYears)
+
+  set probPregnancy 1 - (1 - probPregnancy) ^ (1 / year-length-in-days)
+
+  report probPregnancy
+
+end
+
+to-report get-fertility-from-table [ ageInYears ]
+
+  report (item ageInYears fertilityTable)
+
+end
