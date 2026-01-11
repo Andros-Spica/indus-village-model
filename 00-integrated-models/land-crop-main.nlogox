@@ -75,7 +75,7 @@ globals
   patchWidth       ; area of land units in squared meters (derived from patchWidth).
   maxDist          ; maximum distance between land units (length of diagonal in a rectangular map).
 
-  yearLengthInDays ; length of the year in days.
+  year-length-in-days ; length of the year in days.
 
   ;;;; soil water model constant
   soil_rootWaterUptakeCoefficient        ; (root) Water Uptake coefficient (mm^3.mm^-3) (MUF)
@@ -669,7 +669,7 @@ set-plot-x-range (round min [elevation] of patches - 1) (round max [elevation] o
       </pen>
     </plot>
     <plot x="1453" autoPlotX="true" yMax="10.0" autoPlotY="true" y="1358" xMin="0.0" height="175" legend="false" xMax="10.0" yMin="0.0" width="233" display="year preciptation">
-      <setup>set-plot-x-range 0 (yearLengthInDays + 1)</setup>
+      <setup>set-plot-x-range 0 (year-length-in-days + 1)</setup>
       <update></update>
       <pen interval="1.0" mode="1" display="default" color="-16777216" legend="true">
         <setup></setup>
@@ -679,8 +679,8 @@ set-plot-x-range (round min [elevation] of patches - 1) (round max [elevation] o
     <monitor x="1953" precision="2" y="1389" height="60" fontSize="11" width="100" display="year total">sum precipitation_yearSeries</monitor>
     <plot x="1691" autoPlotX="true" yMax="10.0" autoPlotY="true" y="1358" xMin="0.0" height="175" legend="false" xMax="10.0" yMin="0.0" width="257" display="cumulative year precipitation">
       <setup>set-plot-y-range -0.1 1.1
-set-plot-x-range 0 (yearLengthInDays + 1)</setup>
-      <update>if (currentDayOfYear = 1) [ clear-plot set-plot-y-range -0.1 1.1 set-plot-x-range 0 (yearLengthInDays + 1) ]</update>
+set-plot-x-range 0 (year-length-in-days + 1)</setup>
+      <update>if (currentDayOfYear = 1) [ clear-plot set-plot-y-range -0.1 1.1 set-plot-x-range 0 (year-length-in-days + 1) ]</update>
       <pen interval="1.0" mode="0" display="default" color="-16777216" legend="true">
         <setup></setup>
         <update>plot-cumPrecipitation-table</update>

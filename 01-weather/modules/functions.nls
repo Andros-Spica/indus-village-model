@@ -10,7 +10,7 @@ to-report gen-annual-sinusoid [ minValue maxValue dayOfYear southHemisphere ]
 
   let amplitude (maxValue - minValue) / 2
 
-  report minValue + amplitude * (1 + sin ((360 * (dayOfYear - (dayOfYearWithLowestValue - yearLengthInDays)) / yearLengthInDays) - 90))
+  report minValue + amplitude * (1 + sin ((360 * (dayOfYear - (dayOfYearWithLowestValue - year-length-in-days)) / year-length-in-days) - 90))
 
   ; NOTE: sin function in NetLogo needs angle in degrees. 360º equivalent to 2 * pi
 

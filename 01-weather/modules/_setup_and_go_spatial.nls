@@ -31,7 +31,7 @@ to set-constants
   ; "constants" are variables that will not be explored as parameters
   ; and may be used during a simulation.
 
-  set yearLengthInDays 365
+  set year-length-in-days 365
 
 end
 

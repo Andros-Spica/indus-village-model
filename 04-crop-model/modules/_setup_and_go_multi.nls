@@ -51,7 +51,7 @@ to set-constants
   set patchWidth 100
   set patchArea patchWidth * patchWidth
 
-  set yearLengthInDays 365
+  set year-length-in-days 365
 
   ; MUF : Water Uptake coefficient (mm^3 mm^-3)
   set MUF 0.096
@@ -432,6 +432,6 @@ to go
 
   ; --- stop conditions -------------------------
 
-  if (ticks = (end-simulation-in-year * yearLengthInDays)) [stop]
+  if (ticks = (end-simulation-in-year * year-length-in-days)) [stop]
 
 end

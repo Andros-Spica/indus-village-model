@@ -51,7 +51,7 @@ __includes [
 globals
 [
   ;;; default constants
-  yearLengthInDays
+  year-length-in-days
 
   MUF ; Water Uptake coefficient (mm^3.mm^-3)
   WP ; Water content at wilting Point (cm^3.cm^-3)
@@ -143,8 +143,8 @@ globals
     <button x="151" actionKey="3" y="25" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="60" display="+ year">repeat 365 [ go ]</button>
     <plot x="27" autoPlotX="true" yMax="10.0" autoPlotY="true" y="645" xMin="0.0" height="175" legend="false" xMax="10.0" yMin="0.0" width="233" display="cumulative year precipitation">
       <setup>set-plot-y-range -0.1 1.1
-set-plot-x-range 0 (yearLengthInDays + 1)</setup>
-      <update>if (currentDayOfYear = 1) [ clear-plot set-plot-y-range -0.1 1.1 set-plot-x-range 0 (yearLengthInDays + 1) ]</update>
+set-plot-x-range 0 (year-length-in-days + 1)</setup>
+      <update>if (currentDayOfYear = 1) [ clear-plot set-plot-y-range -0.1 1.1 set-plot-x-range 0 (year-length-in-days + 1) ]</update>
       <pen interval="1.0" mode="0" display="default" color="-16777216" legend="true">
         <setup></setup>
         <update>plot-cumPrecipitation-table</update>
@@ -154,7 +154,7 @@ set-plot-x-range 0 (yearLengthInDays + 1)</setup>
     <button x="51" y="148" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="152" display="parameters to default">parameters-to-default</button>
     <switch x="145" y="201" height="40" on="false" variable="southHemisphere?" width="139" display="southHemisphere?"></switch>
     <plot x="27" autoPlotX="true" yMax="10.0" autoPlotY="true" y="465" xMin="0.0" height="175" legend="false" xMax="10.0" yMin="0.0" width="233" display="year preciptation">
-      <setup>set-plot-x-range 0 (yearLengthInDays + 1)</setup>
+      <setup>set-plot-x-range 0 (year-length-in-days + 1)</setup>
       <update></update>
       <pen interval="1.0" mode="1" display="default" color="-16777216" legend="true">
         <setup></setup>

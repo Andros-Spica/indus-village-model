@@ -77,7 +77,7 @@ to set-constants
   set patchWidth 100
   set patchArea patchWidth * patchWidth
 
-  set yearLengthInDays 365
+  set year-length-in-days 365
 
   ;;; Ordered list of soil texture types used for visualisation
   ;;; this order corresponds to an approximation to the soil texture palette (red: sand, green: silt, blue: clay)
@@ -566,6 +566,6 @@ to go
 
   ; --- stop conditions -------------------------
 
-  if (ticks = (end-simulation-in-year * yearLengthInDays)) [stop]
+  if (ticks = (end-simulation-in-year * year-length-in-days)) [stop]
 
 end

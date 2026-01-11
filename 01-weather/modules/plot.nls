@@ -3,7 +3,7 @@ to plot-precipitation-table
   clear-plot
 
   ;;; precipitation (mm/day) is summed by month
-  foreach n-values yearLengthInDays [j -> j]
+  foreach n-values year-length-in-days [j -> j]
   [
     dayOfYearIndex ->
     plotxy (dayOfYearIndex + 1) (item dayOfYearIndex precipitation_yearSeries)
@@ -15,7 +15,7 @@ end
 to plot-cumPrecipitation-table
 
   ;;; precipitation (mm/day) is summed by month
-  foreach n-values yearLengthInDays [j -> j]
+  foreach n-values year-length-in-days [j -> j]
   [
     dayOfYearIndex ->
     plotxy (dayOfYearIndex + 1) (item dayOfYearIndex precipitation_cumYearSeries)

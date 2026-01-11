@@ -50,7 +50,7 @@ to update-plot-crop
     set-current-plot-pen cropName
     if (is-ripe position cropName typesOfCrops)
     [
-      plotxy (currentyear + (currentDayOfYear / yearLengthInDays)) (mean [yield] of patches with [crop = cropName])
+      plotxy (currentyear + (currentDayOfYear / year-length-in-days)) (mean [yield] of patches with [crop = cropName])
     ]
   ]
 

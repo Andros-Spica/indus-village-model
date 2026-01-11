@@ -115,7 +115,7 @@ to run-yield-performance-experiment-batch
 
     repeat end-simulation-in-year
     [
-      repeat yearLengthInDays
+      repeat year-length-in-days
       [
         go
 
@@ -243,7 +243,7 @@ to export-yield-performance
             file-type "," ; these NA will be signaling the rows that should be ignored in analysis
           ]
           [
-            file-type (mean sentence (sublist p_soil_ARID_yearSeries 1 (item cropIndex crop_harvestingDay)) (sublist p_soil_ARID_yearSeries_lastYear (item cropIndex crop_sowingDay) yearLengthInDays)) file-type ","
+            file-type (mean sentence (sublist p_soil_ARID_yearSeries 1 (item cropIndex crop_harvestingDay)) (sublist p_soil_ARID_yearSeries_lastYear (item cropIndex crop_sowingDay) year-length-in-days)) file-type ","
           ]
         ]
         ;;; yield

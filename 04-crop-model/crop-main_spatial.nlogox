@@ -66,7 +66,7 @@ globals
   ;;; default constants
   totalPatches
   maxDist
-  yearLengthInDays
+  year-length-in-days
 
   typesOfCrops
 
@@ -267,15 +267,15 @@ patches-own
     <monitor x="720" precision="2" y="1339" height="60" fontSize="11" width="100" display="year total">sum precipitation_yearSeries</monitor>
     <plot x="641" autoPlotX="true" yMax="10.0" autoPlotY="true" y="1159" xMin="0.0" height="175" legend="false" xMax="10.0" yMin="0.0" width="233" display="cumulative year precipitation">
       <setup>set-plot-y-range -0.1 1.1
-set-plot-x-range 0 (yearLengthInDays + 1)</setup>
-      <update>if (currentDayOfYear = 1) [ clear-plot set-plot-y-range -0.1 1.1 set-plot-x-range 0 (yearLengthInDays + 1) ]</update>
+set-plot-x-range 0 (year-length-in-days + 1)</setup>
+      <update>if (currentDayOfYear = 1) [ clear-plot set-plot-y-range -0.1 1.1 set-plot-x-range 0 (year-length-in-days + 1) ]</update>
       <pen interval="1.0" mode="0" display="default" color="-16777216" legend="true">
         <setup></setup>
         <update>plot-cumPrecipitation-table</update>
       </pen>
     </plot>
     <plot x="641" autoPlotX="true" yMax="10.0" autoPlotY="true" y="979" xMin="0.0" height="175" legend="false" xMax="10.0" yMin="0.0" width="233" display="year preciptation">
-      <setup>set-plot-x-range 0 (yearLengthInDays + 1)</setup>
+      <setup>set-plot-x-range 0 (year-length-in-days + 1)</setup>
       <update></update>
       <pen interval="1.0" mode="1" display="default" color="-16777216" legend="true">
         <setup></setup>

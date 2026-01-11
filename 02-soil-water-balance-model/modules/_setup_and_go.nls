@@ -27,7 +27,7 @@ to set-constants
   ; "constants" are variables that will not be explored as parameters
   ; and may be used during a simulation.
 
-  set yearLengthInDays 365
+  set year-length-in-days 365
 
   ; MUF : Water Uptake coefficient (mm^3 mm^-3)
   set MUF 0.096
