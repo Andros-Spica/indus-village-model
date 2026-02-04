@@ -1,0 +1,22 @@
+
+to reset-diet-satisfaction
+
+  ask households
+  [
+    ;;; set the diet unfullfilled as the desired diet
+    set hh_dietUnfulfilled hh_dietDesired
+  ]
+
+end
+
+to-report hh_get-dietDesired
+
+  report get-random-in-range desiredDietMin desiredDietMax
+
+end
+
+to-report hh_get-diet-available
+
+  report sum hh_stocks
+
+end

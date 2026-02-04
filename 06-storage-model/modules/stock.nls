@@ -1,0 +1,128 @@
+to hh_initialise-stocks
+
+  ;;; Initialise initial stocks
+  ;;; It creates one stock per year of production,
+  ;;; according to the baseline decay of the specific foodstuff
+
+  set hh_stocks []
+
+  ;;; iterate per stock age (from CURRENT to OLDEST),
+  ;;; adding the estimated production of that year and discounting decay.
+  ;;; current-stock converge into 0 once number of iterations reach maxStockAge
+
+  let index 0
+
+  repeat maxStockAge
+  [
+    ;;; get new value according to decay proportional to years-old
+    ;;; and add it as the stock of this year
+    set hh_stocks lput (hh_get-init-stock index) hh_stocks
+
+    set index index + 1
+  ]
+
+end
+
+to-report hh_get-init-stock [ stockAge ]
+
+  ;;; Get an initial quantity of production per year as stochastic variation,
+  ;;; discount the decay proportional to stockAge,
+  ;;; and reduce it to a fraction (minimise excitability of model at initialisation).
+
+  report hh_get-stocks-production * (get-stock-preservation-rate stockAge) * 0.1
+
+end
+
+to stocks-update
+
+  ;;; DECAY & PRODUCE
+  ;;; both are done together because they are intrinsic processes
+  ;;; (not influenced by other households)
+  ask households
+  [
+    ;;; older stocks suffers lossess
+    hh_stocks-decay
+
+    ;;; recently produced stock is added to hh_stocks
+    hh_stocks-produce
+  ]
+
+  ;;; CONSUME
+  ask households
+  [
+    hh_stocks-consume
+  ]
+
+end
+
+to hh_stocks-produce
+
+  ; place the last production as the younger stock
+  set hh_stocks replace-item 0 hh_stocks hh_get-stocks-production
+
+end
+
+to hh_stocks-decay
+
+  ;;; iterate per stock age (from OLDEST to CURRENT),
+  ;;; discounting decay and moving the stock to an older index
+  ;;; The oldest (index = maxStorageAge) is lost
+
+  let index (maxStockAge - 1)
+
+  repeat (maxStockAge - 1) ; "- 1" garantees that index 0 (the current produce) is ignored, i.e. suffers no decay
+  [
+    ;;; get new value according to decay proportional to years-old
+    let newValue (item (index - 1) hh_stocks) * (get-stock-preservation-rate index)
+
+    ;;; add value to the population-wide record of losses
+    set sumOfLosses sumOfLosses + ((item (index - 1) hh_stocks) - newValue)
+
+    ;;; and add it as the stock of this year
+    set hh_stocks replace-item index hh_stocks newValue
+
+    set index index - 1
+  ]
+
+end
+
+to hh_stocks-consume
+
+  ;;; iterate per stock age (from OLDEST to CURRENT),
+  ;;; consuming stock and trying to fulfilled the desired diet
+
+  let index (maxStockAge - 1)
+
+  repeat maxStockAge
+  [
+    ifelse (item index hh_stocks >= hh_dietUnfulfilled)
+    [
+      ; this stock alone provides enough food
+      ; subtract from the used stock
+      let newStockValue (item index hh_stocks) - hh_dietUnfulfilled
+
+      set hh_stocks replace-item index hh_stocks newStockValue
+
+      ; the desired diet is fullfilled
+      set hh_dietUnfulfilled 0
+    ]
+    [
+      ; this stock alone is not sufficient for covering the diet desired
+      set hh_dietUnfulfilled hh_dietUnfulfilled - (item index hh_stocks)
+
+      ; use out this stock
+      set hh_stocks replace-item index hh_stocks 0
+    ]
+
+    set index index - 1
+  ]
+
+end
+
+to-report get-stock-preservation-rate [ stockAge ]
+
+  ;;; This is a generic function representing a crescent decay proportional to yearsOld
+  ;;; This function should be idealy calibrated to each type of foodstuff
+  report (1 - (stockAge / maxStockAge) ^ decayShape)
+
+end

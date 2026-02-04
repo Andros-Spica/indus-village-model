@@ -1,0 +1,14 @@
+to reset-market-stats
+
+  set market_purchases 0
+  set market_sells 0
+  set market_sumOfLosses 0
+
+end
+
+to update-market-stats
+
+  ;;; market_purchases, market_sells, and market_sumOfLosses are updated
+  ;;; every iteration of hh_stocks-buy, hh_stocks-sell, and market-stocks-decay, respectively.
+
+end
