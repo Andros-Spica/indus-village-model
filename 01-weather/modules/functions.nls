@@ -1,0 +1,182 @@
+to-report gen-annual-sinusoid-with-fluctuation [ minValue maxValue meanFluctuation dayOfYear southHemisphere ]
+
+  report random-normal (gen-annual-sinusoid minValue maxValue dayOfYear southHemisphere) meanFluctuation
+
+end
+
+to-report gen-annual-sinusoid [ minValue maxValue dayOfYear southHemisphere ]
+
+  let dayOfYearWithLowestValue get-dayOfYear-with-lowest-value southHemisphere
+
+  let amplitude (maxValue - minValue) / 2
+
+  report minValue + amplitude * (1 + sin ((360 * (dayOfYear - (dayOfYearWithLowestValue - year-length-in-days)) / year-length-in-days) - 90))
+
+  ; NOTE: sin function in NetLogo needs angle in degrees. 360º equivalent to 2 * pi
+
+end
+
+to-report get-dayOfYear-with-lowest-value [ southHemisphere ]
+
+  let value -1
+
+  ifelse (southHemisphere)
+  [
+    ;;; assuming southern hemisphere, winter solstice in 21st June (not leap year)
+    set value (31 + 28 + 31 + 30 + 31 + 21)
+  ]
+  [
+    ;;; assuming northern hemisphere, winter solstice in 21st December (not leap year)
+    set value (31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 21)
+  ]
+
+  report value
+
+end
+
+to gen-precipitation-of-year [ yearLength plateauValue inflection1 rate1 inflection2 rate2 nSamples maxSampleSize totalYearPrecipitation ]
+
+  set precipitation_cumYearSeries (gen-cumulative-precipitation-of-year
+    yearLength plateauValue inflection1 rate1 inflection2 rate2 nSamples maxSampleSize)
+
+  set precipitation_yearSeries (get-increments-from-cumulative-curve precipitation_cumYearSeries totalYearPrecipitation)
+
+end
+
+to-report gen-cumulative-precipitation-of-year [ yearLength plateauValue inflection1 rate1 inflection2 rate2 nSamples maxSampleSize ]
+
+  ;;; Simulate *cumulative proportion of year precipitation*
+  ;;; NOTE: double logistic curve as a proxy of the year series of daily cumulative precipitation
+
+  ;;; get double logistic curve
+  let cumulative-curve (gen-annual-double-logistic-curve
+    yearLength
+    plateauValue inflection1 rate1 inflection2 rate2
+  )
+
+  ;;; modify the curve breaking the continuous pattern by randomly averaging neighborhoods of values
+  set cumulative-curve (discretise-curve cumulative-curve nSamples maxSampleSize)
+
+  ;;; handle special case where the curve generated is a horizontal line (first = last)
+  if (first cumulative-curve = last cumulative-curve) [
+    set cumulative-curve (map [ i -> i / yearLength ] (n-values yearLength [ i -> i + 1 ]))
+  ]
+
+  ;;; NOTE: in some cases, the curve at this point might be too horizontal and fail to reach 1.
+  ;;; This means that reaching 1 at the end of the curve (i.e. cumulative curve) takes precedence over the shape parameters
+  if ((last cumulative-curve) < 1) [ print (word "Warning (precipitation): failed to generate a cumulative curve without re-scaling: " (last cumulative-curve) " < 1" )]
+
+  ;;; re-scale the curve so it fits within 0 and 1
+  set cumulative-curve rescale-curve cumulative-curve
+
+  report cumulative-curve
+
+end
+
+to-report gen-annual-double-logistic-curve [ yearLength plateauValue inflection1 rate1 inflection2 rate2 ]
+
+  let curve (list)
+
+  foreach n-values yearLength [j -> j]
+  [
+    pointIndex ->
+    set curve lput (gen-point-in-double-logistic pointIndex plateauValue inflection1 rate1 inflection2 rate2) curve
+  ]
+
+  report curve
+
+end
+
+to-report gen-point-in-double-logistic [ pointIndex plateauValue inflection1 rate1 inflection2 rate2 ]
+
+  report (plateauValue / (1 + exp((inflection1 - pointIndex) * rate1))) + ((1 - plateauValue) / (1 + exp((inflection2 - pointIndex) * rate2)))
+
+end
+
+to-report discretise-curve [ curve nSamples maxSampleSize ]
+
+  ;;; Break curve slope into several random steps, each consisting of an increase with maximum slope followed by a plateau
+
+  foreach n-values nSamples [j -> j + 1] ; do not iterate for the first (0) element
+  [
+    sampleIndex ->
+
+    ; get a decreasing sample size proportionally to sample index
+    let thisSampleSize ceiling (maxSampleSize * sampleIndex / nSamples)
+
+    ; get random day of year to have rain (we exclude 0, which is the extra day or the last day of previous year)
+    let plateauMiddlePoint 1 + random (length curve)
+
+    ; set sample limits
+    let earliestNeighbour max (list 1 (plateauMiddlePoint - thisSampleSize))
+    let latestNeighbour min (list (length curve) (plateauMiddlePoint + thisSampleSize))
+
+    ; get mean of neighbourhood
+    let meanNeighbourhood mean (sublist curve earliestNeighbour latestNeighbour)
+    ;print (word "thisSampleSize = " thisSampleSize ", plateauMiddlePoint = " plateauMiddlePoint ", earliestNeighbour = " earliestNeighbour ", latestNeighbour = " latestNeighbour)
+    ;print meanNeighbourhood
+
+    ; assign mean to all days in neighbourhood
+    foreach n-values (latestNeighbour - earliestNeighbour) [k -> earliestNeighbour + k]
+    [
+      i ->
+      set curve replace-item i curve meanNeighbourhood
+    ]
+  ]
+
+  report curve
+
+end
+
+to-report rescale-curve [ curve ]
+
+  ;;; Rescale curve to the 0-1 interval
+
+  let newCurve curve
+
+  let range-of-curve (last curve) - (first curve)
+
+  ;if (range-of-curve = 0) [ report curve ]
+
+  foreach n-values (length curve) [j -> j]
+  [
+    i ->
+    set newCurve replace-item i newCurve (((item i curve) - (item 0 curve)) / ((last curve) - (item 0 curve)))
+  ]
+
+  report newCurve
+
+end
+
+to-report get-increments-from-cumulative-curve [ cumulative-curve totalYearPrecipitation ]
+
+  ;;; Derivate *daily proportion of year precipitation* from simulated *cumulative proportion of year precipitation*.
+  ;;; These are the difference between day i and day i - 1
+  let increments get-incremets-from-curve cumulative-curve
+
+  ;;; Calculate *daily precipitation* values by multipling *daily proportions of year precipitation* by the *year total precipitation*
+  report map [ i -> i * totalYearPrecipitation ] increments
+
+end
+
+to-report get-incremets-from-curve [ curve ]
+
+  ;;; Calculate the increments or derivatives corresponding to a given curve
+
+  let incrementsCurve curve
+
+  foreach n-values (length curve) [j -> j]
+  [
+    i ->
+    if (i > 0) ; do not iterate for the first (0) element
+    [
+      set incrementsCurve replace-item i incrementsCurve (max (list 0 ((item i curve) - (item (i - 1) curve))))
+    ]
+  ]
+
+  ;;; exclude the first element (which is the extra theoretical day used for derivative calculation)
+  set incrementsCurve but-first incrementsCurve
+
+  report incrementsCurve
+
+end

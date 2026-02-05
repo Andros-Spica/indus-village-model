@@ -1,0 +1,463 @@
+to experiment-3
+
+  let numberOfBatches 5
+
+  set experiment-name "exp3"
+
+  set type-of-experiment "user-defined"
+
+  parameters-to-default
+
+  set experiment-numberOfRuns 2
+
+  set experiment-initRandomSeed 0
+
+  set end-simulation-in-year 5
+
+  repeat numberOfBatches
+  [
+    run-yield-performance-experiment-batch
+
+    set experiment-initRandomSeed randomSeed
+  ]
+
+end
+
+to experiment-4
+
+  let numberOfBatches 5
+
+  set experiment-name "exp4"
+
+  set type-of-experiment "river-variation"
+
+  parameters-to-default
+
+  set experiment-numberOfRuns 2
+
+  set experiment-initRandomSeed 0
+
+  set end-simulation-in-year 5
+
+  repeat numberOfBatches
+  [
+    run-yield-performance-experiment-batch
+
+    set experiment-initRandomSeed randomSeed
+  ]
+
+end
+
+to experiment-5
+
+  let numberOfBatches 5
+
+  set experiment-name "exp5"
+
+  set type-of-experiment "randomised-crop-frequencies"
+
+  parameters-to-default
+
+  set experiment-numberOfRuns 2
+
+  set experiment-initRandomSeed 0
+
+  set end-simulation-in-year 5
+
+  repeat numberOfBatches
+  [
+    run-yield-performance-experiment-batch
+
+    set experiment-initRandomSeed randomSeed
+  ]
+
+end
+
+to run-yield-performance-experiment-batch
+
+  ;;; Every yield experiment batch can create up to five files:
+  ;;; - crop table (if not already created),
+  ;;; - terrain data (if not already created),
+  ;;; - parameters per run (if already created, parameters are added as new rows), and
+  ;;; - variables per crop/patch/year/run (one file created per batch)
+  ;;; - weather variables per day (one file created per batch)
+
+  ;;; a first setup is required to be able to export cropTable and terrain data
+  setup
+
+  ;;; the same cropTable applies to all runs in a batch
+  ;;; so cropTable data are exported in a separate file
+  ;;; NOTE: data can be retraced using crops names, initial random seed, and terrain random seed
+  export-cropTable-of-yield-experiment
+
+  ;;; a batch runs multiple random seeds on the same terrain
+  ;;; so terrain data are exported as a separate table to minimise file size
+  ;;; NOTE: data can be retraced using the terrainRandomSeed (assuming that the terrain parameters not controled by random seed are
+  ;;; not varying; i.e. which could produce multiple terrains using the same terrain seed)
+  export-terrain-of-yield-experiment
+
+  setup-yield-performance-data-file
+
+  setup-weather-data-file
+
+  set randomSeed experiment-initRandomSeed
+
+  repeat experiment-numberOfRuns
+  [
+    setup
+
+    ;;; a run has a single configuration of parameters
+    ;;; so parameters are exported as a separate table to minimise file size
+    ;;; NOTE: data can be retraced using the randomSeed
+    export-parameters-of-yield-experiment
+
+    export-weather-of-yield-experiment
+
+    repeat end-simulation-in-year
+    [
+      repeat year-length-in-days
+      [
+        go
+
+        export-weather-of-yield-experiment
+
+        if (currentDayOfYear = 365) [ export-yield-performance ]
+      ]
+    ]
+
+    set randomSeed randomSeed + 1
+  ]
+
+end
+
+to setup-yield-performance-data-file
+
+  ;;; parameters file
+  ;;; build a unique file name according to the user setting
+  let filePath (word "output//I2_yield-exp_pars_terrainRandomSeed=" terrainRandomSeed "_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name ".csv")
+
+  ;;; do not repeat the setup if file already exists
+  if (not file-exists? filePath)
+  [
+    file-open filePath
+
+    file-print (word
+      "terrainRandomSeed,randomSeed,"
+      "temperature_annualMaxAt2m,temperature_annualMinAt2m,temperature_meanDailyFluctuation,temperature_dailyLowerDeviation,temperature_dailyUpperDeviation,"
+      "solar_annualMax,solar_annualMin,solar_meanDailyFluctuation,"
+      "precipitation_yearlyMean,precipitation_yearlySd,precipitation_dailyCum_nSamples,precipitation_dailyCum_maxSampleSize,"
+      "precipitation_dailyCum_plateauValue_yearlyMean,precipitation_dailyCum_plateauValue_yearlySd,"
+      "precipitation_dailyCum_inflection1_yearlyMean,precipitation_dailyCum_inflection1_yearlySd,precipitation_dailyCum_rate1_yearlyMean,precipitation_dailyCum_rate1_yearlySd,"
+      "precipitation_dailyCum_inflection2_yearlyMean,precipitation_dailyCum_inflection2_yearlySd,precipitation_dailyCum_rate2_yearlyMean,precipitation_dailyCum_rate2_yearlySd,"
+      "elev_seaLevelReferenceShift,riverWaterPerFlowAccumulation,errorToleranceThreshold,"
+      "crop_selection,crop_intensity"
+    )
+
+    file-close
+  ]
+
+  ;;; yield and other variables file
+  ;;; build a unique file name according to the user setting
+  set filePath (word "output//I2_yield-exp_terrainRandomSeed=" terrainRandomSeed "_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
+
+  ;;; check that filePath does not exceed 100 (not common in this context)
+  ;if (length filePath > 120) [ print "WARNING: file path may be too long, depending on your current directory. Decrease length of file name or increase the limit." set filePath substring filePath 0 120 ]
+;print filePath
+
+  ;;; do not repeat the setup if file already exists
+  if (not file-exists? filePath)
+  [
+    file-open filePath
+
+    file-print (word
+      "terrainRandomSeed,randomSeed,"
+      "currentYear,currentDayOfYear,"
+      "precipitation_yearTotal,p_soil_meanARID,"
+      "x,y,"
+      "p_water,p_ecol_rootZoneDepth,p_soil_runOffCurveNumber,p_ecol_albedo,p_ecol_biomass,"
+      "p_ecol_%water,p_ecol_%crop,p_ecol_%wood,p_ecol_%brush,p_ecol_%grass,"
+      "crop,p_crop_frequency,p_soil_meanARID_grow,p_crop_yield,p_crop_totalYield"
+    )
+
+    file-close
+  ]
+
+end
+
+to export-yield-performance
+
+  ;;; recover the unique file name according to the user setting
+  let filePath (word "output//I2_yield-exp_terrainRandomSeed=" terrainRandomSeed "_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
+
+  file-open filePath
+
+  foreach sort patches
+  [
+    aPatch ->
+    ask aPatch
+    [
+      foreach crop_selection
+      [
+        aCrop ->
+
+        let cropIndex position aCrop typesOfCrops
+
+        ;;; terrainRandomSeed,randomSeed,
+        file-type terrainRandomSeed file-type ","
+        file-type randomSeed file-type ","
+        ;;; currentYear, currentDayOfYear,
+        file-type currentYear file-type ","
+        file-type currentDayOfYear file-type ","
+        ;;; year total of precipitation
+        file-type (sum precipitation_yearSeries) file-type ","
+        ;;; mean ARID in current year
+        file-type (mean p_soil_ARID_yearSeries) file-type ","
+        ;;; x, y,
+        file-type pxcor file-type ","
+        file-type pycor file-type ","
+        ;;; p_water, p_ecol_rootZoneDepth, p_soil_runOffCurveNumber, p_ecol_albedo, p_ecol_biomass,
+        file-type p_water file-type ","
+        file-type p_ecol_rootZoneDepth file-type ","
+        file-type p_soil_runOffCurveNumber file-type ","
+        file-type p_ecol_albedo file-type ","
+        file-type p_ecol_biomass file-type ","
+        ;;; p_ecol_%water, p_ecol_%crop, p_ecol_%wood, p_ecol_%brush, p_ecol_%grass,
+        file-type p_ecol_%water file-type ","
+        file-type p_ecol_%crop file-type ","
+        file-type p_ecol_%wood file-type ","
+        file-type p_ecol_%brush file-type ","
+        file-type p_ecol_%grass file-type ","
+        ;;; crop, p_crop_frequency
+        file-type aCrop file-type ","
+        file-type (item cropIndex p_crop_frequency) file-type ","
+        ;;; mean ARID during grow season in year
+        ifelse ((item cropIndex crop_sowingDay) < (item cropIndex crop_harvestingDay))
+        [
+          ; growing season fits the current calendar year
+          file-type (mean sublist p_soil_ARID_yearSeries (item cropIndex crop_sowingDay) (item cropIndex crop_harvestingDay)) file-type "," ]
+        [
+          ; growing season spans also into last year
+          ifelse (currentYear = 0)
+          [
+            ; there is no last year
+            file-type "," ; these NA will be signaling the rows that should be ignored in analysis
+          ]
+          [
+            file-type (mean sentence (sublist p_soil_ARID_yearSeries 1 (item cropIndex crop_harvestingDay)) (sublist p_soil_ARID_yearSeries_lastYear (item cropIndex crop_sowingDay) year-length-in-days)) file-type ","
+          ]
+        ]
+        ;;; yield
+        file-type (item cropIndex p_crop_yield) file-type ","
+        file-type (item cropIndex p_crop_totalYield)
+        file-print ""
+      ]
+    ]
+  ]
+
+  file-close
+
+end
+
+to export-parameters-of-yield-experiment
+
+  let filePath (word "output//I2_yield-exp_pars_terrainRandomSeed=" terrainRandomSeed "_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name ".csv")
+
+  file-open filePath
+
+  ;;; terrainRandomSeed,randomSeed,
+  file-type terrainRandomSeed file-type ","
+  file-type randomSeed file-type ","
+  ;;; temperature parameters
+  file-type temperature_annualMaxAt2m file-type ","
+  file-type temperature_annualMinAt2m file-type ","
+  file-type temperature_meanDailyFluctuation file-type ","
+  file-type temperature_dailyLowerDeviation file-type ","
+  file-type temperature_dailyUpperDeviation file-type ","
+  ;;; solar radiation parameters
+  file-type solar_annualMax file-type ","
+  file-type solar_annualMin file-type ","
+  file-type solar_meanDailyFluctuation file-type ","
+  ;;; precipitation parameters
+  file-type precipitation_yearlyMean file-type ","
+  file-type precipitation_yearlySd file-type ","
+  file-type precipitation_dailyCum_plateauValue_yearlyMean file-type ","
+  file-type precipitation_dailyCum_plateauValue_yearlySd file-type ","
+  file-type precipitation_dailyCum_inflection1_yearlyMean file-type ","
+  file-type precipitation_dailyCum_inflection1_yearlySd file-type ","
+  file-type precipitation_dailyCum_rate1_yearlyMean file-type ","
+  file-type precipitation_dailyCum_rate1_yearlySd file-type ","
+  file-type precipitation_dailyCum_inflection2_yearlyMean file-type ","
+  file-type precipitation_dailyCum_inflection2_yearlySd file-type ","
+  file-type precipitation_dailyCum_rate2_yearlyMean file-type ","
+  file-type precipitation_dailyCum_rate2_yearlySd file-type ","
+  file-type precipitation_dailyCum_nSamples_yearlyMean file-type ","
+  file-type precipitation_dailyCum_nSamples_yearlySd file-type ","
+  file-type precipitation_dailyCum_maxSampleSize_yearlyMean file-type ","
+  file-type precipitation_dailyCum_maxSampleSize_yearlySd file-type ","
+  ;;; terrain and hydrology parameters
+  file-type elev_seaLevelReferenceShift file-type ","
+  file-type riverWaterPerFlowAccumulation file-type ","
+  file-type errorToleranceThreshold file-type ","
+  ;;; cropping parameters
+  file-type (map [i -> (word "'" i "'")] crop_selection) file-type ","
+  file-type crop_intensity
+  file-print ""
+
+  file-close
+
+end
+
+to export-cropTable-of-yield-experiment
+
+  ;;; build a unique file name according to the user setting
+  let filePath (word "output//I2_yield-exp_cropTable.csv")
+
+  ;;; do not repeat the export if file already exists
+  if (not file-exists? filePath)
+  [
+    file-open filePath
+
+    file-print (word
+      "terrainRandomSeed,initRandomSeed,"
+      "crop,T_sum,HI,I_50A,I_50B,T_base,T_opt,RUE,I_50maxH,I_50maxW,T_heat,T_extreme,S_water,sowingDay,harvestDay,rootZoneDepth"
+    )
+
+    foreach crop_selection
+    [
+      aCrop ->
+
+      let cropIndex position aCrop typesOfCrops
+
+      ;;; terrainRandomSeed,randomSeed,
+      file-type terrainRandomSeed file-type ","
+      file-type randomSeed file-type "," ;;; this will be equivalent to experiment-initRandomSeed
+      ;;; crop, sowingDay, harvestDay
+      file-type (word aCrop) file-type ","
+      file-type (item cropIndex crop_T_sum) file-type ","
+      file-type (item cropIndex crop_HI) file-type ","
+      file-type (item cropIndex crop_I_50A) file-type ","
+      file-type (item cropIndex crop_I_50B) file-type ","
+      file-type (item cropIndex crop_T_base) file-type ","
+      file-type (item cropIndex crop_T_opt) file-type ","
+      file-type (item cropIndex crop_RUE) file-type ","
+      file-type (item cropIndex crop_I_50maxH) file-type ","
+      file-type (item cropIndex crop_I_50maxW) file-type ","
+      file-type (item cropIndex crop_T_heat) file-type ","
+      file-type (item cropIndex crop_T_extreme) file-type ","
+      file-type (item cropIndex crop_S_water) file-type ","
+      file-type (item cropIndex crop_sowingDay) file-type ","
+      file-type (item cropIndex crop_harvestingDay) file-type ","
+      file-type (item cropIndex crop_rootZoneDepth)
+      file-print ""
+    ]
+
+    file-close
+  ]
+
+end
+
+to export-terrain-of-yield-experiment
+
+  ;;; this function extracts patch information to a csv file that can be easily accessed when analysing yield experiments in R
+
+  ;;; build another unique file name to be created at output/yield/ directory, together with the yield experiment data
+  let filePath (word "output//I2_yield-exp_terrainRandomSeed=" terrainRandomSeed ".csv")
+
+  ;;; do not repeat the export if file already exists
+  if (not file-exists? filePath)
+  [
+    file-open filePath
+
+    ;;; header
+    file-print (word
+      "terrainRandomSeed,"
+      "x,y,elevation,flow_direction,flow_receive,flow_accumulation,"
+      "p_soil_formativeErosion,p_soil_depth,p_soil_%sand,p_soil_%silt,p_soil_%clay,p_soil_textureType,"
+      "p_initEcol_%grass,p_initEcol_%brush,p_initEcol_%wood,p_ecol_coverType,"
+      "p_soil_saturation,p_soil_fieldCapacity,p_soil_waterHoldingCapacity,p_soil_wiltingPoint,p_soil_deepDrainageCoefficient"
+    )
+
+    foreach sort patches
+    [
+      aPatch ->
+      ask aPatch
+      [
+        file-type terrainRandomSeed file-type ","
+        file-type pxcor file-type ","
+        file-type pycor file-type ","
+        file-type elevation file-type ","
+        file-type flow_direction file-type ","
+        file-type flow_receive file-type ","
+        file-type flow_accumulation file-type ","
+        file-type p_soil_formativeErosion file-type ","
+        file-type p_soil_depth file-type ","
+        file-type p_soil_%sand file-type ","
+        file-type p_soil_%silt file-type ","
+        file-type p_soil_%clay file-type ","
+        file-type p_soil_textureType file-type ","
+        file-type p_initEcol_%grass file-type ","
+        file-type p_initEcol_%brush file-type ","
+        file-type p_initEcol_%wood file-type ","
+        file-type p_ecol_coverType file-type ","
+        file-type p_soil_saturation file-type ","
+        file-type p_soil_fieldCapacity file-type ","
+        file-type p_soil_waterHoldingCapacity file-type ","
+        file-type p_soil_wiltingPoint file-type ","
+        file-type p_soil_deepDrainageCoefficient
+      ]
+      file-print ""
+    ]
+
+    file-close
+  ]
+
+end
+
+to setup-weather-data-file
+
+  ;;; build a unique file name according to the user setting
+  let filePath (word "output//I2_yield-exp_weather_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
+
+  ;;; check that filePath does not exceed 100 (not common in this context)
+  ;if (length filePath > 120) [ print "WARNING: file path may be too long, depending on your current directory. Decrease length of file name or increase the limit." set filePath substring filePath 0 120 ]
+;print filePath
+  file-open filePath
+
+  file-print (word
+    "randomSeed,"
+    "currentYear,currentDayOfYear,"
+    "temperature,maxTemperature,minTemperature,"
+    "solarRadiation,"
+    "precipitation"
+  )
+
+  file-close
+
+end
+
+to export-weather-of-yield-experiment
+
+  ;;; recover the unique file name according to the user setting
+  let filePath (word "output//I2_yield-exp_weather_type-of-experiment=" type-of-experiment "_experiment-name=" experiment-name "_initRandomSeed=" experiment-initRandomSeed ".csv")
+
+  file-open filePath
+
+  ;;; randomSeed,
+  file-type randomSeed file-type ","
+  ;;; currentYear, currentDayOfYear,
+  file-type currentYear file-type ","
+  file-type currentDayOfYear file-type ","
+  ;;; tempetature,temperature_max,temperature_min,
+  file-type temperature file-type ","
+  file-type maxTemperature file-type ","
+  file-type minTemperature file-type ","
+  ;;; solarRadiation,
+  file-type solarRadiation file-type ","
+  ;;; RAIN
+  file-type precipitation
+
+  file-print ""
+
+  file-close
+
+end

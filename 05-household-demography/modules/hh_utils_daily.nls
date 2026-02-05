@@ -1,0 +1,100 @@
+to hh_delete-members-in-queue
+
+  ;print self
+  ;print hh_membersAge
+  ;print hh_memberIndexesToDelete
+  ; delete members in queue following decreasing order (so indexes still to go remain valid)
+  foreach sort-by > (remove-duplicates hh_memberIndexesToDelete)
+  [
+    memberIndex ->
+    ; delete member from this household
+    hh_delete-member memberIndex
+  ]
+
+  ; reset queue
+  set hh_memberIndexesToDelete (list)
+
+end
+
+to hh_delete-member [ index ]
+
+  set hh_membersAge remove-item index hh_membersAge
+  set hh_membersSex remove-item index hh_membersSex
+  set hh_membersMarriage remove-item index hh_membersMarriage
+  ; if the member was married, it will imply that there will be an odd number of married members,
+  ; thus discounting a couple in hh_count-couples
+  set hh_membersGestation remove-item index hh_membersGestation
+  set hh_membersAmenorrhea remove-item index hh_membersAmenorrhea
+
+  if (hh_count-members = 0) [ die ] ; delete empty household
+
+end
+
+to-report hh_is-infants-only
+
+  ; filter out the members selected to be deleted
+  let membersAgeNotInQueueToDelete hh_membersAge
+
+  foreach sort-by > hh_memberIndexesToDelete
+  [
+    memberIndex ->
+    set membersAgeNotInQueueToDelete remove-item memberIndex membersAgeNotInQueueToDelete
+  ]
+
+  if (length membersAgeNotInQueueToDelete = 0) [ report false ] ; report false in case there is no members that are not in queue to deletion
+
+  ; get maturity age in days
+  let maturityAge maturity-age-in-years * year-length-in-days
+
+  report reduce and (map [i -> i < maturityAge] membersAgeNotInQueueToDelete)
+
+end
+
+to-report hh_count-members
+
+  report length hh_membersSex
+
+end
+
+to-report hh_count-children
+
+  ; get maturity age in days
+  let maturityAge maturity-age-in-years * year-length-in-days
+
+  report length filter [i -> i < maturityAge] hh_membersAge
+
+end
+
+to-report hh_count-couples
+
+  let marriedMembers filter [ i -> (i >= 0) ] hh_membersMarriage
+
+  report floor ((length marriedMembers) / 2)
+
+end
+
+to-report hh_membersIndexes
+
+  ; report a list of members indexes from 0 to n
+
+  report (n-values hh_count-members [ i -> i ])
+
+end
+
+to hh_reset-members
+
+  set hh_membersAge (list)
+  set hh_membersSex (list)
+  set hh_membersMarriage (list)
+  set hh_membersGestation (list)
+  set hh_membersAmenorrhea (list)
+
+  set hh_memberIndexesToDelete (list)
+
+end
+
+to-report get-age-in-years-old [ ageInDays ]
+
+  report floor (ageInDays / year-length-in-days)
+
+end

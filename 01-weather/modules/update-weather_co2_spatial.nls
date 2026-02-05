@@ -1,0 +1,20 @@
+to update-weather
+
+  ;;; values are assigned using simple parametric models
+  ;;; alternatively, a specific time series could be used
+
+  update-temperature currentDayOfYear
+
+  update-precipitation currentDayOfYear
+
+  update-CO2
+
+  update-solar-radiation
+
+  ask patches
+  [
+    set p_netSolarRadiation (1 - p_ecol_albedo / 100) * solarRadiation
+    update-ETr
+  ]
+
+end

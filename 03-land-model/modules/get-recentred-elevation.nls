@@ -1,0 +1,6 @@
+to-report get-recentred-elevation [ originalElevation seaLevelReferenceShift ]
+
+  ;;; get re-centre value of elevation in relation to new seaLevel
+  report originalElevation - seaLevelReferenceShift
+
+end

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<model version="NetLogo 7.0.0-beta2" snapToGrid="false">
+<model version="NetLogo 7.0.2" snapToGrid="false">
   <code><![CDATA[;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; GNU GENERAL PUBLIC LICENSE ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -97,14 +97,14 @@ globals
   WAT ; Water content in the soil profile for the rooting depth (mm)
   WATp ; Volumetric Soil Water content (fraction: mm.mm^-1). calculated as WAT/z
 
-  T ; average temperature of current day (ºC)
-  T_max ; maximum temperature of current day (ºC)
-  T_min ; minimum temperature of current day (ºC)
+  temperature ; average temperature of current day (ºC)
+  maxTemperature ; maximum temperature of current day (ºC)
+  minTemperature ; minimum temperature of current day (ºC)
 
   solarRadiation ; solar radiation of current day (MJ.m^-2)
   netSolarRadiation ; net solar radiation discount canopy reflection or albedo, assuming hypothetical grass reference crop (albedo = 0.23)
 
-  RAIN ; precipitation of current day (mm)
+  precipitation ; precipitation of current day (mm)
   precipitation_yearSeries
   precipitation_cumYearSeries
 
@@ -398,17 +398,17 @@ to update-weather
   set solarRadiation gen-solar-radiation currentDayOfYear
   set netSolarRadiation (1 - albedo) * solarRadiation
 
-  set ETr get-ETr
+  update-ETr
 
 end
 
 to update-temperature [ dayOfYear ]
 
-  set T gen-temperature dayOfYear
+  set temperature gen-temperature dayOfYear
 
-  set T_min T - temperature_dailyLowerDeviation
+  set minTemperature temperature - temperature_dailyLowerDeviation
 
-  set T_max T + temperature_dailyUpperDeviation
+  set maxTemperature temperature + temperature_dailyUpperDeviation
 
 end
 
@@ -430,7 +430,7 @@ to update-precipitation [ dayOfYear ]
 
   if (dayOfYear = 1) [ generate-annual-precipitation ]
 
-  set RAIN item (dayOfYear - 1) precipitation_yearSeries
+  set precipitation item (dayOfYear - 1) precipitation_yearSeries
 
 end
 
@@ -478,7 +478,13 @@ to-report gen-solar-radiation [ dayOfYear ]
 
 end
 
-to-report get-ETr
+to update-ETr
+  
+  set ETr get-ETr temperature minTemperature maxTemperature
+  
+end
+
+to-report get-ETr [ T T_min T_max ]
 
   ;;; useful references:
   ;;; Suleiman A A and Hoogenboom G 2007
@@ -555,20 +561,20 @@ to update-WAT
 
   ; Change in Water Before Drainage (Precipitation - Runoff)
   let RO 0
-  if (RAIN > IA)
-  [ set RO ((RAIN - 0.2 * S) ^ 2) / (RAIN + 0.8 * S) ]
+  if (precipitation > IA)
+  [ set RO ((precipitation - 0.2 * S) ^ 2) / (precipitation + 0.8 * S) ]
   ; Calculating the amount of deep drainage
   let DR 0
-  if (WAT + RAIN - RO > WATfc)
-  [ set DR DC * (WAT + RAIN - RO - WATfc) ]
+  if (WAT + precipitation - RO > WATfc)
+  [ set DR DC * (WAT + precipitation - RO - WATfc) ]
 
   ; Calculate rate of change of state variable WAT
   ; Compute maximum water uptake by plant roots on a day, RWUM
-  let RWUM MUF * (WAT + RAIN - RO - DR - WATwp)
+  let RWUM MUF * (WAT + precipitation - RO - DR - WATwp)
   ; Calculate the amount of water lost through transpiration (TR)
   let TR min (list RWUM ETr)
 
-  let dWAT RAIN - RO - DR - TR
+  let dWAT precipitation - RO - DR - TR
   set WAT WAT + dWAT
 
   set WATp WAT / z
@@ -909,23 +915,23 @@ set-plot-x-range 0 (yearLengthInDays + 1)</setup>
       <update></update>
       <pen interval="1.0" mode="0" display="mean" color="-16777216" legend="true">
         <setup></setup>
-        <update>plot T</update>
+        <update>plot temperature</update>
       </pen>
       <pen interval="1.0" mode="0" display="min" color="-13345367" legend="true">
         <setup></setup>
-        <update>plot T_min</update>
+        <update>plot minTemperature</update>
       </pen>
       <pen interval="1.0" mode="0" display="max" color="-2674135" legend="true">
         <setup></setup>
-        <update>plot T_max</update>
+        <update>plot maxTemperature</update>
       </pen>
     </plot>
     <plot x="285" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="mm" y="583" xMin="0.0" height="305" legend="true" xMax="10.0" yMin="0.0" width="656" xAxis="days" display="precipitation">
       <setup></setup>
       <update></update>
-      <pen interval="1.0" mode="1" display="RAIN" color="-16777216" legend="true">
+      <pen interval="1.0" mode="1" display="precipitation" color="-16777216" legend="true">
         <setup></setup>
-        <update>plot RAIN</update>
+        <update>plot precipitation</update>
       </pen>
       <pen interval="1.0" mode="0" display="ETr" color="-2674135" legend="true">
         <setup></setup>

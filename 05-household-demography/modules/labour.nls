@@ -1,0 +1,25 @@
+to-report hh_get-total-labour
+
+  let labour 0
+
+  foreach hh_membersAge
+  [
+    i ->
+    set labour labour + (get-labour-at-age i)
+  ]
+
+  report labour
+
+end
+
+to-report get-labour-at-age [ age ]
+
+  let labour 1
+
+  if (age < 15) [ set labour (age / 15) ^ 10 ]
+
+  if (age > 45) [ set labour (45 / age) ^ 10 ]
+
+  report labour
+
+end

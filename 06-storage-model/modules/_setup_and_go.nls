@@ -1,0 +1,171 @@
+to setup
+
+  clear-all
+
+  set-parameters
+
+  setup-households
+
+  reset-stock-stats
+
+  update-stock-stats
+
+  reset-ticks
+
+end
+
+to set-parameters
+
+  ; set random seed
+  random-seed SEED
+
+  ; check parameters values
+  parameters-check1
+
+  ;;; setup parameters depending on the type of experiment
+
+  if (type-of-experiment = "user-defined")
+  [
+    ;;; load parameters from user interface
+    set initialNumHouseholds initial-num-households
+
+    set desiredDietMax desired-diet-max
+    set desiredDietMin desired-diet-min
+
+    set productionMax production-max
+    set productionMin production-min
+
+    set maxStockAge max-stock-age
+    set decayShape decay-shape
+  ]
+  if (type-of-experiment = "random")
+  [
+    ;;; use values from user interface as a maximum for random uniform distributions
+    set initialNumHouseholds 1 + random initial-num-households ; at least one household
+
+    set desiredDietMin random desired-diet-min
+    set desiredDietMax desiredDietMin + random desired-diet-max
+
+    set productionMin random production-min
+    set productionMax productionMin + random production-max
+
+    set maxStockAge 1 + random maxStockAge
+    set decayShape 1 + random decay-shape
+  ]
+
+  ; check parameters values
+  parameters-check2
+
+end
+
+to parameters-check1
+
+  ;;; check if values were reset to 0
+  ;;; and set default values
+  if (initial-num-households = 0)               [ set initial-num-households               25 ]
+
+  if (desired-diet-max = 0)                     [ set desired-diet-max                     80 ]
+  if (desired-diet-min = 0)                     [ set desired-diet-min                     30 ]
+
+  if (production-max = 0)                       [ set production-max                       80 ]
+  if (production-min = 0)                       [ set production-min                       30 ]
+
+  if (max-stock-age = 0)                        [ set max-stock-age                         3 ]
+  if (decay-shape = 0)                          [ set decay-shape                           3 ]
+
+end
+
+to parameters-to-default
+
+  ;;; set parameters to a default value
+  set max-iterations                     2000
+
+  set initial-num-households               25
+
+  set desired-diet-max                     80
+  set desired-diet-min                     30
+
+  set production-max                       80
+  set production-min                       30
+
+  set max-stock-age                         3
+  set decay-shape                           3
+
+end
+
+to parameters-check2
+
+  ;;; initial parameter check (e.g., avoiding division per zero error)
+  check-par-is-positive "initialNumHouseholds" initialNumHouseholds
+
+  check-par-is-positive "maxStockAge" maxStockAge
+
+end
+
+to check-par-is-positive [ parName parValue ]
+
+  if (parValue <= 0)
+  [
+    print (word "ERROR: " parName " must be greater than zero")
+    stop
+  ]
+
+end
+
+to check-par-is-range [ parName parListMinMax ]
+
+  if ( item 0 parListMinMax > item 1 parListMinMax)
+  [
+    print (word "ERROR: " parName " minimum (first item) must be less than or equal to maximum (second item)")
+    stop
+  ]
+
+end
+
+to setup-households
+
+  ;;; create households (position are not relevant)
+  repeat initialNumHouseholds
+  [
+    create-households 1
+    [
+      setxy random-xcor random-ycor
+      hh_initialise
+    ]
+  ]
+
+end
+
+to hh_initialise
+
+  set hh_dietDesired hh_get-dietDesired
+
+  hh_initialise-stocks
+
+end
+
+to go
+
+  reset-stock-stats
+
+  update-households
+
+  update-stock-stats
+
+  if (ticks = max-iterations)
+  [
+    ;if (length behaviorspace-experiment-name > 0 and count households > 0) [ export-households ]
+    stop
+  ]
+  ;print "-------tick----"
+  tick
+
+end
+
+to update-households
+
+  reset-diet-satisfaction
+
+  stocks-update
+
+end

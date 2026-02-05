@@ -1,0 +1,256 @@
+to setup
+
+  clear-all
+
+  ; --- loading/testing parameters -----------
+
+  set-constants
+
+  set-parameters
+
+  ; --- core procedures ----------------------
+
+  set currentDayOfYear 1
+
+  setup-patches
+
+  update-weather
+
+  ; --- output handling ------------------------
+
+  refresh-view
+
+  ; -- time -------------------------------------
+
+  reset-ticks
+
+end
+
+to set-constants
+
+  ; "constants" are variables that will not be explored as parameters
+  ; and may be used during a simulation.
+
+  set year-length-in-days 365
+
+end
+
+to set-parameters
+
+  ; set random seed
+  random-seed seed
+
+  ; check parameters values
+  parameters-check
+
+  ;;; setup parameters depending on the type of experiment
+  if (type-of-experiment = "user-defined")
+  [
+    ;;; load parameters from user interface
+
+    ;;; weather generation
+    set temperature_annualMaxAt2m temperature_annual-max-at-2m
+    set temperature_annualMinAt2m temperature_annual-min-at-2m
+    set temperature_meanDailyFluctuation temperature_mean-daily-fluctuation
+    set temperature_dailyLowerDeviation temperature_daily-lower-deviation
+    set temperature_dailyUpperDeviation temperature_daily-upper-deviation
+
+    set CO2_annualMin CO2-annual-min
+    set CO2_annualMax CO2-annual-max
+    set CO2_meanDailyFluctuation CO2-mean-daily-fluctuation
+
+    set solar_annualMax solar_annual-max
+    set solar_annualMin solar_annual-min
+    set solar_meanDailyFluctuation solar_mean-daily-fluctuation
+
+    set precipitation_yearlyMean precipitation_yearly-mean
+    set precipitation_yearlySd precipitation_yearly-sd
+
+    set precipitation_dailyCum_plateauValue_yearlyMean precipitation_daily-cum_plateau-value_yearly-mean
+    set precipitation_dailyCum_plateauValue_yearlySd precipitation_daily-cum_plateau-value_yearly-sd
+    set precipitation_dailyCum_inflection1_yearlyMean precipitation_daily-cum_inflection1_yearly-mean
+    set precipitation_dailyCum_inflection1_yearlySd precipitation_daily-cum_inflection1_yearly-sd
+    set precipitation_dailyCum_rate1_yearlyMean precipitation_daily-cum_rate1_yearly-mean
+    set precipitation_dailyCum_rate1_yearlySd precipitation_daily-cum_rate1_yearly-sd
+    set precipitation_dailyCum_inflection2_yearlyMean precipitation_daily-cum_inflection2_yearly-mean
+    set precipitation_dailyCum_inflection2_yearlySd precipitation_daily-cum_inflection2_yearly-sd
+    set precipitation_dailyCum_rate2_yearlyMean precipitation_daily-cum_rate2_yearly-mean
+    set precipitation_dailyCum_rate2_yearlySd precipitation_daily-cum_rate2_yearly-sd
+    set precipitation_dailyCum_nSamples_yearlyMean precipitation_daily-cum_n-samples_yearly-mean
+    set precipitation_dailyCum_nSamples_yearlySd precipitation_daily-cum_n-samples_yearly-sd
+    set precipitation_dailyCum_maxSampleSize_yearlyMean precipitation_daily-cum_max-sample-size_yearly-mean
+    set precipitation_dailyCum_maxSampleSize_yearlySd precipitation_daily-cum_max-sample-size_yearly-sd
+
+    set albedo_min par_albedo_min
+    set albedo_max par_albedo_max
+    set elevation_mean par_elevation_mean
+  ]
+  if (type-of-experiment = "random")
+  [
+    ;;; use values from user interface as a maximum for random uniform distributions
+    set temperature_annualMaxAt2m 15 + random-float 25
+    set temperature_annualMinAt2m -15 + random-float 30
+    set temperature_meanDailyFluctuation random-float 5
+    set temperature_dailyLowerDeviation random-float 10
+    set temperature_dailyUpperDeviation random-float 10
+
+    set CO2_annualMin random-normal 250 20
+    set CO2_annualMax CO2_annualMin + random-float 10
+    set CO2_meanDailyFluctuation max (list 0 random-normal 2.5 0.5)
+
+    set solar_annualMin 1.5 + random-float 15
+    set solar_annualMax 20 + random-float 10
+    set solar_meanDailyFluctuation 3 + random-float 3
+
+    set precipitation_yearlyMean 200 + random-float 800
+    set precipitation_yearlySd random-float 200
+
+    set precipitation_dailyCum_plateauValue_yearlyMean 0.2 + random-float 0.6
+    set precipitation_dailyCum_plateauValue_yearlySd random-float 0.4
+    set precipitation_dailyCum_inflection1_yearlyMean 40 + random 140
+    set precipitation_dailyCum_inflection1_yearlySd 20 + random 80
+    set precipitation_dailyCum_rate1_yearlyMean 0.01 + random-float 0.07
+    set precipitation_dailyCum_rate1_yearlySd 0.004 + random-float 0.02
+    set precipitation_dailyCum_inflection2_yearlyMean 180 + random 140
+    set precipitation_dailyCum_inflection2_yearlySd 20 + random 80
+    set precipitation_dailyCum_rate2_yearlyMean 0.01 + random-float 0.07
+    set precipitation_dailyCum_rate2_yearlySd 0.004 + random-float 0.02
+    set precipitation_dailyCum_nSamples_yearlyMean 100 + random 200
+    set precipitation_dailyCum_nSamples_yearlySd 10 + random 20
+    set precipitation_dailyCum_maxSampleSize_yearlyMean 5 + random 20
+    set precipitation_dailyCum_maxSampleSize_yearlySd 1 + random 5
+
+    set albedo_min 1E-6 + random-float 30
+    set albedo_max albedo_min + random-float (albedo_max - albedo_min)
+    set elevation_mean random-float 1000
+
+    ;;; NOTES about calibration:
+    ;;; Global Horizontal Irradiation can vary from about 2 to 7 KWh/m-2 per day.
+    ;;; (conversion kWh/m2 to MJ/m2 is 1 : 3.6)
+    ;;; See approx. values in https://globalsolaratlas.info/
+    ;;; and https://www.researchgate.net/publication/271722280_Solmap_Project_In_India%27s_Solar_Resource_Assessment
+    ;;; see general info in http://www.physicalgeography.net/fundamentals/6i.html
+  ]
+
+end
+
+to parameters-check
+
+  ;;; check if values were reset to 0 (NetLogo does that from time to time...!)
+  ;;; and set default values (assuming they are not 0)
+
+  ;;; the default values of weather parameters aim to broadly represent conditions in Haryana, NW India.
+
+  if (temperature_annual-max-at-2m = 0)                          [ set temperature_annual-max-at-2m                             37 ]
+  if (temperature_annual-min-at-2m = 0)                          [ set temperature_annual-min-at-2m                             12.8 ]
+  if (temperature_mean-daily-fluctuation = 0)                    [ set temperature_mean-daily-fluctuation                        2.2 ]
+  if (temperature_daily-lower-deviation = 0)                     [ set temperature_daily-lower-deviation                         6.8 ]
+  if (temperature_daily-upper-deviation = 0)                     [ set temperature_daily-upper-deviation                         7.9 ]
+
+  if (CO2-annual-min = 0)                                        [ set CO2-annual-min                               245 ]
+  if (CO2-annual-max = 0)                                        [ set CO2-annual-max                               255 ]
+  if (CO2-mean-daily-fluctuation = 0)                            [ set CO2-mean-daily-fluctuation                     1 ]
+
+  if (solar_annual-max = 0)                                      [ set solar_annual-max                                          24.2 ]
+  if (solar_annual-min = 0)                                      [ set solar_annual-min                                          9.2 ]
+  if (solar_mean-daily-fluctuation = 0)                          [ set solar_mean-daily-fluctuation                              3.3 ]
+
+  if (precipitation_yearly-mean = 0)                             [ set precipitation_yearly-mean                               489 ]
+  if (precipitation_yearly-sd = 0)                               [ set precipitation_yearly-sd                                 142.2 ]
+  if (precipitation_daily-cum_plateau-value_yearly-mean = 0)     [ set precipitation_daily-cum_plateau-value_yearly-mean         0.25 ]
+  if (precipitation_daily-cum_plateau-value_yearly-sd = 0)       [ set precipitation_daily-cum_plateau-value_yearly-sd           0.1 ]
+  if (precipitation_daily-cum_inflection1_yearly-mean = 0)       [ set precipitation_daily-cum_inflection1_yearly-mean           40 ]
+  if (precipitation_daily-cum_inflection1_yearly-sd = 0)         [ set precipitation_daily-cum_inflection1_yearly-sd             5 ]
+  if (precipitation_daily-cum_rate1_yearly-mean = 0)             [ set precipitation_daily-cum_rate1_yearly-mean                 0.07 ]
+  if (precipitation_daily-cum_rate1_yearly-sd = 0)               [ set precipitation_daily-cum_rate1_yearly-sd                   0.02 ]
+  if (precipitation_daily-cum_inflection2_yearly-mean = 0)       [ set precipitation_daily-cum_inflection2_yearly-mean           240 ]
+  if (precipitation_daily-cum_inflection2_yearly-sd = 0)         [ set precipitation_daily-cum_inflection2_yearly-sd             20 ]
+  if (precipitation_daily-cum_rate2_yearly-mean = 0)             [ set precipitation_daily-cum_rate2_yearly-mean                 0.08 ]
+  if (precipitation_daily-cum_rate2_yearly-sd = 0)               [ set precipitation_daily-cum_rate2_yearly-sd                   0.02 ]
+  if (precipitation_daily-cum_n-samples_yearly-mean = 0)         [ set precipitation_daily-cum_n-samples_yearly-mean           200 ]
+  if (precipitation_daily-cum_n-samples_yearly-sd = 0)           [ set precipitation_daily-cum_n-samples_yearly-sd               5 ]
+  if (precipitation_daily-cum_max-sample-size_yearly-mean = 0)   [ set precipitation_daily-cum_max-sample-size_yearly-mean      10 ]
+  if (precipitation_daily-cum_max-sample-size_yearly-sd = 0)     [ set precipitation_daily-cum_max-sample-size_yearly-sd         3 ]
+
+  if (par_albedo_min = 0)                                        [ set par_albedo_min                              10 ]
+  if (par_albedo_max = 0)                                        [ set par_albedo_max                              50 ]
+
+  if (par_elevation_mean = 0)                                    [ set par_elevation_mean                          200 ]
+
+end
+
+to parameters-to-default
+
+  ;;; set parameters to a default value
+  set end-simulation-in-tick                     (5 * 365)
+
+  set temperature_annual-max-at-2m                             37
+  set temperature_annual-min-at-2m                             12.8
+  set temperature_mean-daily-fluctuation                        2.2
+  set temperature_daily-lower-deviation                         6.8
+  set temperature_daily-upper-deviation                         7.9
+
+  set CO2-annual-min                                          245
+  set CO2-annual-max                                          255
+  set CO2-mean-daily-fluctuation                                1
+
+  set solar_annual-max                                          24.2
+  set solar_annual-min                                          9.2
+  set solar_mean-daily-fluctuation                              3.3
+
+  set precipitation_yearly-mean                               489
+  set precipitation_yearly-sd                                 142.2
+
+  set precipitation_daily-cum_plateau-value_yearly-mean         0.25
+  set precipitation_daily-cum_plateau-value_yearly-sd           0.1
+  set precipitation_daily-cum_inflection1_yearly-mean           40
+  set precipitation_daily-cum_inflection1_yearly-sd             5
+  set precipitation_daily-cum_rate1_yearly-mean                 0.07
+  set precipitation_daily-cum_rate1_yearly-sd                   0.02
+  set precipitation_daily-cum_inflection2_yearly-mean           240
+  set precipitation_daily-cum_inflection2_yearly-sd             20
+  set precipitation_daily-cum_rate2_yearly-mean                 0.08
+  set precipitation_daily-cum_rate2_yearly-sd                   0.02
+  set precipitation_daily-cum_n-samples_yearly-mean           200
+  set precipitation_daily-cum_n-samples_yearly-sd               5
+  set precipitation_daily-cum_max-sample-size_yearly-mean      10
+  set precipitation_daily-cum_max-sample-size_yearly-sd         3
+
+  set par_albedo_min                              10
+  set par_albedo_max                              50
+
+  set par_elevation_mean                          200
+
+end
+
+to setup-patches
+
+  ask patches
+  [
+    set elevation random-poisson elevation_mean ; this is only a temporal approach to test this submodel (elevation should be given by the Land model)
+    set p_ecol_albedo albedo_min + random-float albedo_max
+  ]
+
+end
+
+to go
+
+  ; --- core procedures -------------------------
+
+  update-weather
+
+  ; --- output handling ------------------------
+
+  refresh-view
+
+  ; -- time -------------------------------------
+
+  advance-time
+
+  tick
+
+  ; --- stop conditions -------------------------
+
+  if (ticks = end-simulation-in-tick) [stop]
+
+end

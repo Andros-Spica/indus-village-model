@@ -1,0 +1,106 @@
+to hh_initialise
+
+  ;;; Initialization of households
+
+  set hh_lineage (list who) ; initialise lineage ID with this household 'who'
+  set hh_age get-initial-household-age
+  set hh_maxCoupleCount get-initial-max-couple-count
+  set hh_memberIndexesToDelete (list)
+  set hh_tellYourStory false
+
+  hh_initialise-members
+
+  ;;; move to empty or less crowded patch, just in sake of visualisation
+  move-to min-one-of patches [count households-here]
+
+end
+
+to-report get-initial-household-age
+
+  let ageInYears item 0 household-initial-age-distribution + random (item 1 household-initial-age-distribution - item 0 household-initial-age-distribution + 1)
+
+  report (ageInYears * year-length-in-days) + (random year-length-in-days)
+
+end
+
+to-report get-initial-max-couple-count
+
+  report item 0 max-couple-count-distribution + random (item 1 max-couple-count-distribution - item 0 max-couple-count-distribution + 1)
+
+end
+
+to hh_initialise-members
+
+  hh_reset-members
+
+  ; assures that at least two members are above (fertility age + household age), have different sex and are coupled
+  foreach (list 0 1)
+  [
+    ?1 ->
+    set hh_membersSex lput (?1 = 0) hh_membersSex
+    let marriageAge (get-initial-marriage-age (item ?1 hh_membersSex))
+    set hh_membersAge lput (hh_age + marriageAge) hh_membersAge
+    set hh_membersMarriage lput 0 hh_membersMarriage ; this couple will have the 0 index
+    set hh_membersGestation lput 0 hh_membersGestation
+    set hh_membersAmenorrhea lput 0 hh_membersAmenorrhea
+  ]
+
+  ; calculate offspring and offspring age
+  let offspringProb 0
+  let i hh_age
+  repeat hh_age
+  [
+    ; check fertility only if woman is not in postpartum amenorrhea
+    ifelse (item 0 hh_membersAmenorrhea = 0)
+    [
+      ; get the probability of the couple having descendence for a past day i
+      ; i.e. woman fertility at the corresponding age
+      set offspringProb get-fertility-of-day ((item 0 hh_membersAge) - i)
+
+      ; test the fertility probability and mark gestation
+      if (random-float 1 < offspringProb)
+      [
+        ; mark the female as gestating a child
+        set hh_membersGestation replace-item 0 hh_membersGestation gestation-period-in-days
+      ]
+
+      ; advance gestation, if any, and, if it comes to 0, add the offspring with the corresponding age and account for mother amenorrhea
+      if (item 0 hh_membersGestation > 0)
+      [
+        set hh_membersGestation replace-item 0 hh_membersGestation (max (list 0 (item 0 hh_membersGestation - 1)))
+        if (item 0 hh_membersGestation = 0)
+        [
+          hh_add-offspring i ; a child with i days old
+
+          ; account for the postpartum amenorrhea period, discouting child age
+          set hh_membersAmenorrhea replace-item 0 hh_membersAmenorrhea amenorrhea-period-in-days
+        ]
+      ]
+    ]
+    [
+      set hh_membersAmenorrhea replace-item 0 hh_membersAmenorrhea (max (list 0 (amenorrhea-period-in-days - i)))
+    ]
+
+    set i i - 1
+  ]
+
+end
+
+to-report get-initial-marriage-age [ isFemale ]
+
+  ; get a marriage age in days as a stochastic function of nuptiality rates in earlier years
+  let notMarried true
+  let ageInYears 0
+
+  while [notMarried AND ageInYears < 100]
+  [
+    if ((get-nuptiality-prob-from-table isFemale ageInYears) > random-float 1)
+    [
+      set notMarried false
+    ]
+    set ageInYears ageInYears + 1
+  ]
+
+  report (ageInYears * year-length-in-days) + (random year-length-in-days)
+
+end

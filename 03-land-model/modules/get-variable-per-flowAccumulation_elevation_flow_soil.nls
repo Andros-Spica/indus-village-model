@@ -1,0 +1,42 @@
+to-report get-variable-per-flowAccumulation [ variableName ]
+
+  let stepInSequence 1;maxFlowAccumulation / 100
+  let lengthOfSequence maxFlowAccumulation
+  let sequence (list)
+
+  if (variableName = "Depth")
+  [
+    foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
+    [
+      i ->
+      set sequence lput (get-soil-depth (get-soil-formative-erosion i)) sequence
+    ]
+  ]
+  if (variableName = "Sand")
+  [
+    foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
+    [
+      i ->
+      set sequence lput (get-soil-%sand (get-soil-formative-erosion i)) sequence
+    ]
+  ]
+  if (variableName = "Silt")
+  [
+    foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
+    [
+      i ->
+      set sequence lput (get-soil-%silt (get-soil-formative-erosion i)) sequence
+    ]
+  ]
+  if (variableName = "Clay")
+  [
+    foreach (n-values lengthOfSequence [ j -> j + stepInSequence ])
+    [
+      i ->
+      set sequence lput (get-soil-%clay (get-soil-formative-erosion i)) sequence
+    ]
+  ]
+
+  report sequence
+
+end

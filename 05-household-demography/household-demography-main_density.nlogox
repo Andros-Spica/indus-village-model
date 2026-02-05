@@ -1,0 +1,1320 @@
+<?xml version="1.0" encoding="utf-8"?>
+<model version="NetLogo 7.0.2" snapToGrid="false">
+  <code><![CDATA[;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; GNU GENERAL PUBLIC LICENSE ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;  Household Demography with density effect on mortality
+;;  Copyright (C) Andreas Angourakis (andros.spica@gmail.com)
+;;  available at https://www.github.com/Andros-Spica/indus-village-model
+;;
+;;  This program is free software: you can redistribute it and/or modify
+;;  it under the terms of the GNU General Public License as published by
+;;  the Free Software Foundation, either version 3 of the License, or
+;;  (at your option) any later version.
+;;
+;;  This program is distributed in the hope that it will be useful,
+;;  but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;  GNU General Public License for more details.
+;;
+;;  You should have received a copy of the GNU General Public License
+;;  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+__includes [
+  "modules/_setup_and_go_density.nls" ;---
+  "modules/age-households.nls"
+  "modules/apply-fertility.nls"
+  "modules/apply-nuptiality.nls"
+  "modules/apply-mortality_density.nls" ;---
+  "modules/manage-orphanhood.nls"
+  "modules/hh_init.nls"
+  "modules/hh_utils.nls"
+  "modules/kinship.nls"
+  "modules/fertility-nuptiality_peristera-kostaki.nls"
+  "modules/mortality_coale-demeny.nls"
+  "modules/output-stats.nls"
+  "modules/experiments.nls"
+  "../utils/plot-table.nls"
+  "../utils/clamp.nls"
+]
+
+;;;;;;;;;;;;;;;;;
+;;;;; BREEDS ;;;;
+;;;;;;;;;;;;;;;;;
+
+breed [ households household ]
+
+;;;;;;;;;;;;;;;;;
+;;; VARIABLES ;;;
+;;;;;;;;;;;;;;;;;
+
+globals
+[
+  ;;; constants
+  maturity-age                    ; defaults to 15 years old; it affects the minimum age acceptable for individuals to keep a household without older individuals
+  density-effect-steepness
+
+  ;;; demography tables
+  fertilityTable
+  nuptialityTable-women nuptialityTable-men
+  mortalityTable-women mortalityTable-men
+
+  ;;; modified parameters
+  initial-num-households
+  household-initial-age-distribution ; (list minimum maximum)
+  max-couple-count-distribution      ; (list minimum maximum)
+  acceptable-kinship-degree-for-couples ; degree of kinship acceptable between two individuals forming a new couple (1 = same household, 0.5 = level one relationship, etc.)
+
+  carrying-capacity               ; carrying capacity or maximum number of people that can be sustained, i.e. mortality is increased in prportion to closeness of population to it (density effect)
+  density-effect-scaling-factor   ; the maximum additional death probability (scaling factor for density-dependent mortality)
+
+  ;;; variables
+  ;;;; auxiliar
+  ; these are lists of string-coded individuals
+  womenToMarry                   ; single individuals selected to marry ("<household who> <member index>")
+  menToMarry
+  orphanList                     ; orphan children left without adults ("<sex> <age>")
+
+  ;;;; counters and final measures
+  totalHouseholds                ; count households (integer)
+  totalIndividuals               ; sum of members of households (integer)
+  totalPopulationGrowth          ; % of last totalIndividuals
+  totalWomen                     ; sum of female members of households (integer)
+  totalMen                       ; sum of male members of households (integer)
+  femaleRatio                    ; total number of women over total number of individuals (float)
+  womenAgeStructure              ; merge list of all households female members ages (list of integers)
+  menAgeStructure                ; merge list of all households male members ages (list of integers)
+  womenFirstAgeGroup             ; count of women with age from 0 to 4 years old (base of typical population pyramid) (integer)
+  menFirstAgeGroup               ; count of men with age from 0 to 4 years old (base of typical population pyramid) (integer)
+  womenBirths                    ; number of births (integer)
+  menBirths
+  womenDeaths                    ; number of deaths (integer)
+  menDeaths
+  womenIn                        ; number of individuals entering the system (generated for couple creation with external population) (integer)
+  menIn
+  womenOut                       ; number of individuals exiting the system (due to couple creation with external population) (integer)
+  menOut
+  totalOrphans                   ; number of children moving from an household where all adults are dead
+]
+
+;;; agents variables
+
+households-own
+[
+  hh_lineage                     ; identifier of the lineage history of a household (list of integers; integers are household 'who's)
+  hh_age                         ; number of years during which the household existed (integer)
+  hh_maxCoupleCount              ; max. number of couples accepted within a household (integer)
+  hh_membersAge                  ; ages of every household member (list of integer)
+  hh_membersSex                  ; sex of every household member (list of true/false, i.e. is female?)
+  hh_membersMarriage             ; couple index of every member (list of integers; 0-Inf: couple index, -1: member is single)
+
+  ;;; auxiliar
+  hh_memberIndexesToDelete
+]
+]]></code>
+  <widgets>
+    <view x="358" wrappingAllowedX="true" y="10" frameRate="30.0" minPycor="-9" height="308" showTickCounter="true" patchSize="16.0" fontSize="10" wrappingAllowedY="true" width="308" tickCounterLabel="ticks" maxPycor="9" updateMode="0" maxPxcor="9" minPxcor="-9"></view>
+    <button x="15" actionKey="1" y="10" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="63">setup</button>
+    <button x="93" actionKey="2" y="11" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="55">go</button>
+    <button x="159" actionKey="3" y="11" height="40" disableUntilTicks="false" forever="true" kind="Observer" width="55">go</button>
+    <monitor x="1192" precision="2" y="801" height="60" fontSize="11" width="100" display="% 0-4 (women)">100 * womenFirstAgeGroup / totalWomen</monitor>
+    <monitor x="1294" precision="2" y="800" height="60" fontSize="11" width="100" display="% 0-4 (men)">100 * menFirstAgeGroup / totalMen</monitor>
+    <plot x="1149" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="mean members age" y="883" xMin="0.0" height="262" legend="false" xMax="10.0" yMin="0.0" width="290" xAxis="members count" display="Household structure">
+      <setup></setup>
+      <update>clear-plot</update>
+      <pen interval="1.0" mode="2" display="" color="-16777216" legend="true">
+        <setup></setup>
+        <update>ask households [ plotxy (length hh_membersAge) (mean hh_membersAge) ]</update>
+      </pen>
+    </plot>
+    <monitor x="1262" precision="4" y="108" height="60" fontSize="11" width="100">femaleRatio</monitor>
+    <plot x="684" autoPlotX="true" yMax="10.0" autoPlotY="true" y="883" xMin="0.0" height="263" legend="true" xMax="10.0" yMin="0.0" width="461" display="Age structure (population)">
+      <setup>set-histogram-num-bars 20
+set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)</setup>
+      <update>set-plot-y-range 0 10
+;set-histogram-num-bars 20
+carefully [ set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure) ] [ ]</update>
+      <pen interval="1.0" mode="1" display="women" color="-2674135" legend="true">
+        <setup></setup>
+        <update>carefully [ histogram womenAgeStructure ] [ ]</update>
+      </pen>
+      <pen interval="1.0" mode="1" display="men" color="-13345367" legend="true">
+        <setup></setup>
+        <update>carefully [ histogram menAgeStructure ] [ ]</update>
+      </pen>
+    </plot>
+    <plot x="1150" autoPlotX="true" yMax="10.0" autoPlotY="true" y="607" xMin="0.0" height="169" legend="false" xMax="10.0" yMin="0.0" width="284" display="couple count per household">
+      <setup>set-plot-y-range -0.001 (item 1 max-couple-count-distribution + 0.01)</setup>
+      <update></update>
+      <pen interval="1.0" mode="1" display="default" color="-16777216" legend="true">
+        <setup></setup>
+        <update>histogram [hh_count-couples] of households</update>
+      </pen>
+    </plot>
+    <plot x="681" autoPlotX="true" yMax="10.0" autoPlotY="true" y="513" xMin="0.0" height="167" legend="true" xMax="10.0" yMin="0.0" width="464" display="Households">
+      <setup></setup>
+      <update></update>
+      <pen interval="1.0" mode="0" display="households" color="-16777216" legend="true">
+        <setup>plot totalHouseholds</setup>
+        <update>plot totalHouseholds</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="couples" color="-7500403" legend="true">
+        <setup></setup>
+        <update>plot sum [hh_count-couples] of households</update>
+      </pen>
+    </plot>
+    <plot x="681" autoPlotX="true" yMax="10.0" autoPlotY="true" y="685" xMin="0.0" height="195" legend="true" xMax="10.0" yMin="0.0" width="464" display="maxCoupleCount and actual count">
+      <setup>set-plot-y-range -1 (1 + item 1 max-couple-count-distribution)</setup>
+      <update></update>
+      <pen interval="1.0" mode="0" display="max. mean" color="-8053223" legend="true">
+        <setup></setup>
+        <update>carefully [ plot mean [hh_maxCoupleCount] of households] [ ]</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="max. max" color="-8630108" legend="true">
+        <setup></setup>
+        <update>carefully [ plot max [hh_maxCoupleCount] of households ] [ ]</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="max. min" color="-5825686" legend="true">
+        <setup></setup>
+        <update>carefully [ plot min [hh_maxCoupleCount] of households ] [ ]</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="count mean" color="-15582384" legend="true">
+        <setup></setup>
+        <update>carefully [ plot mean [hh_count-couples] of households ] [ ]</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="count max" color="-14454117" legend="true">
+        <setup></setup>
+        <update>carefully [ plot max [hh_count-couples] of households ] [ ]</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="count min" color="-12345184" legend="true">
+        <setup></setup>
+        <update>carefully [ plot min [hh_count-couples] of households ] [ ]</update>
+      </pen>
+    </plot>
+    <monitor x="1274" precision="4" y="368" height="60" fontSize="11" width="100" display="men death rate">menDeaths / totalMen</monitor>
+    <monitor x="1156" precision="4" y="368" height="60" fontSize="11" width="113" display="women death rate">womenDeaths / totalWomen</monitor>
+    <monitor x="1273" precision="4" y="305" height="60" fontSize="11" width="100" display="men birth rate">menBirths / totalMen</monitor>
+    <monitor x="1155" precision="4" y="305" height="60" fontSize="11" width="114" display="women birth rate">womenBirths / totalWomen</monitor>
+    <monitor x="1158" precision="0" y="107" height="60" fontSize="11" width="100" display="orphans count">totalOrphans</monitor>
+    <monitor x="1157" precision="2" y="45" height="60" fontSize="14" width="210" display="total population growth (%)">totalPopulationGrowth</monitor>
+    <monitor x="1135" precision="4" y="208" height="60" fontSize="11" width="135" display="men emigration rate">menOut / totalMen</monitor>
+    <monitor x="994" precision="4" y="208" height="60" fontSize="11" width="134" display="men immigration rate">menIn / totalMen</monitor>
+    <monitor x="846" precision="4" y="208" height="60" fontSize="11" width="140" display="women emigration rate">womenOut / totalWomen</monitor>
+    <monitor x="683" precision="4" y="208" height="60" fontSize="11" width="155" display="women immigration rate">womenIn / totalWomen</monitor>
+    <plot x="681" autoPlotX="true" yMax="10.0" autoPlotY="true" y="267" xMin="0.0" height="242" legend="true" xMax="10.0" yMin="0.0" width="464" display="Births and deaths">
+      <setup></setup>
+      <update></update>
+      <pen interval="1.0" mode="0" display="women deaths" color="-11053225" legend="true">
+        <setup></setup>
+        <update>plot womenDeaths</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="men deaths" color="-4539718" legend="true">
+        <setup></setup>
+        <update>plot menDeaths</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="births" color="-14439633" legend="true">
+        <setup></setup>
+        <update>plot womenBirths + menBirths</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="deaths" color="-16777216" legend="true">
+        <setup></setup>
+        <update>plot womenDeaths + menDeaths</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="women births" color="-13210332" legend="true">
+        <setup></setup>
+        <update>plot womenBirths</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="men births" color="-11881837" legend="true">
+        <setup></setup>
+        <update>plot menBirths</update>
+      </pen>
+    </plot>
+    <slider x="476" step="0.001" y="1098" max="2 * 5" width="201" display="sigma2-men" height="50" min="0" direction="Horizontal" default="15.0" variable="sigma2-men" units="(default: 10)"></slider>
+    <slider x="476" step="0.001" y="1047" max="2 * 5" width="201" display="sigma1-men" height="50" min="0" direction="Horizontal" default="6.0" variable="sigma1-men" units="(default: 2)"></slider>
+    <slider x="476" step="0.001" y="995" max="2 * 20" width="201" display="mu-men" height="50" min="0" direction="Horizontal" default="34.0" variable="mu-men" units="(default: 20)"></slider>
+    <slider x="476" step="0.001" y="943" max="1" width="201" display="c1-men" height="50" min="0" direction="Horizontal" default="1.0" variable="c1-men" units="(default: 0.85)"></slider>
+    <slider x="266" step="0.001" y="1098" max="2 * 5" width="209" display="sigma2-women" height="50" min="0" direction="Horizontal" default="6.0" variable="sigma2-women" units="(default: 5)"></slider>
+    <slider x="266" step="0.001" y="1047" max="2 * 5" width="209" display="sigma1-women" height="50" min="0" direction="Horizontal" default="15.0" variable="sigma1-women" units="(default: 5)"></slider>
+    <slider x="266" step="0.001" y="995" max="40" width="209" display="mu-women" height="50" min="0" direction="Horizontal" default="21.0" variable="mu-women" units="(default: 15)"></slider>
+    <chooser x="267" y="611" height="60" variable="coale-demeny-region" current="2" width="141" display="coale-demeny-region">
+      <choice type="string" value="west"></choice>
+      <choice type="string" value="east"></choice>
+      <choice type="string" value="south"></choice>
+      <choice type="string" value="north"></choice>
+    </chooser>
+    <slider x="270" step="0.001" y="716" max="1" width="210" display="c1-fert" height="50" min="0" direction="Horizontal" default="0.9" variable="c1-fert" units="(default: 0.9)"></slider>
+    <slider x="270" step="0.001" y="826" max="2 * 5" width="235" display="sigma1-fert" height="50" min="0" direction="Horizontal" default="8.0" variable="sigma1-fert" units="(default: 5)"></slider>
+    <slider x="271" step="0.001" y="881" max="6 * 5" width="234" display="sigma2-fert" height="50" min="0" direction="Horizontal" default="9.0" variable="sigma2-fert" units="(default: 10)"></slider>
+    <slider x="270" step="0.001" y="771" max="40" width="208" display="mu-fert" height="50" min="0" direction="Horizontal" default="19.0" variable="mu-fert" units="(default: 15)"></slider>
+    <slider x="266" step="0.001" y="943" max="1" width="209" display="c1-women" height="50" min="0" direction="Horizontal" default="1.0" variable="c1-women" units="(default: 0.9)"></slider>
+    <slider x="265" step="1" y="556" max="25" width="214" display="cdmlt-level" height="50" min="1" direction="Horizontal" default="19.0" variable="cdmlt-level" units="levels from 1 to 25"></slider>
+    <chooser x="465" y="340" height="60" variable="residence-rule" current="1" width="157" display="residence-rule">
+      <choice type="string" value="patrilocal-patrilineal"></choice>
+      <choice type="string" value="matrilocal-matrilineal"></choice>
+    </chooser>
+    <plot x="32" autoPlotX="false" yMax="10.0" autoPlotY="false" y="941" xMin="0.0" height="186" legend="false" xMax="10.0" yMin="0.0" width="226" xAxis="age" display="nuptiality (prob. marrying)">
+      <setup></setup>
+      <update>clear-plot
+set-plot-x-range 0 55
+set-plot-y-range -0.001 (precision (max (list max nuptialityTable-women max nuptialityTable-men) + 0.001) 4)</update>
+      <pen interval="1.0" mode="0" display="default" color="-5298144" legend="true">
+        <setup></setup>
+        <update>plot-table nuptialityTable-women</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="pen-1" color="-14070903" legend="true">
+        <setup></setup>
+        <update>plot-table nuptialityTable-men</update>
+      </pen>
+    </plot>
+    <plot x="32" autoPlotX="false" yMax="10.0" autoPlotY="false" y="542" xMin="0.0" height="182" legend="false" xMax="10.0" yMin="0.0" width="226" xAxis="age" display="mortality (prob. dying)">
+      <setup></setup>
+      <update>clear-plot
+set-plot-x-range 0 100
+set-plot-y-range -0.001 (precision (max (list max mortalityTable-women max mortalityTable-men) + 0.001) 4)</update>
+      <pen interval="1.0" mode="0" display="default" color="-5298144" legend="true">
+        <setup></setup>
+        <update>plot-table mortalityTable-women</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="pen-1" color="-14070903" legend="true">
+        <setup></setup>
+        <update>plot-table mortalityTable-men</update>
+      </pen>
+    </plot>
+    <plot x="32" autoPlotX="false" yMax="10.0" autoPlotY="false" y="730" xMin="0.0" height="201" legend="false" xMax="10.0" yMin="0.0" width="226" xAxis="age" display="fertility (prob. of giving birth)">
+      <setup></setup>
+      <update>clear-plot
+set-plot-x-range 0 55
+set-plot-y-range -0.001 (precision (max fertilityTable + 0.001) 4)</update>
+      <pen interval="1.0" mode="0" display="default" color="-5298144" legend="true">
+        <setup></setup>
+        <update>plot-table fertilityTable</update>
+      </pen>
+    </plot>
+    <monitor x="228" precision="0" y="406" height="60" fontSize="9" width="186">max-couple-count-distribution</monitor>
+    <note x="47" y="390" backgroundDark="0" fontSize="9" width="155" markdown="false" height="18" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">value format: minimum maximum</note>
+    <button x="185" y="207" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="152" display="parameters to default">parameters-to-default</button>
+    <input x="227" multiline="false" y="66" height="60" variable="max-population" type="number" width="101">10000.0</input>
+    <input x="198" multiline="false" y="133" height="60" variable="exp-number" type="number" width="100">2.0</input>
+    <button x="42" y="207" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="135">export-households</button>
+    <input x="123" multiline="false" y="66" height="60" variable="max-iterations" type="number" width="100">2000.0</input>
+    <chooser x="15" y="133" height="60" variable="type-of-experiment" current="0" width="178" display="type-of-experiment">
+      <choice type="string" value="user-defined"></choice>
+      <choice type="string" value="random"></choice>
+      <choice type="string" value="defined by exp-number"></choice>
+    </chooser>
+    <input x="18" multiline="false" y="66" height="60" variable="SEED" type="number" width="100">0.0</input>
+    <plot x="683" autoPlotX="true" yMax="10.0" autoPlotY="true" y="16" xMin="0.0" height="191" legend="true" xMax="10.0" yMin="0.0" width="464" display="Population">
+      <setup></setup>
+      <update></update>
+      <pen interval="1.0" mode="0" display="total" color="-16777216" legend="true">
+        <setup></setup>
+        <update>plot totalIndividuals</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="women" color="-2674135" legend="true">
+        <setup></setup>
+        <update>plot totalWomen</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="men" color="-13345367" legend="true">
+        <setup></setup>
+        <update>plot totalMen</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="car.-cap." color="-7500403" legend="true">
+        <setup></setup>
+        <update>plot carrying-capacity</update>
+      </pen>
+    </plot>
+    <slider x="31" step="1" y="476" max="1000" width="292" display="par_carrying-capacity" height="50" min="0" direction="Horizontal" default="200.0" variable="par_carrying-capacity" units="indiv. (default: 200)"></slider>
+    <slider x="333" step="0.01" y="475" max="0.5" width="323" display="par_density-effect-scaling-factor" height="50" min="0" direction="Horizontal" default="0.05" variable="par_density-effect-scaling-factor" units="(default: 0.05)"></slider>
+    <button x="536" y="552" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="109" display="refresh tables">build-demography-tables
+update-plots</button>
+    <input x="16" multiline="false" y="254" height="60" variable="par_initial-num-households" type="number" width="164">25.0</input>
+    <monitor x="183" precision="0" y="254" height="60" fontSize="9" width="143">initial-num-households</monitor>
+    <input x="8" multiline="false" y="330" height="60" variable="par_household-initial-age-distribution" type="string" width="218">0 30</input>
+    <monitor x="228" precision="17" y="331" height="60" fontSize="9" width="197">household-initial-age-distribution</monitor>
+    <input x="20" multiline="false" y="407" height="60" variable="par_max-couple-count-distribution" type="string" width="206">1 6</input>
+    <slider x="406" step="1" y="409" max="10" width="280" display="par_acceptable-kinship-degree-for-couples" height="50" min="0" direction="Horizontal" default="9.0" variable="par_acceptable-kinship-degree-for-couples"></slider>
+  </widgets>
+  <info>## Development notes
+
+TASK:
+Add parametric tabu restrictions to the formation of couples. Now, it is possible to have any given single individual marrying any other single, even siblings and, less likely, mother-son/father-daughter... 
+DONE
+
+IMPROVEMENTS:
+- apply-nuptiality: now this procedure follows a more elegant and clear process
+
+ISSUES:
+- Households now track their lineage and match making is controlled by the similarity of lineage. However, this mechanisms reflects a purely lineal track of descent, meaning that relatively close blood relatives are not tracked if they do not share the lineage; e.g., a man under a matrilocal-matrilineal rule will loose track of all 'former' blood relative once they move away from their original household. Unfortunately, this solution still do not control for extreme rare cases such as marriages between siblings and other close relatives, if considering widowing. The only definitive solution is too increase complexity of the information at individual level.
+- Initialisation: the result given by the procedure 'get-kinship-degree' assumes all initial households descend from a single common parent household (returns 2). So, if the acceptable kinship level is more than 2, the formation of couples during the first generation will be restricted to those using external individuals ('create-couple-external').
+
+## WHAT IS IT?
+
+(a general understanding of what the model is trying to show or explain)
+
+## HOW IT WORKS
+
+(what rules the agents use to create the overall behavior of the model)
+
+## HOW TO USE IT
+
+(how to use the model, including a description of each of the items in the Interface tab)
+
+## THINGS TO NOTICE
+
+(suggested things for the user to notice while running the model)
+
+## THINGS TO TRY
+
+(suggested things for the user to try to do (move sliders, switches, etc.) with the model)
+
+## EXTENDING THE MODEL
+
+(suggested things to add or change in the Code tab to make the model more complicated, detailed, accurate, etc.)
+
+## NETLOGO FEATURES
+
+(interesting or unusual features of NetLogo that the model uses, particularly in the Code tab; or where workarounds were needed for missing features)
+
+## RELATED MODELS
+
+(models in the NetLogo Models Library and elsewhere which are of related interest)
+
+## CREDITS AND REFERENCES
+
+(a reference to the model's URL on the web if it has one, as well as any other necessary credits, citations, and links)</info>
+  <turtleShapes>
+    <shape name="default" rotatable="true" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="5"></point>
+        <point x="40" y="250"></point>
+        <point x="150" y="205"></point>
+        <point x="260" y="250"></point>
+      </polygon>
+    </shape>
+    <shape name="airplane" rotatable="true" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="0"></point>
+        <point x="135" y="15"></point>
+        <point x="120" y="60"></point>
+        <point x="120" y="105"></point>
+        <point x="15" y="165"></point>
+        <point x="15" y="195"></point>
+        <point x="120" y="180"></point>
+        <point x="135" y="240"></point>
+        <point x="105" y="270"></point>
+        <point x="120" y="285"></point>
+        <point x="150" y="270"></point>
+        <point x="180" y="285"></point>
+        <point x="210" y="270"></point>
+        <point x="165" y="240"></point>
+        <point x="180" y="180"></point>
+        <point x="285" y="195"></point>
+        <point x="285" y="165"></point>
+        <point x="180" y="105"></point>
+        <point x="180" y="60"></point>
+        <point x="165" y="15"></point>
+      </polygon>
+    </shape>
+    <shape name="arrow" rotatable="true" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="0"></point>
+        <point x="0" y="150"></point>
+        <point x="105" y="150"></point>
+        <point x="105" y="293"></point>
+        <point x="195" y="293"></point>
+        <point x="195" y="150"></point>
+        <point x="300" y="150"></point>
+      </polygon>
+    </shape>
+    <shape name="box" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="285"></point>
+        <point x="285" y="225"></point>
+        <point x="285" y="75"></point>
+        <point x="150" y="135"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="135"></point>
+        <point x="15" y="75"></point>
+        <point x="150" y="15"></point>
+        <point x="285" y="75"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="15" y="75"></point>
+        <point x="15" y="225"></point>
+        <point x="150" y="285"></point>
+        <point x="150" y="135"></point>
+      </polygon>
+      <line endX="150" startY="285" marked="false" color="255" endY="135" startX="150"></line>
+      <line endX="15" startY="135" marked="false" color="255" endY="75" startX="150"></line>
+      <line endX="285" startY="135" marked="false" color="255" endY="75" startX="150"></line>
+    </shape>
+    <shape name="bug" rotatable="true" editableColorIndex="0">
+      <circle x="96" y="182" marked="true" color="-1920102913" diameter="108" filled="true"></circle>
+      <circle x="110" y="127" marked="true" color="-1920102913" diameter="80" filled="true"></circle>
+      <circle x="110" y="75" marked="true" color="-1920102913" diameter="80" filled="true"></circle>
+      <line endX="80" startY="100" marked="true" color="-1920102913" endY="30" startX="150"></line>
+      <line endX="220" startY="100" marked="true" color="-1920102913" endY="30" startX="150"></line>
+    </shape>
+    <shape name="butterfly" rotatable="true" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="165"></point>
+        <point x="209" y="199"></point>
+        <point x="225" y="225"></point>
+        <point x="225" y="255"></point>
+        <point x="195" y="270"></point>
+        <point x="165" y="255"></point>
+        <point x="150" y="240"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="165"></point>
+        <point x="89" y="198"></point>
+        <point x="75" y="225"></point>
+        <point x="75" y="255"></point>
+        <point x="105" y="270"></point>
+        <point x="135" y="255"></point>
+        <point x="150" y="240"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="139" y="148"></point>
+        <point x="100" y="105"></point>
+        <point x="55" y="90"></point>
+        <point x="25" y="90"></point>
+        <point x="10" y="105"></point>
+        <point x="10" y="135"></point>
+        <point x="25" y="180"></point>
+        <point x="40" y="195"></point>
+        <point x="85" y="194"></point>
+        <point x="139" y="163"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="162" y="150"></point>
+        <point x="200" y="105"></point>
+        <point x="245" y="90"></point>
+        <point x="275" y="90"></point>
+        <point x="290" y="105"></point>
+        <point x="290" y="135"></point>
+        <point x="275" y="180"></point>
+        <point x="260" y="195"></point>
+        <point x="215" y="195"></point>
+        <point x="162" y="165"></point>
+      </polygon>
+      <polygon color="255" filled="true" marked="false">
+        <point x="150" y="255"></point>
+        <point x="135" y="225"></point>
+        <point x="120" y="150"></point>
+        <point x="135" y="120"></point>
+        <point x="150" y="105"></point>
+        <point x="165" y="120"></point>
+        <point x="180" y="150"></point>
+        <point x="165" y="225"></point>
+      </polygon>
+      <circle x="135" y="90" marked="false" color="255" diameter="30" filled="true"></circle>
+      <line endX="195" startY="105" marked="false" color="255" endY="60" startX="150"></line>
+      <line endX="105" startY="105" marked="false" color="255" endY="60" startX="150"></line>
+    </shape>
+    <shape name="car" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="300" y="180"></point>
+        <point x="279" y="164"></point>
+        <point x="261" y="144"></point>
+        <point x="240" y="135"></point>
+        <point x="226" y="132"></point>
+        <point x="213" y="106"></point>
+        <point x="203" y="84"></point>
+        <point x="185" y="63"></point>
+        <point x="159" y="50"></point>
+        <point x="135" y="50"></point>
+        <point x="75" y="60"></point>
+        <point x="0" y="150"></point>
+        <point x="0" y="165"></point>
+        <point x="0" y="225"></point>
+        <point x="300" y="225"></point>
+        <point x="300" y="180"></point>
+      </polygon>
+      <circle x="180" y="180" marked="false" color="255" diameter="90" filled="true"></circle>
+      <circle x="30" y="180" marked="false" color="255" diameter="90" filled="true"></circle>
+      <polygon color="255" filled="true" marked="false">
+        <point x="162" y="80"></point>
+        <point x="132" y="78"></point>
+        <point x="134" y="135"></point>
+        <point x="209" y="135"></point>
+        <point x="194" y="105"></point>
+        <point x="189" y="96"></point>
+        <point x="180" y="89"></point>
+      </polygon>
+      <circle x="47" y="195" marked="true" color="-1920102913" diameter="58" filled="true"></circle>
+      <circle x="195" y="195" marked="true" color="-1920102913" diameter="58" filled="true"></circle>
+    </shape>
+    <shape name="circle" rotatable="false" editableColorIndex="0">
+      <circle x="0" y="0" marked="true" color="-1920102913" diameter="300" filled="true"></circle>
+    </shape>
+    <shape name="circle 2" rotatable="false" editableColorIndex="0">
+      <circle x="0" y="0" marked="true" color="-1920102913" diameter="300" filled="true"></circle>
+      <circle x="30" y="30" marked="false" color="255" diameter="240" filled="true"></circle>
+    </shape>
+    <shape name="cow" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="200" y="193"></point>
+        <point x="197" y="249"></point>
+        <point x="179" y="249"></point>
+        <point x="177" y="196"></point>
+        <point x="166" y="187"></point>
+        <point x="140" y="189"></point>
+        <point x="93" y="191"></point>
+        <point x="78" y="179"></point>
+        <point x="72" y="211"></point>
+        <point x="49" y="209"></point>
+        <point x="48" y="181"></point>
+        <point x="37" y="149"></point>
+        <point x="25" y="120"></point>
+        <point x="25" y="89"></point>
+        <point x="45" y="72"></point>
+        <point x="103" y="84"></point>
+        <point x="179" y="75"></point>
+        <point x="198" y="76"></point>
+        <point x="252" y="64"></point>
+        <point x="272" y="81"></point>
+        <point x="293" y="103"></point>
+        <point x="285" y="121"></point>
+        <point x="255" y="121"></point>
+        <point x="242" y="118"></point>
+        <point x="224" y="167"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="73" y="210"></point>
+        <point x="86" y="251"></point>
+        <point x="62" y="249"></point>
+        <point x="48" y="208"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="25" y="114"></point>
+        <point x="16" y="195"></point>
+        <point x="9" y="204"></point>
+        <point x="23" y="213"></point>
+        <point x="25" y="200"></point>
+        <point x="39" y="123"></point>
+      </polygon>
+    </shape>
+    <shape name="cylinder" rotatable="false" editableColorIndex="0">
+      <circle x="0" y="0" marked="true" color="-1920102913" diameter="300" filled="true"></circle>
+    </shape>
+    <shape name="dot" rotatable="false" editableColorIndex="0">
+      <circle x="90" y="90" marked="true" color="-1920102913" diameter="120" filled="true"></circle>
+    </shape>
+    <shape name="face happy" rotatable="false" editableColorIndex="0">
+      <circle x="8" y="8" marked="true" color="-1920102913" diameter="285" filled="true"></circle>
+      <circle x="60" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <circle x="180" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <polygon color="255" filled="true" marked="false">
+        <point x="150" y="255"></point>
+        <point x="90" y="239"></point>
+        <point x="62" y="213"></point>
+        <point x="47" y="191"></point>
+        <point x="67" y="179"></point>
+        <point x="90" y="203"></point>
+        <point x="109" y="218"></point>
+        <point x="150" y="225"></point>
+        <point x="192" y="218"></point>
+        <point x="210" y="203"></point>
+        <point x="227" y="181"></point>
+        <point x="251" y="194"></point>
+        <point x="236" y="217"></point>
+        <point x="212" y="240"></point>
+      </polygon>
+    </shape>
+    <shape name="face neutral" rotatable="false" editableColorIndex="0">
+      <circle x="8" y="7" marked="true" color="-1920102913" diameter="285" filled="true"></circle>
+      <circle x="60" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <circle x="180" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <rectangle endX="240" startY="195" marked="false" color="255" endY="225" startX="60" filled="true"></rectangle>
+    </shape>
+    <shape name="face sad" rotatable="false" editableColorIndex="0">
+      <circle x="8" y="8" marked="true" color="-1920102913" diameter="285" filled="true"></circle>
+      <circle x="60" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <circle x="180" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <polygon color="255" filled="true" marked="false">
+        <point x="150" y="168"></point>
+        <point x="90" y="184"></point>
+        <point x="62" y="210"></point>
+        <point x="47" y="232"></point>
+        <point x="67" y="244"></point>
+        <point x="90" y="220"></point>
+        <point x="109" y="205"></point>
+        <point x="150" y="198"></point>
+        <point x="192" y="205"></point>
+        <point x="210" y="220"></point>
+        <point x="227" y="242"></point>
+        <point x="251" y="229"></point>
+        <point x="236" y="206"></point>
+        <point x="212" y="183"></point>
+      </polygon>
+    </shape>
+    <shape name="fish" rotatable="false" editableColorIndex="0">
+      <polygon color="-1" filled="true" marked="false">
+        <point x="44" y="131"></point>
+        <point x="21" y="87"></point>
+        <point x="15" y="86"></point>
+        <point x="0" y="120"></point>
+        <point x="15" y="150"></point>
+        <point x="0" y="180"></point>
+        <point x="13" y="214"></point>
+        <point x="20" y="212"></point>
+        <point x="45" y="166"></point>
+      </polygon>
+      <polygon color="-1" filled="true" marked="false">
+        <point x="135" y="195"></point>
+        <point x="119" y="235"></point>
+        <point x="95" y="218"></point>
+        <point x="76" y="210"></point>
+        <point x="46" y="204"></point>
+        <point x="60" y="165"></point>
+      </polygon>
+      <polygon color="-1" filled="true" marked="false">
+        <point x="75" y="45"></point>
+        <point x="83" y="77"></point>
+        <point x="71" y="103"></point>
+        <point x="86" y="114"></point>
+        <point x="166" y="78"></point>
+        <point x="135" y="60"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="30" y="136"></point>
+        <point x="151" y="77"></point>
+        <point x="226" y="81"></point>
+        <point x="280" y="119"></point>
+        <point x="292" y="146"></point>
+        <point x="292" y="160"></point>
+        <point x="287" y="170"></point>
+        <point x="270" y="195"></point>
+        <point x="195" y="210"></point>
+        <point x="151" y="212"></point>
+        <point x="30" y="166"></point>
+      </polygon>
+      <circle x="215" y="106" marked="false" color="255" diameter="30" filled="true"></circle>
+    </shape>
+    <shape name="flag" rotatable="false" editableColorIndex="0">
+      <rectangle endX="75" startY="15" marked="true" color="-1920102913" endY="300" startX="60" filled="true"></rectangle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="90" y="150"></point>
+        <point x="270" y="90"></point>
+        <point x="90" y="30"></point>
+      </polygon>
+      <line endX="90" startY="135" marked="true" color="-1920102913" endY="135" startX="75"></line>
+      <line endX="90" startY="45" marked="true" color="-1920102913" endY="45" startX="75"></line>
+    </shape>
+    <shape name="flower" rotatable="false" editableColorIndex="0">
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="135" y="120"></point>
+        <point x="165" y="165"></point>
+        <point x="180" y="210"></point>
+        <point x="180" y="240"></point>
+        <point x="150" y="300"></point>
+        <point x="165" y="300"></point>
+        <point x="195" y="240"></point>
+        <point x="195" y="195"></point>
+        <point x="165" y="135"></point>
+      </polygon>
+      <circle x="85" y="132" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="130" y="147" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="192" y="85" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="85" y="40" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="177" y="40" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="177" y="132" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="70" y="85" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="130" y="25" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="96" y="51" marked="true" color="-1920102913" diameter="108" filled="true"></circle>
+      <circle x="113" y="68" marked="false" color="255" diameter="74" filled="true"></circle>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="189" y="233"></point>
+        <point x="219" y="188"></point>
+        <point x="249" y="173"></point>
+        <point x="279" y="188"></point>
+        <point x="234" y="218"></point>
+      </polygon>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="180" y="255"></point>
+        <point x="150" y="210"></point>
+        <point x="105" y="210"></point>
+        <point x="75" y="240"></point>
+        <point x="135" y="240"></point>
+      </polygon>
+    </shape>
+    <shape name="house" rotatable="false" editableColorIndex="0">
+      <rectangle endX="255" startY="120" marked="true" color="-1920102913" endY="285" startX="45" filled="true"></rectangle>
+      <rectangle endX="180" startY="210" marked="false" color="255" endY="285" startX="120" filled="true"></rectangle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="15" y="120"></point>
+        <point x="150" y="15"></point>
+        <point x="285" y="120"></point>
+      </polygon>
+      <line endX="270" startY="120" marked="false" color="255" endY="120" startX="30"></line>
+    </shape>
+    <shape name="leaf" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="210"></point>
+        <point x="135" y="195"></point>
+        <point x="120" y="210"></point>
+        <point x="60" y="210"></point>
+        <point x="30" y="195"></point>
+        <point x="60" y="180"></point>
+        <point x="60" y="165"></point>
+        <point x="15" y="135"></point>
+        <point x="30" y="120"></point>
+        <point x="15" y="105"></point>
+        <point x="40" y="104"></point>
+        <point x="45" y="90"></point>
+        <point x="60" y="90"></point>
+        <point x="90" y="105"></point>
+        <point x="105" y="120"></point>
+        <point x="120" y="120"></point>
+        <point x="105" y="60"></point>
+        <point x="120" y="60"></point>
+        <point x="135" y="30"></point>
+        <point x="150" y="15"></point>
+        <point x="165" y="30"></point>
+        <point x="180" y="60"></point>
+        <point x="195" y="60"></point>
+        <point x="180" y="120"></point>
+        <point x="195" y="120"></point>
+        <point x="210" y="105"></point>
+        <point x="240" y="90"></point>
+        <point x="255" y="90"></point>
+        <point x="263" y="104"></point>
+        <point x="285" y="105"></point>
+        <point x="270" y="120"></point>
+        <point x="285" y="135"></point>
+        <point x="240" y="165"></point>
+        <point x="240" y="180"></point>
+        <point x="270" y="195"></point>
+        <point x="240" y="210"></point>
+        <point x="180" y="210"></point>
+        <point x="165" y="195"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="135" y="195"></point>
+        <point x="135" y="240"></point>
+        <point x="120" y="255"></point>
+        <point x="105" y="255"></point>
+        <point x="105" y="285"></point>
+        <point x="135" y="285"></point>
+        <point x="165" y="240"></point>
+        <point x="165" y="195"></point>
+      </polygon>
+    </shape>
+    <shape name="line" rotatable="true" editableColorIndex="0">
+      <line endX="150" startY="0" marked="true" color="-1920102913" endY="300" startX="150"></line>
+    </shape>
+    <shape name="line half" rotatable="true" editableColorIndex="0">
+      <line endX="150" startY="0" marked="true" color="-1920102913" endY="150" startX="150"></line>
+    </shape>
+    <shape name="pentagon" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="15"></point>
+        <point x="15" y="120"></point>
+        <point x="60" y="285"></point>
+        <point x="240" y="285"></point>
+        <point x="285" y="120"></point>
+      </polygon>
+    </shape>
+    <shape name="person" rotatable="false" editableColorIndex="0">
+      <circle x="110" y="5" marked="true" color="-1920102913" diameter="80" filled="true"></circle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="105" y="90"></point>
+        <point x="120" y="195"></point>
+        <point x="90" y="285"></point>
+        <point x="105" y="300"></point>
+        <point x="135" y="300"></point>
+        <point x="150" y="225"></point>
+        <point x="165" y="300"></point>
+        <point x="195" y="300"></point>
+        <point x="210" y="285"></point>
+        <point x="180" y="195"></point>
+        <point x="195" y="90"></point>
+      </polygon>
+      <rectangle endX="172" startY="79" marked="true" color="-1920102913" endY="94" startX="127" filled="true"></rectangle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="195" y="90"></point>
+        <point x="240" y="150"></point>
+        <point x="225" y="180"></point>
+        <point x="165" y="105"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="105" y="90"></point>
+        <point x="60" y="150"></point>
+        <point x="75" y="180"></point>
+        <point x="135" y="105"></point>
+      </polygon>
+    </shape>
+    <shape name="plant" rotatable="false" editableColorIndex="0">
+      <rectangle endX="165" startY="90" marked="true" color="-1920102913" endY="300" startX="135" filled="true"></rectangle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="135" y="255"></point>
+        <point x="90" y="210"></point>
+        <point x="45" y="195"></point>
+        <point x="75" y="255"></point>
+        <point x="135" y="285"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="165" y="255"></point>
+        <point x="210" y="210"></point>
+        <point x="255" y="195"></point>
+        <point x="225" y="255"></point>
+        <point x="165" y="285"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="135" y="180"></point>
+        <point x="90" y="135"></point>
+        <point x="45" y="120"></point>
+        <point x="75" y="180"></point>
+        <point x="135" y="210"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="165" y="180"></point>
+        <point x="165" y="210"></point>
+        <point x="225" y="180"></point>
+        <point x="255" y="120"></point>
+        <point x="210" y="135"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="135" y="105"></point>
+        <point x="90" y="60"></point>
+        <point x="45" y="45"></point>
+        <point x="75" y="105"></point>
+        <point x="135" y="135"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="165" y="105"></point>
+        <point x="165" y="135"></point>
+        <point x="225" y="105"></point>
+        <point x="255" y="45"></point>
+        <point x="210" y="60"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="135" y="90"></point>
+        <point x="120" y="45"></point>
+        <point x="150" y="15"></point>
+        <point x="180" y="45"></point>
+        <point x="165" y="90"></point>
+      </polygon>
+    </shape>
+    <shape name="sheep" rotatable="false" editableColorIndex="15">
+      <circle x="203" y="65" marked="true" color="-1" diameter="88" filled="true"></circle>
+      <circle x="70" y="65" marked="true" color="-1" diameter="162" filled="true"></circle>
+      <circle x="150" y="105" marked="true" color="-1" diameter="120" filled="true"></circle>
+      <polygon color="-1920102913" filled="true" marked="false">
+        <point x="218" y="120"></point>
+        <point x="240" y="165"></point>
+        <point x="255" y="165"></point>
+        <point x="278" y="120"></point>
+      </polygon>
+      <circle x="214" y="72" marked="false" color="-1920102913" diameter="67" filled="true"></circle>
+      <rectangle endX="179" startY="223" marked="true" color="-1" endY="298" startX="164" filled="true"></rectangle>
+      <polygon color="-1" filled="true" marked="true">
+        <point x="45" y="285"></point>
+        <point x="30" y="285"></point>
+        <point x="30" y="240"></point>
+        <point x="15" y="195"></point>
+        <point x="45" y="210"></point>
+      </polygon>
+      <circle x="3" y="83" marked="true" color="-1" diameter="150" filled="true"></circle>
+      <rectangle endX="80" startY="221" marked="true" color="-1" endY="296" startX="65" filled="true"></rectangle>
+      <polygon color="-1" filled="true" marked="true">
+        <point x="195" y="285"></point>
+        <point x="210" y="285"></point>
+        <point x="210" y="240"></point>
+        <point x="240" y="210"></point>
+        <point x="195" y="210"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="false">
+        <point x="276" y="85"></point>
+        <point x="285" y="105"></point>
+        <point x="302" y="99"></point>
+        <point x="294" y="83"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="false">
+        <point x="219" y="85"></point>
+        <point x="210" y="105"></point>
+        <point x="193" y="99"></point>
+        <point x="201" y="83"></point>
+      </polygon>
+    </shape>
+    <shape name="square" rotatable="false" editableColorIndex="0">
+      <rectangle endX="270" startY="30" marked="true" color="-1920102913" endY="270" startX="30" filled="true"></rectangle>
+    </shape>
+    <shape name="square 2" rotatable="false" editableColorIndex="0">
+      <rectangle endX="270" startY="30" marked="true" color="-1920102913" endY="270" startX="30" filled="true"></rectangle>
+      <rectangle endX="240" startY="60" marked="false" color="255" endY="240" startX="60" filled="true"></rectangle>
+    </shape>
+    <shape name="star" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="151" y="1"></point>
+        <point x="185" y="108"></point>
+        <point x="298" y="108"></point>
+        <point x="207" y="175"></point>
+        <point x="242" y="282"></point>
+        <point x="151" y="216"></point>
+        <point x="59" y="282"></point>
+        <point x="94" y="175"></point>
+        <point x="3" y="108"></point>
+        <point x="116" y="108"></point>
+      </polygon>
+    </shape>
+    <shape name="target" rotatable="false" editableColorIndex="0">
+      <circle x="0" y="0" marked="true" color="-1920102913" diameter="300" filled="true"></circle>
+      <circle x="30" y="30" marked="false" color="255" diameter="240" filled="true"></circle>
+      <circle x="60" y="60" marked="true" color="-1920102913" diameter="180" filled="true"></circle>
+      <circle x="90" y="90" marked="false" color="255" diameter="120" filled="true"></circle>
+      <circle x="120" y="120" marked="true" color="-1920102913" diameter="60" filled="true"></circle>
+    </shape>
+    <shape name="tree" rotatable="false" editableColorIndex="0">
+      <circle x="118" y="3" marked="true" color="-1920102913" diameter="94" filled="true"></circle>
+      <rectangle endX="180" startY="195" marked="false" color="-1653716737" endY="300" startX="120" filled="true"></rectangle>
+      <circle x="65" y="21" marked="true" color="-1920102913" diameter="108" filled="true"></circle>
+      <circle x="116" y="41" marked="true" color="-1920102913" diameter="127" filled="true"></circle>
+      <circle x="45" y="90" marked="true" color="-1920102913" diameter="120" filled="true"></circle>
+      <circle x="104" y="74" marked="true" color="-1920102913" diameter="152" filled="true"></circle>
+    </shape>
+    <shape name="triangle" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="30"></point>
+        <point x="15" y="255"></point>
+        <point x="285" y="255"></point>
+      </polygon>
+    </shape>
+    <shape name="triangle 2" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="30"></point>
+        <point x="15" y="255"></point>
+        <point x="285" y="255"></point>
+      </polygon>
+      <polygon color="255" filled="true" marked="false">
+        <point x="151" y="99"></point>
+        <point x="225" y="223"></point>
+        <point x="75" y="224"></point>
+      </polygon>
+    </shape>
+    <shape name="truck" rotatable="false" editableColorIndex="0">
+      <rectangle endX="195" startY="45" marked="true" color="-1920102913" endY="187" startX="4" filled="true"></rectangle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="296" y="193"></point>
+        <point x="296" y="150"></point>
+        <point x="259" y="134"></point>
+        <point x="244" y="104"></point>
+        <point x="208" y="104"></point>
+        <point x="207" y="194"></point>
+      </polygon>
+      <rectangle endX="195" startY="60" marked="false" color="-1" endY="105" startX="195" filled="true"></rectangle>
+      <polygon color="255" filled="true" marked="false">
+        <point x="238" y="112"></point>
+        <point x="252" y="141"></point>
+        <point x="219" y="141"></point>
+        <point x="218" y="112"></point>
+      </polygon>
+      <circle x="234" y="174" marked="false" color="255" diameter="42" filled="true"></circle>
+      <rectangle endX="214" startY="185" marked="true" color="-1920102913" endY="194" startX="181" filled="true"></rectangle>
+      <circle x="144" y="174" marked="false" color="255" diameter="42" filled="true"></circle>
+      <circle x="24" y="174" marked="false" color="255" diameter="42" filled="true"></circle>
+      <circle x="24" y="174" marked="true" color="-1920102913" diameter="42" filled="false"></circle>
+      <circle x="144" y="174" marked="true" color="-1920102913" diameter="42" filled="false"></circle>
+      <circle x="234" y="174" marked="true" color="-1920102913" diameter="42" filled="false"></circle>
+    </shape>
+    <shape name="turtle" rotatable="true" editableColorIndex="0">
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="215" y="204"></point>
+        <point x="240" y="233"></point>
+        <point x="246" y="254"></point>
+        <point x="228" y="266"></point>
+        <point x="215" y="252"></point>
+        <point x="193" y="210"></point>
+      </polygon>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="195" y="90"></point>
+        <point x="225" y="75"></point>
+        <point x="245" y="75"></point>
+        <point x="260" y="89"></point>
+        <point x="269" y="108"></point>
+        <point x="261" y="124"></point>
+        <point x="240" y="105"></point>
+        <point x="225" y="105"></point>
+        <point x="210" y="105"></point>
+      </polygon>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="105" y="90"></point>
+        <point x="75" y="75"></point>
+        <point x="55" y="75"></point>
+        <point x="40" y="89"></point>
+        <point x="31" y="108"></point>
+        <point x="39" y="124"></point>
+        <point x="60" y="105"></point>
+        <point x="75" y="105"></point>
+        <point x="90" y="105"></point>
+      </polygon>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="132" y="85"></point>
+        <point x="134" y="64"></point>
+        <point x="107" y="51"></point>
+        <point x="108" y="17"></point>
+        <point x="150" y="2"></point>
+        <point x="192" y="18"></point>
+        <point x="192" y="52"></point>
+        <point x="169" y="65"></point>
+        <point x="172" y="87"></point>
+      </polygon>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="85" y="204"></point>
+        <point x="60" y="233"></point>
+        <point x="54" y="254"></point>
+        <point x="72" y="266"></point>
+        <point x="85" y="252"></point>
+        <point x="107" y="210"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="119" y="75"></point>
+        <point x="179" y="75"></point>
+        <point x="209" y="101"></point>
+        <point x="224" y="135"></point>
+        <point x="220" y="225"></point>
+        <point x="175" y="261"></point>
+        <point x="128" y="261"></point>
+        <point x="81" y="224"></point>
+        <point x="74" y="135"></point>
+        <point x="88" y="99"></point>
+      </polygon>
+    </shape>
+    <shape name="wheel" rotatable="false" editableColorIndex="0">
+      <circle x="3" y="3" marked="true" color="-1920102913" diameter="294" filled="true"></circle>
+      <circle x="30" y="30" marked="false" color="255" diameter="240" filled="true"></circle>
+      <line endX="150" startY="285" marked="true" color="-1920102913" endY="15" startX="150"></line>
+      <line endX="285" startY="150" marked="true" color="-1920102913" endY="150" startX="15"></line>
+      <circle x="120" y="120" marked="true" color="-1920102913" diameter="60" filled="true"></circle>
+      <line endX="79" startY="40" marked="true" color="-1920102913" endY="269" startX="216"></line>
+      <line endX="269" startY="84" marked="true" color="-1920102913" endY="221" startX="40"></line>
+      <line endX="269" startY="216" marked="true" color="-1920102913" endY="79" startX="40"></line>
+      <line endX="221" startY="40" marked="true" color="-1920102913" endY="269" startX="84"></line>
+    </shape>
+    <shape name="wolf" rotatable="false" editableColorIndex="0">
+      <polygon color="255" filled="true" marked="false">
+        <point x="253" y="133"></point>
+        <point x="245" y="131"></point>
+        <point x="245" y="133"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="2" y="194"></point>
+        <point x="13" y="197"></point>
+        <point x="30" y="191"></point>
+        <point x="38" y="193"></point>
+        <point x="38" y="205"></point>
+        <point x="20" y="226"></point>
+        <point x="20" y="257"></point>
+        <point x="27" y="265"></point>
+        <point x="38" y="266"></point>
+        <point x="40" y="260"></point>
+        <point x="31" y="253"></point>
+        <point x="31" y="230"></point>
+        <point x="60" y="206"></point>
+        <point x="68" y="198"></point>
+        <point x="75" y="209"></point>
+        <point x="66" y="228"></point>
+        <point x="65" y="243"></point>
+        <point x="82" y="261"></point>
+        <point x="84" y="268"></point>
+        <point x="100" y="267"></point>
+        <point x="103" y="261"></point>
+        <point x="77" y="239"></point>
+        <point x="79" y="231"></point>
+        <point x="100" y="207"></point>
+        <point x="98" y="196"></point>
+        <point x="119" y="201"></point>
+        <point x="143" y="202"></point>
+        <point x="160" y="195"></point>
+        <point x="166" y="210"></point>
+        <point x="172" y="213"></point>
+        <point x="173" y="238"></point>
+        <point x="167" y="251"></point>
+        <point x="160" y="248"></point>
+        <point x="154" y="265"></point>
+        <point x="169" y="264"></point>
+        <point x="178" y="247"></point>
+        <point x="186" y="240"></point>
+        <point x="198" y="260"></point>
+        <point x="200" y="271"></point>
+        <point x="217" y="271"></point>
+        <point x="219" y="262"></point>
+        <point x="207" y="258"></point>
+        <point x="195" y="230"></point>
+        <point x="192" y="198"></point>
+        <point x="210" y="184"></point>
+        <point x="227" y="164"></point>
+        <point x="242" y="144"></point>
+        <point x="259" y="145"></point>
+        <point x="284" y="151"></point>
+        <point x="277" y="141"></point>
+        <point x="293" y="140"></point>
+        <point x="299" y="134"></point>
+        <point x="297" y="127"></point>
+        <point x="273" y="119"></point>
+        <point x="270" y="105"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="-1" y="195"></point>
+        <point x="14" y="180"></point>
+        <point x="36" y="166"></point>
+        <point x="40" y="153"></point>
+        <point x="53" y="140"></point>
+        <point x="82" y="131"></point>
+        <point x="134" y="133"></point>
+        <point x="159" y="126"></point>
+        <point x="188" y="115"></point>
+        <point x="227" y="108"></point>
+        <point x="236" y="102"></point>
+        <point x="238" y="98"></point>
+        <point x="268" y="86"></point>
+        <point x="269" y="92"></point>
+        <point x="281" y="87"></point>
+        <point x="269" y="103"></point>
+        <point x="269" y="113"></point>
+      </polygon>
+    </shape>
+    <shape name="x" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="270" y="75"></point>
+        <point x="225" y="30"></point>
+        <point x="30" y="225"></point>
+        <point x="75" y="270"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="30" y="75"></point>
+        <point x="75" y="30"></point>
+        <point x="270" y="225"></point>
+        <point x="225" y="270"></point>
+      </polygon>
+    </shape>
+  </turtleShapes>
+  <linkShapes>
+    <shape name="default" curviness="0.0">
+      <lines>
+        <line x="-0.2" visible="false">
+          <dash value="0.0"></dash>
+          <dash value="1.0"></dash>
+        </line>
+        <line x="0.0" visible="true">
+          <dash value="1.0"></dash>
+          <dash value="0.0"></dash>
+        </line>
+        <line x="0.2" visible="false">
+          <dash value="0.0"></dash>
+          <dash value="1.0"></dash>
+        </line>
+      </lines>
+      <indicator>
+        <shape name="link direction" rotatable="true" editableColorIndex="0">
+          <line endX="90" startY="150" marked="true" color="-1920102913" endY="180" startX="150"></line>
+          <line endX="210" startY="150" marked="true" color="-1920102913" endY="180" startX="150"></line>
+        </shape>
+      </indicator>
+    </shape>
+  </linkShapes>
+  <previewCommands>setup repeat 75 [ go ]</previewCommands>
+  <experiments>
+    <experiment name="exp-trajectories" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="true">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>SEED</metric>
+        <metric>maturityAge</metric>
+        <metric>initial-num-households</metric>
+        <metric>household-initial-age-distribution</metric>
+        <metric>max-couple-count-distribution</metric>
+        <metric>cdmlt-level</metric>
+        <metric>coale-demeny-region</metric>
+        <metric>c1-fert</metric>
+        <metric>mu-fert</metric>
+        <metric>sigma1-fert</metric>
+        <metric>sigma2-fert</metric>
+        <metric>residence-rule</metric>
+        <metric>par_acceptable-kinship-degree-for-couples</metric>
+        <metric>c1-women</metric>
+        <metric>c1-men</metric>
+        <metric>mu-women</metric>
+        <metric>mu-men</metric>
+        <metric>sigma1-women</metric>
+        <metric>sigma1-men</metric>
+        <metric>sigma2-women</metric>
+        <metric>sigma2-men</metric>
+        <metric>totalHouseholds</metric>
+        <metric>totalIndividuals</metric>
+        <metric>totalPopulationGrowth</metric>
+        <metric>totalWomen</metric>
+        <metric>totalMen</metric>
+        <metric>femaleRatio</metric>
+        <metric>womenAgeStructure</metric>
+        <metric>menAgeStructure</metric>
+        <metric>womenFirstAgeGroup</metric>
+        <metric>menFirstAgeGroup</metric>
+        <metric>womenBirths</metric>
+        <metric>menBirths</metric>
+        <metric>womenDeaths</metric>
+        <metric>menDeaths</metric>
+        <metric>womenIn</metric>
+        <metric>menIn</metric>
+        <metric>womenOut</metric>
+        <metric>menOut</metric>
+        <metric>totalOrphans</metric>
+      </metrics>
+      <constants>
+        <steppedValueSet variable="SEED" first="0" step="1" last="99"></steppedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="exp-endstates" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="false">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>SEED</metric>
+        <metric>maturityAge</metric>
+        <metric>initial-num-households</metric>
+        <metric>household-initial-age-distribution</metric>
+        <metric>max-couple-count-distribution</metric>
+        <metric>cdmlt-level</metric>
+        <metric>coale-demeny-region</metric>
+        <metric>c1-fert</metric>
+        <metric>mu-fert</metric>
+        <metric>sigma1-fert</metric>
+        <metric>sigma2-fert</metric>
+        <metric>residence-rule</metric>
+        <metric>par_acceptable-kinship-degree-for-couples</metric>
+        <metric>c1-women</metric>
+        <metric>c1-men</metric>
+        <metric>mu-women</metric>
+        <metric>mu-men</metric>
+        <metric>sigma1-women</metric>
+        <metric>sigma1-men</metric>
+        <metric>sigma2-women</metric>
+        <metric>sigma2-men</metric>
+        <metric>totalHouseholds</metric>
+        <metric>totalIndividuals</metric>
+        <metric>totalPopulationGrowth</metric>
+        <metric>totalWomen</metric>
+        <metric>totalMen</metric>
+        <metric>femaleRatio</metric>
+        <metric>womenAgeStructure</metric>
+        <metric>menAgeStructure</metric>
+        <metric>womenFirstAgeGroup</metric>
+        <metric>menFirstAgeGroup</metric>
+        <metric>womenBirths</metric>
+        <metric>menBirths</metric>
+        <metric>womenDeaths</metric>
+        <metric>menDeaths</metric>
+        <metric>womenIn</metric>
+        <metric>menIn</metric>
+        <metric>womenOut</metric>
+        <metric>menOut</metric>
+        <metric>totalOrphans</metric>
+      </metrics>
+      <constants>
+        <steppedValueSet variable="SEED" first="0" step="1" last="4999"></steppedValueSet>
+      </constants>
+    </experiment>
+  </experiments>
+</model>

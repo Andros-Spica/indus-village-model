@@ -1,0 +1,181 @@
+;=======================================================================================================
+;;; SIMPLE crop model algorithms from:
+;;; Zhao C, Liu B, Xiao L, Hoogenboom G, Boote K J, Kassie B T,
+;;; Pavan W, Shelia V, Kim K S, Hernandez-Ochoa I M, Wallach D,
+;;; Porter C H, Stockle C O, Zhu Y and Asseng S (2019)
+;;; A SIMPLE crop model Eur. J. Agron. 104 97–106
+;;; Online: https://doi.org/10.1016/j.eja.2019.01.009
+;;; See also: "04-crop-model" directory within "indus-village-model".
+;=======================================================================================================
+
+to update-crops
+
+  ask patches
+  [
+    foreach crop_selection
+    [
+      crop ->
+
+      let cropIndex position crop typesOfCrops
+
+      if ( is-growing cropIndex )
+      [
+        update-biomass cropIndex
+
+        set p_crop_totalBiomass replace-item cropIndex p_crop_totalBiomass ((item cropIndex p_crop_biomass) * (p_ecol_%crop / 100) * patchArea * (item cropIndex p_crop_frequency) / 100)
+      ]
+
+      if ( is-ripe cropIndex )
+      [
+        ;;; calculate harvest yield
+        ifelse (item cropIndex p_crop_TT >= item cropIndex crop_T_sum)
+        [
+          set p_crop_yield replace-item cropIndex p_crop_yield (item cropIndex p_crop_biomass * item cropIndex crop_HI)
+          set p_crop_totalYield replace-item cropIndex p_crop_totalYield ((item cropIndex p_crop_yield) * (p_ecol_%crop / 100) * patchArea * (item cropIndex p_crop_frequency) / 100)
+        ]
+        [
+          set p_crop_yield replace-item cropIndex p_crop_yield 0
+
+          set p_crop_totalYield replace-item cropIndex p_crop_totalYield 0
+        ]
+
+        ;;; reset biomass and auxiliary variables
+        reset-crop-variables cropIndex
+      ]
+    ]
+  ]
+
+end
+
+;;; PATCHES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to reset-crop-variables [ cropIndex ]
+
+  set p_crop_TT replace-item cropIndex p_crop_TT 0
+  set p_crop_biomass replace-item cropIndex p_crop_biomass 0
+
+  set p_crop_biomass_rate replace-item cropIndex p_crop_biomass_rate 0
+  set p_crop_f_solar replace-item cropIndex p_crop_f_solar 0
+  set p_crop_I_50Blocal replace-item cropIndex p_crop_I_50Blocal 0
+  set p_crop_f_temp replace-item cropIndex p_crop_f_temp 0
+  set p_crop_f_heat replace-item cropIndex p_crop_f_heat 0
+  set p_crop_f_water replace-item cropIndex p_crop_f_water 0
+
+end
+
+to-report is-growing [ cropIndex ]
+
+  let myCropSowingDay (item cropIndex crop_sowingDay)
+  let myCropHarvestingDay (item cropIndex crop_harvestingDay)
+
+  ifelse (myCropSowingDay < myCropHarvestingDay)
+  [
+    ; summer crop (sowing day comes before harvesting day in the Jan-Dec calendar)
+    report (currentDayOfYear >= myCropSowingDay) and (currentDayOfYear < myCropHarvestingDay)
+  ]
+  [
+    ; winter crop (harvesting day comes before sowing day in the Jan-Dec calendar; ignore first year harvest)
+    report (currentDayOfYear >= myCropSowingDay) or (currentYear > 0 and currentDayOfYear < myCropHarvestingDay)
+  ]
+
+end
+
+to-report is-ripe [ cropIndex ]
+
+  report (currentDayOfYear = item cropIndex crop_harvestingDay)
+
+end
+
+to update-biomass [ cropIndex ]
+
+  update-TT cropIndex
+
+  update-f_Temp cropIndex
+
+  update-f_Heat cropIndex
+
+  update-f_Water cropIndex
+
+  set p_crop_I_50Blocal replace-item cropIndex p_crop_I_50Blocal ((item cropIndex crop_I_50B) + (item cropIndex crop_I_50maxW) * (1 - item cropIndex p_crop_f_Water) + (item cropIndex crop_I_50maxH) * (1 - item cropIndex p_crop_f_Heat))
+
+  update-f_Solar cropIndex
+
+  set p_crop_biomass_rate replace-item cropIndex p_crop_biomass_rate (solarRadiation * (item cropIndex crop_RUE) * item cropIndex p_crop_f_Solar * item cropIndex p_crop_f_Temp * (clampMin0 (min (list (item cropIndex p_crop_f_Heat) (item cropIndex p_crop_f_Water)))))
+
+  set p_crop_biomass replace-item cropIndex p_crop_biomass (item cropIndex p_crop_biomass + item cropIndex p_crop_biomass_rate)
+
+end
+
+to update-TT [ cropIndex ]
+
+  let deltaTT 0
+
+  ifelse ( temperature > item cropIndex crop_T_base )
+  [
+    set deltaTT temperature - item cropIndex crop_T_base
+  ]
+  [
+    set deltaTT 0
+  ]
+
+  set p_crop_TT replace-item cropIndex p_crop_TT (item cropIndex p_crop_TT + deltaTT)
+
+end
+
+to update-f_Temp [ cropIndex ]
+
+  ifelse ( temperature < item cropIndex crop_T_base )
+  [
+    set p_crop_f_Temp replace-item cropIndex p_crop_f_Temp 0
+  ]
+  [
+    ifelse ( temperature >= item cropIndex crop_T_opt )
+    [
+      set p_crop_f_Temp replace-item cropIndex p_crop_f_Temp 1
+    ]
+    [
+      set p_crop_f_Temp replace-item cropIndex p_crop_f_Temp ((temperature - item cropIndex crop_T_base) / (item cropIndex crop_T_opt - item cropIndex crop_T_base))
+    ]
+  ]
+
+end
+
+to update-f_Heat [ cropIndex ]
+
+  ifelse ( maxTemperature <= item cropIndex crop_T_heat )
+  [
+    set p_crop_f_Heat replace-item cropIndex p_crop_f_Heat 1
+  ]
+  [
+    ifelse ( maxTemperature > item cropIndex crop_T_extreme )
+    [
+      set p_crop_f_Heat replace-item cropIndex p_crop_f_Heat 0
+    ]
+    [
+      set p_crop_f_Heat replace-item cropIndex p_crop_f_Heat ((maxTemperature - item cropIndex crop_T_heat) / (item cropIndex crop_T_extreme - item cropIndex crop_T_heat))
+    ]
+  ]
+
+end
+
+to update-f_Water [ cropIndex ]
+
+  set p_crop_f_Water replace-item cropIndex p_crop_f_Water (1 - (item cropIndex crop_S_Water) * p_soil_ARID)
+
+end
+
+to update-f_Solar [ cropIndex ]
+
+  let f_Solar_early (crop_f_Solar_max / (1 + e ^ (-0.01 * (item cropIndex p_crop_TT - item cropIndex crop_I_50A))))
+
+  let f_Solar_late (crop_f_Solar_max / (1 + e ^ (-0.01 * (item cropIndex p_crop_TT - item cropIndex p_crop_I_50Blocal))))
+
+  set p_crop_f_Solar replace-item cropIndex p_crop_f_Solar min (list f_Solar_early f_Solar_late)
+
+  ;;; drought effect
+  if (item cropIndex p_crop_f_Water < 0.1)
+  [
+    set p_crop_f_Solar replace-item cropIndex p_crop_f_Solar (item cropIndex p_crop_f_Solar * (0.9 + item cropIndex p_crop_f_Water))
+  ]
+
+end

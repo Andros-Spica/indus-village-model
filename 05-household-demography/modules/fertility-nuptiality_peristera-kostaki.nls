@@ -1,0 +1,45 @@
+to build-fertility-tables
+
+  set fertilityTable load-peristeri-kostaki-model-table c1-fert mu-fert sigma1-fert sigma2-fert
+
+end
+
+to build-nuptiality-tables
+
+  set nuptialityTable-women load-peristeri-kostaki-model-table c1-women mu-women sigma1-women sigma2-women
+
+  set nuptialityTable-men load-peristeri-kostaki-model-table c1-men mu-men sigma1-men sigma2-men
+
+end
+
+to-report load-peristeri-kostaki-model-table [ c1 mu sigma1 sigma2 ]
+
+  ;;; The following correspond to the first parametric model in:
+
+  ;;; Peristeva and Kostaki, 2009, p. 147
+  ;;; "Modeling fertility in modern populations"
+  ;;; Demographic Research 16: 141-194
+  ;;; Available from: https://dx.doi.org/10.4054/DemRes.2007.16.6
+
+  ;;; Peristeva and Kostaki (2015), p. 133
+  ;;; "A parametric model for estimating nuptiality patterns in modern populations"
+  ;;; Canadian studies in population 42(2):130-148. DOI: 10.25336/P6TK56
+  ;;; Available from: https://www.researchgate.net/publication/285457704_A_parametric_model_for_estimating_nuptiality_patterns_in_modern_populations [accessed Nov 27 2018].
+  ;;; use "demoTables/compareNuptialityModel.R" to test shapes
+
+  let marriageProbs (list)
+
+  foreach n-values 151 [ i -> i ]
+  [
+    i ->
+    let sigma sigma1
+    if (i > mu) [ set sigma sigma2 ]
+
+    set marriageProbs lput (
+      c1 * exp (-1 * (((i - mu) / sigma) ^ 2))
+    ) marriageProbs
+  ]
+
+  report marriageProbs
+
+end

@@ -1,0 +1,50 @@
+to drain-soil-water
+
+  ; Soil Water Balance model
+  ; Using the approach of:
+  ; 'Working with dynamic crop models: Methods, tools, and examples for agriculture and enviromnent'
+  ;  Daniel Wallach, David Makowski, James W. Jones, François Brun (2006, 2014, 2019)
+  ;  Model description in p. 24-28, R code example in p. 138-144.
+  ;  see also https://github.com/cran/ZeBook/blob/master/R/watbal.model.r
+  ; Some additional info about run off at: https://engineering.purdue.edu/mapserve/LTHIA7/documentation/scs.htm
+  ; and at: https://en.wikipedia.org/wiki/Runoff_curve_number
+  ; This version is adapted for a better integration with the rest of the Indus Village Model.
+
+  ask patches
+  [
+    ; Maximum Water content at field capacity (mm)
+    let waterAtFieldCapacity p_soil_fieldCapacity * p_ecol_rootZoneDepth
+
+    ; Water content at wilting Point (mm)
+    let waterContentAtWiltingPoint p_soil_wiltingPoint * p_ecol_rootZoneDepth
+
+    ; Calculating the amount of deep drainage
+    let deepDrainage 0
+    if (p_soil_waterContent > waterAtFieldCapacity)
+    [ set deepDrainage p_soil_deepDrainageCoefficient * (p_soil_waterContent - waterAtFieldCapacity) ]
+;if (deepDrainage > p_soil_waterContent) [ print self print (word deepDrainage " = (" p_soil_deepDrainageCoefficient " / " p_ecol_rootZoneDepth ") * (" p_soil_waterContent " - " waterAtFieldCapacity ")" ) ]
+
+    ; Compute maximum water uptake by plant roots on a day, RWUM
+    let maxWaterUptakePlantRoot soil_rootWaterUptakeCoefficient * (p_soil_waterContent - waterContentAtWiltingPoint)
+
+    ; Calculate the amount of water lost through transpiration (TR)
+    let transpiration min (list maxWaterUptakePlantRoot p_ETr)
+
+    ; Calculate rate of change of state variable p_soil_waterContent
+    set p_soil_waterContent p_soil_waterContent - deepDrainage - transpiration
+    if (p_soil_waterContent < 0)  ;;; this happens if p_soil_waterContent is less than waterAtFieldCapacity or WATwp
+    [
+      ;print self print p_soil_waterContent
+      set p_soil_waterContent 0
+    ]
+    ifelse (p_ecol_rootZoneDepth > 0)
+    [ set p_soil_waterContentRatio p_soil_waterContent / p_ecol_rootZoneDepth ]
+    [ set p_soil_waterContentRatio 0]
+
+    ; Calculate ARID coefficient or drought index
+    set p_soil_ARID 0
+    if (transpiration < p_ETr)
+    [ set p_soil_ARID 1 - transpiration / p_ETr ]
+  ]
+
+end

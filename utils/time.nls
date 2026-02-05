@@ -1,0 +1,12 @@
+to advance-time
+
+  set currentDayOfYear currentDayOfYear + 1
+  if (currentDayOfYear > year-length-in-days)
+  [
+    set currentYear currentYear + 1
+    set currentDayOfYear 1
+  ]
+
+  carefully [ if (member? true [hh_tellYourStory] of households) [ print (word "A new year starts.") ] ] [ ]
+
+end

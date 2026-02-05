@@ -1,0 +1,257 @@
+to create-terrain
+
+  clear-all
+
+  set-parameters
+
+  ;;; START - core procedures ;;;;;;;;;;;;;;;;;;;;;;;
+
+  setup-elevations
+
+  setup-flows
+
+  setup-soil
+
+  ;;; END - core procedures ;;;;;;;;;;;;;;;;;;;;;;;
+
+  set-terrain-output-stats
+
+  paint-patches
+
+  setup-patch-coordinates-labels "bottom" "left"
+
+  setup-transect
+
+  update-transects
+
+  update-plots
+
+end
+
+to set-parameters
+
+  random-seed randomSeed
+
+  set maxDist (sqrt (( (max-pxcor - min-pxcor) ^ 2) + ((max-pycor - min-pycor) ^ 2)) / 2)
+
+  ;;; Ordered list of soil texture types used for visualisation
+  ;;; this order corresponds to an approximation to the soil texture palette (red: sand, green: silt, blue: clay)
+  set soil_textureType_display (list
+    "Sand"             "Loamy sand"        "Sandy loam"     ; red         orange  brown
+    "Loam"             "Silt loam"         "Silt"           ; yellow      green   lime
+    "Silty clay loam"  "Silty clay"        "Clay"           ; turquoise   cyan    sky
+    "Clay loam"        "Sandy clay"        "Sandy clay loam"; blue        violet  magenta
+  )
+
+  ;parameters-check-1 ; in case you want to avoid zeros (optional)
+
+  if (type-of-experiment = "user-defined")
+  [
+    ;;; load parameters from user interface
+    set elev_numProtuberances par_elev_numProtuberances
+    set elev_numDepressions par_elev_numDepressions
+
+    set elev_numRanges par_elev_numRanges
+    set elev_rangeLength round ( par_elev_rangeLength * maxDist)
+    set elev_rangeHeight par_elev_rangeHeight
+    set elev_rangeAggregation par_elev_rangeAggregation
+
+    set elev_numRifts par_elev_numRifts
+    set elev_riftLength round ( par_elev_riftLength * maxDist)
+    set elev_riftHeight par_elev_riftHeight
+    set elev_riftAggregation par_elev_riftAggregation
+
+    set elev_noise par_elev_noise
+
+    set elev_featureAngleRange par_elev_featureAngleRange
+
+    set elev_inversionIterations par_elev_inversionIterations
+
+    set elev_smoothStep par_elev_smoothStep
+    set elev_smoothingRadius par_elev_smoothingRadius * maxDist
+
+    set elev_xSlope par_elev_xSlope
+    set elev_ySlope par_elev_ySlope
+
+    set elev_valleyAxisInclination par_elev_valleyAxisInclination
+    set elev_valleySlope par_elev_valleySlope
+
+    set flow_riverAccumulationAtStart par_flow_riverAccumulationAtStart
+
+    set soil_formativeErosionRate par_soil_formativeErosionRate
+
+    set soil_minDepth par_soil_minDepth
+    set soil_maxDepth par_soil_maxDepth
+
+    set soil_depthNoise par_soil_depthNoise
+
+    set soil_min%sand par_soil_min%sand
+    set soil_max%sand par_soil_max%sand
+
+    set soil_min%silt par_soil_min%silt
+    set soil_max%silt par_soil_max%silt
+
+    set soil_min%clay par_soil_min%clay
+    set soil_max%clay par_soil_max%clay
+
+    set soil_textureNoise par_soil_textureNoise
+  ]
+
+  if (type-of-experiment = "random") ; TODO
+  [
+    ;;; get random values within an arbitrary (reasonable) range of values
+    ;;; this depends on what type and scale of terrain you want
+    ;;; Here, our aim is to create inland/coastal, plain, small-scale terrains with a general flow running from N to S (e.g., 5km^2 Haryana, India)
+    set elev_numProtuberances 1 + random 10
+    set elev_numDepressions 1 + random 10
+
+    set elev_numRanges 1 + random 100
+    set elev_rangeLength round ( (random-float 100) * maxDist)
+    set elev_rangeHeight random-float 50
+    set elev_rangeAggregation random-float 1
+
+    set elev_numRifts 1 + random 100
+    set elev_riftLength round ( (random-float 100) * maxDist)
+    set elev_riftHeight -1 * random-float 50
+    set elev_riftAggregation random-float 1
+
+    set elev_noise random-float 5
+
+    set elev_featureAngleRange random-float 30
+
+    set elev_inversionIterations (random-float 2)
+
+    set elev_smoothStep 1 ; not randomised
+    set elev_smoothingRadius 0.1 * maxDist ; not randomised
+
+    set elev_xSlope random-float 0.01 ; W depression
+    set elev_ySlope random-float 0.01 ; S depression
+
+    set elev_valleyAxisInclination random-float 1
+    set elev_valleySlope random-float 0.02 ; only valley (no ridges)
+
+    set flow_riverAccumulationAtStart random 5E7
+
+    set soil_formativeErosionRate random-float 3
+
+    set soil_minDepth 50 + random-float 250
+    set soil_maxDepth soil_minDepth + random-float 300
+
+    set soil_depthNoise random-float 50
+
+    set soil_min%sand random-float 100
+    set soil_max%sand soil_min%sand + random-float (100 - soil_min%sand)
+
+    set soil_min%silt random-float 100
+    set soil_max%silt soil_min%silt + random-float (100 - soil_min%silt)
+
+    set soil_min%clay random-float 100
+    set soil_max%clay soil_min%clay + random-float (100 - soil_min%clay)
+
+    set soil_textureNoise random-float 10
+  ]
+  if (type-of-experiment = "defined by experiment-number")
+  [
+    ;load-experiment
+  ]
+
+end
+
+to parameters-check-1
+
+  ;;; check if values were reset to 0 (comment out lines if 0 is a valid value)
+  ;;; and set default values
+
+  if (par_elev_rangeHeight = 0)                    [ set par_elev_rangeHeight                    15 ]
+  if (par_elev_riftHeight = 0)                     [ set par_elev_riftHeight                      0 ]
+  if (par_elev_noise = 0)                          [ set par_elev_noise                           1 ]
+
+  if (par_elev_numProtuberances = 0)               [ set par_elev_numProtuberances                1 ]
+  if (par_elev_numDepressions = 0)                 [ set par_elev_numDepressions                  1 ]
+
+  if (par_elev_inversionIterations = 0)            [ set par_elev_inversionIterations             5 ]
+
+  if (par_elev_numRanges = 0)                      [ set par_elev_numRanges                       1 ]
+  if (par_elev_rangeLength = 0)                    [ set par_elev_rangeLength                   100 ]
+  if (par_elev_rangeAggregation = 0)               [ set par_elev_rangeAggregation                0.75 ]
+
+  if (par_elev_numRifts = 0)                       [ set par_elev_numRifts                        1 ]
+  if (par_elev_riftLength = 0)                     [ set par_elev_riftLength                    100 ]
+  if (par_elev_riftAggregation = 0)                [ set par_elev_riftAggregation                 0.9 ]
+
+  if (par_elev_smoothStep = 0)                     [ set par_elev_smoothStep                      1 ]
+  if (par_elev_smoothingRadius = 0)                [ set par_elev_smoothingRadius                 0.1 ]
+
+  if (par_elev_xSlope = 0)                          [ set par_elev_xSlope                         0.01 ]
+  if (par_elev_ySlope = 0)                          [ set par_elev_ySlope                         0.025 ]
+  if (par_elev_valleyAxisInclination = 0)           [ set par_elev_valleyAxisInclination          0.1 ]
+  if (par_elev_valleySlope = 0)                     [ set par_elev_valleySlope                    0.02 ]
+
+  if (par_flow_riverAccumulationAtStart = 0)     [ set par_flow_riverAccumulationAtStart        1E6 ]
+
+  if (soil_formativeErosionRate = 0)             [ set soil_formativeErosionRate                  2 ]
+
+  if (par_soil_minDepth = 0)                    [ set par_soil_minDepth                         300 ]
+  if (par_soil_maxDepth = 0)                    [ set par_soil_maxDepth                         500 ]
+  if (par_soil_depthNoise = 0)                  [ set par_soil_depthNoise                        50 ]
+
+  if (par_soil_min%sand = 0)                    [ set par_soil_min%sand                          60 ]
+  if (par_soil_max%sand = 0)                    [ set par_soil_max%sand                          90 ]
+
+  if (par_soil_min%silt = 0)                    [ set par_soil_min%silt                          40 ]
+  if (par_soil_max%silt = 0)                    [ set par_soil_max%silt                          70 ]
+
+  if (par_soil_min%clay = 0)                    [ set par_soil_min%clay                           0 ]
+  if (par_soil_max%clay = 0)                    [ set par_soil_max%clay                          50 ]
+
+  if (par_soil_textureNoise = 0)                [ set par_soil_textureNoise                       5 ]
+
+end
+
+to parameters-to-default
+
+  ;;; set parameters to a default value
+  set par_elev_rangeHeight                  15
+  set par_elev_riftHeight                    0
+  set par_elev_noise                         1
+
+  set par_elev_numProtuberances              1
+  set par_elev_numDepressions                1
+
+  set par_elev_inversionIterations           5
+
+  set par_elev_numRanges                     1
+  set par_elev_rangeLength                 100
+  set par_elev_rangeAggregation              0.75
+
+  set par_elev_numRifts                      1
+  set par_elev_riftLength                  100
+  set par_elev_riftAggregation               0.9
+
+  set par_elev_smoothStep                    1
+  set par_elev_smoothingRadius               0.1
+
+  set par_elev_xSlope                        0.01
+  set par_elev_ySlope                        0.025
+  set par_elev_valleyAxisInclination         0.1
+  set par_elev_valleySlope                   0.02
+
+  set par_flow_riverAccumulationAtStart    1E6
+
+  set soil_formativeErosionRate              2
+  set par_soil_minDepth                    300
+  set par_soil_maxDepth                    500
+  set par_soil_depthNoise                   50
+
+  set par_soil_min%sand                     60
+  set par_soil_max%sand                     90
+
+  set par_soil_min%silt                     40
+  set par_soil_max%silt                     70
+
+  set par_soil_min%clay                      0
+  set par_soil_max%clay                     50
+
+  set par_soil_textureNoise                  5
+
+end

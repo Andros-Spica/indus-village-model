@@ -1,0 +1,7 @@
+to set-soil-water-output-stats
+  
+  ;;; soil water properties (dependent only on soil texture)
+  set meanWaterHoldingCapacity mean [p_soil_waterHoldingCapacity] of patches
+  set meanDeepDrainageCoefficient mean [p_soil_deepDrainageCoefficient] of patches
+
+end
