@@ -246,7 +246,8 @@ to parameters-to-default
 
   set par_initial-num-households               25
 
-  set cdmlt-level                           8
+  set coale-demeny-region                 "west"
+  set cdmlt-level                           5
 
   set c1-fert                               0.9
   set mu-fert                              15
@@ -1456,7 +1457,7 @@ to load-experiment
   ;;; this procedure loads the values of each (explored) parameter from a csv file.
   ;;; Note that the setup will use the value set by the user for any other parameter (e.g. scenario).
 
-  let FilePath "experiments//v1.1//" ;;; create folders in the model's directory before trying to load experiments
+  let FilePath "analysis//experiments//v1.1//" ;;; create folders in the model's directory before trying to load experiments
   let filename (word FilePath exp-number ".txt")
   file-open filename
   while [not file-at-end?]
@@ -1497,7 +1498,7 @@ end
 
 to export-households
 
-  let FilePath "output//"
+  let FilePath "analysis//simdata//"
 
   file-open (word FilePath behaviorspace-experiment-name behaviorspace-run-number "_households.csv")
 

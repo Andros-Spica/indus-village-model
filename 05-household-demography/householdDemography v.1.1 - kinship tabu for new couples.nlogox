@@ -196,7 +196,7 @@ to parameters-check1
   ;;; and set default values
   if (par_initial-num-households = 0)               [ set par_initial-num-households               25 ]
 
-  if (cdmlt-level = 0)                          [ set cdmlt-level                           8 ]
+  if (cdmlt-level = 0)                          [ set cdmlt-level                           5 ]
   if (c1-fert = 0)                              [ set c1-fert                               0.9 ]
   if (c1-women = 0)                             [ set c1-women                              0.9 ]
   if (c1-men = 0)                               [ set c1-men                                0.85 ]
@@ -226,7 +226,8 @@ to parameters-to-default
 
   set par_initial-num-households               25
 
-  set cdmlt-level                           8
+  set coale-demeny-region                 "west"
+  set cdmlt-level                           5
 
   set c1-fert                               0.9
   set mu-fert                              15
@@ -1350,7 +1351,7 @@ to load-experiment
   ;;; this procedure loads the values of each (explored) parameter from a csv file.
   ;;; Note that the setup will use the value set by the user for any other parameter (e.g. scenario).
 
-  let FilePath "experiments//v1.1//" ;;; create folders in the model's directory before trying to load experiments
+  let FilePath "analysis//experiments//v1.1//" ;;; create folders in the model's directory before trying to load experiments
   let filename (word FilePath exp-number ".txt")
   file-open filename
   while [not file-at-end?]
@@ -1391,7 +1392,7 @@ end
 
 to export-households
 
-  let FilePath "output//v1.1//"
+  let FilePath "analysis//simdata//v1.1//"
 
   file-open (word FilePath "exp-number=" exp-number "_SEED=" SEED "_households.csv")
 
@@ -1418,7 +1419,7 @@ end]]></code>
   <widgets>
     <view x="351" wrappingAllowedX="true" y="14" frameRate="30.0" minPycor="-9" height="308" showTickCounter="true" patchSize="16.0" fontSize="10" wrappingAllowedY="true" width="308" tickCounterLabel="ticks" maxPycor="9" updateMode="0" maxPxcor="9" minPxcor="-9"></view>
     <button x="91" actionKey="2" y="11" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="55">go</button>
-    <input x="6" multiline="false" y="60" height="60" variable="SEED" type="number" width="100">1.0</input>
+    <input x="6" multiline="false" y="60" height="60" variable="SEED" type="number" width="100">2435.0</input>
     <chooser x="3" y="127" height="60" variable="type-of-experiment" current="0" width="178" display="type-of-experiment">
       <choice type="string" value="user-defined"></choice>
       <choice type="string" value="random"></choice>
@@ -1427,7 +1428,7 @@ end]]></code>
     <button x="159" actionKey="3" y="11" height="40" disableUntilTicks="false" forever="true" kind="Observer" width="55">go</button>
     <input x="111" multiline="false" y="60" height="60" variable="max-iterations" type="number" width="100">2000.0</input>
     <button x="30" y="201" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="135">export-households</button>
-    <input x="186" multiline="false" y="127" height="60" variable="exp-number" type="number" width="100">65.0</input>
+    <input x="186" multiline="false" y="127" height="60" variable="exp-number" type="number" width="100">100.0</input>
     <input x="215" multiline="false" y="60" height="60" variable="max-population" type="number" width="101">5000.0</input>
     <button x="173" y="201" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="152" display="parameters to default">parameters-to-default</button>
     <plot x="20" autoPlotX="false" yMax="10.0" autoPlotY="false" y="724" xMin="0.0" height="201" legend="false" xMax="10.0" yMin="0.0" width="226" xAxis="age" display="fertility (prob. of giving birth)">
@@ -1470,13 +1471,13 @@ set-plot-y-range -0.001 (precision (max (list max nuptialityTable-women max nupt
     </plot>
     <button x="235" y="478" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="109" display="refresh tables">build-demography-tables
 update-plots</button>
-    <slider x="253" step="1" y="550" max="25" width="214" display="cdmlt-level" height="50" min="1" direction="Horizontal" default="8.0" variable="cdmlt-level" units="levels from 1 to 25"></slider>
+    <slider x="253" step="1" y="550" max="25" width="214" display="cdmlt-level" height="50" min="1" direction="Horizontal" default="5.0" variable="cdmlt-level" units="levels from 1 to 25"></slider>
     <slider x="254" step="0.001" y="937" max="1" width="209" display="c1-women" height="50" min="0" direction="Horizontal" default="0.9" variable="c1-women" units="(default: 0.9)"></slider>
     <slider x="258" step="0.001" y="765" max="40" width="208" display="mu-fert" height="50" min="0" direction="Horizontal" default="15.0" variable="mu-fert" units="(default: 15)"></slider>
-    <slider x="259" step="0.001" y="875" max="6 * 5" width="234" display="sigma2-fert" height="50" min="0" direction="Horizontal" default="7.695" variable="sigma2-fert" units="(default: 10)"></slider>
+    <slider x="259" step="0.001" y="875" max="6 * 5" width="234" display="sigma2-fert" height="50" min="0" direction="Horizontal" default="19.648" variable="sigma2-fert" units="(default: 10)"></slider>
     <slider x="258" step="0.001" y="820" max="2 * 5" width="235" display="sigma1-fert" height="50" min="0" direction="Horizontal" default="5.0" variable="sigma1-fert" units="(default: 5)"></slider>
     <slider x="258" step="0.001" y="710" max="1" width="210" display="c1-fert" height="50" min="0" direction="Horizontal" default="0.9" variable="c1-fert" units="(default: 0.9)"></slider>
-    <chooser x="255" y="605" height="60" variable="coale-demeny-region" current="2" width="141" display="coale-demeny-region">
+    <chooser x="255" y="605" height="60" variable="coale-demeny-region" current="0" width="141" display="coale-demeny-region">
       <choice type="string" value="west"></choice>
       <choice type="string" value="east"></choice>
       <choice type="string" value="south"></choice>
@@ -2519,7 +2520,7 @@ ISSUES:
       <go>go</go>
       <metrics>
         <metric>SEED</metric>
-        <metric>maturityAge</metric>
+        <metric>maturity-age</metric>
         <metric>initial-num-households</metric>
         <metric>household-initial-age-distribution</metric>
         <metric>max-couple-count-distribution</metric>
@@ -2529,8 +2530,7 @@ ISSUES:
         <metric>mu-fert</metric>
         <metric>sigma1-fert</metric>
         <metric>sigma2-fert</metric>
-        <metric>residence-rule</metric>
-        <metric>par_acceptable-kinship-degree-for-couples</metric>
+        <metric>acceptable-kinship-degree-for-couples</metric>
         <metric>c1-women</metric>
         <metric>c1-men</metric>
         <metric>mu-women</metric>
@@ -2560,17 +2560,84 @@ ISSUES:
         <metric>totalOrphans</metric>
       </metrics>
       <constants>
+        <enumeratedValueSet variable="type-of-experiment">
+          <value value="&quot;user-defined&quot;"></value>
+        </enumeratedValueSet>
         <steppedValueSet variable="SEED" first="0" step="1" last="99"></steppedValueSet>
+        <enumeratedValueSet variable="max-iterations">
+          <value value="2000"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="max-population">
+          <value value="5000"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="residence-rule">
+          <value value="&quot;matrilocal-matrilineal&quot;"></value>
+          <value value="&quot;patrilocal-patrilineal&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_initial-num-households">
+          <value value="25"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_max-couple-count-distribution">
+          <value value="&quot;1 6&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_acceptable-kinship-degree-for-couples">
+          <value value="8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_household-initial-age-distribution">
+          <value value="&quot;0 30&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="coale-demeny-region">
+          <value value="&quot;west&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="cdmlt-level">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="c1-fert">
+          <value value="0.9"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="mu-fert">
+          <value value="15"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-fert">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-fert">
+          <value value="19.648"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="c1-men">
+          <value value="0.85"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="mu-men">
+          <value value="20"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-men">
+          <value value="2"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-men">
+          <value value="10"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="c1-women">
+          <value value="0.9"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="mu-women">
+          <value value="15"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-women">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-women">
+          <value value="2"></value>
+        </enumeratedValueSet>
       </constants>
     </experiment>
-    <experiment name="exp-endstates" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="false">
+    <experiment name="exp-endstates-patri" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="false">
       <setup>setup</setup>
       <go>go</go>
-      <postRun>if (totalHouseholds = 0) [ export-households ]</postRun>
+      <postRun>;if (totalHouseholds != 0) [ export-households ]</postRun>
       <metrics>
-        <metric>exp-number</metric>
-        <metric>SEED</metric>
-        <metric>maturityAge</metric>
+        <metric>max-iterations</metric>
+        <metric>max-population</metric>
+        <metric>maturity-age</metric>
         <metric>initial-num-households</metric>
         <metric>household-initial-age-distribution</metric>
         <metric>max-couple-count-distribution</metric>
@@ -2580,8 +2647,7 @@ ISSUES:
         <metric>mu-fert</metric>
         <metric>sigma1-fert</metric>
         <metric>sigma2-fert</metric>
-        <metric>residence-rule</metric>
-        <metric>par_acceptable-kinship-degree-for-couples</metric>
+        <metric>acceptable-kinship-degree-for-couples</metric>
         <metric>c1-women</metric>
         <metric>c1-men</metric>
         <metric>mu-women</metric>
@@ -2618,6 +2684,308 @@ ISSUES:
         <enumeratedValueSet variable="SEED">
           <value value="0"></value>
           <value value="1"></value>
+          <value value="2"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="coale-demeny-region">
+          <value value="&quot;south&quot;"></value>
+          <value value="&quot;west&quot;"></value>
+          <value value="&quot;north&quot;"></value>
+          <value value="&quot;east&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="residence-rule">
+          <value value="&quot;patrilocal-patrilineal&quot;"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="exp-endstates-matri" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="false">
+      <setup>setup</setup>
+      <go>go</go>
+      <postRun>;if (totalHouseholds != 0) [ export-households ]</postRun>
+      <metrics>
+        <metric>max-iterations</metric>
+        <metric>max-population</metric>
+        <metric>maturity-age</metric>
+        <metric>initial-num-households</metric>
+        <metric>household-initial-age-distribution</metric>
+        <metric>max-couple-count-distribution</metric>
+        <metric>cdmlt-level</metric>
+        <metric>coale-demeny-region</metric>
+        <metric>c1-fert</metric>
+        <metric>mu-fert</metric>
+        <metric>sigma1-fert</metric>
+        <metric>sigma2-fert</metric>
+        <metric>acceptable-kinship-degree-for-couples</metric>
+        <metric>c1-women</metric>
+        <metric>c1-men</metric>
+        <metric>mu-women</metric>
+        <metric>mu-men</metric>
+        <metric>sigma1-women</metric>
+        <metric>sigma1-men</metric>
+        <metric>sigma2-women</metric>
+        <metric>sigma2-men</metric>
+        <metric>totalHouseholds</metric>
+        <metric>totalIndividuals</metric>
+        <metric>totalPopulationGrowth</metric>
+        <metric>totalWomen</metric>
+        <metric>totalMen</metric>
+        <metric>femaleRatio</metric>
+        <metric>womenAgeStructure</metric>
+        <metric>menAgeStructure</metric>
+        <metric>womenFirstAgeGroup</metric>
+        <metric>menFirstAgeGroup</metric>
+        <metric>womenBirths</metric>
+        <metric>menBirths</metric>
+        <metric>womenDeaths</metric>
+        <metric>menDeaths</metric>
+        <metric>womenIn</metric>
+        <metric>menIn</metric>
+        <metric>womenOut</metric>
+        <metric>menOut</metric>
+        <metric>totalOrphans</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="type-of-experiment">
+          <value value="&quot;defined by exp-number&quot;"></value>
+        </enumeratedValueSet>
+        <steppedValueSet variable="exp-number" first="1" step="1" last="2000"></steppedValueSet>
+        <enumeratedValueSet variable="SEED">
+          <value value="0"></value>
+          <value value="1"></value>
+          <value value="2"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="coale-demeny-region">
+          <value value="&quot;south&quot;"></value>
+          <value value="&quot;west&quot;"></value>
+          <value value="&quot;north&quot;"></value>
+          <value value="&quot;east&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="residence-rule">
+          <value value="&quot;matrilocal-matrilineal&quot;"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="exp-trajectories_cdmlt-level" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="true">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>SEED</metric>
+        <metric>maturity-age</metric>
+        <metric>initial-num-households</metric>
+        <metric>household-initial-age-distribution</metric>
+        <metric>max-couple-count-distribution</metric>
+        <metric>cdmlt-level</metric>
+        <metric>coale-demeny-region</metric>
+        <metric>c1-fert</metric>
+        <metric>mu-fert</metric>
+        <metric>sigma1-fert</metric>
+        <metric>sigma2-fert</metric>
+        <metric>acceptable-kinship-degree-for-couples</metric>
+        <metric>c1-women</metric>
+        <metric>c1-men</metric>
+        <metric>mu-women</metric>
+        <metric>mu-men</metric>
+        <metric>sigma1-women</metric>
+        <metric>sigma1-men</metric>
+        <metric>sigma2-women</metric>
+        <metric>sigma2-men</metric>
+        <metric>totalHouseholds</metric>
+        <metric>totalIndividuals</metric>
+        <metric>totalPopulationGrowth</metric>
+        <metric>totalWomen</metric>
+        <metric>totalMen</metric>
+        <metric>femaleRatio</metric>
+        <metric>womenAgeStructure</metric>
+        <metric>menAgeStructure</metric>
+        <metric>womenFirstAgeGroup</metric>
+        <metric>menFirstAgeGroup</metric>
+        <metric>womenBirths</metric>
+        <metric>menBirths</metric>
+        <metric>womenDeaths</metric>
+        <metric>menDeaths</metric>
+        <metric>womenIn</metric>
+        <metric>menIn</metric>
+        <metric>womenOut</metric>
+        <metric>menOut</metric>
+        <metric>totalOrphans</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="type-of-experiment">
+          <value value="&quot;user-defined&quot;"></value>
+        </enumeratedValueSet>
+        <steppedValueSet variable="SEED" first="0" step="1" last="99"></steppedValueSet>
+        <enumeratedValueSet variable="max-iterations">
+          <value value="2000"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="max-population">
+          <value value="5000"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="residence-rule">
+          <value value="&quot;matrilocal-matrilineal&quot;"></value>
+          <value value="&quot;patrilocal-patrilineal&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_initial-num-households">
+          <value value="25"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_max-couple-count-distribution">
+          <value value="&quot;1 6&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_acceptable-kinship-degree-for-couples">
+          <value value="8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_household-initial-age-distribution">
+          <value value="&quot;0 30&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="coale-demeny-region">
+          <value value="&quot;west&quot;"></value>
+        </enumeratedValueSet>
+        <steppedValueSet variable="cdmlt-level" first="2" step="3" last="25"></steppedValueSet>
+        <enumeratedValueSet variable="c1-fert">
+          <value value="0.9"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="mu-fert">
+          <value value="15"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-fert">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-fert">
+          <value value="19.648"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="c1-men">
+          <value value="0.85"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="mu-men">
+          <value value="20"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-men">
+          <value value="2"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-men">
+          <value value="10"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="c1-women">
+          <value value="0.9"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="mu-women">
+          <value value="15"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-women">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-women">
+          <value value="2"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="exp-trajectories_c1-fert" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="true">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>SEED</metric>
+        <metric>maturity-age</metric>
+        <metric>initial-num-households</metric>
+        <metric>household-initial-age-distribution</metric>
+        <metric>max-couple-count-distribution</metric>
+        <metric>cdmlt-level</metric>
+        <metric>coale-demeny-region</metric>
+        <metric>c1-fert</metric>
+        <metric>mu-fert</metric>
+        <metric>sigma1-fert</metric>
+        <metric>sigma2-fert</metric>
+        <metric>acceptable-kinship-degree-for-couples</metric>
+        <metric>c1-women</metric>
+        <metric>c1-men</metric>
+        <metric>mu-women</metric>
+        <metric>mu-men</metric>
+        <metric>sigma1-women</metric>
+        <metric>sigma1-men</metric>
+        <metric>sigma2-women</metric>
+        <metric>sigma2-men</metric>
+        <metric>totalHouseholds</metric>
+        <metric>totalIndividuals</metric>
+        <metric>totalPopulationGrowth</metric>
+        <metric>totalWomen</metric>
+        <metric>totalMen</metric>
+        <metric>femaleRatio</metric>
+        <metric>womenAgeStructure</metric>
+        <metric>menAgeStructure</metric>
+        <metric>womenFirstAgeGroup</metric>
+        <metric>menFirstAgeGroup</metric>
+        <metric>womenBirths</metric>
+        <metric>menBirths</metric>
+        <metric>womenDeaths</metric>
+        <metric>menDeaths</metric>
+        <metric>womenIn</metric>
+        <metric>menIn</metric>
+        <metric>womenOut</metric>
+        <metric>menOut</metric>
+        <metric>totalOrphans</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="type-of-experiment">
+          <value value="&quot;user-defined&quot;"></value>
+        </enumeratedValueSet>
+        <steppedValueSet variable="SEED" first="0" step="1" last="99"></steppedValueSet>
+        <enumeratedValueSet variable="max-iterations">
+          <value value="2000"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="max-population">
+          <value value="5000"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="residence-rule">
+          <value value="&quot;matrilocal-matrilineal&quot;"></value>
+          <value value="&quot;patrilocal-patrilineal&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_initial-num-households">
+          <value value="25"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_max-couple-count-distribution">
+          <value value="&quot;1 6&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_acceptable-kinship-degree-for-couples">
+          <value value="8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_household-initial-age-distribution">
+          <value value="&quot;0 30&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="coale-demeny-region">
+          <value value="&quot;west&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="cdmlt-level">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <steppedValueSet variable="c1-fert" first="0.3" step="0.1" last="0.9"></steppedValueSet>
+        <enumeratedValueSet variable="mu-fert">
+          <value value="15"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-fert">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-fert">
+          <value value="19.648"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="c1-men">
+          <value value="0.85"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="mu-men">
+          <value value="20"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-men">
+          <value value="2"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-men">
+          <value value="10"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="c1-women">
+          <value value="0.9"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="mu-women">
+          <value value="15"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-women">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-women">
           <value value="2"></value>
         </enumeratedValueSet>
       </constants>

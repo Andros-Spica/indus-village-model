@@ -269,7 +269,8 @@ to parameters-to-default
   ;;; set parameters to a default value
   set par_initial-num-households               25
 
-  set cdmlt-level                           8
+  set coale-demeny-region                 "west"
+  set cdmlt-level                           5
 
   set c1-fert                               0.9
   set mu-fert                              15
@@ -1565,13 +1566,57 @@ to-report load-coale-demeny-table [ isFemale ]
 
 end
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;; Parametrization from file ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to load-experiment
+
+  ;;; this procedure loads the values of each (explored) parameter from a csv file.
+  ;;; Note that the setup will use the value set by the user for any other parameter (e.g. scenario).
+
+  let FilePath "analysis//experiments//v1.1//" ;;; create folders in the model's directory before trying to load experiments
+  let filename (word FilePath exp-number ".txt")
+  file-open filename
+  while [not file-at-end?]
+    [
+      ;;; the values of the file must follow this same order
+
+      set initial-num-households file-read
+      set household-initial-age-distribution (list (file-read) (file-read))
+      set max-couple-count-distribution (list (file-read) (file-read))
+      set acceptable-kinship-degree-for-couples file-read
+
+      set cdmlt-level file-read
+
+      set c1-fert file-read
+      set mu-fert file-read
+      set sigma1-fert file-read
+      set sigma2-fert file-read
+
+      set c1-women file-read
+      set mu-women file-read
+      set sigma1-women file-read
+      set sigma2-women file-read
+      set c1-men file-read
+      set mu-men file-read
+      set sigma1-men file-read
+      set sigma2-men file-read
+
+      set max-iterations 2000
+      set max-population 10000
+    ]
+  file-close
+
+end
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; EXPORT DATA ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 to export-households
 
-  let FilePath "output//"
+  let FilePath "analysis//simdata//"
 
   file-open (word FilePath behaviorspace-experiment-name behaviorspace-run-number "_households.csv")
 
@@ -1614,7 +1659,7 @@ end]]></code>
   <widgets>
     <view x="332" wrappingAllowedX="true" y="9" frameRate="30.0" minPycor="-9" height="308" showTickCounter="true" patchSize="16.0" fontSize="10" wrappingAllowedY="true" width="308" tickCounterLabel="ticks" maxPycor="9" updateMode="0" maxPxcor="9" minPxcor="-9"></view>
     <input x="13" multiline="false" y="111" height="60" variable="SEED" type="number" width="100">0.0</input>
-    <chooser x="10" y="178" height="60" variable="type-of-experiment" current="0" width="178" display="type-of-experiment">
+    <chooser x="10" y="178" height="60" variable="type-of-experiment" current="2" width="178" display="type-of-experiment">
       <choice type="string" value="user-defined"></choice>
       <choice type="string" value="random"></choice>
       <choice type="string" value="defined by exp-number"></choice>
