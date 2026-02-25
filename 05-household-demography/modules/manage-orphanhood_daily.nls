@@ -59,7 +59,10 @@ to hh_add-orphan [ orphanData ]
   set hh_membersAge lput (item 1 orphanData) hh_membersAge
   set hh_membersMarriage lput -1 hh_membersMarriage ; any orphan is assumed single
   ;(when children "marry", they will share the household with the spouse. If they are found an orphan is because the spouse is either dead or is also an orphan)
-  
+  ; girls (women under maturity age) are assumed not to be in gestation or amenorrhea states
+  set hh_membersGestation lput 0 hh_membersGestation
+  set hh_membersAmenorrhea lput 0 hh_membersAmenorrhea
+
   if (hh_tellYourStory) [ print (word "The orphan (is female = " (item 0 orphanData) ", age = " (item 1 orphanData) ") is adopted by household " self " ( females = " hh_membersSex ", ages = " hh_membersAge ").") ]
 
 end

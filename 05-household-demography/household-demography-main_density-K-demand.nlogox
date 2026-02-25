@@ -113,6 +113,8 @@ households-own
 
   ;;; auxiliar
   hh_memberIndexesToDelete
+  
+  hh_tellYourStory
 ]
 ]]></code>
   <widgets>

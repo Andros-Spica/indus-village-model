@@ -45,8 +45,8 @@ to-report hh_whichMembersDying
   ; returns a list with true/false values flagging which members is dying during the current day
   report map
   [
-    i ->
-    (random-float 1 < get-mortality-prob-of-day (item i hh_membersSex) (item i hh_membersAge) densityEffect)
+    memberIndex ->
+    (random-float 1 < get-mortality-prob-of-day (item memberIndex hh_membersSex) (item memberIndex hh_membersAge) densityEffect)
   ] hh_membersIndexes
 
 end
@@ -56,13 +56,13 @@ to hh_update-marriages-after-deaths
   ; update hh_membersMarriage to consider any widow/widower as single
   foreach hh_membersIndexes
   [
-    i ->
-    if (item i hh_membersMarriage != -1                                           ; if the member is married
-      and length filter [j -> j = item i hh_membersMarriage] hh_membersMarriage = 1) ; and her/his partner died this day (so she/he is the only member with the marriage index)
+    memberIndex ->
+    if (item memberIndex hh_membersMarriage != -1                                           ; if the member is married
+      and length filter [j -> j = item memberIndex hh_membersMarriage] hh_membersMarriage = 1) ; and her/his partner died this day (so she/he is the only member with the marriage index)
     [
-      set hh_membersMarriage replace-item i hh_membersMarriage -1
+      set hh_membersMarriage replace-item memberIndex hh_membersMarriage -1
 
-      if (hh_tellYourStory) [ print (word "Member " i " of " self " has lost her/his partner.") ]
+      if (hh_tellYourStory) [ print (word "Member " memberIndex " of " self " has lost her/his partner.") ]
     ]
   ]
 

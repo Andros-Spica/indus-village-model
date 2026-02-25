@@ -220,19 +220,19 @@ to hh_set-members-to-marry
   ; iterate for each member, finding which one is marrying during the current year, according to age cohort and sex
   foreach hh_membersIndexes
   [
-    i ->
-    if (item i hh_membersMarriage = -1) ; member is not married
+    memberIndex ->
+    if (item memberIndex hh_membersMarriage = -1) ; member is not married
     [
-      let sex item i hh_membersSex
+      let sex item memberIndex hh_membersSex
 
-      if (random-float 1 < get-nuptiality-prob sex (item i hh_membersAge))  ; passes nuptiality test according to age
+      if (random-float 1 < get-nuptiality-prob sex (item memberIndex hh_membersAge))  ; passes nuptiality test according to age
       [
         ifelse (sex)
         [
-          set womenToMarry lput (list self i) womenToMarry
+          set womenToMarry lput (list self memberIndex) womenToMarry
         ]
         [
-          set menToMarry lput (list self i) menToMarry
+          set menToMarry lput (list self memberIndex) menToMarry
         ]
       ]
     ]
@@ -323,14 +323,14 @@ to hh_add-spouse [ selfIndex spouseData ]
     set hh_membersAge lput (get-initial-marriage-age spouse-sex) hh_membersAge
     set hh_membersSex lput spouse-sex hh_membersSex
 
-    ;print (word "new spouse added to " self ": is female = " (last hh_membersSex) ", age = " (last hh_membersAge))
+    if (hh_tellYourStory) [ print (word "New spouse added to household " self ": is female = " (last hh_membersSex) ", age = " (last hh_membersAge) ".") ]
   ]
   [
     ; The spouse is already in the system:
     ; copy spouse
     hh_add-member-from spouseData
 
-    ;print (word "spouse moving from " (Household (item 1 spouseData)) " to " self ": is female = " (last hh_membersSex) ", age = " (last hh_membersAge))
+    if (hh_tellYourStory) [ print (word "Spouse moving from household " (item 1 spouseData) " to " self ": is female = " (last hh_membersSex) ", age = " (last hh_membersAge) ".") ]
   ]
 
 end

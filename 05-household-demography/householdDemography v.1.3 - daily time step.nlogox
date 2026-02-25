@@ -875,8 +875,8 @@ to-report hh_whichMembersDying
   ; returns a list with true/false values flagging which members is dying during the current day
   report map
   [
-    i ->
-    (random-float 1 < get-mortality-of-day (item i hh_membersSex) (item i hh_membersAge))
+    memberIndex ->
+    (random-float 1 < get-mortality-of-day (item memberIndex hh_membersSex) (item memberIndex hh_membersAge))
   ] hh_membersIndexes
 
 end
@@ -886,13 +886,13 @@ to hh_update-marriages-after-deaths
   ; update hh_membersMarriage to consider any widow/widower as single
   foreach hh_membersIndexes
   [
-    i ->
-    if (item i hh_membersMarriage != -1                                           ; if the member is married
-      and length filter [j -> j = item i hh_membersMarriage] hh_membersMarriage = 1) ; and her/his partner died this day (so she/he is the only member with the marriage index)
+    memberIndex ->
+    if (item memberIndex hh_membersMarriage != -1                                           ; if the member is married
+      and length filter [j -> j = item memberIndex hh_membersMarriage] hh_membersMarriage = 1) ; and her/his partner died this day (so she/he is the only member with the marriage index)
     [
-      set hh_membersMarriage replace-item i hh_membersMarriage -1
+      set hh_membersMarriage replace-item memberIndex hh_membersMarriage -1
 
-      if (hh_tellYourStory) [ print (word "Member " i " of " self " has lost her/his partner.") ]
+      if (hh_tellYourStory) [ print (word "Member " memberIndex " of " self " has lost her/his partner.") ]
     ]
   ]
 
@@ -905,19 +905,19 @@ to hh_set-members-to-marry
   ; iterate for each member, finding which one is marrying during the current day, according to age cohort and sex
   foreach hh_membersIndexes
   [
-    i ->
-    if (item i hh_membersMarriage = -1) ; member is not married
+    memberIndex ->
+    if (item memberIndex hh_membersMarriage = -1) ; member is not married
     [
-      let sex item i hh_membersSex
+      let sex item memberIndex hh_membersSex
 
-      if (random-float 1 < get-nuptiality-of-day sex (item i hh_membersAge))  ; passes nuptiality test according to age
+      if (random-float 1 < get-nuptiality-of-day sex (item memberIndex hh_membersAge))  ; passes nuptiality test according to age
       [
         ifelse (sex)
         [
-          set womenToMarry lput (list self i) womenToMarry
+          set womenToMarry lput (list self memberIndex) womenToMarry
         ]
         [
-          set menToMarry lput (list self i) menToMarry
+          set menToMarry lput (list self memberIndex) menToMarry
         ]
       ]
     ]

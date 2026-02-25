@@ -6,6 +6,7 @@ to hh_initialise
   set hh_age get-initial-household-age
   set hh_maxCoupleCount get-initial-max-couple-count
   set hh_memberIndexesToDelete (list)
+  set hh_tellYourStory false
 
   hh_initialise-members
 
@@ -67,7 +68,7 @@ to-report get-initial-marriage-age [ isFemale ]
 
   while [notMarried AND age < 100]
   [
-    if ((get-nuptiality isFemale age) > random-float 1)
+    if ((get-nuptiality-prob isFemale age) > random-float 1)
     [
       set notMarried false
     ]

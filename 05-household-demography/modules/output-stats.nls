@@ -24,18 +24,18 @@ to update-demography-stats
   [
     foreach hh_membersIndexes
     [
-      i ->
-      ifelse (item i hh_membersSex)
+      memberIndex ->
+      ifelse (item memberIndex hh_membersSex)
       [
         set totalWomen totalWomen + 1
-        set womenAgeStructure lput item i hh_membersAge womenAgeStructure
-        if (item i hh_membersAge < 5)
+        set womenAgeStructure lput item memberIndex hh_membersAge womenAgeStructure
+        if (item memberIndex hh_membersAge < 5)
         [ set womenFirstAgeGroup womenFirstAgeGroup + 1 ]
       ]
       [
         set totalMen totalMen + 1
-        set menAgeStructure lput item i hh_membersAge menAgeStructure
-        if (item i hh_membersAge < 5)
+        set menAgeStructure lput item memberIndex hh_membersAge menAgeStructure
+        if (item memberIndex hh_membersAge < 5)
         [ set menFirstAgeGroup menFirstAgeGroup + 1 ]
       ]
       set totalIndividuals totalIndividuals + 1

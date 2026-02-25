@@ -220,19 +220,19 @@ to hh_set-members-to-marry
   ; iterate for each member, finding which one is marrying during the current year, according to age cohort and sex
   foreach hh_membersIndexes
   [
-    i ->
-    if (item i hh_membersMarriage = -1) ; member is not married
+    memberIndex ->
+    if (item memberIndex hh_membersMarriage = -1) ; member is not married
     [
-      let sex item i hh_membersSex
+      let sex item memberIndex hh_membersSex
 
-      if (random-float 1 < get-nuptiality-prob-of-day sex (item i hh_membersAge))  ; passes nuptiality test according to age
+      if (random-float 1 < get-nuptiality-prob-of-day sex (item memberIndex hh_membersAge))  ; passes nuptiality test according to age
       [
         ifelse (sex)
         [
-          set womenToMarry lput (list self i) womenToMarry
+          set womenToMarry lput (list self memberIndex) womenToMarry
         ]
         [
-          set menToMarry lput (list self i) menToMarry
+          set menToMarry lput (list self memberIndex) menToMarry
         ]
       ]
     ]

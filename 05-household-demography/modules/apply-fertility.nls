@@ -17,15 +17,14 @@ to hh_reproduce
 
   foreach hh_membersIndexes
   [
-    i ->
+    memberIndex ->
     ; there is still a couple to consider and the member is female
-    if (couplesToTest > 0 and item i hh_membersSex)
+    if (couplesToTest > 0 and item memberIndex hh_membersSex)
     [
-      if (random-float 1 < get-fertility (item i hh_membersAge))
+      if (random-float 1 < get-fertility (item memberIndex hh_membersAge))
       [
-        ;print get-fertility (item i hh_membersAge)
         hh_add-offspring 0 ; add a newborn
-        ;print (word "a new member is born in " self)
+        if (hh_tellYourStory) [ print (word "Member " memberIndex " of household " self " give birth to a new child.") ]
       ]
       set couplesToTest couplesToTest - 1
     ]

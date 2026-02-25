@@ -802,8 +802,8 @@ to-report hh_whichMembersDying
   ; returns a list with true/false values flagging which members is dying during the current year
   report map
   [
-    i ->
-    (random-float 1 < get-net-mortality (item i hh_membersSex) (item i hh_membersAge) densityEffect)
+    memberIndex ->
+    (random-float 1 < get-net-mortality (item memberIndex hh_membersSex) (item memberIndex hh_membersAge) densityEffect)
   ] hh_membersIndexes
 
 end
@@ -813,11 +813,11 @@ to hh_update-marriages-after-deaths
   ; update hh_membersMarriage to consider any widow/widower as single
   foreach hh_membersIndexes
   [
-    i ->
-    if (item i hh_membersMarriage != -1                                           ; if the member is married
-      and length filter [j -> j = item i hh_membersMarriage] hh_membersMarriage = 1) ; and her/his partner died this year (so she/he is the only member with the marriage index)
+    memberIndex ->
+    if (item memberIndex hh_membersMarriage != -1                                           ; if the member is married
+      and length filter [j -> j = item memberIndex hh_membersMarriage] hh_membersMarriage = 1) ; and her/his partner died this year (so she/he is the only member with the marriage index)
     [
-      set hh_membersMarriage replace-item i hh_membersMarriage -1
+      set hh_membersMarriage replace-item memberIndex hh_membersMarriage -1
       ;print (word "a member of " self " has lost her/his partner.")
     ]
   ]
@@ -831,19 +831,19 @@ to hh_set-members-to-marry
   ; iterate for each member, finding which one is marrying during the current year, according to age cohort and sex
   foreach hh_membersIndexes
   [
-    i ->
-    if (item i hh_membersMarriage = -1) ; member is not married
+    memberIndex ->
+    if (item memberIndex hh_membersMarriage = -1) ; member is not married
     [
-      let sex item i hh_membersSex
+      let sex item memberIndex hh_membersSex
 
-      if (random-float 1 < get-nuptiality sex (item i hh_membersAge))  ; passes nuptiality test according to age
+      if (random-float 1 < get-nuptiality sex (item memberIndex hh_membersAge))  ; passes nuptiality test according to age
       [
         ifelse (sex)
         [
-          set womenToMarry lput (list self i) womenToMarry
+          set womenToMarry lput (list self memberIndex) womenToMarry
         ]
         [
-          set menToMarry lput (list self i) menToMarry
+          set menToMarry lput (list self memberIndex) menToMarry
         ]
       ]
     ]
@@ -933,13 +933,13 @@ to hh_reproduce
 
   foreach hh_membersIndexes
   [
-    i ->
+    memberIndex ->
     ; there is still a couple to consider and the member is female
-    if (couplesToTest > 0 and item i hh_membersSex)
+    if (couplesToTest > 0 and item memberIndex hh_membersSex)
     [
-      if (random-float 1 < get-fertility (item i hh_membersAge))
+      if (random-float 1 < get-fertility (item memberIndex hh_membersAge))
       [
-        ;print get-fertility (item i hh_membersAge)
+        ;print get-fertility (item memberIndex hh_membersAge)
         hh_add-offspring 0 ; add a newborn
         ;print (word "a new member is born in " self)
       ]
@@ -1048,9 +1048,9 @@ to hh_delete-members-in-queue
   ; delete members in queue following decreasing order (so indexes still to go remain valid)
   foreach sort-by > (remove-duplicates hh_memberIndexesToDelete)
   [
-    i ->
+    memberIndex ->
     ; delete member from this household
-    hh_delete-member i
+    hh_delete-member memberIndex
   ]
 
   ; reset queue
@@ -1077,8 +1077,8 @@ to-report hh_is-infants-only
 
   foreach sort-by > hh_memberIndexesToDelete
   [
-    i ->
-    set membersAgeNotInQueueToDelete remove-item i membersAgeNotInQueueToDelete
+    memberIndex ->
+    set membersAgeNotInQueueToDelete remove-item memberIndex membersAgeNotInQueueToDelete
   ]
 
   if (length membersAgeNotInQueueToDelete = 0) [ report false ] ; report false in case there is no members that are not in queue to deletion
@@ -1121,8 +1121,8 @@ to-report hh_get-total-carrying-capacity-demand
 
   foreach hh_membersAge
   [
-    i ->
-    set my-carrying-capacity-demand my-carrying-capacity-demand + (get-carrying-capacity-demand-at-age i)
+    memberIndex ->
+    set my-carrying-capacity-demand my-carrying-capacity-demand + (get-carrying-capacity-demand-at-age memberIndex)
   ]
 
   report my-carrying-capacity-demand
@@ -1233,18 +1233,18 @@ to update-counters
   [
     foreach hh_membersIndexes
     [
-      i ->
-      ifelse (item i hh_membersSex)
+      memberIndex ->
+      ifelse (item memberIndex hh_membersSex)
       [
         set totalWomen totalWomen + 1
-        set womenAgeStructure lput item i hh_membersAge womenAgeStructure
-        if (item i hh_membersAge < 5)
+        set womenAgeStructure lput item memberIndex hh_membersAge womenAgeStructure
+        if (item memberIndex hh_membersAge < 5)
         [ set womenFirstAgeGroup womenFirstAgeGroup + 1 ]
       ]
       [
         set totalMen totalMen + 1
-        set menAgeStructure lput item i hh_membersAge menAgeStructure
-        if (item i hh_membersAge < 5)
+        set menAgeStructure lput item memberIndex hh_membersAge menAgeStructure
+        if (item memberIndex hh_membersAge < 5)
         [ set menFirstAgeGroup menFirstAgeGroup + 1 ]
       ]
       set totalIndividuals totalIndividuals + 1
