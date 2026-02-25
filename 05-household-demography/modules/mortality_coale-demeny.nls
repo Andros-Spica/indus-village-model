@@ -1,0 +1,61 @@
+to build-mortality-tables
+
+  set mortalityTable-women load-coale-demeny-table true
+
+  set mortalityTable-men load-coale-demeny-table false
+
+end
+
+to-report load-coale-demeny-table [ isFemale ]
+
+  ;;; Coale-Demeny Life Tables Model
+  ;;; tables generated with 'cdmlt' functions in 'demogR' package
+  ;;; demogR package version 0.6.0 (2018-09-13)
+  ;;; by James Holland Jones and collaborators
+  ;;; Their source:
+  ;;; Coale, A., P. Demeny, and B. Vaughn. 1983.
+  ;;; Regional model life tables and stable populations.
+  ;;; 2nd ed. New York: Academic Press.
+
+  ;;; Tables were generated using the R script 'demoTables/exportCoaleDemenyLifeTables.R'
+  ;;; included in the demoTables folder.
+
+  ;;; this function assumes there is a text file (demoTables/cdmlt<coale-demeny-region><sex>.txt)
+  ;;; containing a matrix with prob. of death for life-expentancy-level (rows) by age cohort (columns).
+  ;;; values of the first row and columns should be skipped
+
+  let sex "F"
+  if (not isFemale) [ set sex "M" ]
+
+  let nqx (list)
+
+  ; read file corresponding to coale-demeny-region and sex
+  let FilePath "demoTables//"
+  let filename (word FilePath "cdmlt" (first coale-demeny-region) sex ".txt")
+
+  file-open filename
+
+  ; skip first line (header)
+  let temp file-read-line
+
+  ; read lines and get the one corresponding to coale-demeny-life-expectancy-level
+  let i 1
+  while [not file-at-end?]
+  [
+    ; read line
+    set temp read-from-string (word "[" file-read-line "]")
+    ; select value corresponding to coale-demeny-life-expectancy-level (because the first item is 0, the values skips the first column or row names)
+    set nqx lput (item cdmlt-level temp) nqx
+
+;    if (read-from-string item 0 temp = cdmlt-level)
+;    [
+;      set nqx remove-item 0 temp
+;    ]
+    set i i + 1
+  ]
+
+  file-close
+
+  report nqx
+
+end

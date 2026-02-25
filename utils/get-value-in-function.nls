@@ -1,0 +1,17 @@
+to-report get-value-in-sigmoid [ xValue shapeParameter ]
+
+  report 1 - e ^ (-1 * shapeParameter * xValue)
+
+end
+
+to-report get-value-in-logistic [ value inflection rate ]
+
+  let output 1
+
+  carefully
+  [ set output 1 / (1 + e ^ ((inflection - value) * rate)) ]
+  [ set output 0 ] ;;; this is in case "e ^ ((inflection - value) * rate)" produces a number too big for memory to handle
+
+  report output
+
+end

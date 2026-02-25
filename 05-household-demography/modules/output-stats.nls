@@ -1,0 +1,51 @@
+to reset-demography-stats
+
+  set womenBirths 0
+  set menBirths 0
+  set womenDeaths 0
+  set menDeaths 0
+
+end
+
+to update-demography-stats
+
+  set totalHouseholds count households
+  let oldTotalIndividual totalIndividuals
+  set totalIndividuals 0
+  set totalWomen 0
+  set totalMen 0
+  set femaleRatio -1
+  set womenAgeStructure (list)
+  set menAgeStructure (list)
+  set womenFirstAgeGroup 0
+  set menFirstAgeGroup 0
+
+  ask households
+  [
+    foreach hh_membersIndexes
+    [
+      i ->
+      ifelse (item i hh_membersSex)
+      [
+        set totalWomen totalWomen + 1
+        set womenAgeStructure lput item i hh_membersAge womenAgeStructure
+        if (item i hh_membersAge < 5)
+        [ set womenFirstAgeGroup womenFirstAgeGroup + 1 ]
+      ]
+      [
+        set totalMen totalMen + 1
+        set menAgeStructure lput item i hh_membersAge menAgeStructure
+        if (item i hh_membersAge < 5)
+        [ set menFirstAgeGroup menFirstAgeGroup + 1 ]
+      ]
+      set totalIndividuals totalIndividuals + 1
+    ]
+  ]
+
+  carefully [ set totalPopulationGrowth 100 * (totalIndividuals - oldTotalIndividual) / oldTotalIndividual ] [ ]
+
+  carefully [ set femaleRatio totalWomen / totalIndividuals ] [ set femaleRatio "" ]
+
+  carefully [ set totalOrphans length orphanList ] [ set totalOrphans 0 ]
+
+end

@@ -1,0 +1,120 @@
+to stock-exchanges
+  
+  ;;; SELL
+  ;;; households with surplus contribute a fraction of their surplus
+  ;;; to a common exchange pool ('market')
+  ask households with [hh_dietUnfulfilled = 0]
+  [
+    hh_stocks-sell
+  ]
+
+  ;;; BUY
+  ;;; households with unfullfilled diets may complement their stocks progressivelly.
+  ;;; by importing/acquiring/buying additional foodstuff at the common 'market'.
+  ;;; The iteration advances one unit of stock at a time
+  ;;; and stops when the market supply or demand is exhausted.
+
+  ;;; calculate the number of possible transactions as the minimum between supply (market-stocks) and demand (sum [hh_dietUnfulfilled] of households)
+  let numberOftransactions min (list (sum market_stocks) (sum [hh_dietUnfulfilled] of households) ) ; (sum [min (list hh_dietUnfulfilled hh_exchangePower)] of households) )
+
+  repeat numberOftransactions
+  [
+    ask one-of households with [hh_dietUnfulfilled > 0]
+    [
+      ;;; search & acquire
+      hh_stocks-buy
+
+      ;;; and then consume it
+      hh_stocks-consume
+    ]
+  ]
+  
+end
+
+to hh_stocks-sell
+
+  ;;; The household will sell a fraction of surplus to the market.
+  ;;; Households will only sell surplus from the most recent stock.
+  ;;; The corresponding "demand" is assumed to exist in the market
+
+  ;;; The fraction to sell depends on the household disposition (hh_maxSurplusToSell)
+  let transactionStocks (item 0 hh_stocks) * (hh_maxSurplusToSell / 100)
+
+  ;;; subtract transactionStocks from the most recent of household stocks
+  set hh_stocks replace-item 0 hh_stocks ((item 0 hh_stocks) - transactionStocks)
+
+  ;;; add transactionStocks to the most recent of market stocks
+  set market_stocks replace-item 0 market_stocks ((item 0 market_stocks) + transactionStocks)
+
+  ;;; add transactionStocks to the household exchange power
+  ;set hh_exchangePower hh_exchangePower + transactionStocks
+
+  ;;; add transactionStocks to the record of market purchases
+  set market_purchases market_purchases + transactionStocks
+
+end
+
+to hh_stocks-buy
+
+  ;;; The household will acquire one unit of stock from the market
+
+  let stocksToBuy 1
+
+  ;;; search the most recent produce available (assuming freshness is preferred)
+  ;;; and buy until the unit is fullfilled or there is no more stocks in the market
+  let index 0
+
+  repeat maxStockAge
+  [
+    if (stocksToBuy > 0 and (item index market_stocks) > 0)
+    [
+      ;;; Stock units to be acquired are 1 or less (in case the market is almost depleted)
+      let transactionStocks min (list stocksToBuy (item index market_stocks))
+
+      ;;; add transactionStocks to the most recent of household stocks
+      set hh_stocks replace-item index hh_stocks ((item index hh_stocks) + transactionStocks)
+
+      ;;; subtract transactionStocks from the most recent of market stocks
+      set market_stocks replace-item index market_stocks ((item index market_stocks) - transactionStocks)
+
+      ;;; subtract transactionStocks from the household exchange power
+      ;set hh_exchangePower hh_exchangePower - transactionStocks
+
+      ;;; add transactionStocks to the record of market sells
+      set market_sells market_sells + transactionStocks
+
+      ;;; discount bought stock from stocksToBuy (in most cases a single purchase is enough)
+      set stocksToBuy stocksToBuy - transactionStocks
+
+      set index index + 1
+    ]
+  ]
+
+end
+
+to market-stocks-decay
+
+  ;;; iterate per stock age (from OLDEST to CURRENT),
+  ;;; discounting decay and moving the stock to an older index
+  ;;; The oldest (index = maxStorageAge) is lost
+
+  let index (maxStockAge - 1)
+
+  repeat (maxStockAge - 1) ; "- 1" garantees that index 0 (the current produce) is ignored, i.e. it is still to be filled by this time step produce
+  [
+    ;;; get new value according to decay proportional to years-old
+    let newValue (item (index - 1) market_stocks) * (get-stock-preservation-rate index)
+
+    ;;; add value to the record of market losses
+    set market_sumOfLosses market_sumOfLosses + ((item (index - 1) market_stocks) - newValue)
+
+    ;;; and add it as the stock of this year
+    set market_stocks replace-item index market_stocks newValue
+
+    set index index - 1
+  ]
+
+  ;;; reset most recent stock to 0 (it may be later filled by households selling their surplus)
+  set market_stocks replace-item 0 market_stocks 0
+
+end

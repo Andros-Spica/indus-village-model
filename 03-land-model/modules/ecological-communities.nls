@@ -1,0 +1,61 @@
+to setup-initial-ecological-communities
+
+  ;;; set the percentages of grass, brush and wood per each patch, depending on flowAccumulation
+  ;;; future versions could consider adding a parametric noise component (similar to soil_textureNoise)
+  ;;; percentages are also translated into cover type, which can be related to the content of runOffCurveNumberTable
+
+  ask patches
+  [
+    ;;; calculate a temporary % of grass, brush, wood as main components of communities (these will most likely not sum 100%)
+    set p_ecol_%grass get-%grass flow_accumulation
+    set p_ecol_%brush get-%brush flow_accumulation
+    set p_ecol_%wood get-%wood flow_accumulation
+
+    ;;; Assuming these are dominant (locally) at different stages of
+    ;;; a ecological succession, from grassland/meadow to woods.
+
+    ;;; Therefore, %wood has preference over %brush and %brush over %grass.
+    set p_ecol_%brush min (list p_ecol_%brush (100 - p_ecol_%wood) )
+    set p_ecol_%grass min (list p_ecol_%grass (100 - (p_ecol_%wood + p_ecol_%brush) ) )
+
+    set p_ecol_coverType get-cover-type p_ecol_%grass p_ecol_%brush p_ecol_%wood
+  ]
+
+end
+
+to-report get-%grass [ flowAccumulation ]
+
+  report 100 * get-value-in-logistic flowAccumulation ecol_grassFrequencyInflection  ecol_grassFrequencyRate
+
+end
+
+to-report get-%brush [ flowAccumulation ]
+
+  report 100 * get-value-in-logistic flowAccumulation ecol_brushFrequencyInflection ecol_brushFrequencyRate
+
+end
+
+to-report get-%wood [ flowAccumulation ]
+
+  report 100 * get-value-in-logistic flowAccumulation ecol_woodFrequencyInflection ecol_woodFrequencyRate
+
+end
+
+to-report get-cover-type [ %grass %brush %wood ]
+
+  ;;; set cover type according to percentages
+  ;;; The criteria used for separating cover types (to select runoff curve number) attempts to approach the one used in:
+  ;;; Table 2.2 in: Cronshey R G 1986 Urban Hydrology for Small Watersheds, Technical Release 55 (TR-55).
+  ;;; United States Department of Agriculture, Soil Conservation Service, Engineering Division
+  ;;; See also ternary diagram "ternaryPlots/coverTypePerEcologicalCommunity.png", generated in R
+  ;;; NOTE: desert (%bareSoil > 50) definition is arbitrary. Pending to find information on this threshold (keep in mind it affects runoff curve number and albedo).
+
+  let %bareSoil 100 - %grass - %brush - %wood
+  if (%bareSoil > 50) [ report "desert" ] ;;; if percentages are too low
+
+  if (%grass >= 60) [ report "grassland" ]
+  if (%wood >= 50 and %brush <= 50 and %grass < 40) [ report "woodland" ]
+  if (%brush >= 50 and %wood < 50 and %grass < 40) [ report "shrubland" ]
+  if (%brush < 60 and %wood < 60 and %grass < 60) [ report "wood-grass" ]
+
+end

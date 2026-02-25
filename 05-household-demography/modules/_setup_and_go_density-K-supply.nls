@@ -1,0 +1,262 @@
+to setup
+
+  clear-all
+
+  set-constants
+
+  set-parameters
+
+  build-demography-tables
+
+  setup-households
+
+  reset-demography-stats
+
+  update-demography-stats
+
+  reset-ticks
+
+end
+
+to set-constants
+
+  ; parameter set to default value (constant)
+  set maturity-age 15
+
+  set density-effect-steepness 3
+
+end
+
+to set-parameters
+
+  ; set random seed
+  random-seed SEED
+
+  ; check parameters values
+  parameters-check1
+
+  ;;; setup parameters depending on the type of experiment
+  set household-initial-age-distribution read-from-string ( word "[" par_household-initial-age-distribution "]")
+  set max-couple-count-distribution read-from-string ( word "[" par_max-couple-count-distribution "]")
+
+  if (type-of-experiment = "user-defined")
+  [
+    ;;; load parameters from user interface
+    set initial-num-households par_initial-num-households
+
+    set acceptable-kinship-degree-for-couples par_acceptable-kinship-degree-for-couples
+
+    set carrying-capacity par_carrying-capacity
+    set density-effect-scaling-factor par_density-effect-scaling-factor
+    set labour-demand-per-capita par_labour-demand-per-capita
+  ]
+  if (type-of-experiment = "random")
+  [
+    ;;; use values from user interface as a maximum for random uniform distributions
+    set initial-num-households 1 + random par_initial-num-households ; at least one household
+    set household-initial-age-distribution (list
+      (1 + random (item 0 household-initial-age-distribution))   ; minimum
+      (
+        (item 0 household-initial-age-distribution)
+        + 1
+        + random ((item 1 household-initial-age-distribution) - (item 0 household-initial-age-distribution))
+      )   ; maximum
+      )
+    set max-couple-count-distribution (list
+      (1 + random (item 0 max-couple-count-distribution))   ; minimum
+      (
+        (item 0 max-couple-count-distribution)
+        + 1
+        + random ((item 1 max-couple-count-distribution) - (item 0 max-couple-count-distribution))
+      )   ; maximum
+      )
+
+    set cdmlt-level 1 + random 25
+    set coale-demeny-region item random 4 (list "west" "east" "south" "north")
+    set c1-fert max (list 1E-6 (random-float 1))
+    set mu-fert maturity-age + (random 40 - maturity-age)
+    set sigma1-fert max (list 1E-6 (random-float (mu-fert - maturity-age)))
+    set sigma2-fert max (list 1E-6 (random-float ((30 + maturity-age) - mu-fert)))
+    set residence-rule item random 2 (list "patrilocal-patrilineal" "matrilocal-matrilineal")
+    set acceptable-kinship-degree-for-couples random 10
+    set c1-women max (list 1E-6 (random-float 1))
+    set c1-men max (list 1E-6 (random-float 1))
+    set mu-women random 40
+    set mu-men random 40
+    set sigma1-women max (list 1E-6 (random-float mu-women))
+    set sigma1-men max (list 1E-6 (random-float mu-men))
+    set sigma2-women max (list 1E-6 (random-float (40 - mu-women)))
+    set sigma2-men max (list 1E-6 (random-float (40 - mu-men)))
+
+    set carrying-capacity 100 + random-float 900
+    set density-effect-scaling-factor 0.05 + random-float 0.1
+    set labour-demand-per-capita 0.3 + random-float 0.6
+  ]
+  if (type-of-experiment = "defined by exp-number")
+  [
+    load-experiment
+  ]
+
+  ; check parameters values
+  parameters-check2
+
+end
+
+to parameters-check1
+
+  ;;; check if values were reset to 0
+  ;;; and set default values
+  if (par_initial-num-households = 0)               [ set par_initial-num-households               25 ]
+
+  if (cdmlt-level = 0)                          [ set cdmlt-level                           8 ]
+  if (c1-fert = 0)                              [ set c1-fert                               0.9 ]
+  if (c1-women = 0)                             [ set c1-women                              0.9 ]
+  if (c1-men = 0)                               [ set c1-men                                0.85 ]
+  if (mu-fert = 0)                              [ set mu-fert                              15 ]
+  if (mu-women = 0)                             [ set mu-women                             15 ]
+  if (mu-men = 0)                               [ set mu-men                               20 ]
+  if (sigma1-fert = 0)                          [ set sigma1-fert                           5 ]
+  if (sigma1-women = 0)                         [ set sigma1-women                          5 ]
+  if (sigma1-men = 0)                           [ set sigma1-men                            2 ]
+  if (sigma2-fert = 0)                          [ set sigma2-fert                           2 ]
+  if (sigma2-women = 0)                         [ set sigma2-women                          2 ]
+  if (sigma2-men = 0)                           [ set sigma2-men                           10 ]
+
+  if (carrying-capacity = 0)                    [ set carrying-capacity                   200 ]
+  if (density-effect-scaling-factor = 0)        [ set density-effect-scaling-factor         0.1 ]
+
+  ;;; string type inputs (vector of values)
+  if (par_household-initial-age-distribution = 0 or
+    length par_household-initial-age-distribution = 1)   [ set par_household-initial-age-distribution   "0 30" ]
+  if (par_max-couple-count-distribution = 0 or
+    length par_max-couple-count-distribution = 1)        [ set par_max-couple-count-distribution        "1 6" ]
+
+end
+
+to parameters-to-default
+
+  ;;; set parameters to a default value
+  set max-iterations                     2000
+  set max-population                     5000
+
+  set par_initial-num-households               25
+
+  set cdmlt-level                           8
+
+  set c1-fert                               0.9
+  set mu-fert                              15
+  set sigma1-fert                           5
+
+  set c1-women                              0.9
+  set mu-women                             15
+  set sigma2-women                          2
+  set sigma1-women                          5
+
+  set c1-men                                0.85
+  set mu-men                               20
+  set sigma1-men                            2
+  set sigma2-men                           10
+
+  set par_household-initial-age-distribution   "0 30"
+  set par_max-couple-count-distribution        "1 6"
+
+  set carrying-capacity                   200
+  set density-effect-scaling-factor         0.1
+
+end
+
+to parameters-check2
+
+  ;;; initial parameter check (e.g., avoiding division per zero error)
+  check-par-is-positive "initial-num-households" initial-num-households
+
+  ;;; check if given min values are less than max values
+  check-par-is-range "household-initial-age-distribution" household-initial-age-distribution
+  check-par-is-range "max-couple-count-distribution" max-couple-count-distribution
+
+end
+
+to check-par-is-positive [ parName parValue ]
+
+  if (parValue <= 0)
+  [
+    print (word "ERROR: " parName " must be greater than zero")
+    stop
+  ]
+
+end
+
+to check-par-is-range [ parName parListMinMax ]
+
+  if ( item 0 parListMinMax > item 1 parListMinMax)
+  [
+    print (word "ERROR: " parName " minimum (first item) must be less than or equal to maximum (second item)")
+    stop
+  ]
+
+end
+
+to build-demography-tables
+
+  ;;; load demographic data tables into lists
+
+  build-fertility-tables
+
+  build-nuptiality-tables
+
+  build-mortality-tables
+
+end
+
+to setup-households
+
+  ;;; create households (position are not relevant)
+  repeat initial-num-households
+  [
+    create-households 1
+    [
+      setxy random-xcor random-ycor
+      hh_initialise
+    ]
+  ]
+
+end
+
+to go
+
+  reset-demography-stats
+
+  update-households
+
+  update-demography-stats
+
+  if (totalHouseholds = 0 or
+    ticks = max-iterations or
+    totalIndividuals > max-population)
+  [
+    ;if (length behaviorspace-experiment-name > 0 and count households > 0) [ export-households ]
+    stop
+  ]
+  ;print "-------tick----"
+  tick
+
+end
+
+to update-households
+
+  ;print "-------apply-mortality----"
+  age-households
+
+  ;print "-------apply-mortality----"
+  apply-mortality
+
+  ;print "-------apply-nuptiality----"
+  apply-nuptiality
+
+  ;print "-------apply-fertility----"
+  apply-fertility
+
+  ;print "-------manage-orphanhood----"
+  manage-orphanhood
+
+end

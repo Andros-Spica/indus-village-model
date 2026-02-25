@@ -1,0 +1,10 @@
+to-report hh_get-stocks-production
+
+  ;;; Get production of foodstuff
+
+  report get-random-in-range productionMin productionMax
+
+  ;;; Once integrated with crop model and other food production inputs,
+  ;;; this procedure will return values as a funtion of land conditions and labour invested
+
+end

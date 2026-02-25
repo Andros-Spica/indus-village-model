@@ -1,0 +1,25 @@
+to age-households
+
+  ask households
+  [
+    hh_aging
+  ]
+
+end
+
+to hh_aging
+
+  ; household aging
+  set hh_age hh_age + 1
+
+  ; members aging
+  hh_update-members-age
+
+end
+
+to hh_update-members-age
+
+  ; household members aging
+  set hh_membersAge map [ i -> i + 1 ] hh_membersAge
+
+end

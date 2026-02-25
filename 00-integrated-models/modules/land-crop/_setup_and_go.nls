@@ -1,0 +1,571 @@
+to setup
+
+  clear-all
+
+  ; --- import terrain -----------------------
+
+  import-terrain
+
+  ; --- import tables ------------------------
+
+  import-hydrologic-soil-groups-table
+
+  import-runoff-curve-number-table
+
+  import-soil-water-table
+
+  import-albedo-table
+
+  import-ecological-component-table
+
+  import-crop-table
+
+  ; --- loading/testing parameters -----------
+
+  set-constants
+
+  set-parameters
+
+  ; --- core procedures ----------------------
+
+  set currentDayOfYear 1
+
+  setup-patches
+
+  update-weather
+
+  update-water
+
+  update-crop-extension
+
+  rescale-ecological-communities
+
+  update-ecological-communities
+
+  update-soil-cover
+
+  ; --- output handling ------------------------
+
+  set-terrain-output-stats
+
+  update-land-water-output-stats
+
+  setup-patch-coordinates-labels "bottom" "left"
+
+  setup-transect
+
+  refresh-view
+
+  print-crop-table
+
+  setup-plot-crop
+
+  update-plot-crop
+
+  ; -- time -------------------------------------
+
+  reset-ticks
+
+end
+
+to set-constants
+
+  ; "constants" are variables that will not be explored as parameters
+  ; and may be used during a simulation.
+
+  ; land units are 100m x 100m or 1 ha = 10,000 m^2
+  set patchWidth 100
+  set patchArea patchWidth * patchWidth
+
+  set year-length-in-days 365
+
+  ;;; Ordered list of soil texture types used for visualisation
+  ;;; this order corresponds to an approximation to the soil texture palette (red: sand, green: silt, blue: clay)
+  set soil_textureType_display (list
+    "Sand"             "Loamy sand"        "Sandy loam"     ; red         orange  brown
+    "Loam"             "Silt loam"         "Silt"           ; yellow      green   lime
+    "Silty clay loam"  "Silty clay"        "Clay"           ; turquoise   cyan    sky
+    "Clay loam"        "Sandy clay"        "Sandy clay loam"; blue        violet  magenta
+  )
+
+  ; MUF : Water Uptake coefficient (mm^3 mm^-3)
+  set soil_rootWaterUptakeCoefficient 0.096
+
+  ; inundation algorithm
+  set errorToleranceThreshold 1
+
+  ; maximum fraction of radiation interception
+  set crop_f_Solar_max 0.95
+
+end
+
+to set-parameters
+
+  ; set random seed
+  random-seed randomSeed
+
+  set maxDist (sqrt (( (max-pxcor - min-pxcor) ^ 2) + ((max-pycor - min-pycor) ^ 2)) / 2)
+
+  ; check parameters values
+  parameters-check
+
+  ;;; setup parameters depending on the type of experiment
+  if (type-of-experiment = "user-defined")
+  [
+    ;;; load parameters from user interface
+
+    ;;; set sea level (no more just a display issue; it is relevant for ETr and limiting coastlines)
+    set elev_seaLevelReferenceShift par_elev_seaLevelReferenceShift
+
+    ;;; weather generation
+    set temperature_annualMaxAt2m temperature_annual-max-at-2m
+    set temperature_annualMinAt2m temperature_annual-min-at-2m
+    set temperature_meanDailyFluctuation temperature_mean-daily-fluctuation
+    set temperature_dailyLowerDeviation temperature_daily-lower-deviation
+    set temperature_dailyUpperDeviation temperature_daily-upper-deviation
+
+    set solar_annualMax solar_annual-max
+    set solar_annualMin solar_annual-min
+    set solar_meanDailyFluctuation solar_mean-daily-fluctuation
+
+    set precipitation_yearlyMean precipitation_yearly-mean
+    set precipitation_yearlySd precipitation_yearly-sd
+    set precipitation_dailyCum_plateauValue_yearlyMean precipitation_daily-cum_plateau-value_yearly-mean
+    set precipitation_dailyCum_plateauValue_yearlySd precipitation_daily-cum_plateau-value_yearly-sd
+    set precipitation_dailyCum_inflection1_yearlyMean precipitation_daily-cum_inflection1_yearly-mean
+    set precipitation_dailyCum_inflection1_yearlySd precipitation_daily-cum_inflection1_yearly-sd
+    set precipitation_dailyCum_rate1_yearlyMean precipitation_daily-cum_rate1_yearly-mean
+    set precipitation_dailyCum_rate1_yearlySd precipitation_daily-cum_rate1_yearly-sd
+    set precipitation_dailyCum_inflection2_yearlyMean precipitation_daily-cum_inflection2_yearly-mean
+    set precipitation_dailyCum_inflection2_yearlySd precipitation_daily-cum_inflection2_yearly-sd
+    set precipitation_dailyCum_rate2_yearlyMean precipitation_daily-cum_rate2_yearly-mean
+    set precipitation_dailyCum_rate2_yearlySd precipitation_daily-cum_rate2_yearly-sd
+    set precipitation_dailyCum_nSamples_yearlyMean precipitation_daily-cum_n-samples_yearly-mean
+    set precipitation_dailyCum_nSamples_yearlySd precipitation_daily-cum_n-samples_yearly-sd
+    set precipitation_dailyCum_maxSampleSize_yearlyMean precipitation_daily-cum_max-sample-size_yearly-mean
+    set precipitation_dailyCum_maxSampleSize_yearlySd precipitation_daily-cum_max-sample-size_yearly-sd
+
+    ;;; River water (dependent on flow_riverAccumulationAtStart, which is set by Land model)
+    set riverWaterPerFlowAccumulation par_riverWaterPerFlowAccumulation
+  ]
+  if (type-of-experiment = "random")
+  [
+    ;;; sometimes use values from user interface as a maximum for random uniform distributions
+
+    ;;; set sea level (no more just a display issue; it is relevant for ETr and limiting coastlines)
+    set elev_seaLevelReferenceShift -1 * random 1000
+
+    ;;; weather generation
+    set temperature_annualMaxAt2m 15 + random-float 25
+    set temperature_annualMinAt2m -15 + random-float 30
+    set temperature_meanDailyFluctuation random-float 5
+    set temperature_dailyLowerDeviation random-float 10
+    set temperature_dailyUpperDeviation random-float 10
+
+    set solar_annualMin 1.5 + random-float 15
+    set solar_annualMax 20 + random-float 10
+    set solar_meanDailyFluctuation 3 + random-float 3
+
+    set precipitation_yearlyMean 200 + random-float 800
+    set precipitation_yearlySd random-float 200
+    set precipitation_dailyCum_plateauValue_yearlyMean 0.2 + random-float 0.6
+    set precipitation_dailyCum_plateauValue_yearlySd random-float 0.4
+    set precipitation_dailyCum_inflection1_yearlyMean 40 + random 140
+    set precipitation_dailyCum_inflection1_yearlySd 20 + random 80
+    set precipitation_dailyCum_rate1_yearlyMean 0.01 + random-float 0.07
+    set precipitation_dailyCum_rate1_yearlySd 0.004 + random-float 0.02
+    set precipitation_dailyCum_inflection2_yearlyMean 180 + random 140
+    set precipitation_dailyCum_inflection2_yearlySd 20 + random 80
+    set precipitation_dailyCum_rate2_yearlyMean 0.01 + random-float 0.07
+    set precipitation_dailyCum_rate2_yearlySd 0.004 + random-float 0.02
+    set precipitation_dailyCum_nSamples_yearlyMean 100 + random 200
+    set precipitation_dailyCum_nSamples_yearlySd 10 + random 20
+    set precipitation_dailyCum_maxSampleSize_yearlyMean 5 + random 20
+    set precipitation_dailyCum_maxSampleSize_yearlySd 1 + random 5
+
+    ;;; River water (effect on p_water depends on flow_riverAccumulationAtStart, which is set by the Land model)
+    set riverWaterPerFlowAccumulation 1E-4 + random-float 0.00099 ; range between 1E-4 and 1E-5
+
+    ;;; NOTES about calibration:
+    ;;; Global Horizontal Irradiation can vary from about 2 to 7 KWh/m-2 per day.
+    ;;; (conversion kWh/m2 to MJ/m2 is 1 : 3.6)
+    ;;; See approx. values in https://globalsolaratlas.info/
+    ;;; and https://www.researchgate.net/publication/271722280_Solmap_Project_In_India%27s_Solar_Resource_Assessment
+    ;;; see general info in http://www.physicalgeography.net/fundamentals/6i.html
+  ]
+  if (type-of-experiment = "precipitation-variation")
+  [
+    ;;; load parameters from user interface
+
+    ;;; set sea level (no more just a display issue; it is relevant for ETr and limiting coastlines)
+    set elev_seaLevelReferenceShift par_elev_seaLevelReferenceShift
+
+    ;;; weather generation
+    set temperature_annualMaxAt2m temperature_annual-max-at-2m
+    set temperature_annualMinAt2m temperature_annual-min-at-2m
+    set temperature_meanDailyFluctuation temperature_mean-daily-fluctuation
+    set temperature_dailyLowerDeviation temperature_daily-lower-deviation
+    set temperature_dailyUpperDeviation temperature_daily-upper-deviation
+
+    set solar_annualMax solar_annual-max
+    set solar_annualMin solar_annual-min
+    set solar_meanDailyFluctuation solar_mean-daily-fluctuation
+
+    set precipitation_yearlyMean 200 + random-float 800
+    set precipitation_yearlySd precipitation_yearly-sd
+    set precipitation_dailyCum_plateauValue_yearlyMean 0.2 + random-float 0.6
+    set precipitation_dailyCum_plateauValue_yearlySd precipitation_daily-cum_plateau-value_yearly-sd
+    set precipitation_dailyCum_inflection1_yearlyMean precipitation_daily-cum_inflection1_yearly-mean
+    set precipitation_dailyCum_inflection1_yearlySd precipitation_daily-cum_inflection1_yearly-sd
+    set precipitation_dailyCum_rate1_yearlyMean precipitation_daily-cum_rate1_yearly-mean
+    set precipitation_dailyCum_rate1_yearlySd precipitation_daily-cum_rate1_yearly-sd
+    set precipitation_dailyCum_inflection2_yearlyMean precipitation_daily-cum_inflection2_yearly-mean
+    set precipitation_dailyCum_inflection2_yearlySd precipitation_daily-cum_inflection2_yearly-sd
+    set precipitation_dailyCum_rate2_yearlyMean precipitation_daily-cum_rate2_yearly-mean
+    set precipitation_dailyCum_rate2_yearlySd precipitation_daily-cum_rate2_yearly-sd
+    set precipitation_dailyCum_nSamples_yearlyMean precipitation_daily-cum_n-samples_yearly-mean
+    set precipitation_dailyCum_nSamples_yearlySd precipitation_daily-cum_n-samples_yearly-sd
+    set precipitation_dailyCum_maxSampleSize_yearlyMean precipitation_daily-cum_max-sample-size_yearly-mean
+    set precipitation_dailyCum_maxSampleSize_yearlySd precipitation_daily-cum_max-sample-size_yearly-sd
+
+    ;;; River water (dependent on flow_riverAccumulationAtStart, which is set by Land model)
+    set riverWaterPerFlowAccumulation par_riverWaterPerFlowAccumulation
+
+    set randomise-crop-frequencies? false
+  ]
+  if (type-of-experiment = "river-variation")
+  [
+    ;;; load parameters from user interface
+
+    ;;; set sea level (no more just a display issue; it is relevant for ETr and limiting coastlines)
+    set elev_seaLevelReferenceShift par_elev_seaLevelReferenceShift
+
+    ;;; weather generation
+    set temperature_annualMaxAt2m temperature_annual-max-at-2m
+    set temperature_annualMinAt2m temperature_annual-min-at-2m
+    set temperature_meanDailyFluctuation temperature_mean-daily-fluctuation
+    set temperature_dailyLowerDeviation temperature_daily-lower-deviation
+    set temperature_dailyUpperDeviation temperature_daily-upper-deviation
+
+    set solar_annualMax solar_annual-max
+    set solar_annualMin solar_annual-min
+    set solar_meanDailyFluctuation solar_mean-daily-fluctuation
+
+    set precipitation_yearlyMean precipitation_yearly-mean
+    set precipitation_yearlySd precipitation_yearly-sd
+    set precipitation_dailyCum_plateauValue_yearlyMean precipitation_daily-cum_plateau-value_yearly-mean
+    set precipitation_dailyCum_plateauValue_yearlySd precipitation_daily-cum_plateau-value_yearly-sd
+    set precipitation_dailyCum_inflection1_yearlyMean precipitation_daily-cum_inflection1_yearly-mean
+    set precipitation_dailyCum_inflection1_yearlySd precipitation_daily-cum_inflection1_yearly-sd
+    set precipitation_dailyCum_rate1_yearlyMean precipitation_daily-cum_rate1_yearly-mean
+    set precipitation_dailyCum_rate1_yearlySd precipitation_daily-cum_rate1_yearly-sd
+    set precipitation_dailyCum_inflection2_yearlyMean precipitation_daily-cum_inflection2_yearly-mean
+    set precipitation_dailyCum_inflection2_yearlySd precipitation_daily-cum_inflection2_yearly-sd
+    set precipitation_dailyCum_rate2_yearlyMean precipitation_daily-cum_rate2_yearly-mean
+    set precipitation_dailyCum_rate2_yearlySd precipitation_daily-cum_rate2_yearly-sd
+    set precipitation_dailyCum_nSamples_yearlyMean precipitation_daily-cum_n-samples_yearly-mean
+    set precipitation_dailyCum_nSamples_yearlySd precipitation_daily-cum_n-samples_yearly-sd
+    set precipitation_dailyCum_maxSampleSize_yearlyMean precipitation_daily-cum_max-sample-size_yearly-mean
+    set precipitation_dailyCum_maxSampleSize_yearlySd precipitation_daily-cum_max-sample-size_yearly-sd
+
+    ;;; River water (dependent on flow_riverAccumulationAtStart, which is set by Land model)
+    set riverWaterPerFlowAccumulation 0.00001 + random-float 0.00099
+
+    set randomise-crop-frequencies? false
+  ]
+  if (type-of-experiment = "water-variation")
+  [
+    ;;; load parameters from user interface
+
+    ;;; set sea level (no more just a display issue; it is relevant for ETr and limiting coastlines)
+    set elev_seaLevelReferenceShift par_elev_seaLevelReferenceShift
+
+    ;;; weather generation
+    set temperature_annualMaxAt2m temperature_annual-max-at-2m
+    set temperature_annualMinAt2m temperature_annual-min-at-2m
+    set temperature_meanDailyFluctuation temperature_mean-daily-fluctuation
+    set temperature_dailyLowerDeviation temperature_daily-lower-deviation
+    set temperature_dailyUpperDeviation temperature_daily-upper-deviation
+
+    set solar_annualMax solar_annual-max
+    set solar_annualMin solar_annual-min
+    set solar_meanDailyFluctuation solar_mean-daily-fluctuation
+
+    set precipitation_yearlyMean 50 + random-float 950
+    set precipitation_yearlySd precipitation_yearly-sd
+    set precipitation_dailyCum_plateauValue_yearlyMean precipitation_daily-cum_plateau-value_yearly-mean
+    set precipitation_dailyCum_plateauValue_yearlySd precipitation_daily-cum_plateau-value_yearly-sd
+    set precipitation_dailyCum_inflection1_yearlyMean precipitation_daily-cum_inflection1_yearly-mean
+    set precipitation_dailyCum_inflection1_yearlySd precipitation_daily-cum_inflection1_yearly-sd
+    set precipitation_dailyCum_rate1_yearlyMean precipitation_daily-cum_rate1_yearly-mean
+    set precipitation_dailyCum_rate1_yearlySd precipitation_daily-cum_rate1_yearly-sd
+    set precipitation_dailyCum_inflection2_yearlyMean precipitation_daily-cum_inflection2_yearly-mean
+    set precipitation_dailyCum_inflection2_yearlySd precipitation_daily-cum_inflection2_yearly-sd
+    set precipitation_dailyCum_rate2_yearlyMean precipitation_daily-cum_rate2_yearly-mean
+    set precipitation_dailyCum_rate2_yearlySd precipitation_daily-cum_rate2_yearly-sd
+    set precipitation_dailyCum_nSamples_yearlyMean precipitation_daily-cum_n-samples_yearly-mean
+    set precipitation_dailyCum_nSamples_yearlySd precipitation_daily-cum_n-samples_yearly-sd
+    set precipitation_dailyCum_maxSampleSize_yearlyMean precipitation_daily-cum_max-sample-size_yearly-mean
+    set precipitation_dailyCum_maxSampleSize_yearlySd precipitation_daily-cum_max-sample-size_yearly-sd
+
+    ;;; River water (dependent on flow_riverAccumulationAtStart, which is set by Land model)
+    set riverWaterPerFlowAccumulation 0.00001 + random-float 0.00099
+
+    set randomise-crop-frequencies? false
+  ]
+  if (type-of-experiment = "randomised-crop-frequencies")
+  [
+    ;;; load parameters from user interface
+
+    ;;; set sea level (no more just a display issue; it is relevant for ETr and limiting coastlines)
+    set elev_seaLevelReferenceShift par_elev_seaLevelReferenceShift
+
+    ;;; weather generation
+    set temperature_annualMaxAt2m temperature_annual-max-at-2m
+    set temperature_annualMinAt2m temperature_annual-min-at-2m
+    set temperature_meanDailyFluctuation temperature_mean-daily-fluctuation
+    set temperature_dailyLowerDeviation temperature_daily-lower-deviation
+    set temperature_dailyUpperDeviation temperature_daily-upper-deviation
+
+    set solar_annualMax solar_annual-max
+    set solar_annualMin solar_annual-min
+    set solar_meanDailyFluctuation solar_mean-daily-fluctuation
+
+    set precipitation_yearlyMean precipitation_yearly-mean
+    set precipitation_yearlySd precipitation_yearly-sd
+    set precipitation_dailyCum_plateauValue_yearlyMean precipitation_daily-cum_plateau-value_yearly-mean
+    set precipitation_dailyCum_plateauValue_yearlySd precipitation_daily-cum_plateau-value_yearly-sd
+    set precipitation_dailyCum_inflection1_yearlyMean precipitation_daily-cum_inflection1_yearly-mean
+    set precipitation_dailyCum_inflection1_yearlySd precipitation_daily-cum_inflection1_yearly-sd
+    set precipitation_dailyCum_rate1_yearlyMean precipitation_daily-cum_rate1_yearly-mean
+    set precipitation_dailyCum_rate1_yearlySd precipitation_daily-cum_rate1_yearly-sd
+    set precipitation_dailyCum_inflection2_yearlyMean precipitation_daily-cum_inflection2_yearly-mean
+    set precipitation_dailyCum_inflection2_yearlySd precipitation_daily-cum_inflection2_yearly-sd
+    set precipitation_dailyCum_rate2_yearlyMean precipitation_daily-cum_rate2_yearly-mean
+    set precipitation_dailyCum_rate2_yearlySd precipitation_daily-cum_rate2_yearly-sd
+    set precipitation_dailyCum_nSamples_yearlyMean precipitation_daily-cum_n-samples_yearly-mean
+    set precipitation_dailyCum_nSamples_yearlySd precipitation_daily-cum_n-samples_yearly-sd
+    set precipitation_dailyCum_maxSampleSize_yearlyMean precipitation_daily-cum_max-sample-size_yearly-mean
+    set precipitation_dailyCum_maxSampleSize_yearlySd precipitation_daily-cum_max-sample-size_yearly-sd
+
+    ;;; River water (dependent on flow_riverAccumulationAtStart, which is set by Land model)
+    set riverWaterPerFlowAccumulation par_riverWaterPerFlowAccumulation
+
+    set randomise-crop-frequencies? true
+  ]
+
+  ;;; scenario settings:
+
+  ;;; precipitation
+  set precipitation_yearlyMean precipitation_yearlyMean + precipitation_yearly-mean-bias
+
+  ;;; crop management parameters (never not randomised)
+  ;;; crop intensity on every patch
+  set crop_intensity crop-intensity
+
+  ;;; convert crops-selected from string to list
+  set crop_selection read-from-string crop-selection
+
+  ;;; sowing/harvest dates are initialised as the ones suggested in cropTable.csv
+  set crop_sowingDay crop_sugSowingDay
+  set crop_harvestingDay crop_sugHarvestingDay
+
+end
+
+to parameters-check
+
+  ;;; check if values were reset to 0 (NetLogo does that from time to time...!)
+  ;;; and set default values (assuming they are not 0)
+
+  ;;; sea level shift
+  if (par_elev_seaLevelReferenceShift = 0)                       [ set par_elev_seaLevelReferenceShift                       -1000 ]
+
+
+  ;;; the default values of weather parameters aim to broadly represent conditions in Haryana, NW India.
+
+  if (temperature_annual-max-at-2m = 0)                          [ set temperature_annual-max-at-2m                             37 ]
+  if (temperature_annual-min-at-2m = 0)                          [ set temperature_annual-min-at-2m                             12.8 ]
+  if (temperature_mean-daily-fluctuation = 0)                    [ set temperature_mean-daily-fluctuation                        2.2 ]
+  if (temperature_daily-lower-deviation = 0)                     [ set temperature_daily-lower-deviation                         6.8 ]
+  if (temperature_daily-upper-deviation = 0)                     [ set temperature_daily-upper-deviation                         7.9 ]
+
+  if (solar_annual-max = 0)                                      [ set solar_annual-max                                          24.2 ]
+  if (solar_annual-min = 0)                                      [ set solar_annual-min                                          9.2 ]
+  if (solar_mean-daily-fluctuation = 0)                          [ set solar_mean-daily-fluctuation                              3.3 ]
+
+  if (precipitation_yearly-mean = 0)                             [ set precipitation_yearly-mean                               489 ]
+  if (precipitation_yearly-sd = 0)                               [ set precipitation_yearly-sd                                 142.2 ]
+  if (precipitation_daily-cum_plateau-value_yearly-mean = 0)     [ set precipitation_daily-cum_plateau-value_yearly-mean         0.25 ]
+  if (precipitation_daily-cum_plateau-value_yearly-sd = 0)       [ set precipitation_daily-cum_plateau-value_yearly-sd           0.1 ]
+  if (precipitation_daily-cum_inflection1_yearly-mean = 0)       [ set precipitation_daily-cum_inflection1_yearly-mean           40 ]
+  if (precipitation_daily-cum_inflection1_yearly-sd = 0)         [ set precipitation_daily-cum_inflection1_yearly-sd             5 ]
+  if (precipitation_daily-cum_rate1_yearly-mean = 0)             [ set precipitation_daily-cum_rate1_yearly-mean                 0.07 ]
+  if (precipitation_daily-cum_rate1_yearly-sd = 0)               [ set precipitation_daily-cum_rate1_yearly-sd                   0.02 ]
+  if (precipitation_daily-cum_inflection2_yearly-mean = 0)       [ set precipitation_daily-cum_inflection2_yearly-mean           240 ]
+  if (precipitation_daily-cum_inflection2_yearly-sd = 0)         [ set precipitation_daily-cum_inflection2_yearly-sd             20 ]
+  if (precipitation_daily-cum_rate2_yearly-mean = 0)             [ set precipitation_daily-cum_rate2_yearly-mean                 0.08 ]
+  if (precipitation_daily-cum_rate2_yearly-sd = 0)               [ set precipitation_daily-cum_rate2_yearly-sd                   0.02 ]
+  if (precipitation_daily-cum_n-samples_yearly-mean = 0)         [ set precipitation_daily-cum_n-samples_yearly-mean           200 ]
+  if (precipitation_daily-cum_n-samples_yearly-sd = 0)           [ set precipitation_daily-cum_n-samples_yearly-sd               5 ]
+  if (precipitation_daily-cum_max-sample-size_yearly-mean = 0)   [ set precipitation_daily-cum_max-sample-size_yearly-mean      10 ]
+  if (precipitation_daily-cum_max-sample-size_yearly-sd = 0)     [ set precipitation_daily-cum_max-sample-size_yearly-sd         3 ]
+
+  if (par_riverWaterPerFlowAccumulation = 0)                     [ set par_riverWaterPerFlowAccumulation                        1E-4 ]
+
+  if (crop-intensity = 0)                                        [ set crop-intensity                                            50 ]
+  if (crop-selection = "" or crop-selection = "0" or crop-selection = 0) [ set crop-selection     (word (map [i -> (word "\"" i "\"")] typesOfCrops)) ]
+  if (crop-to-display = "" or crop-to-display = "0" or crop-to-display = 0) [ set crop-to-display          (first typesOfCrops) ]
+
+end
+
+to parameters-to-default
+
+  ;;; set parameters to a default value
+  set par_elev_seaLevelReferenceShift                       -1000
+
+  set temperature_annual-max-at-2m                             37
+  set temperature_annual-min-at-2m                             12.8
+  set temperature_mean-daily-fluctuation                        2.2
+  set temperature_daily-lower-deviation                         6.8
+  set temperature_daily-upper-deviation                         7.9
+
+  set solar_annual-max                                          24.2
+  set solar_annual-min                                          9.2
+  set solar_mean-daily-fluctuation                              3.3
+
+  set precipitation_yearly-mean                               489
+  set precipitation_yearly-sd                                 142.2
+  set precipitation_daily-cum_plateau-value_yearly-mean         0.25
+  set precipitation_daily-cum_plateau-value_yearly-sd           0.1
+  set precipitation_daily-cum_inflection1_yearly-mean           40
+  set precipitation_daily-cum_inflection1_yearly-sd             5
+  set precipitation_daily-cum_rate1_yearly-mean                 0.07
+  set precipitation_daily-cum_rate1_yearly-sd                   0.02
+  set precipitation_daily-cum_inflection2_yearly-mean           240
+  set precipitation_daily-cum_inflection2_yearly-sd             20
+  set precipitation_daily-cum_rate2_yearly-mean                 0.08
+  set precipitation_daily-cum_rate2_yearly-sd                   0.02
+  set precipitation_daily-cum_n-samples_yearly-mean           200
+  set precipitation_daily-cum_n-samples_yearly-sd               5
+  set precipitation_daily-cum_max-sample-size_yearly-mean      10
+  set precipitation_daily-cum_max-sample-size_yearly-sd         3
+
+  set par_riverWaterPerFlowAccumulation                        1E-4
+
+  set crop-intensity                                            50
+  set randomise-crop-frequencies?                               false
+  set crop-selection                   (word (map [i -> (word "\"" i "\"")] typesOfCrops))
+  set crop-to-display                               (first typesOfCrops)
+
+end
+
+to setup-patches
+
+  ask patches
+  [
+    ;;; recentre elevation so negative values are only below sea level
+    set elevation get-recentred-elevation elevation_original elev_seaLevelReferenceShift
+
+    ;;; use table input data to set up soil water properties
+    setup-soil-soilWaterProperties
+
+    setup-crops
+
+    ;;; root zone depth (mm) given initial ecological communities
+    set-ecological-community-root-zone-depth
+
+    ;;; Initial water content (mm) given initial ecological communities
+    set p_soil_waterContent  p_ecol_rootZoneDepth * p_soil_fieldCapacity
+  ]
+
+  setup-river-water
+
+end
+
+to setup-crops
+
+  ;;; crop assignment
+  ;;; NOTE: this is a temporary aspect to be replaced by agent decision-making
+
+  set p_crop_frequency []
+
+  foreach typesOfCrops
+  [
+    cropName ->
+
+    ifelse (member? cropName typesOfCrops)
+    [
+      ifelse (randomise-crop-frequencies?)
+      [
+        ;;; patches have a random proportion of each crops selected
+        set p_crop_frequency lput (random 100) p_crop_frequency
+      ]
+      [
+        ;;; assign equal frequencies to each crops selected
+        set p_crop_frequency lput 100 p_crop_frequency
+      ]
+    ]
+    [
+      set p_crop_frequency lput 0 p_crop_frequency
+    ]
+  ]
+
+  ;;; rescale values
+  let cropFrequencyTotal sum p_crop_frequency
+  set p_crop_frequency map [i -> 100 * i / cropFrequencyTotal] p_crop_frequency
+
+  ;;; initialise all crop related variables as list where items correspond to crops
+  set p_crop_TT n-values (length typesOfCrops) [ j -> 0 ]
+  set p_crop_biomass n-values (length typesOfCrops) [ j -> 0 ]
+  set p_crop_totalBiomass n-values (length typesOfCrops) [ j -> 0 ]
+  set p_crop_yield n-values (length typesOfCrops) [ j -> 0 ]
+  set p_crop_totalYield n-values (length typesOfCrops) [ j -> 0 ]
+
+  set p_crop_biomass_rate n-values (length typesOfCrops) [ j -> 0 ]
+  set p_crop_f_solar n-values (length typesOfCrops) [ j -> 0 ]
+  set p_crop_I_50Blocal n-values (length typesOfCrops) [ j -> 0 ]
+  set p_crop_f_temp n-values (length typesOfCrops) [ j -> 0 ]
+  set p_crop_f_heat n-values (length typesOfCrops) [ j -> 0 ]
+  set p_crop_f_water n-values (length typesOfCrops) [ j -> 0 ]
+
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; GO ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to go
+
+  ; --- core procedures -------------------------
+
+  update-weather
+
+  update-water
+
+  update-crop-extension
+
+  update-ecological-communities
+
+  update-crops
+
+  update-soil-cover
+
+  ; --- output handling ------------------------
+
+  update-land-water-output-stats
+
+  refresh-view
+
+  update-plot-crop
+
+  ; -- time -------------------------------------
+
+  advance-time
+
+  tick
+
+  ; --- stop conditions -------------------------
+
+  if (ticks = (end-simulation-in-year * year-length-in-days)) [stop]
+
+end

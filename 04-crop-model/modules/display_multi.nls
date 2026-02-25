@@ -1,0 +1,238 @@
+to refresh-view
+
+  refresh-to-display-mode
+
+end
+
+to refresh-to-display-mode
+
+  set-current-plot "Legend"
+
+  clear-plot
+
+  ;;; set patch color depending on the display mode selector
+  if (display-mode = "elevation (m)")
+  [
+    ask patches
+    [
+      set pcolor get-elevation-color elevation
+    ]
+    set-legend-elevation 12
+  ]
+  if (display-mode = "soil run off curve number")
+  [
+    ask patches [ set pcolor 18 - 6 * CN / 100 ] ;;; runoff curve number is limited between 0-100
+    set-legend-continuous-range 100 0 18 12 6 false
+  ]
+  if (display-mode = "soil water holding capacity")
+  [
+    let minWaterHoldingCapacity min [WHC] of patches
+    let maxWaterHoldingCapacity max [WHC] of patches
+
+    let rangeWaterHoldingCapacity maxWaterHoldingCapacity - minWaterHoldingCapacity
+    if (rangeWaterHoldingCapacity = 0) [ set rangeWaterHoldingCapacity 1 ]
+
+    ask patches
+    [
+      set pcolor 98 - 6 * (WHC - minWaterHoldingCapacity) / rangeWaterHoldingCapacity
+    ]
+    set-legend-continuous-range maxWaterHoldingCapacity minWaterHoldingCapacity 98 92 6 false
+  ]
+  if (display-mode = "soil water field capacity")
+  [
+    let minFieldCapacity min [FC] of patches
+    let maxFieldCapacity max [FC] of patches
+
+    let rangeFieldCapacity maxFieldCapacity - minFieldCapacity
+    if (rangeFieldCapacity = 0) [ set rangeFieldCapacity 1 ]
+
+    ask patches
+    [
+      set pcolor 98 - 6 * (FC - minFieldCapacity) / rangeFieldCapacity
+    ]
+    set-legend-continuous-range maxFieldCapacity minFieldCapacity 98 92 6 false
+  ]
+  if (display-mode = "soil deep drainage coefficient")
+  [
+    let minDeepDrainageCoefficient min [DC] of patches
+    let maxDeepDrainageCoefficient max [DC] of patches
+
+    let rangeDeepDrainageCoefficient maxDeepDrainageCoefficient - minDeepDrainageCoefficient
+    if (rangeDeepDrainageCoefficient = 0) [ set rangeDeepDrainageCoefficient 1 ]
+
+    ask patches
+    [
+      set pcolor 102 + 6 * (DC - minDeepDrainageCoefficient) / rangeDeepDrainageCoefficient
+      ;;; deep drainage coefficient is %, but depends on time and can vary beyond 100%
+    ]
+    set-legend-continuous-range maxDeepDrainageCoefficient minDeepDrainageCoefficient 108 102 6 true
+  ]
+  if (display-mode = "albedo (%)")
+  [
+    let minAlbedo min [p_ecol_albedo] of patches
+    let maxAlbedo max [p_ecol_albedo] of patches
+
+    let rangeAlbedo maxAlbedo - minAlbedo
+    if (rangeAlbedo = 0) [ set rangeAlbedo 1 ]
+
+    ask patches
+    [
+      set pcolor 2 + 6 * (p_ecol_albedo - minAlbedo) / rangeAlbedo
+    ]
+    set-legend-continuous-range maxAlbedo minAlbedo 2 8 6 false
+  ]
+  if (display-mode = "reference evapotranspiration (ETr) (mm)")
+  [
+    let minETr min [p_ETr] of patches
+    let maxETr max [p_ETr] of patches
+
+    ask patches
+    [
+      set pcolor 12 + 6 * (p_ETr - minETr) / (maxETr - minETr)
+    ]
+    set-legend-continuous-range maxETr minETr 18 12 6 true
+  ]
+  if (display-mode = "soil water content (ratio)")
+  [
+    let minWaterContentRatio min [WATp] of patches
+    let maxWaterContentRatio max [WATp] of patches
+
+    let rangeWaterContentRatio maxWaterContentRatio - minWaterContentRatio
+    if (rangeWaterContentRatio = 0) [ set rangeWaterContentRatio 1 ]
+
+    ask patches
+    [
+      set pcolor 102 + 6 * (WATp - minWaterContentRatio) / rangeWaterContentRatio
+    ]
+    set-legend-continuous-range maxWaterContentRatio minWaterContentRatio 108 102 6 true
+  ]
+  if (display-mode = "ARID coefficient")
+  [
+    let minARID min [ARID] of patches
+    let maxARID max [ARID] of patches
+
+    let rangeARID maxARID - minARID
+    if (rangeARID = 0) [ set rangeARID 1 ]
+
+    ask patches
+    [
+      set pcolor 12 + 6 * (ARID - minARID) / rangeARID
+    ]
+    set-legend-continuous-range maxARID minARID 18 12 6 true
+  ]
+  if (display-mode = "crop-to-display frequency (%)")
+  [
+    ask patches
+    [
+      set pcolor 2 + 6 * (item (position crop-to-display typesOfCrops) cropFrequency) / 100
+    ]
+    set-legend-continuous-range 100 0 8 2 6 true
+  ]
+  if (display-mode = "total biomass (g/m2)")
+  [
+    let minBiomass min [sum totalBiomass] of patches
+    let maxBiomass max [sum totalBiomass] of patches
+
+    ask patches
+    [
+      ifelse (sum totalBiomass > 0)
+      [ set pcolor 52 + 6 * (1 - ((sum totalBiomass) - minBiomass) / (maxBiomass + 1E-6 - minBiomass)) ]
+      [ set pcolor 59 ]
+    ]
+    set-legend-continuous-range maxBiomass minBiomass 59 52 7 true
+  ]
+  if (display-mode = "total yield (g/m2)")
+  [
+    let minMeanYield 0
+    carefully [ set minMeanYield min [sum totalYield] of patches ] [ set minMeanYield 0 ]
+    let maxMeanYield 0
+    carefully [ set maxMeanYield max [sum totalYield] of patches ] [ set maxMeanYield 1E-6 ]
+
+    ask patches
+    [
+      carefully
+      [ set pcolor 42 + 6 * (1 - (sum totalYield - minMeanYield) / (maxMeanYield + 1E-6 - minMeanYield)) ]
+      [ set pcolor 49 ]
+    ]
+    set-legend-continuous-range maxMeanYield minMeanYield 49 42 7 true
+  ]
+
+end
+
+to-report get-elevation-color [ elevationValue ]
+
+  let elevationGradient 0
+
+;  ifelse (elevationValue < 0)
+;  [
+;    let normSubElevation (-1) * (elevationValue)
+;    let normSubMinElevation (-1) * (minElevation) + 1E-6
+;    set elevationGradient 20 + (200 * (1 - normSubElevation / normSubMinElevation))
+;    report rgb 0 0 elevationGradient
+;  ]
+;  [
+    ;;; this fragment was adapted to also represent land that is far above sea level
+    let normSupElevation elevationValue - minElevation
+    let normSupMaxElevation maxElevation - minElevation + 1E-6
+    set elevationGradient 100 + (155 * (normSupElevation / normSupMaxElevation))
+    report rgb (elevationGradient - 100) elevationGradient 0
+;  ]
+
+end
+
+to-report get-crop-color [ cropName ]
+
+  ; for a maximum of 13 crops
+  report (16 + 9 * 10 * (position cropName typesOfCrops)) mod 140
+
+end
+
+to set-legend-elevation [ numberOfKeys ]
+
+  let step precision ((maxElevation - minElevation) / numberOfKeys) 4
+
+  let value maxElevation
+
+  while [ value > minElevation ]
+  [
+    create-temporary-plot-pen (word "" (precision value 4) "")
+    set-plot-pen-color get-elevation-color value
+    set value value - step
+  ]
+
+end
+
+to set-legend-continuous-range [ maximum minimum maxShade minShade numberOfKeys ascendingOrder? ]
+
+  set maximum precision maximum 4
+  set minimum precision minimum 4
+
+  let rangeValues maximum - minimum
+
+  let step precision (rangeValues / numberOfKeys) 4
+
+  if (maximum = minimum or step = 0) [ set maximum maximum + 1 set step 2 set rangeValues 1 ] ; this makes that at least one legend key is drawn when maximum = minimum or step is 0
+
+  ifelse (ascendingOrder?)
+  [
+    let value minimum
+
+    while [ value < maximum ]
+    [
+      create-temporary-plot-pen (word "" (precision value 4) "")
+      set-plot-pen-color minShade + (maxShade - minShade) * (value - minimum) / rangeValues
+      set value value + step
+    ]
+  ]
+  [
+    let value maximum
+
+    while [ value > minimum ]
+    [
+      create-temporary-plot-pen (word "" (precision value 4) "")
+      set-plot-pen-color maxShade - (maxShade - minShade) * (value - minimum) / rangeValues
+      set value value - step
+    ]
+  ]
+
+end

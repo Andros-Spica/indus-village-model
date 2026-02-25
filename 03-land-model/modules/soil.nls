@@ -1,0 +1,136 @@
+to setup-soil
+
+  ask patches
+  [
+    setup-soil-formative-erosion
+
+    setup-soil-depth
+
+    setup-soil-texture
+  ]
+
+end
+
+to setup-soil-formative-erosion
+
+  set p_soil_formativeErosion get-soil-formative-erosion flow_accumulation
+
+end
+
+to-report get-soil-formative-erosion [ flowAccumulation ]
+
+  report get-value-in-sigmoid (flowAccumulation / maxFlowAccumulation) soil_formativeErosionRate
+
+end
+
+to setup-soil-depth
+
+  set p_soil_depth max (list 0
+    (get-soil-depth p_soil_formativeErosion
+    + (random-normal 0 soil_depthNoise))
+    )
+
+end
+
+to-report get-soil-depth [ soil_formativeErosion ]
+
+  ;;; Following the same rationale of soil texture, soil depth is positively related to p_soil_erosion.
+  ;;; Soil particles are derived from the parent geological material, eroded by environmental factors, and assumingly accumulate more downhill following the flow path.
+  report soil_minDepth + (soil_maxDepth - soil_minDepth) * soil_formativeErosion
+
+end
+
+to setup-soil-texture
+
+  ;;; assign % of sand, silt and clay according to flowAccumulation, min/max, and noise parameters
+  ;;; NOTE: %sand decrease with flowAccumulation while %silt and %clay increase
+  ;;; useful reference: https://www.earthonlinemedia.com/ebooks/tpe_3e/soil_systems/soil__development_soil_forming_factors.html
+
+  set p_soil_%sand clampMinMax (
+    get-soil-%sand p_soil_formativeErosion    ; as function of p_soil_formativeErosion
+    + (random-normal 0 soil_textureNoise))    ; add some random variation
+    0 100                                     ; clampMinMax <value> 0 100 -- keeps value within range of 0-100, after adding normal noise
+
+  set p_soil_%silt clampMinMax (
+    get-soil-%silt p_soil_formativeErosion
+    + (random-normal 0 soil_textureNoise))
+    0 100
+
+  set p_soil_%clay clampMinMax (
+    get-soil-%clay p_soil_formativeErosion
+    + (random-normal 0 soil_textureNoise))
+    0 100
+
+  ;;; normalise values to sum up 100 %
+  let total p_soil_%sand + p_soil_%silt + p_soil_%clay
+
+  set p_soil_%sand 100 * p_soil_%sand / total
+  set p_soil_%silt 100 * p_soil_%silt / total
+  set p_soil_%clay 100 * p_soil_%clay / total
+
+  ;;; get soil texture type according to sand/silt/clay composition
+  set p_soil_textureType get-soil-texture-type (p_soil_%sand) (p_soil_%silt) (p_soil_%clay)
+
+end
+
+;;; NOTE on soil texture formation:
+;;; it might be possible to reduce the number of parameters related to soil texture by:
+;;; - using a single erosion curve parameter (must consult with pedologist)
+
+to-report get-soil-%sand [ soil_erosion ]
+
+  ;;; %sand is negatively related to flow accumulation. Sand is the coarser fraction of particles derived from the parent geological material
+  ;;; that will assumingly erode progressively into finer particles down the flow path through physical and chemical processes.
+  report soil_min%sand + (soil_max%sand - soil_min%sand) * (1 - soil_erosion)
+
+end
+
+to-report get-soil-%silt [ soil_erosion ]
+
+  ;;; %silt is positively related to flow accumulation. Silt is the intermediate, finer fraction of particles derived from sand and, ultimately,
+  ;;; the parent geological material. Thus, silt is being accumulated through the erosion of sand by environmental factors, assumingly following the flow path.
+  report soil_min%silt + (soil_max%silt - soil_min%silt) * soil_erosion
+
+end
+
+to-report get-soil-%clay [ soil_erosion ]
+
+  ;;; %clay is positively related to flow accumulation. Clay is the finest fraction of particles derived from sand, silt, and, ultimately,
+  ;;; the parent geological material. Thus, clay is being accumulated through the erosion of coarser particles by environmental factors, assumingly following the flow path.
+  report soil_min%clay + (soil_max%clay - soil_min%clay) * soil_erosion
+
+end
+
+to-report get-soil-texture-type [ %sand %silt %clay ]
+
+  ;;; based on ternary plot textural soil classification by the United States Department of Agriculture (USDA)
+  ;;; See: Unknown-Author, Soil Mechanics Level 1, Module 3, USDA Textural Classification Study Guide,
+  ;;; United States Department of Agriculture, 1987.
+
+  if ((%sand > 85) and (%silt <= 15) and (%clay <= 10)) [ report "Sand" ]
+
+  if ((%sand > 70 and %sand <= 90) and (%silt <= 30) and (%clay <= 15)) [ report "Loamy sand" ]
+
+  if ((%sand > 42.5 and %sand <= 85) and (%silt <= 50) and (%clay <= 20)) [ report "Sandy loam" ]
+
+  if ((%sand > 45) and (%silt <= 27.5) and (%clay > 20 and %clay <= 35)) [ report "Sandy clay loam" ]
+
+  if ((%sand > 45) and (%silt <= 20) and (%clay > 35 and %clay <= 55)) [ report "Sandy clay" ]
+
+  if ((%sand <= 45) and (%silt <= 40) and (%clay > 40)) [ report "Clay" ]
+
+  if ((%sand <= 20) and (%silt > 40 and %silt <= 60) and (%clay > 40 and %clay <= 60)) [ report "Silty clay" ]
+
+  if ((%sand <= 20) and (%silt > 40 and %silt <= 72.5) and (%clay > 27.5 and %clay <= 40)) [ report "Silty clay loam" ]
+
+  if ((%sand <= 50) and (%silt > 50 and %silt <= 87.5) and (%clay <= 27.5)) [ report "Silt loam" ]
+
+  if ((%sand <= 20) and (%silt > 80) and (%clay <= 12.5)) [ report "Silt" ]
+
+  if ((%sand > 20 and %sand <= 45) and (%silt > 15 and %silt <= 52.5) and (%clay > 27.5 and %clay <= 40)) [ report "Clay loam" ]
+
+  if ((%sand > 22.5 and %sand <= 52.5) and (%silt > 27.5 and %silt <= 50) and (%clay > 7 and %clay <= 27.5)) [ report "Loam" ]
+
+  report ""
+
+end

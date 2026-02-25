@@ -1,0 +1,3061 @@
+<?xml version="1.0" encoding="utf-8"?>
+<model version="NetLogo 7.0.2" snapToGrid="false">
+  <code><![CDATA[;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; GNU GENERAL PUBLIC LICENSE ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;  Household Nutrition model
+;;  Copyright (C) 2022 Andreas Angourakis (andros.spica@gmail.com)
+;;  available at https://www.github.com/Andros-Spica/indus-village-model
+;;
+;;  This program is free software: you can redistribute it and/or modify
+;;  it under the terms of the GNU General Public License as published by
+;;  the Free Software Foundation, either version 3 of the License, or
+;;  (at your option) any later version.
+;;
+;;  This program is distributed in the hope that it will be useful,
+;;  but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;  GNU General Public License for more details.
+;;
+;;  You should have received a copy of the GNU General Public License
+;;  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+extensions [csv]
+
+;;;;;;;;;;;;;;;;;
+;;;;; BREEDS ;;;;
+;;;;;;;;;;;;;;;;;
+
+breed [ households household ]
+
+;;;;;;;;;;;;;;;;;
+;;; VARIABLES ;;;
+;;;;;;;;;;;;;;;;;
+
+globals
+[
+  ;;; constants
+  yearLengthInDays
+
+  ;;; modified parameters
+
+  ;;;; parameter tables (loaded from csv files)
+
+  ;;;;;; Nutrients Requirement Table ==================================================
+  ; table holding the average minimum and maximum amount of each nutrient type required per age group and sex (units are specific to nutrient types).
+  ; Structure: age groups (rows) x sex (first column), nutrient types (second to n-th columns)
+  nutrientRequirementsTable_ageAndSexGroup       ; sex-age groups. Two columns of the original table combined as a list of strings with format: "<age (integer)> | <sex (string)>"
+                                                  ;;; sex (includes values "pregnancy" and "lactation")
+                                                  ;;; age group (years old; trimester for pregnancy; semester for lactation)
+
+  nutrientRequirementsTable_referenceBodyWeight  ; reference body weight (kg)
+  ;;;;; MAJOR NUTRIENTS
+  nutrientRequirementsTable_water                ; water RI (liter)
+  nutrientRequirementsTable_energy               ; energy AR (MJ) for PAL 1.4 to 2.0 (four columns)
+  nutrientRequirementsTable_CHO                  ; minimum and maximum total carbohydrates RI (E%)
+  nutrientRequirementsTable_fibre                ; dietary fibre RI (g)
+  nutrientRequirementsTable_fat                  ; minimum and maximum total fat RI (E%)
+  nutrientRequirementsTable_protein              ; protein (g/kg of body weight)
+  ;;;;; MINOR NUTRIENTS
+  ;;;;;; MINERALS
+  ;;; Calcium PRI (mg), Iron PRI (mg), Zinc PRI (mg), Copper AI (mg), Magnesium AI (mg),
+  ;;; Fluoride AI (mg), Iodine AI (micrag), Manganese AI (mg), Molybdenum AI (micrag),
+  ;;; Phosphorus AI (mg), Potassium AI (mg), Selenium AI (micrag)
+  nutrientRequirementsTable_mineralColumnNames
+  nutrientRequirementsTable_mineralNames
+  nutrientRequirementsTable_minerals
+  ;;;; VITAMINS
+  ;;; Vitamin A or total provitamin A carotenoids (PRI, micrag), Vitamin B1 or Thiamine (PRI, mg),
+  ;;; Vitamin B2 or Riboflavin (PRI, mg), Vitamin B3 or Niacin/Niacin Equivalent (PRI, mg),
+  ;;; Vitamin B5 or Pantothenic acid (AI, mg), Vitamin B6 (PRI, mg),
+  ;;; Vitamin B7 or Biotin (AI, micrag), Vitamin B9 or total Folates (PRI, micrag),
+  ;;; Vitamin B12 or Cobalamin (AI, micrag),
+  ;;; Vitamin C or ascorbic and L-dehydroascorbic acids (PRI, micrag),
+  ;;; Vitamin D including D2 or Ergocalciferol (AI, micrag),
+  ;;; Vitamin E or alfa-Tocopherol and equivalent (AI, mg),
+  ;;; Vitamin K or Phylloquinones (AI, micrag),
+  ;;; Choline (AI, mg)
+  nutrientRequirementsTable_vitaminColumnNames
+  nutrientRequirementsTable_vitaminNames
+  nutrientRequirementsTable_vitamins
+
+  nutrientRequirementsTable_numberOfNutrients    ; total number of nutrients accounted in nutrientRequirementsTable
+
+  ;;;;;; ================================================================================
+  ;;;;;; Nutrients per foodstuff Table ==================================================
+  ; table holding the average minimum and maximum amount of each nutrient type per 100g of foodstuff type.
+  ; Structure: foodstuff types (rows) x nutrient types (columns)
+  nutrientContentsPerFoodstuffTable_foodstuffTypes
+  nutrientContentsPerFoodstuffTable_foodstuffGroup
+  nutrientContentsPerFoodstuffTable_ediblePortion
+
+  ;;;;; MAJOR NUTRIENTS
+  nutrientContentsPerFoodstuffTable_water                ; water (g)
+  nutrientContentsPerFoodstuffTable_energy               ; energy (kJ)
+  nutrientContentsPerFoodstuffTable_CHO                  ; total carbohydrates (g)
+  nutrientContentsPerFoodstuffTable_fibre                ; dietary fibre (g)
+  nutrientContentsPerFoodstuffTable_fat                  ; total fat (g)
+  nutrientContentsPerFoodstuffTable_protein              ; protein (g)
+  ;;;;; MINOR NUTRIENTS
+  ;;;;;; MINERALS
+  ;;; Calcium (mg), Iron (mg), Zinc (mg), Copper AI (mg), Magnesium (mg),
+  ;;; Fluoride (mg), Iodine (micrag), Manganese (mg), Molybdenum (micrag),
+  ;;; Phosphorus (mg), Potassium (mg), Selenium (micrag)
+  nutrientContentsPerFoodstuffTable_mineralColumnNames
+  nutrientContentsPerFoodstuffTable_mineralNames
+  nutrientContentsPerFoodstuffTable_minerals
+  ;;;; VITAMINS
+  ;;; Vitamin A or total provitamin A carotenoids (micrag), Vitamin B1 or Thiamine (mg),
+  ;;; Vitamin B2 or Riboflavin (mg), Vitamin B3 or Niacin/Niacin Equivalent (mg),
+  ;;; Vitamin B5 or Pantothenic acid (mg), Vitamin B6 (mg),
+  ;;; Vitamin B7 or Biotin (micrag), Vitamin B9 or total Folates (micrag),
+  ;;; Vitamin B12 or Cobalamin (micrag),
+  ;;; Vitamin C or ascorbic and L-dehydroascorbic acids (micrag),
+  ;;; Vitamin D including D2 or Ergocalciferol (micrag),
+  ;;; Vitamin E or alfa-Tocopherol and equivalent (mg),
+  ;;; Vitamin K or Phylloquinones (micrag),
+  ;;; Choline (mg)
+  nutrientContentsPerFoodstuffTable_vitaminColumnNames
+  nutrientContentsPerFoodstuffTable_vitaminNames
+  nutrientContentsPerFoodstuffTable_vitamins
+
+  nutrientContentsPerFoodstuffTable_numberOfNutrients    ; total number of nutrients accounted in nutrientRequirementsTable
+
+  ;;;;;; ==============================================================================
+
+  ;;;; parameters for simulating inputs
+  ;;;; Their values should eventually come from other submodels.
+
+  ;;;; Household Demography parameters
+  ;;; demography tables
+  fertilityTable
+  nuptialityTable-women nuptialityTable-men
+
+  ;;; individual parameters
+  initialNumHouseholds
+  householdInitialAgeDistribution ; (list minimum maximum)
+
+  ;;; variables
+
+  ;;;; auxiliar
+
+  ;;;; counters and final measures
+  sumOfConsumedDiet                         ; Sum of all households consumed diet (list of floats per foodstuff type, stock units).
+  sumOfNutrientRequired                     ; Sum of all households required nutrients separated by nutrient type (list of floats; nutrient units).
+
+  totalHouseholds                ; count households (integer)
+  totalIndividuals               ; sum of members of households (integer)
+  totalWomen                     ; sum of female members of households (integer)
+  totalMen                       ; sum of male members of households (integer)
+  femaleRatio                    ; total number of women over total number of individuals (float)
+  womenAgeStructure              ; merge list of all households female members ages (list of integers)
+  menAgeStructure                ; merge list of all households male members ages (list of integers)
+  womenFirstAgeGroup             ; count of women with age from 0 to 4 years old (base of typical population pyramid) (integer)
+  menFirstAgeGroup               ; count of men with age from 0 to 4 years old (base of typical population pyramid) (integer)
+]
+
+;;; agents variables
+
+households-own
+[
+  hh_dietDesired                  ; The amounts of each foodstuff type desired by the household in each time-step (kg).
+  hh_dietConsumed                 ; The amounts of each foodstuff type consumed by the household in each time-step (kg).
+  hh_nutrientsInDiet              ; The amount of each nutrient type contained in the current diet consumed by the household (g, mg, micrag, depending on nutrient).
+  hh_nutrientsRequired            ; The amount of each nutrient type required by the household (g, mg, micrag, depending on nutrient).
+  hh_nutritionScore               ; score calculated from the contrast between hh_nutrientsInDiet and hh_nutrientsRequired.
+                                  ; A single score exists for a household, meaning we assume food to be distributed internally in proportion to the needs of individual members.
+
+  hh_age                         ; number of days during which the household existed (integer)
+
+  hh_membersAge                  ; ages of every household member in days (list of integer)
+  hh_membersSex                  ; sex of every household member (list of true/false, i.e. is female?)
+  hh_pregnancyTrimester          ; pregnancy trimester of every household member (list of integer, values are 0 (null), 1, 2, and 3)
+  hh_lactancySemester            ; lactancy semester of every household member (list of integer, values are 0 (null), 1 and 2)
+  hh_menbersPAL                  ; physical activity level of every household member (list of strings, values are "1.4", "1.6", "1.8", and "2.0")
+]
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; SETUP ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to setup
+
+  clear-all
+
+  ; --- loading/testing parameters -----------
+
+  set-constants
+
+  set-parameters
+
+  build-demography-tables
+
+  load-nutrition-tables
+
+  ; --- core procedures ----------------------
+
+  setup-households
+
+  ; --- counters -----------------------------
+
+  reset-counters
+
+  update-counters
+
+  ; --- display -----------------------------
+
+  print-foodstuff-types-list
+
+  update-display
+
+  ; --- tick ---------------------------------
+
+  reset-ticks
+
+end
+
+to set-constants
+
+  ; "constants" are variables that will not be explored as parameters
+  ; and may be used during a simulation.
+
+  set yearLengthInDays 365
+
+end
+
+to set-parameters
+
+  ; set random seed
+  random-seed SEED
+
+  ; check parameters values
+  parameters-check1
+
+  ;;; setup parameters depending on the type of experiment
+  set householdInitialAgeDistribution read-from-string ( word "[" household-initial-age-distribution "]")
+
+  if (type-of-experiment = "user-defined")
+  [
+    ;;; load parameters from user interface
+    set initialNumHouseholds initial-num-households
+  ]
+  if (type-of-experiment = "random")
+  [
+    ;;; use values from user interface as a maximum for random uniform distributions
+    set initialNumHouseholds 1 + random initial-num-households ; at least one household
+    set householdInitialAgeDistribution (list
+      (1 + random (item 0 householdInitialAgeDistribution))   ; minimum
+      (
+        (item 0 householdInitialAgeDistribution)
+        + 1
+        + random ((item 1 householdInitialAgeDistribution) - (item 0 householdInitialAgeDistribution))
+      )   ; maximum
+      )
+  ]
+
+  ; check parameters values
+  parameters-check2
+
+end
+
+to parameters-check1
+
+  ;;; check if values were reset to 0
+  ;;; and set default values
+  if (initial-num-households = 0)               [ set initial-num-households               25 ]
+
+  ;;; string type inputs (vector of values)
+  if (household-initial-age-distribution = 0 or
+    length household-initial-age-distribution = 1)   [ set household-initial-age-distribution   "0 30" ]
+
+end
+
+to parameters-to-default
+
+  ;;; set parameters to a default value
+  set max-iterations                     2000
+
+  set initial-num-households               25
+  set household-initial-age-distribution   "0 30"
+
+end
+
+to parameters-check2
+
+  ;;; initial parameter check (e.g., avoiding division per zero error)
+  check-par-is-positive "initialNumHouseholds" initialNumHouseholds
+
+  ;;; check if given min values are less than max values
+  check-par-is-range "householdInitialAgeDistribution" householdInitialAgeDistribution
+
+end
+
+to check-par-is-positive [ parName parValue ]
+
+  if (parValue <= 0)
+  [
+    print (word "ERROR: " parName " must be greater than zero")
+    stop
+  ]
+
+end
+
+to check-par-is-range [ parName parListMinMax ]
+
+  if ( item 0 parListMinMax > item 1 parListMinMax)
+  [
+    print (word "ERROR: " parName " minimum (first item) must be less than or equal to maximum (second item)")
+    stop
+  ]
+
+end
+
+to setup-households
+
+  ;;; create households
+  repeat initialNumHouseholds
+  [
+    create-households 1
+    [
+      hh_initialise
+    ]
+  ]
+
+end
+
+;;; HOUSEHOLDS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to hh_initialise
+
+  ;;; Initialization of household members (age and sex)
+
+  set hh_age get-initial-household-age
+
+  hh_initialise-members
+
+  ;;; nutrition model specific procedures
+  hh_initialise-diet
+
+  hh_update-nutrition
+
+  ;;; move to empty or less crowded patch, just in sake of visualisation
+  move-to min-one-of patches [count households-here]
+
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; START of simplified Household Demography model procedures ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to-report get-initial-household-age
+
+  let ageInYears item 0 householdInitialAgeDistribution + random (item 1 householdInitialAgeDistribution - item 0 householdInitialAgeDistribution + 1)
+
+  report (ageInYears * yearLengthInDays) + (random yearLengthInDays)
+
+end
+
+to hh_initialise-members
+
+  hh_reset-members
+
+  ;;; assures that at least two member are above (fertility age + household age) and have different sex
+  foreach (list 0 1)
+  [
+    firstMembersIndex ->
+    set hh_membersSex lput (firstMembersIndex = 0) hh_membersSex
+    let marriageAge (get-initial-marriage-age (item firstMembersIndex hh_membersSex))
+    set hh_membersAge lput (hh_age + marriageAge) hh_membersAge
+  ]
+
+  ;;; calculate offspring and offspring age
+  let offspringProb 0
+  let i hh_age
+  repeat hh_age
+  [
+    ;;; get the probability of the couple having descendence for a past day i
+    ;;; i.e. woman fertility at the corresponding age
+    set offspringProb get-fertility-of-day ((item 0 hh_membersAge) - i)
+
+    ; test the probability and add the offspring with the corresponding age
+    if (random-float 1 < offspringProb)
+    [
+      hh_add-offspring i ; a child with i days old
+    ]
+    set i i - 1
+  ]
+
+  ;;; initialise pregnancy, lactancy and PAL at base default values
+  set hh_pregnancyTrimester map [memberIndex -> 0] hh_membersSex
+  set hh_lactancySemester map [memberIndex -> 0] hh_membersSex
+  set hh_menbersPAL map [memberIndex -> "1.4"] hh_membersSex
+
+end
+
+to-report get-initial-marriage-age [ isFemale ]
+
+  ; get a marriage age in days as a stochastic function of nuptiality rates in earlier years
+  let notMarried true
+  let ageInYears 0
+
+  while [notMarried AND ageInYears < 100]
+  [
+    if ((get-nuptiality isFemale ageInYears) > random-float 1)
+    [
+      set notMarried false
+    ]
+    set ageInYears ageInYears + 1
+  ]
+
+  report (ageInYears * yearLengthInDays) + (random yearLengthInDays)
+
+end
+
+to hh_reset-members
+
+  set hh_membersAge (list)
+  set hh_membersSex (list)
+  set hh_pregnancyTrimester (list)
+  set hh_lactancySemester (list)
+  set hh_menbersPAL (list)
+
+end
+
+to-report get-fertility-of-day [ ageInDays ]
+
+  let ageInYears get-age-in-years-old ageInDays
+
+  report (get-fertility ageInYears) / yearLengthInDays
+
+end
+
+to-report get-fertility [ ageInYears ]
+
+  report (item ageInYears fertilityTable)
+
+end
+
+to-report get-nuptiality [ isFemale ageInYears ]
+
+  let probMarry 0
+
+  ifelse (isFemale)
+  [
+    set probMarry item ageInYears nuptialityTable-women
+  ]
+  [
+    set probMarry item ageInYears nuptialityTable-men
+  ]
+
+  report probMarry
+
+end
+
+to hh_add-offspring [ initialAge ]
+
+  ; add a newborn to the household
+  ; the specification of initialAge is needed to use this in setup
+  set hh_membersAge lput initialAge hh_membersAge
+  set hh_membersSex lput (random 2 = 0) hh_membersSex
+
+end
+
+to-report get-age-in-years-old [ ageInDays ]
+
+  report floor (ageInDays / yearLengthInDays)
+
+end
+
+to-report hh_count-members
+
+  report length hh_membersSex
+
+end
+
+to-report hh_membersIndexes
+
+  ; report a list of members indexes from 0 to n
+
+  report (n-values hh_count-members [ i -> i ])
+
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; DEMOGRAPHY TABLES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to build-demography-tables
+
+  ;;; load demographic data tables into lists
+
+  ;=======FERTILITY========================================================
+
+  build-fertility-tables
+
+  ;=======NUPTIALITY========================================================
+
+  build-nuptiality-tables
+
+end
+
+
+to build-fertility-tables
+
+  ;;; to keep it simple, we fix the fertility parameters to the default values in the Household Demography model
+  ;;; The point is to get a stochastic, yet realistic, age distribution.
+  let c1-fert 0.85
+  let mu-fert 25
+  let sigma1-fert 5
+  let sigma2-fert 10
+
+  set fertilityTable load-peristeri-kostaki-model-table c1-fert mu-fert sigma1-fert sigma2-fert
+
+end
+
+to build-nuptiality-tables
+
+  ;;; Again, to keep it simple, we fix the nuptiality parameters to the default values in the Household Demography model
+  ;;; The point is to get a stochastic, yet realistic, age distribution.
+  let c1-women 0.85
+  let mu-women 25
+  let sigma1-women 5
+  let sigma2-women 10
+  let c1-men 0.9
+  let mu-men 15
+  let sigma1-men 5
+  let sigma2-men 5
+
+  set nuptialityTable-women load-peristeri-kostaki-model-table c1-women mu-women sigma1-women sigma2-women
+
+  set nuptialityTable-men load-peristeri-kostaki-model-table c1-men mu-men sigma1-men sigma2-men
+
+end
+
+to-report load-peristeri-kostaki-model-table [ c1 mu sigma1 sigma2 ]
+
+  ;;; The following correspond to the first parametric model in:
+
+  ;;; Peristeva and Kostaki, 2009, p. 147
+  ;;; "Modeling fertility in modern populations"
+  ;;; Demographic Research 16: 141-194
+  ;;; Available from: https://dx.doi.org/10.4054/DemRes.2007.16.6
+
+  ;;; Peristeva and Kostaki (2015), p. 133
+  ;;; "A parametric model for estimating nuptiality patterns in modern populations"
+  ;;; Canadian studies in population 42(2):130-148. DOI: 10.25336/P6TK56
+  ;;; Available from: https://www.researchgate.net/publication/285457704_A_parametric_model_for_estimating_nuptiality_patterns_in_modern_populations [accessed Nov 27 2018].
+  ;;; use "demoTables/compareNuptialityModel.R" to test shapes
+
+  let marriageProbs (list)
+
+  foreach n-values 151 [ i -> i ]
+  [
+    i ->
+    let sigma sigma1
+    if (i > mu) [ set sigma sigma2 ]
+
+    set marriageProbs lput (
+      c1 * exp (-1 * (((i - mu) / sigma) ^ 2))
+    ) marriageProbs
+  ]
+
+  report marriageProbs
+
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; END of simplified Household Demography model procedures ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to hh_initialise-diet
+
+  hh_update-nutrientsRequired
+
+  set hh_dietDesired (get-initial-dietDesired hh_nutrientsRequired)
+
+  set hh_dietConsumed hh_dietDesired
+
+end
+
+to-report get-initial-dietDesired [ nutrientsRequired ]
+
+  ;;; derive initial desired diet from the nutritional requirements,
+  ;;; by randomly adding 1g of foodstuff one type at a time, until the nutrition score is neutral
+  ;;; NOTE: this is not very computationally efficient, and the diet return will be often too random (with lots of the abundant nutrients and lack of minor rarer ones).
+  ;;; Probably best to search for an empirical reference to set one or a few diets.
+
+  ;;; initialise list with a 0 for each foodstuff type
+  let desiredDiet map [foodstuffTypeIndex -> 0] nutrientContentsPerFoodstuffTable_foodstuffTypes
+  let nutritionScore -1
+
+;  let maxIterations 5000 ; stop iteration if reaching 5 kg of food
+;  while [ (maxIterations > 0) and (nutritionScore < 0) ]
+;  [
+;    ;;; get random foodstuffType index
+;    let foodstuffTypeIndex random (length nutrientContentsPerFoodstuffTable_foodstuffTypes)
+;
+;    ;;; add 100g of the selected foodstuffType
+;    let currentAmount item foodstuffTypeIndex desiredDiet
+;    set desiredDiet replace-item foodstuffTypeIndex desiredDiet (currentAmount + 1)
+;
+;    ;;; calculate the current nutrition score
+;    set nutritionScore (get-nutrition-score (get-nutrient-contents-in-diet desiredDiet) nutrientsRequired)
+;
+;    ;print desiredDiet
+;    ;print nutritionScore
+;
+;    set maxIterations maxIterations - 1
+;    if (maxIterations = 0) [ print "Warning: failed to calculate sufficient initial diet (more than 5kg required)." ]
+;  ]
+
+  ;;; OR
+
+  ;;; set values manually to make it faster during testing
+  set desiredDiet (list 114 123 122 122 115 114 131 123 108 113 134 124)
+
+  report desiredDiet
+
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; GO ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to go
+
+  ; --- core procedures -------------------------
+
+  reset-counters
+
+  update-households
+
+  ; --- counters and display --------------------
+
+  update-counters
+
+  update-display
+
+  ; -- time -------------------------------------
+
+  ;print "-------tick----"
+  tick
+
+  ; --- stop conditions -------------------------
+
+  if (ticks = max-iterations)
+  [
+    ;if (length behaviorspace-experiment-name > 0 and count households > 0) [ export-households ]
+    stop
+  ]
+
+end
+
+;;; GLOBAL ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to update-households
+
+  ask households
+  [
+
+    hh_update-diet-consumed
+
+    hh_update-nutrition
+
+  ]
+
+end
+
+;;; HOUSEHOLDS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to hh_update-diet-consumed
+
+  set hh_dietConsumed hh_dietDesired ;;; to be replaced by output from Household Storage model
+
+end
+
+to hh_update-nutrition
+
+  hh_update-nutrientsRequired
+
+  hh_update-nutrientsInDiet
+
+  set hh_nutritionScore (get-nutrition-score hh_nutrientsInDiet hh_nutrientsRequired)
+
+end
+
+to hh_update-nutrientsRequired
+
+  let membersAgeInYears map [ ageInDays -> get-age-in-years-old ageInDays ] hh_membersAge
+
+  set hh_nutrientsRequired get-nutrient-requirements-of-group membersAgeInYears hh_membersSex hh_pregnancyTrimester hh_lactancySemester hh_menbersPAL
+
+end
+
+to hh_update-nutrientsInDiet
+
+  set hh_nutrientsInDiet get-nutrient-contents-in-diet hh_dietConsumed
+
+end
+
+to-report get-nutrition-score [ nutrientsInDiet nutrientsRequired ]
+
+  ;;; get a list of nutrition scores per nutrient and then aggregate them into a single score
+
+  let scoresPerNutrient (get-nutrition-scores-per-nutrient nutrientsInDiet nutrientsRequired)
+
+  let score 0
+
+  if ( member? "mean" nutrition-score-calculation)
+  [
+    ;;; Option A
+    ;;; return the mean of scoresPerNutrient
+    set score mean scoresPerNutrient
+  ]
+
+  if ( member? "sum" nutrition-score-calculation)
+  [
+    ;;; Option BA
+    ;;; return a sum all values, knowing that negative and positive values will cancel each other out.
+    set score sum scoresPerNutrient
+    ;;; Rescale score to [-1, 1] interval, assuming they use the scale [-lenghtOfNutrientList, lenghtOfNutrientList]
+    let lenghtOfNutrientList length nutrientsInDiet
+    set score (score / lenghtOfNutrientList)
+  ]
+
+  if ( member? "minimum" nutrition-score-calculation)
+  [
+    ;;; Option B
+    ;;; return the minimum score, following the rationale of the least consumed required nutrient becomes the limiting factor
+    set score min scoresPerNutrient
+  ]
+
+  report score
+
+end
+
+to-report get-nutrition-scores-per-nutrient [ nutrientsInDiet nutrientsRequired ]
+
+  if ( member? "all-or-nothing" nutrition-score-calculation)
+  [
+    ;;; Option A
+    ;;; check if each nutrient requirement is fullfilled and assign scores of either -1 (not fullfilled) or 1 (fullfilled)
+    ;;; the advantage of this option is that it do not require any extra information, nor assume anything besides the concept of "requirement"
+    ;;; the downside is that there is no neutral point.
+    report (map [ [ nutrientInDiet nutrientRequired ] -> ifelse-value (nutrientInDiet >= nutrientRequired) [ 1 ] [ -1 ] ] nutrientsInDiet nutrientsRequired)
+  ]
+
+  if ( member? "logistic" nutrition-score-calculation)
+  [
+    ;;; Option B
+    ;;; compare each nutrient using logistic curve centred at y=0 and x=required amount.
+    ;;; For example: (2(1/(1+exp(rate(required-consumed)/required))) - 1)
+    ;;; visualise function in Wolfram|Alpha:
+    ;;; https://www.wolframalpha.com/input?i2d=true&i=plot+%5C%2840%292%5C%2840%29Divide%5B1%2C%5C%2840%291%2Bexp%5C%2840%2910Divide%5B%5C%2840%29100-x%5C%2841%29%2C100%5D%5C%2841%29%5C%2841%29%5D%5C%2841%29+-+1%5C%2841%29+x%3D0+to+200
+    ;;; For this option to be viable, we need either more detailed information on nutrition (i.e., the response to under and over ingestion).
+    let rate 10 ;;; Rate should be defined on a nutrient basis, or at least on the basis of their scale (mg, micrag).
+    report (map [ [ nutrientInDiet nutrientRequired ] -> (2 * (1 / (1 + (exp (rate * (nutrientRequired - nutrientInDiet) / nutrientRequired)))) - 1) ] nutrientsInDiet nutrientsRequired)
+  ]
+
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; COUNTERS AND MEASURES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to reset-counters
+
+  set totalWomen 0
+  set totalMen 0
+  set femaleRatio -1
+  set womenAgeStructure (list)
+  set menAgeStructure (list)
+  set womenFirstAgeGroup 0
+  set menFirstAgeGroup 0
+
+end
+
+to update-counters
+
+  set totalHouseholds count households
+  let oldTotalIndividual totalIndividuals
+  set totalIndividuals 0
+
+  ask households
+  [
+    foreach hh_membersIndexes
+    [
+      i ->
+      let ageInYears get-age-in-years-old (item i hh_membersAge)
+      ifelse (item i hh_membersSex)
+      [
+        set totalWomen totalWomen + 1
+        set womenAgeStructure lput ageInYears womenAgeStructure
+        if (ageInYears < 5)
+        [ set womenFirstAgeGroup womenFirstAgeGroup + 1 ]
+      ]
+      [
+        set totalMen totalMen + 1
+        set menAgeStructure lput ageInYears menAgeStructure
+        if (ageInYears < 5)
+        [ set menFirstAgeGroup menFirstAgeGroup + 1 ]
+      ]
+      set totalIndividuals totalIndividuals + 1
+    ]
+  ]
+
+  carefully [ set femaleRatio totalWomen / totalIndividuals ] [ set femaleRatio "" ]
+
+end
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; DISPLAY ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to update-display
+
+  ask households [ hh_resize-with-nutritionScore ]
+
+end
+
+to plot-table [ values ]
+
+  let j 0
+  foreach values
+  [
+    i ->
+    if (i != "") ;;; not null
+    [ plotxy j i ]
+    set j j + 1
+  ]
+  plot-pen-up
+
+end
+
+to plot-table-transposed [ values ]
+
+  let j 0
+  foreach values
+  [
+    i ->
+    if (i != "") ;;; not null
+    [ plotxy i j ]
+    set j j + 1
+  ]
+  plot-pen-up
+
+end
+
+to-report get-itemwise-mean-in-list-of-lists [ listOfLists aggregationFunction ]
+
+  if (length listOfLists = 0)
+  [ report 0 ]
+
+  if (length listOfLists = 1)
+  [ report item 0 listOfLists ]
+
+  let acceptedAggregationFunctions [ "mean" "median" "max" "min" "standard-deviation"]
+  if (not member? aggregationFunction acceptedAggregationFunctions)
+  [ error (word "aggregation function name not accepted. Please enter any of the following: " acceptedAggregationFunctions) ]
+
+  let numberOfItems length (item 0 listOfLists)
+  let outputList (list)
+
+  foreach (n-values numberOfItems [ i -> i ])
+  [
+    index ->
+
+    let listOfItemsWithIndex (list)
+
+    foreach listOfLists
+    [
+      anInputList ->
+
+      set listOfItemsWithIndex lput (item index anInputList) listOfItemsWithIndex
+    ]
+
+    let value 0
+
+    if (aggregationFunction = "mean") [ set value mean listOfItemsWithIndex ]
+    if (aggregationFunction = "median") [ set value median listOfItemsWithIndex ]
+    if (aggregationFunction = "max") [ set value max listOfItemsWithIndex ]
+    if (aggregationFunction = "min") [ set value min listOfItemsWithIndex ]
+    if (aggregationFunction = "standard-deviation") [ set value standard-deviation listOfItemsWithIndex ]
+
+    set outputList lput value outputList
+  ]
+
+  report outputList
+
+end
+
+to print-foodstuff-types-list
+
+  foreach n-values (length nutrientContentsPerFoodstuffTable_foodstuffTypes) [j -> j]
+  [
+    foodstuffTypeIndex ->
+    output-print item foodstuffTypeIndex nutrientContentsPerFoodstuffTable_foodstuffTypes
+  ]
+
+end
+
+to hh_resize-with-nutritionScore
+
+  set size 1 + hh_nutritionScore * 0.5
+
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; NUTRITION TABLES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to load-nutrition-tables
+
+  load-nutrient-requirements-table
+
+  load-nutrient-contents-per-foodstuff-table
+
+end
+
+;;; ---------NUTRIENT REQUIREMENTS--------------------------------------------------------------------------------------------------------------------------
+
+to load-nutrient-requirements-table
+
+  ;;; SOURCE:
+  ;;; Values are informed or derived from:
+
+  ;;; EFSA's Dietary Reference Values for nutrients.
+  ;;; https://efsa.onlinelibrary.wiley.com/doi/toc/10.1002/(ISSN)1831-4732.021217
+  ;;; specifically from tables in Summary report (2017):
+  ;;; https://efsa.onlinelibrary.wiley.com/doi/pdf/10.2903/sp.efsa.2017.e15121
+
+  ;;; abbreviations
+  ;;; AR: average requirement
+  ;;; PRI: population reference intake
+  ;;; RI: reference intake
+
+  ;;; this procedure loads the values of the nutrients requirement table
+  ;;; the table contains:
+  ;;;   1. two lines of headers with comments (metadata, to be ignored)
+  ;;;   2. two lines with statements mapping rows and the different variables (columns)
+  ;;;   3. the header of the table with the names of variables
+  ;;;   4. remaining rows containing row name and values
+
+  let nutrientsRequirementTable csv:from-file "nutrientRequirementsTable.csv"
+
+  ;;;==================================================================================================================
+  ;;; mapping coordinates (row or columns) in lines 3 and 4 (= index 2 and 3) -----------------------------------------
+  ;;; NOTE: always correct raw mapping coordinates (start at 1) into list indexes (start at 0)
+
+  ;;; line 3 (= index 2), row indexes
+  let ageGroupsRowRange (list ((item 1 (item 2 nutrientsRequirementTable)) - 1) ((item 3 (item 2 nutrientsRequirementTable)) - 1))
+
+  ;;; line 4 (= index 3), column indexes
+
+  ;;; sex (includes values "pregnancy" and "lactation")
+  let sexGroupColumn (item 1 (item 3 nutrientsRequirementTable)) - 1
+
+  ;;; age group (years old; trimester for pregnancy; semester for lactation)
+  let ageGroupColumn (item 3 (item 3 nutrientsRequirementTable)) - 1
+
+  ;;; reference body weight (kg)
+  let bodyWeightColumn (item 5 (item 3 nutrientsRequirementTable)) - 1
+
+  ;;; MAJOR NUTRIENTS
+  ;;; water RI (liter)
+  let waterColumn (item 7 (item 3 nutrientsRequirementTable)) - 1
+
+  ;;; energy AR (MJ) for PAL 1.4 to 2.0 (four columns)
+  let energyColumns (list ((item 9 (item 3 nutrientsRequirementTable)) - 1) ((item 11 (item 3 nutrientsRequirementTable)) - 1) )
+
+  ;;; minimum and maximum total carbohydrates RI (E%)
+  let carbohydratesColumns (list ((item 13 (item 3 nutrientsRequirementTable)) - 1) ((item 15 (item 3 nutrientsRequirementTable)) - 1) )
+
+  ;;; dietary fibre RI (g)
+  let fibreColumn (item 17 (item 3 nutrientsRequirementTable)) - 1
+
+  ;;; minimum and maximum total fat RI (E%)
+  let fatColumns (list ((item 19 (item 3 nutrientsRequirementTable)) - 1) ((item 21 (item 3 nutrientsRequirementTable)) - 1) )
+
+  ;;; protein (g/kg of body weight)
+  ;let proteinColumn (item 23 (item 3 nutrientsRequirementTable)) - 1 ;;; protein AR
+  let proteinColumn (item 25 (item 3 nutrientsRequirementTable)) - 1 ;;; protein PRI
+
+  ;;; MINOR NUTRIENTS
+  ;;; MINERALS
+  let mineralColumns (list ((item 27 (item 3 nutrientsRequirementTable)) - 1) ((item 29 (item 3 nutrientsRequirementTable)) - 1) )
+
+  ;;; VITAMINS
+  let vitaminsColumns (list ((item 31 (item 3 nutrientsRequirementTable)) - 1) ((item 33 (item 3 nutrientsRequirementTable)) - 1) )
+
+  ;;;==================================================================================================================
+  ;;; extract data---------------------------------------------------------------------------------------
+
+  ;;; get list of mineral and vitamins names in the order they are in the table as columns
+  set nutrientRequirementsTable_mineralColumnNames sublist (item 4 nutrientsRequirementTable) (item 0 mineralColumns) (item 1 mineralColumns + 1)
+  set nutrientRequirementsTable_vitaminColumnNames sublist (item 4 nutrientsRequirementTable) (item 0 vitaminsColumns) (item 1 vitaminsColumns + 1)
+  ;;; get lists of mineral and vitamins names, without the min/max suffixes
+  ;;; NOTE: for now, there is no max and min for these in nutrientRequirementsTable.
+  set nutrientRequirementsTable_mineralNames remove-duplicates map [columnName -> remove " max" (remove " min" columnName)] nutrientRequirementsTable_mineralColumnNames
+  set nutrientRequirementsTable_vitaminNames remove-duplicates map [columnName -> remove " max" (remove " min" columnName)] nutrientRequirementsTable_vitaminColumnNames
+
+  ;;; read variables (list of lists, matrix: sex-age groups x nutrient variables)
+  let nutrientsRequirementData sublist nutrientsRequirementTable (item 0 ageGroupsRowRange) (item 1 ageGroupsRowRange + 1)
+
+  ;;; extract and combine/codify age and sex columns
+  set nutrientRequirementsTable_ageAndSexGroup (
+    map [row -> (word (item sexGroupColumn row) " | " (item ageGroupColumn row) ) ] nutrientsRequirementData
+    )
+
+  ;;; major nutrients as separate list and list of lists variables
+
+  ;;; reference body weight (kg)
+  set nutrientRequirementsTable_referenceBodyWeight map [row -> item bodyWeightColumn row ] nutrientsRequirementData
+
+  ;;; water RI (liter)
+  set nutrientRequirementsTable_water map [row -> item waterColumn row ] nutrientsRequirementData
+
+  ;;; energy AR (MJ) for PAL 1.4 to 2.0 (four columns)
+  set nutrientRequirementsTable_energy extract-subtable nutrientsRequirementData (item 0 energyColumns) (item 1 energyColumns)
+
+  ;;; minimum and maximum total carbohydrates RI (E%) - CHO = Carbon, Hydrogen, Oxigen (two columns)
+  set nutrientRequirementsTable_CHO extract-subtable nutrientsRequirementData (item 0 carbohydratesColumns) (item 1 carbohydratesColumns)
+
+  ;;; dietary fibre RI (g)
+  set nutrientRequirementsTable_fibre map [row -> item fibreColumn row ] nutrientsRequirementData
+
+  ;;; minimum and maximum total fat RI (E%) (two columns)
+  set nutrientRequirementsTable_fat extract-subtable nutrientsRequirementData (item 0 fatColumns) (item 1 fatColumns)
+
+  ;;; protein PRI (g/kg of body weight)
+  set nutrientRequirementsTable_protein map [row -> item proteinColumn row ] nutrientsRequirementData
+
+  ;;; minor nutrients as two list of lists variables
+
+  ;;; MINERALS
+  ;;; Calcium PRI (mg), Iron PRI (mg), Zinc PRI (mg), Copper AI (mg), Magnesium AI (mg),
+  ;;; Fluoride AI (mg), Iodine AI (micrag), Manganese AI (mg), Molybdenum AI (micrag),
+  ;;; Phosphorus AI (mg), Potassium AI (mg), Selenium AI (micrag)
+  set nutrientRequirementsTable_minerals extract-subtable nutrientsRequirementData (item 0 mineralColumns) (item 1 mineralColumns)
+
+  ;;; VITAMINS
+  ;;; Vitamin A or total provitamin A carotenoids (PRI, micrag), Vitamin B1 or Thiamine (PRI, mg),
+  ;;; Vitamin B2 or Riboflavin (PRI, mg), Vitamin B3 or Niacin/Niacin Equivalent (PRI, mg),
+  ;;; Vitamin B5 or Pantothenic acid (AI, mg), Vitamin B6 (PRI, mg),
+  ;;; Vitamin B7 or Biotin (AI, micrag), Vitamin B9 or total Folates (PRI, micrag),
+  ;;; Vitamin B12 or Cobalamin (AI, micrag),
+  ;;; Vitamin C or ascorbic and L-dehydroascorbic acids (PRI, micrag),
+  ;;; Vitamin D including D2 or Ergocalciferol (AI, micrag),
+  ;;; Vitamin E or alfa-Tocopherol and equivalent (AI, mg),
+  ;;; Vitamin K or Phylloquinones (AI, micrag),
+  ;;; Choline (AI, mg)
+  set nutrientRequirementsTable_vitamins extract-subtable nutrientsRequirementData (item 0 vitaminsColumns) (item 1 vitaminsColumns)
+
+  ;;; calculate the total number of nutrients accounted in this table (saved for further use)
+  set nutrientRequirementsTable_numberOfNutrients 6 + (length nutrientRequirementsTable_mineralNames) + (length nutrientRequirementsTable_vitaminNames)
+
+end
+
+to-report get-nutrient-requirements-of-group [ peopleAge peopleSex peoplePregnancyTrimester peopleLactancySemester peoplePAL ]
+
+  ;;; Returns a list of amounts per nutrient required by a group of people, given lists of people ages, sex, pregnancy trimester, lactancy semester, and PAL (physical activity level).
+
+  ;;; Initialise list of nutrients
+  let listOfNutrientAmountsRequiredByGroup n-values nutrientRequirementsTable_numberOfNutrients [ i -> 0 ]
+
+  foreach n-values (length peopleAge) [ i -> i ]
+  [
+    personIndex ->
+
+    let personAge (item personIndex peopleAge)
+    let personSex ifelse-value (item personIndex peopleSex) [ "female" ] [ "male" ] ;;; this converts the true/false values into the "female"/"male" of the nutrientRequirementsTable
+    let personPregnancyTrimester (item personIndex peoplePregnancyTrimester)
+    let personLactancySemester (item personIndex peopleLactancySemester)
+    let personPAL (item personIndex peoplePAL)
+
+    ;;; get nutrition requirements per pèrson according to their sex, age, pregnancy or lactancy status, and physical activity level
+    ;;; Nutrient with minimum and maximum values in nutrientRequirementsTable are sampled randomly from an uniform probability distribution between these.
+    let listOfNutrientAmountsRequiredByPerson (get-nutrient-requirements-of-person personAge personSex personPregnancyTrimester personLactancySemester personPAL)
+
+    ;;; add values to the list of nutrient content amounts required by the group
+    set listOfNutrientAmountsRequiredByGroup (map [ [ i j ] -> i + j ] listOfNutrientAmountsRequiredByGroup listOfNutrientAmountsRequiredByPerson)
+  ]
+
+  report listOfNutrientAmountsRequiredByGroup
+
+end
+
+to-report get-nutrient-requirements-of-person [ personAge personSex personPregnancyTrimester personLactancySemester personPAL ]
+
+  let sexAgeGroupIndex get-index-of-sex-age-group personAge personSex personPregnancyTrimester personLactancySemester
+
+  let listOfNutrientAmountRequired (list
+    (get-water-requirement-of-person sexAgeGroupIndex)             ;;; water
+    (get-energy-requirement-of-person sexAgeGroupIndex personPAL)  ;;; energy
+    (get-CHO-requirement-of-person sexAgeGroupIndex personPAL)     ;;; carbohydrates (CHO)
+    (get-fibre-requirement-of-person sexAgeGroupIndex)             ;;; fibre
+    (get-fat-requirement-of-person sexAgeGroupIndex personPAL)     ;;; fat
+    (get-protein-requirement-of-person sexAgeGroupIndex)           ;;; protein
+    )
+
+  foreach nutrientRequirementsTable_mineralNames
+  [
+    mineralName ->
+    set listOfNutrientAmountRequired lput (get-mineral-requirement-of-person sexAgeGroupIndex mineralName) listOfNutrientAmountRequired
+  ]
+
+  foreach nutrientRequirementsTable_vitaminNames
+  [
+    vitaminName ->
+    set listOfNutrientAmountRequired lput (get-vitamin-requirement-of-person sexAgeGroupIndex vitaminName) listOfNutrientAmountRequired
+  ]
+
+  report listOfNutrientAmountRequired
+
+end
+
+to-report get-nutrient-requirement-of-person [ nutrientName personAge personSex pregnancyTrimester lactancySemester personPAL ]
+
+  let sexAgeGroupIndex get-index-of-sex-age-group personAge personSex pregnancyTrimester lactancySemester
+
+  if (nutrientName = "water")
+  [
+    report (get-water-requirement-of-person sexAgeGroupIndex)
+  ]
+  if (nutrientName = "energy")
+  [
+    report (get-energy-requirement-of-person sexAgeGroupIndex personPAL)
+  ]
+  if (nutrientName = "carbohydrates")
+  [
+    report (get-CHO-requirement-of-person sexAgeGroupIndex personPAL)
+  ]
+  if (nutrientName = "fibre")
+  [
+    report (get-fibre-requirement-of-person sexAgeGroupIndex)
+  ]
+  if (nutrientName = "fat")
+  [
+    report (get-fat-requirement-of-person sexAgeGroupIndex personPAL)
+  ]
+  if (nutrientName = "protein")
+  [
+    report (get-protein-requirement-of-person sexAgeGroupIndex)
+  ]
+  if (member? nutrientName nutrientRequirementsTable_mineralNames)
+  [
+    report (get-mineral-requirement-of-person sexAgeGroupIndex nutrientName)
+  ]
+  if (member? nutrientName nutrientRequirementsTable_vitaminNames)
+  [
+    report (get-vitamin-requirement-of-person sexAgeGroupIndex nutrientName)
+  ]
+
+  error (word "ERROR (get-nutrient-requirement-of-person): " nutrientName " not recognised.")
+
+end
+
+to-report get-nutrient-requirement-per-sex-group [ nutrientName sexGroup ]
+
+  let indexRange get-index-range-of-sex-group sexGroup
+  let series 0
+
+  if (nutrientName = "water (L)")
+  [
+    set series sublist nutrientRequirementsTable_water (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "energy PAL=1.4")
+  [
+    set series sublist (item 0 nutrientRequirementsTable_energy) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "energy PAL=1.6")
+  [
+    set series sublist (item 1 nutrientRequirementsTable_energy) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "energy PAL=1.8")
+  [
+    set series sublist (item 2 nutrientRequirementsTable_energy) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "energy PAL=2.0")
+  [
+    set series sublist (item 3 nutrientRequirementsTable_energy) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "carbohydrates (E%) min.")
+  [
+    set series sublist (item 0 nutrientRequirementsTable_CHO) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "carbohydrates (E%) max.")
+  [
+    set series sublist (item 1 nutrientRequirementsTable_CHO) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "fibre (g)")
+  [
+    set series sublist nutrientRequirementsTable_fibre (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "fat (E%) min.")
+  [
+    set series sublist (item 0 nutrientRequirementsTable_fat) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "fat (E%) max.")
+  [
+    set series sublist (item 1 nutrientRequirementsTable_fat) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "protein (g/kg of body weight)")
+  [
+    set series sublist nutrientRequirementsTable_protein (item 0 indexRange) (item 1 indexRange)
+  ]
+  ;;; MINERALS
+  if (nutrientName = "Calcium PRI (mg)")
+  [
+    set series sublist (item (position "Calcium" nutrientRequirementsTable_mineralNames) nutrientRequirementsTable_minerals) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Iron PRI (mg)")
+  [
+    set series sublist (item (position "Iron" nutrientRequirementsTable_mineralNames) nutrientRequirementsTable_minerals) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Zinc PRI (mg)")
+  [
+    set series sublist (item (position "Zinc" nutrientRequirementsTable_mineralNames) nutrientRequirementsTable_minerals) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Copper AI (mg)")
+  [
+    set series sublist (item (position "Copper" nutrientRequirementsTable_mineralNames) nutrientRequirementsTable_minerals) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Magnesium AI (mg)")
+  [
+    set series sublist (item (position "Magnesium" nutrientRequirementsTable_mineralNames) nutrientRequirementsTable_minerals) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Fluoride AI (mg)")
+  [
+    set series sublist (item (position "Fluoride" nutrientRequirementsTable_mineralNames) nutrientRequirementsTable_minerals) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Iodine AI (micrag)")
+  [
+    set series sublist (item (position "Iodine" nutrientRequirementsTable_mineralNames) nutrientRequirementsTable_minerals) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Manganese AI (mg)")
+  [
+    set series sublist (item (position "Manganese" nutrientRequirementsTable_mineralNames) nutrientRequirementsTable_minerals) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Molybdenum AI (micrag)")
+  [
+    set series sublist (item (position "Molybdenum" nutrientRequirementsTable_mineralNames) nutrientRequirementsTable_minerals) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Phosphorus AI (mg)")
+  [
+    set series sublist (item (position "Phosphorus" nutrientRequirementsTable_mineralNames) nutrientRequirementsTable_minerals) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Potassium AI (mg)")
+  [
+    set series sublist (item (position "Potassium" nutrientRequirementsTable_mineralNames) nutrientRequirementsTable_minerals) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Selenium AI (micrag)")
+  [
+    set series sublist (item (position "Selenium" nutrientRequirementsTable_mineralNames) nutrientRequirementsTable_minerals) (item 0 indexRange) (item 1 indexRange)
+  ]
+  ;;; VITAMINS
+  if (nutrientName = "Vitamin A PRI (micrag)")
+  [
+    set series sublist (item (position "Vitamin A" nutrientRequirementsTable_vitaminNames) nutrientRequirementsTable_vitamins) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Vitamin B1 PRI (mg/MJ)")
+  [
+    set series sublist (item (position "Vitamin B1" nutrientRequirementsTable_vitaminNames) nutrientRequirementsTable_vitamins) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Vitamin B2 PRI (mg)")
+  [
+    set series sublist (item (position "Vitamin B2" nutrientRequirementsTable_vitaminNames) nutrientRequirementsTable_vitamins) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Vitamin B3 PRI (micrag/MJ)")
+  [
+    set series sublist (item (position "Vitamin B3" nutrientRequirementsTable_vitaminNames) nutrientRequirementsTable_vitamins) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Vitamin B5 AI (mg)")
+  [
+    set series sublist (item (position "Vitamin B5" nutrientRequirementsTable_vitaminNames) nutrientRequirementsTable_vitamins) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Vitamin B6 PRI (mg)")
+  [
+    set series sublist (item (position "Vitamin B6" nutrientRequirementsTable_vitaminNames) nutrientRequirementsTable_vitamins) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Vitamin B7 AI (micrag)")
+  [
+    set series sublist (item (position "Vitamin B7" nutrientRequirementsTable_vitaminNames) nutrientRequirementsTable_vitamins) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Vitamin B9 PRI (micrag Dietary Folate Equivalents)")
+  [
+    set series sublist (item (position "Vitamin B9" nutrientRequirementsTable_vitaminNames) nutrientRequirementsTable_vitamins) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Vitamin B12 AI (micrag)")
+  [
+    set series sublist (item (position "Cobalamin" nutrientRequirementsTable_vitaminNames) nutrientRequirementsTable_vitamins) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Vitamin C PRI (micrag)")
+  [
+    set series sublist (item (position "Vitamin C" nutrientRequirementsTable_vitaminNames) nutrientRequirementsTable_vitamins) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Vitamin D AI (micrag)")
+  [
+    set series sublist (item (position "Vitamin D" nutrientRequirementsTable_vitaminNames) nutrientRequirementsTable_vitamins) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Vitamin E AI (mg)")
+  [
+    set series sublist (item (position "Vitamin E" nutrientRequirementsTable_vitaminNames) nutrientRequirementsTable_vitamins) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Vitamin K AI (micrag)")
+  [
+    set series sublist (item (position "Vitamin K" nutrientRequirementsTable_vitaminNames) nutrientRequirementsTable_vitamins) (item 0 indexRange) (item 1 indexRange)
+  ]
+  if (nutrientName = "Choline AI (mg)")
+  [
+    set series sublist (item (position "Choline" nutrientRequirementsTable_vitaminNames) nutrientRequirementsTable_vitamins) (item 0 indexRange) (item 1 indexRange)
+  ]
+
+  report series
+
+end
+
+to-report get-index-of-sex-age-group [ personAge personSex personPregnancyTrimester personLactancySemester ]
+
+  ;;; Returns the numeric row index of the sex-age group of the given person in nutrientsRequirementTable.
+  ;;; WARNINGS:
+  ;;; 1. sexGroup must be written the same in "nutrientsRequirementTable.csv"
+
+  let index 0
+  let sexAgeGroup (word personSex " | " personAge )
+  if (personPregnancyTrimester != 0)
+  [ set sexAgeGroup (word personSex " | " personPregnancyTrimester ) ]
+  if (personLactancySemester != 0)
+  [ set sexAgeGroup (word personSex " | " personLactancySemester ) ]
+
+  foreach n-values (length nutrientRequirementsTable_ageAndSexGroup) [ j -> j ]
+  [
+    i ->
+    if (sexAgeGroup = (item i nutrientRequirementsTable_ageAndSexGroup))
+    [
+      set index i
+    ]
+  ]
+
+  report index
+
+end
+
+to-report get-index-range-of-sex-group [ sexGroup ]
+
+  ;;; Returns the range of numeric row indexes of the given sex group ("female", "male", "pregnancy", "lactation") in nutrientsRequirementTable.
+  ;;; WARNINGS:
+  ;;; 1. sexGroup must be written the same in "nutrientsRequirementTable.csv"
+  ;;; 2. rows in the same sex group must be contiguous in "nutrientsRequirementTable.csv"
+
+  let indexes (list)
+
+  foreach n-values (length nutrientRequirementsTable_ageAndSexGroup) [ j -> j ]
+  [
+    i ->
+    if (member? sexGroup (item i nutrientRequirementsTable_ageAndSexGroup))
+    [
+      set indexes lput i indexes
+    ]
+  ]
+
+  report (list (first indexes) (last indexes))
+
+end
+
+to-report get-water-requirement-of-person [ sexAgeGroupIndex ]
+
+  report (item sexAgeGroupIndex nutrientRequirementsTable_water)
+
+end
+
+to-report get-energy-requirement-of-person [ sexAgeGroupIndex personPAL ]
+
+  let palIndex position personPAL [ "1.4" "1.6" "1.8" "2.0" ]
+
+  report (item sexAgeGroupIndex (item palIndex nutrientRequirementsTable_energy)) * 1000 ;;; convert from MJ to kJ
+
+end
+
+to-report get-CHO-requirement-of-person [ sexAgeGroupIndex personPAL ]
+
+  let totalE% (get-energy-requirement-of-person sexAgeGroupIndex personPAL)
+
+  let minValue (item sexAgeGroupIndex (item 0 nutrientRequirementsTable_CHO))
+  let maxValue (item sexAgeGroupIndex (item 1 nutrientRequirementsTable_CHO))
+  let CHOE% get-random-float-in-range minValue maxValue
+
+  report (get-g-from-E%-CHO CHOE% totalE%)
+
+end
+
+to-report get-fat-requirement-of-person [ sexAgeGroupIndex personPAL ]
+
+  let totalE% (get-energy-requirement-of-person sexAgeGroupIndex personPAL)
+
+  let minValue (item sexAgeGroupIndex (item 0 nutrientRequirementsTable_fat))
+  let maxValue (item sexAgeGroupIndex (item 1 nutrientRequirementsTable_fat))
+  let fatE% get-random-float-in-range minValue maxValue
+
+  report (get-g-from-E%-fat fatE% totalE%)
+
+end
+
+to-report get-g-from-E%-CHO [ E% totalE ]
+
+  ;;; define Atwater general factor system's value for carbohydrates
+  ;;; NOTE: this value includes fibre.
+  ;;; See: CHAPTER 3: CALCULATION OF THE ENERGY CONTENT OF FOODS - ENERGY CONVERSION FACTORS. (2003).
+  ;;; In Food energy—Methods of analysis and conversion factors. Report of a Technical Workshop, Rome, 3-6 December 2002. FAO.
+  ;;; https://www.fao.org/3/y5022e/y5022e04.htm
+
+  let AtwaterGeneralFactor_CHO 17 ;;; 17 kJ/g or 4 kcal/g
+
+  ;;; NOTE: assuming totalE is in kJ
+  report totalE / AtwaterGeneralFactor_CHO
+
+end
+
+to-report get-g-from-E%-fat [ E% totalE ]
+
+  ;;; define Atwater general factor system's value for fat
+  ;;; NOTE: this value includes fibre.
+  ;;; See: CHAPTER 3: CALCULATION OF THE ENERGY CONTENT OF FOODS - ENERGY CONVERSION FACTORS. (2003).
+  ;;; In Food energy—Methods of analysis and conversion factors. Report of a Technical Workshop, Rome, 3-6 December 2002. FAO.
+  ;;; https://www.fao.org/3/y5022e/y5022e04.htm
+
+  let AtwaterGeneralFactor_fat 37 ;;; 37 kJ/g or 9 kcal/g
+
+  ;;; NOTE: assuming totalE is in kJ
+  report totalE / AtwaterGeneralFactor_fat
+
+end
+
+to-report get-fibre-requirement-of-person [ sexAgeGroupIndex ]
+
+  report (item sexAgeGroupIndex nutrientRequirementsTable_fibre)
+
+end
+
+to-report get-protein-requirement-of-person [ sexAgeGroupIndex ]
+
+  let referenceBodyWeight (item sexAgeGroupIndex nutrientRequirementsTable_referenceBodyWeight)
+
+  let proteinPerBodykg (item sexAgeGroupIndex nutrientRequirementsTable_protein)
+
+  report referenceBodyWeight * proteinPerBodykg
+
+end
+
+to-report get-mineral-requirement-of-person [ sexAgeGroupIndex mineralVariableName ]
+
+  ;;; Returns the value at the given (row) index for the given mineral variable from the nutrientRequirementsTable
+
+  let mineralVariableIndex (position mineralVariableName nutrientRequirementsTable_mineralColumnNames)
+
+  report (item sexAgeGroupIndex (item mineralVariableIndex nutrientRequirementsTable_minerals))
+
+end
+
+to-report get-vitamin-requirement-of-person [ sexAgeGroupIndex vitaminVariableName ]
+
+  ;;; Returns the value at the given (row) index for the given vitamin variable from the nutrientRequirementsTable
+
+  let vitaminVariableIndex (position vitaminVariableName nutrientRequirementsTable_vitaminColumnNames)
+
+  report (item sexAgeGroupIndex (item vitaminVariableIndex nutrientRequirementsTable_vitamins))
+
+end
+
+;;; ---------NUTRIENT CONTENTS--------------------------------------------------------------------------------------------------------------------------
+
+to load-nutrient-contents-per-foodstuff-table
+
+  ;;; SOURCE:
+  ;;; Values are informed or derived from:
+
+  ;;; Pakistan: Food Composition Table for Pakistan (revised 2001).
+  ;;; Department of Agricultural Chemistry and Human Nutrition, NWFP,
+  ;;; Agricultural University Peshawar: UNICEF Islamabad;
+  ;;; Ministry of Planning and Development, Government of Pakistan Islamabad - 2001.
+  ;;; https://www.fao.org/fileadmin/templates/food_composition/documents/regional/Book_Food_Composition_Table_for_Pakistan_.pdf
+
+  ;;; India: Indian Food Composition Tables (2017).
+  ;;; T. Longvah; R. Ananthan; K. Bhaskarachary; K. Venkaiah.
+  ;;; The PDF file can be downloaded from http://www.ifct2017.com/
+
+  ;;; Bangladesh: Food Composition Table for Bangladesh -
+  ;;; Nazma Shaheen, Abu Torab MA Rahim, Md. Mohiduzzaman, Cadi Parvin Banu,
+  ;;; Md. Latiful Bari, Avonti Basak Tukun,  MA Mannan, Lalita Bhattacharjee, Barbara Stadlmayr.
+  ;;; Institute of Nutrition and Food Science; Centre for Advanced Research in Sciences;
+  ;;; University of Dhaka, Dhaka-1000, Bangladesh. 2013 (English).
+
+  ;;; These and more food tables per country can be found at: https://www.fao.org/infoods/infoods/tables-and-databases/en/
+
+  ;;; this procedure loads the values of the nutrients requirement table
+  ;;; the table contains:
+  ;;;   1. two lines of headers with comments (metadata, to be ignored)
+  ;;;   2. two lines with statements mapping rows and the different variables (columns)
+  ;;;   3. the header of the table with the names of variables
+  ;;;   4. remaining rows containing row name and values
+
+  let nutrientContentsPerFoodstuffTable csv:from-file "nutrientContentsPerFoodstuffTable.csv"
+
+  ;;;==================================================================================================================
+  ;;; mapping coordinates (row or columns) in lines 3 and 4 (= index 2 and 3) -----------------------------------------
+  ;;; NOTE: always correct raw mapping coordinates (start at 1) into list indexes (start at 0)
+
+  ;;; line 3 (= index 2), row indexes
+  let foodstuffRowRange (list ((item 1 (item 2 nutrientContentsPerFoodstuffTable)) - 1) ((item 3 (item 2 nutrientContentsPerFoodstuffTable)) - 1))
+
+  ;;; line 4 (= index 3), column indexes
+
+  ;;; foodstuff names
+  let foodstuffColumn (item 1 (item 3 nutrientContentsPerFoodstuffTable)) - 1
+
+  ;;; skip source scientific name
+
+  ;;; foodstuff groups
+  let foodstuffGroupColumn (item 5 (item 3 nutrientContentsPerFoodstuffTable)) - 1
+
+  ;;; edible portion
+  let ediblePortionColumn (item 7 (item 3 nutrientContentsPerFoodstuffTable)) - 1
+
+  ;;; MAJOR NUTRIENTS
+  ;;; water (g)
+  let waterColumns (list ((item 9 (item 3 nutrientContentsPerFoodstuffTable)) - 1) ((item 11 (item 3 nutrientContentsPerFoodstuffTable)) - 1) )
+
+  ;;; energy (kJ)
+  let energyColumns (list ((item 13 (item 3 nutrientContentsPerFoodstuffTable)) - 1) ((item 15 (item 3 nutrientContentsPerFoodstuffTable)) - 1) )
+
+  ;;; minimum and maximum total carbohydrates RI (E%)
+  let carbohydratesColumns (list ((item 17 (item 3 nutrientContentsPerFoodstuffTable)) - 1) ((item 19 (item 3 nutrientContentsPerFoodstuffTable)) - 1) )
+
+  ;;; dietary fibre (g)
+  let fibreColumns (list ((item 21 (item 3 nutrientContentsPerFoodstuffTable)) - 1) ((item 23 (item 3 nutrientContentsPerFoodstuffTable)) - 1) )
+
+  ;;; total fat (g)
+  let fatColumns (list ((item 25 (item 3 nutrientContentsPerFoodstuffTable)) - 1) ((item 27 (item 3 nutrientContentsPerFoodstuffTable)) - 1) )
+
+  ;;; protein (g)
+  let proteinColumns (list ((item 29 (item 3 nutrientContentsPerFoodstuffTable)) - 1) ((item 31 (item 3 nutrientContentsPerFoodstuffTable)) - 1) )
+
+  ;;; MINOR NUTRIENTS
+  ;;; MINERALS
+  let mineralColumns (list ((item 33 (item 3 nutrientContentsPerFoodstuffTable)) - 1) ((item 35 (item 3 nutrientContentsPerFoodstuffTable)) - 1) )
+
+  ;;; VITAMINS
+  let vitaminsColumns (list ((item 37 (item 3 nutrientContentsPerFoodstuffTable)) - 1) ((item 39 (item 3 nutrientContentsPerFoodstuffTable)) - 1) )
+
+  ;;;==================================================================================================================
+  ;;; extract data---------------------------------------------------------------------------------------
+
+  ;;; get lists of mineral and vitamins column names (min and max) in the order they are in the table as columns
+  set nutrientContentsPerFoodstuffTable_mineralColumnNames sublist (item 4 nutrientContentsPerFoodstuffTable) (item 0 mineralColumns) (item 1 mineralColumns + 1)
+  set nutrientContentsPerFoodstuffTable_vitaminColumnNames sublist (item 4 nutrientContentsPerFoodstuffTable) (item 0 vitaminsColumns) (item 1 vitaminsColumns + 1)
+  ;;; get lists of mineral and vitamins names, without the min/max suffixes
+  set nutrientContentsPerFoodstuffTable_mineralNames remove-duplicates map [columnName -> remove " max" (remove " min" columnName)] nutrientContentsPerFoodstuffTable_mineralColumnNames
+  set nutrientContentsPerFoodstuffTable_vitaminNames remove-duplicates map [columnName -> remove " max" (remove " min" columnName)] nutrientContentsPerFoodstuffTable_vitaminColumnNames
+
+  ;;; read variables (list of lists, matrix: foodstuff types x source scientific names, foodstuff groups, edible portion, nutrient variables)
+  let nutrientsPerFoodstuffData sublist nutrientContentsPerFoodstuffTable (item 0 foodstuffRowRange) (item 1 foodstuffRowRange + 1)
+
+  ;;; get list of foodstuff types names and foodstuff group names in the order they are in the table as rows
+  set nutrientContentsPerFoodstuffTable_foodstuffTypes map [ row -> item foodstuffColumn row ] nutrientsPerFoodstuffData
+
+  set nutrientContentsPerFoodstuffTable_foodstuffGroup map [ row -> item foodstuffGroupColumn row ] nutrientsPerFoodstuffData
+
+  ;;; edible portion
+  set nutrientContentsPerFoodstuffTable_ediblePortion map [ row -> item ediblePortionColumn row ] nutrientsPerFoodstuffData
+
+  ;;; major nutrients as separate list of lists variables with minimum and maximum values per foodstuff
+
+  ;;; water (g)
+  set nutrientContentsPerFoodstuffTable_water extract-subtable nutrientsPerFoodstuffData (item 0 waterColumns) (item 1 waterColumns)
+
+  ;;; energy (kJ)
+  set nutrientContentsPerFoodstuffTable_energy extract-subtable nutrientsPerFoodstuffData (item 0 energyColumns) (item 1 energyColumns)
+
+  ;;; total carbohydrates (g) - CHO = Carbon, Hydrogen, Oxigen (two columns)
+  set nutrientContentsPerFoodstuffTable_CHO extract-subtable nutrientsPerFoodstuffData (item 0 carbohydratesColumns) (item 1 carbohydratesColumns)
+
+  ;;; dietary fibre (g)
+  set nutrientContentsPerFoodstuffTable_fibre extract-subtable nutrientsPerFoodstuffData (item 0 fibreColumns) (item 1 fibreColumns)
+
+  ;;; total fat (g)
+  set nutrientContentsPerFoodstuffTable_fat extract-subtable nutrientsPerFoodstuffData (item 0 fatColumns) (item 1 fatColumns)
+
+  ;;; protein (g)
+  set nutrientContentsPerFoodstuffTable_protein extract-subtable nutrientsPerFoodstuffData (item 0 proteinColumns) (item 1 proteinColumns)
+
+  ;;; minor nutrients as two list of lists variables
+
+  ;;; MINERALS
+  ;;; Calcium (mg), Iron (mg), Zinc (mg), Copper AI (mg), Magnesium (mg),
+  ;;; Fluoride (mg), Iodine (micrag), Manganese (mg), Molybdenum (micrag),
+  ;;; Phosphorus (mg), Potassium (mg), Selenium (micrag)
+  set nutrientContentsPerFoodstuffTable_minerals extract-subtable nutrientsPerFoodstuffData (item 0 mineralColumns) (item 1 mineralColumns)
+
+  ;;; VITAMINS
+  ;;; Vitamin A or total provitamin A carotenoids (micrag), Vitamin B1 or Thiamine (mg),
+  ;;; Vitamin B2 or Riboflavin (mg), Vitamin B3 or Niacin/Niacin Equivalent (mg),
+  ;;; Vitamin B5 or Pantothenic acid (mg), Vitamin B6 (mg),
+  ;;; Vitamin B7 or Biotin (micrag), Vitamin B9 or total Folates (micrag),
+  ;;; Vitamin B12 or Cobalamin (micrag),
+  ;;; Vitamin C or ascorbic and L-dehydroascorbic acids (micrag),
+  ;;; Vitamin D including D2 or Ergocalciferol (micrag),
+  ;;; Vitamin E or alfa-Tocopherol and equivalent (mg),
+  ;;; Vitamin K or Phylloquinones (micrag),
+  ;;; Choline (mg)
+  set nutrientContentsPerFoodstuffTable_vitamins extract-subtable nutrientsPerFoodstuffData (item 0 vitaminsColumns) (item 1 vitaminsColumns)
+
+  ;;; calculate the total number of nutrients accounted in this table (saved for further use)
+  set nutrientContentsPerFoodstuffTable_numberOfNutrients 6 + (length nutrientContentsPerFoodstuffTable_mineralNames) + (length nutrientContentsPerFoodstuffTable_vitaminNames)
+
+end
+
+to-report get-nutrient-contents-in-diet [ listOfFoodstuffAmountInDiet ]
+
+  ;;; Returns a list of amounts per nutrient given a list of amounts per foodstuff in grams.
+
+  ;;; Initialise list of nutrients
+  let listOfNutrientAmountsInDiet n-values nutrientContentsPerFoodstuffTable_numberOfNutrients [ i -> 0 ]
+
+  foreach nutrientContentsPerFoodstuffTable_foodstuffTypes
+  [
+    foodstuffType ->
+
+    let foodstuffTypeIndex (position foodstuffType nutrientContentsPerFoodstuffTable_foodstuffTypes)
+
+    ;;; get nutrition content values per 100g of this foodstuff
+    ;;; Nutrient amounts are sampled out of an uniform probability distribution between the minimum and maximum values determined in nutrientContentsPerFoodstuffTable.
+    let nutrientContentsPer100g (get-nutrient-contents-of-foodstuff-type foodstuffType)
+
+    ;;; calculate edible amount
+    let edibleAmount (get-edible-amount-in-foodstuff-type foodstuffTypeIndex) * (item foodstuffTypeIndex listOfFoodstuffAmountInDiet)
+
+    ;;; calculate total nutrition content values for edible portion and given foodstuff amount
+    let totalNutrientContents map [ i -> i * (edibleAmount / 100) ] nutrientContentsPer100g
+
+    ;;; add values to the overall list of nutrient contents in diet
+    set listOfNutrientAmountsInDiet (map [ [ i j ] -> i + j ] listOfNutrientAmountsInDiet totalNutrientContents)
+  ]
+
+  report listOfNutrientAmountsInDiet
+
+end
+
+to-report get-nutrient-contents-of-foodstuff-type [ foodstuffType ]
+
+  ;;; Returns a list of nutrient content values corresponding to the given foodstuff type (row) in nutrientContentsPerFoodstuffTable.
+  ;;; Values are sampled randomly from an uniform probability distribution between minimum and maximum values in nutrientRequirementsTable.
+
+  let foodstuffTypeIndex (position foodstuffType nutrientContentsPerFoodstuffTable_foodstuffTypes)
+
+  let listOfNutrientAmountsInFoodstuffType (list
+    (get-water-content-of-foodstuffType foodstuffTypeIndex)
+    (get-energy-content-of-foodstuffType foodstuffTypeIndex)
+    (get-CHO-content-of-foodstuffType foodstuffTypeIndex)
+    (get-fibre-content-of-foodstuffType foodstuffTypeIndex)
+    (get-fat-content-of-foodstuffType foodstuffTypeIndex)
+    (get-protein-content-of-foodstuffType foodstuffTypeIndex)
+    )
+
+  foreach nutrientContentsPerFoodstuffTable_mineralNames
+  [
+    mineralName ->
+    set listOfNutrientAmountsInFoodstuffType lput (get-mineral-content-of-foodstuffType foodstuffTypeIndex mineralName) listOfNutrientAmountsInFoodstuffType
+  ]
+
+  foreach nutrientContentsPerFoodstuffTable_vitaminNames
+  [
+    vitaminName ->
+    set listOfNutrientAmountsInFoodstuffType lput (get-vitamin-content-of-foodstuffType foodstuffTypeIndex vitaminName) listOfNutrientAmountsInFoodstuffType
+  ]
+
+  report listOfNutrientAmountsInFoodstuffType
+
+end
+
+to-report get-edible-amount-in-foodstuff-type [ foodstuffTypeIndex ]
+
+  report (item foodstuffTypeIndex nutrientContentsPerFoodstuffTable_ediblePortion)
+
+end
+
+to-report get-water-content-of-foodstuffType [ foodstuffTypeIndex ]
+
+  let minValue (item foodstuffTypeIndex (item 0 nutrientContentsPerFoodstuffTable_water))
+  let maxValue (item foodstuffTypeIndex (item 1 nutrientContentsPerFoodstuffTable_water))
+
+  report get-random-float-in-range minValue maxValue
+
+end
+
+to-report get-energy-content-of-foodstuffType [ foodstuffTypeIndex ]
+
+  let minValue (item foodstuffTypeIndex (item 0 nutrientContentsPerFoodstuffTable_energy))
+  let maxValue (item foodstuffTypeIndex (item 1 nutrientContentsPerFoodstuffTable_energy))
+
+  report get-random-float-in-range minValue maxValue
+
+end
+
+to-report get-CHO-content-of-foodstuffType [ foodstuffTypeIndex ]
+
+  let minValue (item foodstuffTypeIndex (item 0 nutrientContentsPerFoodstuffTable_CHO))
+  let maxValue (item foodstuffTypeIndex (item 1 nutrientContentsPerFoodstuffTable_CHO))
+
+  report get-random-float-in-range minValue maxValue
+
+end
+
+to-report get-fat-content-of-foodstuffType [ foodstuffTypeIndex ]
+
+  let minValue (item foodstuffTypeIndex (item 0 nutrientContentsPerFoodstuffTable_fat))
+  let maxValue (item foodstuffTypeIndex (item 1 nutrientContentsPerFoodstuffTable_fat))
+
+  report get-random-float-in-range minValue maxValue
+
+end
+
+to-report get-fibre-content-of-foodstuffType [ foodstuffTypeIndex ]
+
+  let minValue (item foodstuffTypeIndex (item 0 nutrientContentsPerFoodstuffTable_fibre))
+  let maxValue (item foodstuffTypeIndex (item 1 nutrientContentsPerFoodstuffTable_fibre))
+
+  report get-random-float-in-range minValue maxValue
+
+end
+
+to-report get-protein-content-of-foodstuffType [ foodstuffTypeIndex ]
+
+  let minValue (item foodstuffTypeIndex (item 0 nutrientContentsPerFoodstuffTable_protein))
+  let maxValue (item foodstuffTypeIndex (item 1 nutrientContentsPerFoodstuffTable_protein))
+
+  report get-random-float-in-range minValue maxValue
+
+end
+
+to-report get-mineral-content-of-foodstuffType [ foodstuffIndex mineralName ]
+
+  ;;; Returns a random value between minimum and maximum values at the given (row) index for the given mineral variable from the nutrientContentsPerFoodstuffTable
+
+  let mineralVariableIndexMin (position (word mineralName " min") nutrientContentsPerFoodstuffTable_mineralColumnNames)
+  let mineralVariableIndexMax (position (word mineralName " max") nutrientContentsPerFoodstuffTable_mineralColumnNames)
+
+  let minValue (item foodstuffIndex (item mineralVariableIndexMin nutrientContentsPerFoodstuffTable_minerals))
+  let maxValue (item foodstuffIndex (item mineralVariableIndexMax nutrientContentsPerFoodstuffTable_minerals))
+
+  report get-random-float-in-range minValue maxValue
+
+end
+
+to-report get-vitamin-content-of-foodstuffType [ foodstuffIndex vitaminName ]
+
+  ;;; Returns a random value between minimum and maximum values at the given (row) index for the given vitamin variable from the nutrientContentsPerFoodstuffTable
+
+  let vitaminVariableIndexMin (position (word vitaminName " min") nutrientContentsPerFoodstuffTable_vitaminColumnNames)
+  let vitaminVariableIndexMax (position (word vitaminName " max") nutrientContentsPerFoodstuffTable_vitaminColumnNames)
+
+  let minValue (item foodstuffIndex (item vitaminVariableIndexMin nutrientContentsPerFoodstuffTable_vitamins))
+  let maxValue (item foodstuffIndex (item vitaminVariableIndexMax nutrientContentsPerFoodstuffTable_vitamins))
+
+  report get-random-float-in-range minValue maxValue
+
+end
+
+to-report get-nutrient-content-of-foodstuff-types [ nutrientName minOrMax ]
+
+  ;;; Returns all (min or max) content of the given nutrient for all foodstuff types in nutrientContentsPerFoodstuffTable.
+  ;;; NOTE: Useful for querying the table and plotting
+
+  let suffix (word " " minOrMax)
+  let minOrMaxIndex position minOrMax [ "min" "max" ]
+
+  if (nutrientName = "water (g)")
+  [ report (item minOrMaxIndex nutrientContentsPerFoodstuffTable_water) ]
+  if (nutrientName = "energy (kJ)")
+  [ report (item minOrMaxIndex nutrientContentsPerFoodstuffTable_energy) ]
+  if (nutrientName = "carbohydrates (g)")
+  [ report (item minOrMaxIndex nutrientContentsPerFoodstuffTable_CHO) ]
+  if (nutrientName = "fibre (g)")
+  [ report (item minOrMaxIndex nutrientContentsPerFoodstuffTable_fibre) ]
+  if (nutrientName = "fat (g)")
+  [ report (item minOrMaxIndex nutrientContentsPerFoodstuffTable_fat) ]
+  if (nutrientName = "protein (g)")
+  [ report (item minOrMaxIndex nutrientContentsPerFoodstuffTable_protein) ]
+
+  let variableName (substring nutrientName 0 (position "(" nutrientName))
+  set variableName (word variableName suffix)
+
+  if (member? variableName nutrientContentsPerFoodstuffTable_mineralNames)
+  [ report (item (position variableName nutrientContentsPerFoodstuffTable_mineralNames) nutrientContentsPerFoodstuffTable_minerals) ]
+
+  if (member? variableName nutrientContentsPerFoodstuffTable_vitaminNames)
+  [ report (item (position variableName nutrientContentsPerFoodstuffTable_vitaminNames) nutrientContentsPerFoodstuffTable_vitamins) ]
+
+  report 0
+
+end
+
+to-report extract-subtable [ table startColumnIndex endColumnIndex ]
+
+  let subtable (list)
+  let columnsCount ((endColumnIndex + 1) - startColumnIndex)
+  foreach n-values columnsCount [ j -> j ]
+  [
+    i ->
+    let columnIndex startColumnIndex + i
+    set subtable lput (map [row -> item columnIndex row ] table) subtable
+  ]
+  report subtable
+
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; EXPORT DATA ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to export-households
+
+  let FilePath "output//"
+
+  file-open (word FilePath behaviorspace-experiment-name behaviorspace-run-number "_households.csv")
+
+  file-print "household,hh_dietDesired,hh_stocks"
+
+  foreach sort households
+  [
+    hh ->
+    ask hh
+    [
+      file-type who file-type ", "
+      ;file-type (word "'" hh_dietDesired "'") file-type ", "
+      ;file-type (word "'" hh_stocks "'") file-type ", "
+    ]
+  ]
+
+  file-close
+
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; GENERIC FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to-report get-random-float-in-range [ minValue maxValue ]
+
+  report (minValue + random-float (maxValue - minValue))
+
+end]]></code>
+  <widgets>
+    <view x="276" wrappingAllowedX="true" y="10" frameRate="30.0" minPycor="-9" height="308" showTickCounter="true" patchSize="16.0" fontSize="10" wrappingAllowedY="true" width="308" tickCounterLabel="ticks" maxPycor="9" updateMode="0" maxPxcor="9" minPxcor="-9"></view>
+    <button x="18" actionKey="1" y="20" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="63">setup</button>
+    <button x="96" actionKey="2" y="21" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="55">go</button>
+    <input x="41" multiline="false" y="85" height="60" variable="SEED" type="number" width="100">0.0</input>
+    <chooser x="49" y="157" height="60" variable="type-of-experiment" current="0" width="138" display="type-of-experiment">
+      <choice type="string" value="user-defined"></choice>
+      <choice type="string" value="random"></choice>
+    </chooser>
+    <input x="16" multiline="false" y="344" height="60" variable="initial-num-households" type="number" width="143">10.0</input>
+    <button x="162" actionKey="3" y="21" height="40" disableUntilTicks="false" forever="true" kind="Observer" width="55">go</button>
+    <input x="146" multiline="false" y="85" height="60" variable="max-iterations" type="number" width="100">2000.0</input>
+    <button x="50" y="240" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="135">export-households</button>
+    <button x="42" y="289" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="152" display="parameters to default">parameters-to-default</button>
+    <plot x="686" autoPlotX="false" yMax="10.0" autoPlotY="false" yAxis="nutrients required" y="474" xMin="0.0" height="242" legend="true" xMax="10.0" yMin="0.0" width="301" xAxis="age group" display="Nutrient per sex-age">
+      <setup></setup>
+      <update>clear-plot
+if (nutrientRequirementsTable_ageAndSexGroup = 0) [ load-nutrient-requirements-table ]
+set-plot-x-range -1 100
+let nutrientPerGroupFemale get-nutrient-requirement-per-sex-group required-nutrient-to-plot "female"
+let nutrientPerGroupMale get-nutrient-requirement-per-sex-group required-nutrient-to-plot "male"
+set-plot-y-range -0.001 (precision (max (list (max nutrientPerGroupFemale) (max nutrientPerGroupMale)) + 0.001) 3)</update>
+      <pen interval="1.0" mode="0" display="females" color="-5298144" legend="true">
+        <setup>
+</setup>
+        <update>plot-table get-nutrient-requirement-per-sex-group required-nutrient-to-plot "female"</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="males" color="-14070903" legend="true">
+        <setup></setup>
+        <update>plot-table get-nutrient-requirement-per-sex-group required-nutrient-to-plot "male"</update>
+      </pen>
+    </plot>
+    <plot x="1230" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="foodstuff type index" y="10" xMin="0.0" height="448" legend="true" xMax="10.0" yMin="0.0" width="230" xAxis="mass unit" display="Diet satisfaction">
+      <setup></setup>
+      <update>clear-plot</update>
+      <pen interval="1.0" mode="0" display="desired mean" color="-16777216" legend="true">
+        <setup>plot-table get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) "mean"</setup>
+        <update>plot-table-transposed get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) "mean"</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="desired min" color="-14070903" legend="true">
+        <setup>plot-table get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) "min"</setup>
+        <update>plot-table-transposed get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) "min"</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="desired max" color="-5298144" legend="true">
+        <setup>plot-table get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) "max"</setup>
+        <update>plot-table-transposed get-itemwise-mean-in-list-of-lists ([hh_dietDesired] of households) "max"</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="consumed mean" color="-7500403" legend="true">
+        <setup>plot-table get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) "mean"</setup>
+        <update>plot-table-transposed get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) "mean"</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="consumed min" color="-10649926" legend="true">
+        <setup>plot-table get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) "min"</setup>
+        <update>plot-table-transposed get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) "min"</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="consumed max" color="-2139308" legend="true">
+        <setup>plot-table get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) "max"</setup>
+        <update>plot-table-transposed get-itemwise-mean-in-list-of-lists ([hh_dietConsumed] of households) "max"</update>
+      </pen>
+    </plot>
+    <plot x="593" autoPlotX="true" yMax="10.0" autoPlotY="true" y="206" xMin="0.0" height="243" legend="true" xMax="10.0" yMin="0.0" width="329" xAxis="nutrient index" display="Nutrition satisfaction">
+      <setup></setup>
+      <update>clear-plot</update>
+      <pen interval="1.0" mode="0" display="required mean" color="-16777216" legend="true">
+        <setup>plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsRequired] of households) "mean"</setup>
+        <update>plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsRequired] of households) "mean"</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="required min" color="-14070903" legend="true">
+        <setup>plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsRequired] of households) "min"</setup>
+        <update>plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsRequired] of households) "min"</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="required max" color="-5298144" legend="true">
+        <setup>plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsRequired] of households) "max"</setup>
+        <update>plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsRequired] of households) "max"</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="in-diet mean" color="-7500403" legend="true">
+        <setup>plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsInDiet] of households) "mean"</setup>
+        <update>plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsInDiet] of households) "mean"</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="in-diet min" color="-10649926" legend="true">
+        <setup>plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsInDiet] of households) "min"</setup>
+        <update>plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsInDiet] of households) "min"</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="in-diet max" color="-2139308" legend="true">
+        <setup>plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsInDiet] of households) "max"</setup>
+        <update>plot-table get-itemwise-mean-in-list-of-lists ([hh_nutrientsInDiet] of households) "max"</update>
+      </pen>
+    </plot>
+    <plot x="592" autoPlotX="true" yMax="2.0" autoPlotY="true" y="10" xMin="0.0" height="191" legend="true" xMax="10.0" yMin="0.0" width="329" xAxis="ticks" display="Nutrition score">
+      <setup>set-plot-y-range -2 2</setup>
+      <update></update>
+      <pen interval="1.0" mode="0" display="mean" color="-16777216" legend="true">
+        <setup></setup>
+        <update>plot mean [hh_nutritionScore] of households</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="min" color="-13345367" legend="true">
+        <setup></setup>
+        <update>plot min [hh_nutritionScore] of households</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="max" color="-2674135" legend="true">
+        <setup></setup>
+        <update>plot max [hh_nutritionScore] of households</update>
+      </pen>
+    </plot>
+    <monitor x="162" precision="0" y="345" height="60" fontSize="9" width="139">initialNumHouseholds</monitor>
+    <input x="15" multiline="false" y="408" height="60" variable="household-initial-age-distribution" type="string" width="219">0 30</input>
+    <monitor x="238" precision="17" y="408" height="60" fontSize="9" width="190">houseHoldInitialAgeDistribution</monitor>
+    <button x="392" y="347" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="102">update-plots</button>
+    <chooser x="18" y="478" height="60" variable="nutrition-score-calculation" current="0" width="201" display="nutrition-score-calculation">
+      <choice type="string" value="all-or-nothing then mean"></choice>
+      <choice type="string" value="all-or-nothing then sum"></choice>
+      <choice type="string" value="all-or-nothing then minimum"></choice>
+      <choice type="string" value="logistic then mean"></choice>
+      <choice type="string" value="logistic then sum"></choice>
+      <choice type="string" value="logistic then minimum"></choice>
+    </chooser>
+    <chooser x="687" y="716" height="60" variable="required-nutrient-to-plot" current="7" width="301" display="required-nutrient-to-plot">
+      <choice type="string" value="water (L)"></choice>
+      <choice type="string" value="energy PAL=1.4"></choice>
+      <choice type="string" value="energy PAL=1.6"></choice>
+      <choice type="string" value="energy PAL=1.8"></choice>
+      <choice type="string" value="energy PAL=2.0"></choice>
+      <choice type="string" value="carbohydrates (E%) min."></choice>
+      <choice type="string" value="carbohydrates (E%) max."></choice>
+      <choice type="string" value="fibre (g)"></choice>
+      <choice type="string" value="fat (E%) min."></choice>
+      <choice type="string" value="fat (E%) max."></choice>
+      <choice type="string" value="protein (g/kg of body weight)"></choice>
+      <choice type="string" value="Calcium PRI (mg)"></choice>
+      <choice type="string" value="Iron PRI (mg)"></choice>
+      <choice type="string" value="Zinc PRI (mg)"></choice>
+      <choice type="string" value="Copper AI (mg)"></choice>
+      <choice type="string" value="Magnesium AI (mg)"></choice>
+      <choice type="string" value="Fluoride AI (mg)"></choice>
+      <choice type="string" value="Iodine AI (micrag)"></choice>
+      <choice type="string" value="Manganese AI (mg)"></choice>
+      <choice type="string" value="Molybdenum AI (micrag)"></choice>
+      <choice type="string" value="Phosphorus AI (mg)"></choice>
+      <choice type="string" value="Potassium AI (mg)"></choice>
+      <choice type="string" value="Selenium AI (micrag)"></choice>
+      <choice type="string" value="Vitamin A PRI (micrag)"></choice>
+      <choice type="string" value="Vitamin B1 PRI (mg/MJ)"></choice>
+      <choice type="string" value="Vitamin B2 PRI (mg)"></choice>
+      <choice type="string" value="Vitamin B3 PRI (micrag/MJ)"></choice>
+      <choice type="string" value="Vitamin B5 AI (mg)"></choice>
+      <choice type="string" value="Vitamin B6 PRI (mg)"></choice>
+      <choice type="string" value="Vitamin B7 AI (micrag)"></choice>
+      <choice type="string" value="Vitamin B9 PRI (micrag)"></choice>
+      <choice type="string" value="Vitamin B12 AI (micrag)"></choice>
+      <choice type="string" value="Vitamin C PRI (micrag)"></choice>
+      <choice type="string" value="Vitamin D AI (micrag)"></choice>
+      <choice type="string" value="Vitamin E AI (mg)"></choice>
+      <choice type="string" value="Vitamin K AI (micrag)"></choice>
+      <choice type="string" value="Choline AI (mg)"></choice>
+    </chooser>
+    <plot x="993" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="nutrient amount per 100g" y="475" xMin="0.0" height="242" legend="true" xMax="10.0" yMin="0.0" width="300" xAxis="foodstuff type index" display="Nutrient per foodstuff types">
+      <setup></setup>
+      <update>clear-plot
+if (nutrientContentsPerFoodstuffTable_foodstuffTypes = 0) [ load-nutrient-contents-per-foodstuff-table ]
+set-plot-x-range -1 ((length nutrientContentsPerFoodstuffTable_foodstuffTypes) + 1)
+let nutrientPerFoodstuffMax (max (get-nutrient-content-of-foodstuff-types nutrient-content-to-plot "max"))
+set-plot-y-range -0.001 (precision (nutrientPerFoodstuffMax + 0.001) 3)</update>
+      <pen interval="1.0" mode="1" display="min" color="-16777216" legend="true">
+        <setup></setup>
+        <update>plot-table get-nutrient-content-of-foodstuff-types nutrient-content-to-plot "min"</update>
+      </pen>
+      <pen interval="1.0" mode="1" display="max" color="-7500403" legend="true">
+        <setup></setup>
+        <update>plot-table get-nutrient-content-of-foodstuff-types nutrient-content-to-plot "max"</update>
+      </pen>
+    </plot>
+    <chooser x="993" y="716" height="60" variable="nutrient-content-to-plot" current="4" width="300" display="nutrient-content-to-plot">
+      <choice type="string" value="water (g)"></choice>
+      <choice type="string" value="energy (kJ)"></choice>
+      <choice type="string" value="carbohydrates (g)"></choice>
+      <choice type="string" value="fibre (g)"></choice>
+      <choice type="string" value="fat (g)"></choice>
+      <choice type="string" value="protein (g)"></choice>
+      <choice type="string" value="Calcium (mg)"></choice>
+      <choice type="string" value="Iron (mg)"></choice>
+      <choice type="string" value="Zinc (mg)"></choice>
+      <choice type="string" value="Copper (mg)"></choice>
+      <choice type="string" value="Magnesium (mg)"></choice>
+      <choice type="string" value="Fluoride (mg)"></choice>
+      <choice type="string" value="Iodine (micrag)"></choice>
+      <choice type="string" value="Manganese (mg)"></choice>
+      <choice type="string" value="Molybdenum (micrag)"></choice>
+      <choice type="string" value="Phosphorus (mg)"></choice>
+      <choice type="string" value="Potassium (mg)"></choice>
+      <choice type="string" value="Selenium (micrag)"></choice>
+      <choice type="string" value="Vitamin A (micrag)"></choice>
+      <choice type="string" value="Vitamin B1 (mg)"></choice>
+      <choice type="string" value="Vitamin B2 (mg)"></choice>
+      <choice type="string" value="Vitamin B3 (mg)"></choice>
+      <choice type="string" value="Vitamin B5 (mg)"></choice>
+      <choice type="string" value="Vitamin B6 (mg)"></choice>
+      <choice type="string" value="Vitamin B7 (micrag)"></choice>
+      <choice type="string" value="Vitamin B9 (micrag)"></choice>
+      <choice type="string" value="Vitamin B12 AI (micrag)"></choice>
+      <choice type="string" value="Vitamin C (micrag)"></choice>
+      <choice type="string" value="Vitamin D (micrag)"></choice>
+      <choice type="string" value="Vitamin E (mg)"></choice>
+      <choice type="string" value="Vitamin K (micrag)"></choice>
+      <choice type="string" value="Choline (mg)"></choice>
+    </chooser>
+    <plot x="100" autoPlotX="true" yMax="10.0" autoPlotY="true" y="558" xMin="0.0" height="191" legend="true" xMax="10.0" yMin="0.0" width="404" xAxis="age" display="Age structure (population)">
+      <setup>set-histogram-num-bars 20
+set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)</setup>
+      <update>set-plot-y-range 0 10
+;set-histogram-num-bars 20
+set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)</update>
+      <pen interval="1.0" mode="1" display="women" color="-2674135" legend="true">
+        <setup></setup>
+        <update>histogram womenAgeStructure</update>
+      </pen>
+      <pen interval="1.0" mode="1" display="men" color="-13345367" legend="true">
+        <setup></setup>
+        <update>histogram menAgeStructure</update>
+      </pen>
+    </plot>
+    <monitor x="509" precision="4" y="557" height="60" fontSize="11" width="100">femaleRatio</monitor>
+    <monitor x="509" precision="2" y="622" height="60" fontSize="11" width="100" display="% 0-4 (women)">100 * womenFirstAgeGroup / totalWomen</monitor>
+    <monitor x="509" precision="2" y="687" height="60" fontSize="11" width="100" display="% 0-4 (men)">100 * menFirstAgeGroup / totalMen</monitor>
+    <output x="937" y="38" height="279" fontSize="11" width="288"></output>
+    <note x="1034" y="9" backgroundDark="0" fontSize="14" width="125" markdown="false" height="27" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">Foodstuff types</note>
+  </widgets>
+  <info>## Development notes
+
+TASK:
+Add parametric tabu restrictions to the formation of couples. Now, it is possible to have any given single individual marrying any other single, even siblings and, less likely, mother-son/father-daughter... 
+DONE
+
+IMPROVEMENTS:
+- apply-nuptiality: now this procedure follows a more elegant and clear process
+
+ISSUES:
+- Households now track their lineage and match making is controlled by the similarity of lineage. However, this mechanisms reflects a purely lineal track of descent, meaning that relatively close blood relatives are not tracked if they do not share the lineage; e.g., a man under a matrilocal-matrilineal rule will loose track of all 'former' blood relative once they move away from their original household. Unfortunately, this solution still do not control for extreme rare cases such as marriages between siblings and other close relatives, if considering widowing. The only definitive solution is too increase complexity of the information at individual level.
+- Initialisation: the result given by the procedure 'get-kinship-degree' assumes all initial households descend from a single common parent household (returns 2). So, if the acceptable kinship level is more than 2, the formation of couples during the first generation will be restricted to those using external individuals ('create-couple-external').
+
+## WHAT IS IT?
+
+(a general understanding of what the model is trying to show or explain)
+
+## HOW IT WORKS
+
+(what rules the agents use to create the overall behavior of the model)
+
+## HOW TO USE IT
+
+(how to use the model, including a description of each of the items in the Interface tab)
+
+## THINGS TO NOTICE
+
+(suggested things for the user to notice while running the model)
+
+## THINGS TO TRY
+
+(suggested things for the user to try to do (move sliders, switches, etc.) with the model)
+
+## EXTENDING THE MODEL
+
+(suggested things to add or change in the Code tab to make the model more complicated, detailed, accurate, etc.)
+
+## NETLOGO FEATURES
+
+(interesting or unusual features of NetLogo that the model uses, particularly in the Code tab; or where workarounds were needed for missing features)
+
+## RELATED MODELS
+
+(models in the NetLogo Models Library and elsewhere which are of related interest)
+
+## CREDITS AND REFERENCES
+
+(a reference to the model's URL on the web if it has one, as well as any other necessary credits, citations, and links)</info>
+  <turtleShapes>
+    <shape name="default" rotatable="true" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="5"></point>
+        <point x="40" y="250"></point>
+        <point x="150" y="205"></point>
+        <point x="260" y="250"></point>
+      </polygon>
+    </shape>
+    <shape name="airplane" rotatable="true" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="0"></point>
+        <point x="135" y="15"></point>
+        <point x="120" y="60"></point>
+        <point x="120" y="105"></point>
+        <point x="15" y="165"></point>
+        <point x="15" y="195"></point>
+        <point x="120" y="180"></point>
+        <point x="135" y="240"></point>
+        <point x="105" y="270"></point>
+        <point x="120" y="285"></point>
+        <point x="150" y="270"></point>
+        <point x="180" y="285"></point>
+        <point x="210" y="270"></point>
+        <point x="165" y="240"></point>
+        <point x="180" y="180"></point>
+        <point x="285" y="195"></point>
+        <point x="285" y="165"></point>
+        <point x="180" y="105"></point>
+        <point x="180" y="60"></point>
+        <point x="165" y="15"></point>
+      </polygon>
+    </shape>
+    <shape name="arrow" rotatable="true" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="0"></point>
+        <point x="0" y="150"></point>
+        <point x="105" y="150"></point>
+        <point x="105" y="293"></point>
+        <point x="195" y="293"></point>
+        <point x="195" y="150"></point>
+        <point x="300" y="150"></point>
+      </polygon>
+    </shape>
+    <shape name="box" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="285"></point>
+        <point x="285" y="225"></point>
+        <point x="285" y="75"></point>
+        <point x="150" y="135"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="135"></point>
+        <point x="15" y="75"></point>
+        <point x="150" y="15"></point>
+        <point x="285" y="75"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="15" y="75"></point>
+        <point x="15" y="225"></point>
+        <point x="150" y="285"></point>
+        <point x="150" y="135"></point>
+      </polygon>
+      <line endX="150" startY="285" marked="false" color="255" endY="135" startX="150"></line>
+      <line endX="15" startY="135" marked="false" color="255" endY="75" startX="150"></line>
+      <line endX="285" startY="135" marked="false" color="255" endY="75" startX="150"></line>
+    </shape>
+    <shape name="bug" rotatable="true" editableColorIndex="0">
+      <circle x="96" y="182" marked="true" color="-1920102913" diameter="108" filled="true"></circle>
+      <circle x="110" y="127" marked="true" color="-1920102913" diameter="80" filled="true"></circle>
+      <circle x="110" y="75" marked="true" color="-1920102913" diameter="80" filled="true"></circle>
+      <line endX="80" startY="100" marked="true" color="-1920102913" endY="30" startX="150"></line>
+      <line endX="220" startY="100" marked="true" color="-1920102913" endY="30" startX="150"></line>
+    </shape>
+    <shape name="butterfly" rotatable="true" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="165"></point>
+        <point x="209" y="199"></point>
+        <point x="225" y="225"></point>
+        <point x="225" y="255"></point>
+        <point x="195" y="270"></point>
+        <point x="165" y="255"></point>
+        <point x="150" y="240"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="165"></point>
+        <point x="89" y="198"></point>
+        <point x="75" y="225"></point>
+        <point x="75" y="255"></point>
+        <point x="105" y="270"></point>
+        <point x="135" y="255"></point>
+        <point x="150" y="240"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="139" y="148"></point>
+        <point x="100" y="105"></point>
+        <point x="55" y="90"></point>
+        <point x="25" y="90"></point>
+        <point x="10" y="105"></point>
+        <point x="10" y="135"></point>
+        <point x="25" y="180"></point>
+        <point x="40" y="195"></point>
+        <point x="85" y="194"></point>
+        <point x="139" y="163"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="162" y="150"></point>
+        <point x="200" y="105"></point>
+        <point x="245" y="90"></point>
+        <point x="275" y="90"></point>
+        <point x="290" y="105"></point>
+        <point x="290" y="135"></point>
+        <point x="275" y="180"></point>
+        <point x="260" y="195"></point>
+        <point x="215" y="195"></point>
+        <point x="162" y="165"></point>
+      </polygon>
+      <polygon color="255" filled="true" marked="false">
+        <point x="150" y="255"></point>
+        <point x="135" y="225"></point>
+        <point x="120" y="150"></point>
+        <point x="135" y="120"></point>
+        <point x="150" y="105"></point>
+        <point x="165" y="120"></point>
+        <point x="180" y="150"></point>
+        <point x="165" y="225"></point>
+      </polygon>
+      <circle x="135" y="90" marked="false" color="255" diameter="30" filled="true"></circle>
+      <line endX="195" startY="105" marked="false" color="255" endY="60" startX="150"></line>
+      <line endX="105" startY="105" marked="false" color="255" endY="60" startX="150"></line>
+    </shape>
+    <shape name="car" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="300" y="180"></point>
+        <point x="279" y="164"></point>
+        <point x="261" y="144"></point>
+        <point x="240" y="135"></point>
+        <point x="226" y="132"></point>
+        <point x="213" y="106"></point>
+        <point x="203" y="84"></point>
+        <point x="185" y="63"></point>
+        <point x="159" y="50"></point>
+        <point x="135" y="50"></point>
+        <point x="75" y="60"></point>
+        <point x="0" y="150"></point>
+        <point x="0" y="165"></point>
+        <point x="0" y="225"></point>
+        <point x="300" y="225"></point>
+        <point x="300" y="180"></point>
+      </polygon>
+      <circle x="180" y="180" marked="false" color="255" diameter="90" filled="true"></circle>
+      <circle x="30" y="180" marked="false" color="255" diameter="90" filled="true"></circle>
+      <polygon color="255" filled="true" marked="false">
+        <point x="162" y="80"></point>
+        <point x="132" y="78"></point>
+        <point x="134" y="135"></point>
+        <point x="209" y="135"></point>
+        <point x="194" y="105"></point>
+        <point x="189" y="96"></point>
+        <point x="180" y="89"></point>
+      </polygon>
+      <circle x="47" y="195" marked="true" color="-1920102913" diameter="58" filled="true"></circle>
+      <circle x="195" y="195" marked="true" color="-1920102913" diameter="58" filled="true"></circle>
+    </shape>
+    <shape name="circle" rotatable="false" editableColorIndex="0">
+      <circle x="0" y="0" marked="true" color="-1920102913" diameter="300" filled="true"></circle>
+    </shape>
+    <shape name="circle 2" rotatable="false" editableColorIndex="0">
+      <circle x="0" y="0" marked="true" color="-1920102913" diameter="300" filled="true"></circle>
+      <circle x="30" y="30" marked="false" color="255" diameter="240" filled="true"></circle>
+    </shape>
+    <shape name="cow" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="200" y="193"></point>
+        <point x="197" y="249"></point>
+        <point x="179" y="249"></point>
+        <point x="177" y="196"></point>
+        <point x="166" y="187"></point>
+        <point x="140" y="189"></point>
+        <point x="93" y="191"></point>
+        <point x="78" y="179"></point>
+        <point x="72" y="211"></point>
+        <point x="49" y="209"></point>
+        <point x="48" y="181"></point>
+        <point x="37" y="149"></point>
+        <point x="25" y="120"></point>
+        <point x="25" y="89"></point>
+        <point x="45" y="72"></point>
+        <point x="103" y="84"></point>
+        <point x="179" y="75"></point>
+        <point x="198" y="76"></point>
+        <point x="252" y="64"></point>
+        <point x="272" y="81"></point>
+        <point x="293" y="103"></point>
+        <point x="285" y="121"></point>
+        <point x="255" y="121"></point>
+        <point x="242" y="118"></point>
+        <point x="224" y="167"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="73" y="210"></point>
+        <point x="86" y="251"></point>
+        <point x="62" y="249"></point>
+        <point x="48" y="208"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="25" y="114"></point>
+        <point x="16" y="195"></point>
+        <point x="9" y="204"></point>
+        <point x="23" y="213"></point>
+        <point x="25" y="200"></point>
+        <point x="39" y="123"></point>
+      </polygon>
+    </shape>
+    <shape name="cylinder" rotatable="false" editableColorIndex="0">
+      <circle x="0" y="0" marked="true" color="-1920102913" diameter="300" filled="true"></circle>
+    </shape>
+    <shape name="dot" rotatable="false" editableColorIndex="0">
+      <circle x="90" y="90" marked="true" color="-1920102913" diameter="120" filled="true"></circle>
+    </shape>
+    <shape name="face happy" rotatable="false" editableColorIndex="0">
+      <circle x="8" y="8" marked="true" color="-1920102913" diameter="285" filled="true"></circle>
+      <circle x="60" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <circle x="180" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <polygon color="255" filled="true" marked="false">
+        <point x="150" y="255"></point>
+        <point x="90" y="239"></point>
+        <point x="62" y="213"></point>
+        <point x="47" y="191"></point>
+        <point x="67" y="179"></point>
+        <point x="90" y="203"></point>
+        <point x="109" y="218"></point>
+        <point x="150" y="225"></point>
+        <point x="192" y="218"></point>
+        <point x="210" y="203"></point>
+        <point x="227" y="181"></point>
+        <point x="251" y="194"></point>
+        <point x="236" y="217"></point>
+        <point x="212" y="240"></point>
+      </polygon>
+    </shape>
+    <shape name="face neutral" rotatable="false" editableColorIndex="0">
+      <circle x="8" y="7" marked="true" color="-1920102913" diameter="285" filled="true"></circle>
+      <circle x="60" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <circle x="180" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <rectangle endX="240" startY="195" marked="false" color="255" endY="225" startX="60" filled="true"></rectangle>
+    </shape>
+    <shape name="face sad" rotatable="false" editableColorIndex="0">
+      <circle x="8" y="8" marked="true" color="-1920102913" diameter="285" filled="true"></circle>
+      <circle x="60" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <circle x="180" y="75" marked="false" color="255" diameter="60" filled="true"></circle>
+      <polygon color="255" filled="true" marked="false">
+        <point x="150" y="168"></point>
+        <point x="90" y="184"></point>
+        <point x="62" y="210"></point>
+        <point x="47" y="232"></point>
+        <point x="67" y="244"></point>
+        <point x="90" y="220"></point>
+        <point x="109" y="205"></point>
+        <point x="150" y="198"></point>
+        <point x="192" y="205"></point>
+        <point x="210" y="220"></point>
+        <point x="227" y="242"></point>
+        <point x="251" y="229"></point>
+        <point x="236" y="206"></point>
+        <point x="212" y="183"></point>
+      </polygon>
+    </shape>
+    <shape name="fish" rotatable="false" editableColorIndex="0">
+      <polygon color="-1" filled="true" marked="false">
+        <point x="44" y="131"></point>
+        <point x="21" y="87"></point>
+        <point x="15" y="86"></point>
+        <point x="0" y="120"></point>
+        <point x="15" y="150"></point>
+        <point x="0" y="180"></point>
+        <point x="13" y="214"></point>
+        <point x="20" y="212"></point>
+        <point x="45" y="166"></point>
+      </polygon>
+      <polygon color="-1" filled="true" marked="false">
+        <point x="135" y="195"></point>
+        <point x="119" y="235"></point>
+        <point x="95" y="218"></point>
+        <point x="76" y="210"></point>
+        <point x="46" y="204"></point>
+        <point x="60" y="165"></point>
+      </polygon>
+      <polygon color="-1" filled="true" marked="false">
+        <point x="75" y="45"></point>
+        <point x="83" y="77"></point>
+        <point x="71" y="103"></point>
+        <point x="86" y="114"></point>
+        <point x="166" y="78"></point>
+        <point x="135" y="60"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="30" y="136"></point>
+        <point x="151" y="77"></point>
+        <point x="226" y="81"></point>
+        <point x="280" y="119"></point>
+        <point x="292" y="146"></point>
+        <point x="292" y="160"></point>
+        <point x="287" y="170"></point>
+        <point x="270" y="195"></point>
+        <point x="195" y="210"></point>
+        <point x="151" y="212"></point>
+        <point x="30" y="166"></point>
+      </polygon>
+      <circle x="215" y="106" marked="false" color="255" diameter="30" filled="true"></circle>
+    </shape>
+    <shape name="flag" rotatable="false" editableColorIndex="0">
+      <rectangle endX="75" startY="15" marked="true" color="-1920102913" endY="300" startX="60" filled="true"></rectangle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="90" y="150"></point>
+        <point x="270" y="90"></point>
+        <point x="90" y="30"></point>
+      </polygon>
+      <line endX="90" startY="135" marked="true" color="-1920102913" endY="135" startX="75"></line>
+      <line endX="90" startY="45" marked="true" color="-1920102913" endY="45" startX="75"></line>
+    </shape>
+    <shape name="flower" rotatable="false" editableColorIndex="0">
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="135" y="120"></point>
+        <point x="165" y="165"></point>
+        <point x="180" y="210"></point>
+        <point x="180" y="240"></point>
+        <point x="150" y="300"></point>
+        <point x="165" y="300"></point>
+        <point x="195" y="240"></point>
+        <point x="195" y="195"></point>
+        <point x="165" y="135"></point>
+      </polygon>
+      <circle x="85" y="132" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="130" y="147" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="192" y="85" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="85" y="40" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="177" y="40" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="177" y="132" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="70" y="85" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="130" y="25" marked="true" color="-1920102913" diameter="38" filled="true"></circle>
+      <circle x="96" y="51" marked="true" color="-1920102913" diameter="108" filled="true"></circle>
+      <circle x="113" y="68" marked="false" color="255" diameter="74" filled="true"></circle>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="189" y="233"></point>
+        <point x="219" y="188"></point>
+        <point x="249" y="173"></point>
+        <point x="279" y="188"></point>
+        <point x="234" y="218"></point>
+      </polygon>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="180" y="255"></point>
+        <point x="150" y="210"></point>
+        <point x="105" y="210"></point>
+        <point x="75" y="240"></point>
+        <point x="135" y="240"></point>
+      </polygon>
+    </shape>
+    <shape name="house" rotatable="false" editableColorIndex="0">
+      <rectangle endX="255" startY="120" marked="true" color="-1920102913" endY="285" startX="45" filled="true"></rectangle>
+      <rectangle endX="180" startY="210" marked="false" color="255" endY="285" startX="120" filled="true"></rectangle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="15" y="120"></point>
+        <point x="150" y="15"></point>
+        <point x="285" y="120"></point>
+      </polygon>
+      <line endX="270" startY="120" marked="false" color="255" endY="120" startX="30"></line>
+    </shape>
+    <shape name="leaf" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="210"></point>
+        <point x="135" y="195"></point>
+        <point x="120" y="210"></point>
+        <point x="60" y="210"></point>
+        <point x="30" y="195"></point>
+        <point x="60" y="180"></point>
+        <point x="60" y="165"></point>
+        <point x="15" y="135"></point>
+        <point x="30" y="120"></point>
+        <point x="15" y="105"></point>
+        <point x="40" y="104"></point>
+        <point x="45" y="90"></point>
+        <point x="60" y="90"></point>
+        <point x="90" y="105"></point>
+        <point x="105" y="120"></point>
+        <point x="120" y="120"></point>
+        <point x="105" y="60"></point>
+        <point x="120" y="60"></point>
+        <point x="135" y="30"></point>
+        <point x="150" y="15"></point>
+        <point x="165" y="30"></point>
+        <point x="180" y="60"></point>
+        <point x="195" y="60"></point>
+        <point x="180" y="120"></point>
+        <point x="195" y="120"></point>
+        <point x="210" y="105"></point>
+        <point x="240" y="90"></point>
+        <point x="255" y="90"></point>
+        <point x="263" y="104"></point>
+        <point x="285" y="105"></point>
+        <point x="270" y="120"></point>
+        <point x="285" y="135"></point>
+        <point x="240" y="165"></point>
+        <point x="240" y="180"></point>
+        <point x="270" y="195"></point>
+        <point x="240" y="210"></point>
+        <point x="180" y="210"></point>
+        <point x="165" y="195"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="135" y="195"></point>
+        <point x="135" y="240"></point>
+        <point x="120" y="255"></point>
+        <point x="105" y="255"></point>
+        <point x="105" y="285"></point>
+        <point x="135" y="285"></point>
+        <point x="165" y="240"></point>
+        <point x="165" y="195"></point>
+      </polygon>
+    </shape>
+    <shape name="line" rotatable="true" editableColorIndex="0">
+      <line endX="150" startY="0" marked="true" color="-1920102913" endY="300" startX="150"></line>
+    </shape>
+    <shape name="line half" rotatable="true" editableColorIndex="0">
+      <line endX="150" startY="0" marked="true" color="-1920102913" endY="150" startX="150"></line>
+    </shape>
+    <shape name="pentagon" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="15"></point>
+        <point x="15" y="120"></point>
+        <point x="60" y="285"></point>
+        <point x="240" y="285"></point>
+        <point x="285" y="120"></point>
+      </polygon>
+    </shape>
+    <shape name="person" rotatable="false" editableColorIndex="0">
+      <circle x="110" y="5" marked="true" color="-1920102913" diameter="80" filled="true"></circle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="105" y="90"></point>
+        <point x="120" y="195"></point>
+        <point x="90" y="285"></point>
+        <point x="105" y="300"></point>
+        <point x="135" y="300"></point>
+        <point x="150" y="225"></point>
+        <point x="165" y="300"></point>
+        <point x="195" y="300"></point>
+        <point x="210" y="285"></point>
+        <point x="180" y="195"></point>
+        <point x="195" y="90"></point>
+      </polygon>
+      <rectangle endX="172" startY="79" marked="true" color="-1920102913" endY="94" startX="127" filled="true"></rectangle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="195" y="90"></point>
+        <point x="240" y="150"></point>
+        <point x="225" y="180"></point>
+        <point x="165" y="105"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="105" y="90"></point>
+        <point x="60" y="150"></point>
+        <point x="75" y="180"></point>
+        <point x="135" y="105"></point>
+      </polygon>
+    </shape>
+    <shape name="plant" rotatable="false" editableColorIndex="0">
+      <rectangle endX="165" startY="90" marked="true" color="-1920102913" endY="300" startX="135" filled="true"></rectangle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="135" y="255"></point>
+        <point x="90" y="210"></point>
+        <point x="45" y="195"></point>
+        <point x="75" y="255"></point>
+        <point x="135" y="285"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="165" y="255"></point>
+        <point x="210" y="210"></point>
+        <point x="255" y="195"></point>
+        <point x="225" y="255"></point>
+        <point x="165" y="285"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="135" y="180"></point>
+        <point x="90" y="135"></point>
+        <point x="45" y="120"></point>
+        <point x="75" y="180"></point>
+        <point x="135" y="210"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="165" y="180"></point>
+        <point x="165" y="210"></point>
+        <point x="225" y="180"></point>
+        <point x="255" y="120"></point>
+        <point x="210" y="135"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="135" y="105"></point>
+        <point x="90" y="60"></point>
+        <point x="45" y="45"></point>
+        <point x="75" y="105"></point>
+        <point x="135" y="135"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="165" y="105"></point>
+        <point x="165" y="135"></point>
+        <point x="225" y="105"></point>
+        <point x="255" y="45"></point>
+        <point x="210" y="60"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="135" y="90"></point>
+        <point x="120" y="45"></point>
+        <point x="150" y="15"></point>
+        <point x="180" y="45"></point>
+        <point x="165" y="90"></point>
+      </polygon>
+    </shape>
+    <shape name="sheep" rotatable="false" editableColorIndex="15">
+      <circle x="203" y="65" marked="true" color="-1" diameter="88" filled="true"></circle>
+      <circle x="70" y="65" marked="true" color="-1" diameter="162" filled="true"></circle>
+      <circle x="150" y="105" marked="true" color="-1" diameter="120" filled="true"></circle>
+      <polygon color="-1920102913" filled="true" marked="false">
+        <point x="218" y="120"></point>
+        <point x="240" y="165"></point>
+        <point x="255" y="165"></point>
+        <point x="278" y="120"></point>
+      </polygon>
+      <circle x="214" y="72" marked="false" color="-1920102913" diameter="67" filled="true"></circle>
+      <rectangle endX="179" startY="223" marked="true" color="-1" endY="298" startX="164" filled="true"></rectangle>
+      <polygon color="-1" filled="true" marked="true">
+        <point x="45" y="285"></point>
+        <point x="30" y="285"></point>
+        <point x="30" y="240"></point>
+        <point x="15" y="195"></point>
+        <point x="45" y="210"></point>
+      </polygon>
+      <circle x="3" y="83" marked="true" color="-1" diameter="150" filled="true"></circle>
+      <rectangle endX="80" startY="221" marked="true" color="-1" endY="296" startX="65" filled="true"></rectangle>
+      <polygon color="-1" filled="true" marked="true">
+        <point x="195" y="285"></point>
+        <point x="210" y="285"></point>
+        <point x="210" y="240"></point>
+        <point x="240" y="210"></point>
+        <point x="195" y="210"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="false">
+        <point x="276" y="85"></point>
+        <point x="285" y="105"></point>
+        <point x="302" y="99"></point>
+        <point x="294" y="83"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="false">
+        <point x="219" y="85"></point>
+        <point x="210" y="105"></point>
+        <point x="193" y="99"></point>
+        <point x="201" y="83"></point>
+      </polygon>
+    </shape>
+    <shape name="square" rotatable="false" editableColorIndex="0">
+      <rectangle endX="270" startY="30" marked="true" color="-1920102913" endY="270" startX="30" filled="true"></rectangle>
+    </shape>
+    <shape name="square 2" rotatable="false" editableColorIndex="0">
+      <rectangle endX="270" startY="30" marked="true" color="-1920102913" endY="270" startX="30" filled="true"></rectangle>
+      <rectangle endX="240" startY="60" marked="false" color="255" endY="240" startX="60" filled="true"></rectangle>
+    </shape>
+    <shape name="star" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="151" y="1"></point>
+        <point x="185" y="108"></point>
+        <point x="298" y="108"></point>
+        <point x="207" y="175"></point>
+        <point x="242" y="282"></point>
+        <point x="151" y="216"></point>
+        <point x="59" y="282"></point>
+        <point x="94" y="175"></point>
+        <point x="3" y="108"></point>
+        <point x="116" y="108"></point>
+      </polygon>
+    </shape>
+    <shape name="target" rotatable="false" editableColorIndex="0">
+      <circle x="0" y="0" marked="true" color="-1920102913" diameter="300" filled="true"></circle>
+      <circle x="30" y="30" marked="false" color="255" diameter="240" filled="true"></circle>
+      <circle x="60" y="60" marked="true" color="-1920102913" diameter="180" filled="true"></circle>
+      <circle x="90" y="90" marked="false" color="255" diameter="120" filled="true"></circle>
+      <circle x="120" y="120" marked="true" color="-1920102913" diameter="60" filled="true"></circle>
+    </shape>
+    <shape name="tree" rotatable="false" editableColorIndex="0">
+      <circle x="118" y="3" marked="true" color="-1920102913" diameter="94" filled="true"></circle>
+      <rectangle endX="180" startY="195" marked="false" color="-1653716737" endY="300" startX="120" filled="true"></rectangle>
+      <circle x="65" y="21" marked="true" color="-1920102913" diameter="108" filled="true"></circle>
+      <circle x="116" y="41" marked="true" color="-1920102913" diameter="127" filled="true"></circle>
+      <circle x="45" y="90" marked="true" color="-1920102913" diameter="120" filled="true"></circle>
+      <circle x="104" y="74" marked="true" color="-1920102913" diameter="152" filled="true"></circle>
+    </shape>
+    <shape name="triangle" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="30"></point>
+        <point x="15" y="255"></point>
+        <point x="285" y="255"></point>
+      </polygon>
+    </shape>
+    <shape name="triangle 2" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="150" y="30"></point>
+        <point x="15" y="255"></point>
+        <point x="285" y="255"></point>
+      </polygon>
+      <polygon color="255" filled="true" marked="false">
+        <point x="151" y="99"></point>
+        <point x="225" y="223"></point>
+        <point x="75" y="224"></point>
+      </polygon>
+    </shape>
+    <shape name="truck" rotatable="false" editableColorIndex="0">
+      <rectangle endX="195" startY="45" marked="true" color="-1920102913" endY="187" startX="4" filled="true"></rectangle>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="296" y="193"></point>
+        <point x="296" y="150"></point>
+        <point x="259" y="134"></point>
+        <point x="244" y="104"></point>
+        <point x="208" y="104"></point>
+        <point x="207" y="194"></point>
+      </polygon>
+      <rectangle endX="195" startY="60" marked="false" color="-1" endY="105" startX="195" filled="true"></rectangle>
+      <polygon color="255" filled="true" marked="false">
+        <point x="238" y="112"></point>
+        <point x="252" y="141"></point>
+        <point x="219" y="141"></point>
+        <point x="218" y="112"></point>
+      </polygon>
+      <circle x="234" y="174" marked="false" color="255" diameter="42" filled="true"></circle>
+      <rectangle endX="214" startY="185" marked="true" color="-1920102913" endY="194" startX="181" filled="true"></rectangle>
+      <circle x="144" y="174" marked="false" color="255" diameter="42" filled="true"></circle>
+      <circle x="24" y="174" marked="false" color="255" diameter="42" filled="true"></circle>
+      <circle x="24" y="174" marked="true" color="-1920102913" diameter="42" filled="false"></circle>
+      <circle x="144" y="174" marked="true" color="-1920102913" diameter="42" filled="false"></circle>
+      <circle x="234" y="174" marked="true" color="-1920102913" diameter="42" filled="false"></circle>
+    </shape>
+    <shape name="turtle" rotatable="true" editableColorIndex="0">
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="215" y="204"></point>
+        <point x="240" y="233"></point>
+        <point x="246" y="254"></point>
+        <point x="228" y="266"></point>
+        <point x="215" y="252"></point>
+        <point x="193" y="210"></point>
+      </polygon>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="195" y="90"></point>
+        <point x="225" y="75"></point>
+        <point x="245" y="75"></point>
+        <point x="260" y="89"></point>
+        <point x="269" y="108"></point>
+        <point x="261" y="124"></point>
+        <point x="240" y="105"></point>
+        <point x="225" y="105"></point>
+        <point x="210" y="105"></point>
+      </polygon>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="105" y="90"></point>
+        <point x="75" y="75"></point>
+        <point x="55" y="75"></point>
+        <point x="40" y="89"></point>
+        <point x="31" y="108"></point>
+        <point x="39" y="124"></point>
+        <point x="60" y="105"></point>
+        <point x="75" y="105"></point>
+        <point x="90" y="105"></point>
+      </polygon>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="132" y="85"></point>
+        <point x="134" y="64"></point>
+        <point x="107" y="51"></point>
+        <point x="108" y="17"></point>
+        <point x="150" y="2"></point>
+        <point x="192" y="18"></point>
+        <point x="192" y="52"></point>
+        <point x="169" y="65"></point>
+        <point x="172" y="87"></point>
+      </polygon>
+      <polygon color="1504722175" filled="true" marked="false">
+        <point x="85" y="204"></point>
+        <point x="60" y="233"></point>
+        <point x="54" y="254"></point>
+        <point x="72" y="266"></point>
+        <point x="85" y="252"></point>
+        <point x="107" y="210"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="119" y="75"></point>
+        <point x="179" y="75"></point>
+        <point x="209" y="101"></point>
+        <point x="224" y="135"></point>
+        <point x="220" y="225"></point>
+        <point x="175" y="261"></point>
+        <point x="128" y="261"></point>
+        <point x="81" y="224"></point>
+        <point x="74" y="135"></point>
+        <point x="88" y="99"></point>
+      </polygon>
+    </shape>
+    <shape name="wheel" rotatable="false" editableColorIndex="0">
+      <circle x="3" y="3" marked="true" color="-1920102913" diameter="294" filled="true"></circle>
+      <circle x="30" y="30" marked="false" color="255" diameter="240" filled="true"></circle>
+      <line endX="150" startY="285" marked="true" color="-1920102913" endY="15" startX="150"></line>
+      <line endX="285" startY="150" marked="true" color="-1920102913" endY="150" startX="15"></line>
+      <circle x="120" y="120" marked="true" color="-1920102913" diameter="60" filled="true"></circle>
+      <line endX="79" startY="40" marked="true" color="-1920102913" endY="269" startX="216"></line>
+      <line endX="269" startY="84" marked="true" color="-1920102913" endY="221" startX="40"></line>
+      <line endX="269" startY="216" marked="true" color="-1920102913" endY="79" startX="40"></line>
+      <line endX="221" startY="40" marked="true" color="-1920102913" endY="269" startX="84"></line>
+    </shape>
+    <shape name="wolf" rotatable="false" editableColorIndex="0">
+      <polygon color="255" filled="true" marked="false">
+        <point x="253" y="133"></point>
+        <point x="245" y="131"></point>
+        <point x="245" y="133"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="2" y="194"></point>
+        <point x="13" y="197"></point>
+        <point x="30" y="191"></point>
+        <point x="38" y="193"></point>
+        <point x="38" y="205"></point>
+        <point x="20" y="226"></point>
+        <point x="20" y="257"></point>
+        <point x="27" y="265"></point>
+        <point x="38" y="266"></point>
+        <point x="40" y="260"></point>
+        <point x="31" y="253"></point>
+        <point x="31" y="230"></point>
+        <point x="60" y="206"></point>
+        <point x="68" y="198"></point>
+        <point x="75" y="209"></point>
+        <point x="66" y="228"></point>
+        <point x="65" y="243"></point>
+        <point x="82" y="261"></point>
+        <point x="84" y="268"></point>
+        <point x="100" y="267"></point>
+        <point x="103" y="261"></point>
+        <point x="77" y="239"></point>
+        <point x="79" y="231"></point>
+        <point x="100" y="207"></point>
+        <point x="98" y="196"></point>
+        <point x="119" y="201"></point>
+        <point x="143" y="202"></point>
+        <point x="160" y="195"></point>
+        <point x="166" y="210"></point>
+        <point x="172" y="213"></point>
+        <point x="173" y="238"></point>
+        <point x="167" y="251"></point>
+        <point x="160" y="248"></point>
+        <point x="154" y="265"></point>
+        <point x="169" y="264"></point>
+        <point x="178" y="247"></point>
+        <point x="186" y="240"></point>
+        <point x="198" y="260"></point>
+        <point x="200" y="271"></point>
+        <point x="217" y="271"></point>
+        <point x="219" y="262"></point>
+        <point x="207" y="258"></point>
+        <point x="195" y="230"></point>
+        <point x="192" y="198"></point>
+        <point x="210" y="184"></point>
+        <point x="227" y="164"></point>
+        <point x="242" y="144"></point>
+        <point x="259" y="145"></point>
+        <point x="284" y="151"></point>
+        <point x="277" y="141"></point>
+        <point x="293" y="140"></point>
+        <point x="299" y="134"></point>
+        <point x="297" y="127"></point>
+        <point x="273" y="119"></point>
+        <point x="270" y="105"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="-1" y="195"></point>
+        <point x="14" y="180"></point>
+        <point x="36" y="166"></point>
+        <point x="40" y="153"></point>
+        <point x="53" y="140"></point>
+        <point x="82" y="131"></point>
+        <point x="134" y="133"></point>
+        <point x="159" y="126"></point>
+        <point x="188" y="115"></point>
+        <point x="227" y="108"></point>
+        <point x="236" y="102"></point>
+        <point x="238" y="98"></point>
+        <point x="268" y="86"></point>
+        <point x="269" y="92"></point>
+        <point x="281" y="87"></point>
+        <point x="269" y="103"></point>
+        <point x="269" y="113"></point>
+      </polygon>
+    </shape>
+    <shape name="x" rotatable="false" editableColorIndex="0">
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="270" y="75"></point>
+        <point x="225" y="30"></point>
+        <point x="30" y="225"></point>
+        <point x="75" y="270"></point>
+      </polygon>
+      <polygon color="-1920102913" filled="true" marked="true">
+        <point x="30" y="75"></point>
+        <point x="75" y="30"></point>
+        <point x="270" y="225"></point>
+        <point x="225" y="270"></point>
+      </polygon>
+    </shape>
+  </turtleShapes>
+  <linkShapes>
+    <shape name="default" curviness="0.0">
+      <lines>
+        <line x="-0.2" visible="false">
+          <dash value="0.0"></dash>
+          <dash value="1.0"></dash>
+        </line>
+        <line x="0.0" visible="true">
+          <dash value="1.0"></dash>
+          <dash value="0.0"></dash>
+        </line>
+        <line x="0.2" visible="false">
+          <dash value="0.0"></dash>
+          <dash value="1.0"></dash>
+        </line>
+      </lines>
+      <indicator>
+        <shape name="link direction" rotatable="true" editableColorIndex="0">
+          <line endX="90" startY="150" marked="true" color="-1920102913" endY="180" startX="150"></line>
+          <line endX="210" startY="150" marked="true" color="-1920102913" endY="180" startX="150"></line>
+        </shape>
+      </indicator>
+    </shape>
+  </linkShapes>
+  <previewCommands>setup repeat 75 [ go ]</previewCommands>
+  <experiments>
+    <experiment name="exp-trajectories" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="true">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>SEED</metric>
+        <metric>maturityAge</metric>
+        <metric>initialNumHouseholds</metric>
+        <metric>householdInitialAgeDistribution</metric>
+        <metric>maxCoupleCountDistribution</metric>
+        <metric>cdmlt-level</metric>
+        <metric>coale-demeny-region</metric>
+        <metric>c1-fert</metric>
+        <metric>mu-fert</metric>
+        <metric>sigma1-fert</metric>
+        <metric>sigma2-fert</metric>
+        <metric>residence-rule</metric>
+        <metric>acceptable-kinship-degree-for-couples</metric>
+        <metric>c1-women</metric>
+        <metric>c1-men</metric>
+        <metric>mu-women</metric>
+        <metric>mu-men</metric>
+        <metric>sigma1-women</metric>
+        <metric>sigma1-men</metric>
+        <metric>sigma2-women</metric>
+        <metric>sigma2-men</metric>
+        <metric>totalHouseholds</metric>
+        <metric>totalIndividuals</metric>
+        <metric>totalPopulationGrowth</metric>
+        <metric>totalWomen</metric>
+        <metric>totalMen</metric>
+        <metric>femaleRatio</metric>
+        <metric>womenAgeStructure</metric>
+        <metric>menAgeStructure</metric>
+        <metric>womenFirstAgeGroup</metric>
+        <metric>menFirstAgeGroup</metric>
+        <metric>womenBirths</metric>
+        <metric>menBirths</metric>
+        <metric>womenDeaths</metric>
+        <metric>menDeaths</metric>
+        <metric>womenIn</metric>
+        <metric>menIn</metric>
+        <metric>womenOut</metric>
+        <metric>menOut</metric>
+        <metric>totalOrphans</metric>
+      </metrics>
+      <constants>
+        <steppedValueSet variable="SEED" first="0" step="1" last="99"></steppedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="exp-endstates" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="false">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>SEED</metric>
+        <metric>maturityAge</metric>
+        <metric>initialNumHouseholds</metric>
+        <metric>householdInitialAgeDistribution</metric>
+        <metric>maxCoupleCountDistribution</metric>
+        <metric>cdmlt-level</metric>
+        <metric>coale-demeny-region</metric>
+        <metric>c1-fert</metric>
+        <metric>mu-fert</metric>
+        <metric>sigma1-fert</metric>
+        <metric>sigma2-fert</metric>
+        <metric>residence-rule</metric>
+        <metric>acceptable-kinship-degree-for-couples</metric>
+        <metric>c1-women</metric>
+        <metric>c1-men</metric>
+        <metric>mu-women</metric>
+        <metric>mu-men</metric>
+        <metric>sigma1-women</metric>
+        <metric>sigma1-men</metric>
+        <metric>sigma2-women</metric>
+        <metric>sigma2-men</metric>
+        <metric>totalHouseholds</metric>
+        <metric>totalIndividuals</metric>
+        <metric>totalPopulationGrowth</metric>
+        <metric>totalWomen</metric>
+        <metric>totalMen</metric>
+        <metric>femaleRatio</metric>
+        <metric>womenAgeStructure</metric>
+        <metric>menAgeStructure</metric>
+        <metric>womenFirstAgeGroup</metric>
+        <metric>menFirstAgeGroup</metric>
+        <metric>womenBirths</metric>
+        <metric>menBirths</metric>
+        <metric>womenDeaths</metric>
+        <metric>menDeaths</metric>
+        <metric>womenIn</metric>
+        <metric>menIn</metric>
+        <metric>womenOut</metric>
+        <metric>menOut</metric>
+        <metric>totalOrphans</metric>
+      </metrics>
+      <constants>
+        <steppedValueSet variable="SEED" first="0" step="1" last="4999"></steppedValueSet>
+      </constants>
+    </experiment>
+  </experiments>
+</model>

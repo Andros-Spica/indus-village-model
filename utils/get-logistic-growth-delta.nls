@@ -1,0 +1,8 @@
+to-report get-logistic-growth-delta [ X maxX r ]
+
+  ;;; because maxX is dynamic, do preliminary check to avoid division by zero
+  if (maxX = 0) [ report -1 * X ] ;;; this sets the maximum decrease rate
+
+  report r * X * (1 - X / maxX)
+
+end

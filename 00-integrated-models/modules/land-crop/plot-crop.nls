@@ -1,0 +1,57 @@
+to setup-plot-crop
+
+  set-current-plot "Crops biomass (patch mean)"
+
+  foreach typesOfCrops
+  [
+    cropName ->
+    create-temporary-plot-pen cropName
+    set-plot-pen-color get-crop-color cropName
+  ]
+
+  set-current-plot "Crops yield (patch mean) and annual total precipitation"
+
+  create-temporary-plot-pen "annual RAIN"
+  set-plot-pen-mode 1
+  set-plot-pen-color 0
+
+  foreach typesOfCrops
+  [
+    cropName ->
+    create-temporary-plot-pen cropName
+    set-plot-pen-mode 0
+    set-plot-pen-color get-crop-color cropName
+  ]
+
+end
+
+to update-plot-crop
+
+  set-current-plot "Crops biomass (patch mean)"
+
+  foreach typesOfCrops
+  [
+    cropName ->
+    set-current-plot-pen cropName
+    plot mean [item (position cropName typesOfCrops) p_crop_biomass] of patches
+  ]
+
+  set-current-plot "Crops yield (patch mean) and annual total precipitation"
+
+  if (currentDayOfYear = 2) ; skips plotting on setup
+  [
+    set-current-plot-pen "annual RAIN"
+    plot sum precipitation_yearSeries
+  ]
+
+  foreach typesOfCrops
+  [
+    cropName ->
+    set-current-plot-pen cropName
+    if (is-ripe position cropName typesOfCrops)
+    [
+      plotxy (currentyear + (currentDayOfYear / year-length-in-days)) (mean [item (position cropName typesOfCrops) p_crop_yield] of patches)
+    ]
+  ]
+
+end

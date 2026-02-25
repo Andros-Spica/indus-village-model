@@ -1,0 +1,28 @@
+to print-crop-table
+
+  output-print (word " | typesOfCrops | T_sum | HI | I_50A | I_50B | T_base | T_opt | RUE | I_50maxH | I_50maxW | T_heat | T_ext | S_water | sugSowingDay | sugHarvestingDay | rootZoneDepth |")
+
+  foreach n-values (length typesOfCrops) [j -> j]
+  [
+    cropIndex ->
+    output-print (word
+      " | " (item cropIndex typesOfCrops)
+      " | " (item cropIndex crop_T_sum)
+      " | " (item cropIndex crop_HI)
+      " | " (item cropIndex crop_I_50A)
+      " | " (item cropIndex crop_I_50B)
+      " | " (item cropIndex crop_T_base)
+      " | " (item cropIndex crop_T_opt)
+      " | " (item cropIndex crop_RUE)
+      " | " (item cropIndex crop_I_50maxH)
+      " | " (item cropIndex crop_I_50maxW)
+      " | " (item cropIndex crop_T_heat)
+      " | " (item cropIndex crop_T_extreme)
+      " | " (item cropIndex crop_S_water)
+      " | " (item cropIndex crop_sugSowingDay)
+      " | " (item cropIndex crop_sugHarvestingDay)
+      " | " (item cropIndex crop_rootZoneDepth)
+      " | ")
+  ]
+
+end

@@ -1,0 +1,370 @@
+to update-crop-extension
+
+  ask patches
+  [
+    ;;; assumes that water takes preference over crops
+    set p_ecol_%crop min (list (100 - p_ecol_%water) crop_intensity)
+  ]
+
+end
+
+to rescale-ecological-communities
+
+  ;;; assumes that surface water and crops takes preference over other natural ecological communities
+
+  ask patches ;with [ p_ecol_%water > 0 or p_ecol_%crop > 0 ]
+  [
+    ;;; scale the final percentage to account for acquatic ecological communities and crops
+    let newTotal p_ecol_%wood + p_ecol_%brush + p_ecol_%grass + p_ecol_%water + p_ecol_%crop
+
+    let proportionOfAvailableArea (100 - p_ecol_%water - p_ecol_%crop) / 100
+
+    if (newTotal > 100)
+    [
+      set p_ecol_%wood p_ecol_%wood * proportionOfAvailableArea
+      set p_ecol_%brush p_ecol_%brush * proportionOfAvailableArea
+      set p_ecol_%grass p_ecol_%grass * proportionOfAvailableArea
+    ]
+  ]
+
+end
+
+to-report get-%water-surface [ water ]
+
+  ;;; get an estimation of the percentage of patch surface covered by free water.
+  ;;; The bankfull surface width / mean bankfull depth ratio criteria is used as an approaximation.
+  ;;; See: https://cfpub.epa.gov/watertrain/moduleFrame.cfm?parent_object_id=1262#:~:text=The%20width%2Fdepth%20(W%2F,the%20channel%20to%20move%20sediment
+  ;;; It is assumed that
+  ;;; 1. all patches have a stream shaped relief with W/D = 12 (the most common value empirically) when filled,
+  ;;; 2. the bankfull surface width is smaller or equal to patchWidth
+  ;;; Therefore,
+  ;;; ratio = width (m) / (p_water (mm) / 1000)
+  ;;; width = ratio * p_water / 1000
+  ;;; and
+  ;;; water% = min (list (100 * width / patchWidth) 100)
+
+  let waterWidth 12 * water / 1000
+
+  report clampMinMax (100 * waterWidth / patchWidth) 0 100
+
+end
+
+to update-ecological-communities
+
+  ;;; update the composition of ecological communities in patches
+
+  ask patches
+  [
+    apply-inundation-and-crop-effect
+
+    apply-ecological-recolonisation
+
+    advance-ecological-succession
+
+    set-ecological-communities-biomass
+
+    set-ecological-community-root-zone-depth
+  ]
+
+end
+
+to apply-inundation-and-crop-effect
+
+  ;;; inundation (the expansion of water surface) and crop cultivation will conquer the ecological components' area.
+  ;;; The effect is assumed to affect ecological components evenly.
+
+  let sum% p_ecol_%wood + p_ecol_%brush + p_ecol_%grass
+
+  let proportionOfAvailableArea (100 - p_ecol_%water - p_ecol_%crop) / 100
+
+  if (p_ecol_%water + p_ecol_%crop > 0 and sum% > 0)
+  [
+    set p_ecol_%wood 100 * (p_ecol_%wood / sum%) * proportionOfAvailableArea
+    set p_ecol_%brush 100 * (p_ecol_%brush / sum%) * proportionOfAvailableArea
+    set p_ecol_%grass 100 * (p_ecol_%grass / sum%) * proportionOfAvailableArea
+  ]
+
+end
+
+to apply-ecological-recolonisation
+
+  ;;; if this patch has 0 of a component,
+  ;;; a very small amount of that component will be added in order to activate the logistic growth
+
+  if (p_ecol_%water + p_ecol_%crop < 100) ;;; not completely covered by water or crops
+  [
+    ;;; wood
+    if (p_ecol_%wood = 0)
+    [ set p_ecol_%wood 1E-6 ]
+
+    ;;; brush
+    if (p_ecol_%brush = 0)
+    [ set p_ecol_%brush 1E-6 ]
+
+    ;;; grass
+    if (p_ecol_%grass = 0)
+    [ set p_ecol_%grass 1E-6 ]
+  ]
+
+end
+
+to advance-ecological-succession
+
+  ;;; advance the ecological succession in this patch
+  ;;; all ecological components (based on vegetation) are assumed to grow towards the initial ecological community configuration, minus the influence of water stress.
+  ;;; The logistic growth model is used, where the reproductive rate (growth slope) is regulated by the frequency of the component and its proportion to a carrying capacity (here, the initial value)
+
+  let proportionOfAvailableArea (1 - (p_ecol_%water + p_ecol_%crop) / 100)
+
+  let recoveryRate_%wood 1 / (get-recovery-lag-of-ecological-component "wood")
+  let recoveryRate_%brush 1 / (get-recovery-lag-of-ecological-component "brush")
+  let recoveryRate_%grass 1 / (get-recovery-lag-of-ecological-component "grass")
+
+  set p_ecol_%wood (p_ecol_%wood +
+    recoveryRate_%wood *
+    ((p_initEcol_%wood * (1 - p_soil_ARID * (get-water-stress-sensitivity-of-ecological-component "wood")) *
+      proportionOfAvailableArea) - p_ecol_%wood
+    )
+  )
+
+  set p_ecol_%brush (p_ecol_%brush +
+    recoveryRate_%brush *
+    ((p_initEcol_%brush * (1 - p_soil_ARID * (get-water-stress-sensitivity-of-ecological-component "brush")) *
+      proportionOfAvailableArea) - p_ecol_%brush
+    )
+  )
+
+  set p_ecol_%grass (p_ecol_%grass +
+    recoveryRate_%grass *
+    ((p_initEcol_%grass * (1 - p_soil_ARID * (get-water-stress-sensitivity-of-ecological-component "grass")) *
+      proportionOfAvailableArea) - p_ecol_%grass
+    )
+  )
+
+end
+
+to set-ecological-communities-biomass
+
+  set p_ecol_biomass get-ecological-communities-biomass p_ecol_%wood p_ecol_%brush p_ecol_%grass
+
+end
+
+to-report get-ecological-communities-biomass [ %wood %brush %grass ]
+
+  report
+  (%wood / 100) * (get-biomass-of-ecological-component "wood") +
+  (%brush / 100) * (get-biomass-of-ecological-component "brush") +
+  (%grass / 100) * (get-biomass-of-ecological-component "grass")
+
+end
+
+to set-ecological-community-root-zone-depth
+
+  ;;; root zone depth is set to be the weighted mean of the maximum root zone depth of each crop and ecological component (water ecological community is ignored)
+
+  let cropsRootZoneDepth (p_ecol_%crop / 100) * get-mean-max-root-depth-of-crops p_crop_frequency
+
+  set p_ecol_rootZoneDepth cropsRootZoneDepth + get-ecological-community-root-zone-depth p_ecol_%crop p_ecol_%wood p_ecol_%brush p_ecol_%grass
+
+  set p_ecol_rootZoneDepth min (list p_soil_depth p_ecol_rootZoneDepth) ;;; it cannot be deeper than the soil layer
+  ;;; root zone depth will be 0 if there is no active (terrestrial) ecological community (100% bare soil or water)
+
+end
+
+to-report get-mean-max-root-depth-of-crops [ cropFrequencies ]
+
+  report sum (map [ [i j] -> (i / 100) * j ] cropFrequencies crop_rootZoneDepth)
+
+end
+
+to-report get-ecological-community-root-zone-depth [ %crop %wood %brush %grass ]
+
+  report
+  (%wood / 100) * (get-max-root-depth-of-ecological-component "wood") +
+  (%brush / 100) * (get-max-root-depth-of-ecological-component "brush") +
+  (%grass / 100) * (get-max-root-depth-of-ecological-component "grass")
+
+end
+
+to-report get-max-root-depth-of-ecological-component [ ecologicalComponentName ]
+
+  ;;; get max root depth value corresponding to ecologicalComponentName
+  report item (position ecologicalComponentName ecol_ecologicalComponents) ecol_maxRootDepth
+
+end
+
+to-report get-biomass-of-ecological-component [ ecologicalComponentName ]
+
+  ;;; get biomass value corresponding to ecologicalComponentName
+  report item (position ecologicalComponentName ecol_ecologicalComponents) ecol_biomass
+
+end
+
+to-report get-recovery-lag-of-ecological-component [ ecologicalComponentName ]
+
+  ;;; get recovery lag value corresponding to ecologicalComponentName
+  report item (position ecologicalComponentName ecol_ecologicalComponents) ecol_recoveryLag
+
+end
+
+to-report get-water-stress-sensitivity-of-ecological-component [ ecologicalComponentName ]
+
+  ;;; get water stress sensitivity value corresponding to ecologicalComponentName
+  report item (position ecologicalComponentName ecol_ecologicalComponents) ecol_waterStressSensitivity
+
+end
+
+to update-soil-cover
+
+  ask patches
+  [
+    set p_ecol_coverType (get-cover-type
+      p_ecol_%grass
+      p_ecol_%brush
+      p_ecol_%wood
+      p_ecol_%water
+      p_ecol_%crop
+      )
+
+    set p_soil_runOffCurveNumber (get-runOffCurveNumber
+      p_ecol_%grass
+      p_ecol_%brush
+      p_ecol_%wood
+      p_ecol_%water
+      p_ecol_%crop
+      p_soil_hydrologicSoilGroup
+      )
+
+    set p_ecol_albedo (get-albedo
+      p_ecol_%grass
+      p_ecol_%brush
+      p_ecol_%wood
+      p_ecol_%water
+      p_ecol_%crop
+      p_soil_%sand
+      p_soil_waterContentRatio
+     )
+  ]
+
+end
+
+to-report get-cover-type [ %grass %brush %wood %water %crop ]
+
+  ;;; set cover type according to percentages
+  ;;; The criteria used for separating cover types (to select runoff curve number) attempts to approach the one used in:
+  ;;; Table 2.2 in: Cronshey R G 1986 Urban Hydrology for Small Watersheds, Technical Release 55 (TR-55).
+  ;;; United States Department of Agriculture, Soil Conservation Service, Engineering Division
+  ;;; See also ternary diagram "ternaryPlots/coverTypePerEcologicalCommunity.png", generated in R
+  ;;; An extra category for free water surfaces was added.
+  ;;; NOTE: desert (%bareSoil > 50), cropland (%crop > 50) and water (%water > 50) definitions are arbitrary.
+  ;;; Pending to find information on these thresholds, if any standards exist (keep in mind they affect runoff curve number and albedo).
+
+  if (%water > 50) [ report "free water" ]
+
+  if (%crop > 50) [ report "cropland" ]
+
+  let %bareSoil 100 - %grass - %brush - %wood - %water - %crop
+  if (%bareSoil > 50) [ report "desert" ] ;;; if percentages are too low
+
+  if (%grass >= 60) [ report "grassland" ]
+  if (%wood >= 50 and %brush <= 50 and %grass < 40) [ report "woodland" ]
+  if (%brush >= 50 and %wood < 50 and %grass < 40) [ report "shrubland" ]
+  if (%brush < 60 and %wood < 60 and %grass < 60) [ report "wood-grass" ]
+
+end
+
+to-report get-runOffCurveNumber [ %grass %brush %wood %water %crop hydrologicSoilGroup ]
+
+  let treatment "" ; defaults to no specific treatment
+  let condition "good" ; defaults to "good"
+
+  let %bareSoil (100 - %wood - %brush - %grass - %water - %crop)
+
+  report (
+  ((get-runOffCurveNumber-of-cover-and-soil "free water" condition treatment hydrologicSoilGroup) * %water / 100) +
+  ((get-runOffCurveNumber-of-cover-and-soil "woodland" condition treatment hydrologicSoilGroup) * %wood / 100) +
+  ((get-runOffCurveNumber-of-cover-and-soil "shrubland" condition treatment hydrologicSoilGroup) * %brush / 100) +
+  ((get-runOffCurveNumber-of-cover-and-soil "grassland" condition treatment hydrologicSoilGroup) * %grass / 100) +
+  ((get-runOffCurveNumber-of-cover-and-soil "cropland" condition treatment hydrologicSoilGroup) * %crop / 100) +
+  ((get-runOffCurveNumber-of-cover-and-soil "desert" condition treatment hydrologicSoilGroup) * %bareSoil / 100)
+  )
+
+end
+
+to-report get-runOffCurveNumber-of-cover-and-soil [ coverType condition treatment hydrologicSoilGroup ]
+
+  let coverTreatmentAndHydrologicCondition get-coverTreatmentAndHydrologicCondition coverType condition treatment
+
+  report (
+    item
+    (position coverTreatmentAndHydrologicCondition (item 0 soil_runOffCurveNumberTable))            ; selecting row
+    (item (1 + position hydrologicSoilGroup (list "A" "B" "C" "D")) soil_runOffCurveNumberTable)    ; selecting column (skip column with coverTreatmentAndHydrologicCondition)
+    )
+
+end
+
+to-report get-coverTreatmentAndHydrologicCondition [ coverType condition treatment ]
+
+  ;;; correspond cover type with cover/treatment/hydrologic condition as registred in runOffCurveNumberTable
+  ;;; That table, created by the USDA, holds a classification of cover conditions in the US;
+  ;;; future versions should aim to calibrate this data to the cover types within the region of interest.
+
+  ;;; NOTE: this version ignores condition and treatment and selects a single default per each coverType
+  ;;; NOTE2: cropland should be broken down once crop model is integrated (I2 model)
+
+  if (coverType = "free water")
+  [
+    report (word "free water | surface covered with free water | null" )
+  ]
+  if (coverType = "desert")
+  [
+    report (word "desert shrub | major plants include saltbush-greasewood-creosotebush-blackbrush-bursage-palo verde-mesquite-cactus | good")
+  ]
+  if (coverType = "grassland")
+  [
+    report (word "pasture or grassland or range | continuous forage for grazing | good")
+  ]
+  if (coverType = "shrubland")
+  [
+    report (word "brush | brush-weed-grass mixture with brush the major element | good")
+  ]
+  if (coverType = "woodland")
+  [
+    report (word "woods | used and managed but not planted | good")
+  ]
+  if (coverType = "wood-grass")
+  [
+    report (word "woods-grass combination or tree farm | lightly or only occasionally grazed | good")
+  ]
+  if (coverType = "cropland")
+  [
+    report (word "small grain crop | straight row | good")
+  ]
+
+  report ""
+
+end
+
+to-report get-albedo [ %grass %brush %wood %water %crop %sand waterContentRatio]
+
+  let %bareSoil (100 - %wood - %brush - %grass - %water - %crop)
+
+  report
+  ((get-albedo-of-cover "inland water") * %water / 100) +
+  ((get-albedo-of-cover "woodlands") * %wood / 100) +
+  ((get-albedo-of-cover "shrublands") * %brush / 100) +
+  ((get-albedo-of-cover "grasslands") * %grass / 100) +
+  ((get-albedo-of-cover "croplands") * %crop / 100) +
+  ((get-albedo-of-cover "wet bare not sandy soil") * (%bareSoil / 100) * (1 - %sand / 100) * waterContentRatio) +
+  ((get-albedo-of-cover "dry bare not sandy soil") * (%bareSoil / 100) * (1 - %sand / 100) * (1 - waterContentRatio)) +
+  ((get-albedo-of-cover "wet bare sandy soil") * (%bareSoil / 100) * (%sand / 100) * waterContentRatio) +
+  ((get-albedo-of-cover "dry bare sandy soil") * (%bareSoil / 100) * (%sand / 100) * (1 - waterContentRatio))
+
+end
+
+to-report get-albedo-of-cover [ coverType ]
+
+  ;;; get albedo value corresponding to coverName in ecol_albedoTable
+  report item (position coverType (item 0 ecol_albedoTable)) (item 1 ecol_albedoTable)
+
+end

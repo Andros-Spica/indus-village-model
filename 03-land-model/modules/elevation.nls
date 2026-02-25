@@ -1,0 +1,189 @@
+to setup-elevations
+
+  ifelse (elev_algorithm-style = "NetLogo")
+  [
+    set-landform-NetLogo
+  ]
+  [
+    set-landform-Csharp
+  ]
+
+  set-xySlope
+
+  set-valleySlope
+
+end
+
+to set-landform-NetLogo ;[ elev_numRanges elev_rangeLength elev_rangeHeight elev_numRifts elev_riftLength elev_riftHeight inversionIterations smoothingNeighborhood elevationSmoothStep]
+
+  ; Netlogo-like code
+  ask n-of elev_numRanges patches [ sprout-mapSetters 1 [ set numPoints random elev_rangeLength ] ]
+  ask n-of elev_numRifts patches with [any? turtles-here = false] [ sprout-mapSetters 1 [ set numPoints (random elev_riftLength) * -1 ] ]
+
+  let steps sum [ abs numPoints ] of mapSetters
+  repeat steps
+  [
+    ask one-of mapSetters
+    [
+      let sign 1
+      let scale elev_rangeHeight
+      if ( numPoints < 0 ) [ set sign -1 set scale elev_riftHeight ]
+      ask patch-here [ set elevation scale ]
+      set numPoints numPoints - sign
+      if (numPoints = 0) [die]
+      rt (random-exponential elev_featureAngleRange) * (1 - random-float 2)
+      forward 1
+    ]
+  ]
+
+  smooth-elevation-all
+
+  let depressedPatches patches with [elevation < 0]
+  let elevatedPatches patches with [elevation > 0]
+
+  repeat elev_inversionIterations * count patches
+  [
+    if (any? depressedPatches AND any? elevatedPatches)
+    [
+      let p_depression max-one-of depressedPatches [ count neighbors with [elevation > 0] ]
+      let p_protuberance  max-one-of elevatedPatches [ count neighbors with [elevation < 0] ]
+      let temp [elevation] of p_depression
+      ask p_depression [ set elevation [elevation] of p_protuberance ]
+      ask p_protuberance [ set elevation temp ]
+      set depressedPatches depressedPatches with [pxcor != [pxcor] of p_depression AND pycor != [pycor] of p_depression]
+      set elevatedPatches elevatedPatches with [pxcor != [pxcor] of p_protuberance AND pycor != [pycor] of p_protuberance]
+    ]
+  ]
+
+  smooth-elevation-all
+
+end
+
+to set-landform-Csharp ;[ elev_noise elev_numProtuberances elev_numRanges elev_rangeLength elev_rangeHeight rangeAggregation numDepressions elev_numRifts elev_riftLength elev_riftHeight riftAggregation smoothingNeighborhood elevationSmoothStep]
+
+  ; C#-like code
+  let p1 0
+  let sign 0
+  let len 0
+  let elev 0
+  let elev_numRiftsToDo elev_numRifts
+  let elev_numRangesToDo elev_numRifts
+
+  let protuberances n-of elev_numProtuberances patches
+  let depressions n-of elev_numDepressions patches
+
+  let maxDistBetweenRanges (1.1 - elev_rangeAggregation) * maxDist
+  let maxDistBetweenRifts (1.1 - elev_riftAggregation) * maxDist
+
+  repeat (elev_numRanges + elev_numRifts)
+  [
+    set sign -1 + 2 * (random 2)
+    if (elev_numRangesToDo = 0) [ set sign -1 ]
+    if (elev_numRiftsToDo = 0) [ set sign 1 ]
+
+    ifelse (sign = -1)
+    [
+      set elev_numRiftsToDo elev_numRiftsToDo - 1
+      set len elev_riftLength - 2
+      set elev elev_riftHeight
+      ;ifelse (any? patches with [elevation < 0]) [set p0 one-of patches with [elevation < 0]] [set p0 one-of patches]
+      set p1 one-of patches with [ distance one-of depressions < maxDistBetweenRifts ]
+    ]
+    [
+      set elev_numRangesToDo elev_numRangesToDo - 1
+      set len elev_rangeLength - 2
+      set elev elev_rangeHeight
+      set p1 one-of patches with [ distance one-of protuberances < maxDistBetweenRanges ]
+    ]
+
+    draw-elevation-pattern p1 len elev
+  ]
+
+  smooth-elevation-all
+
+  ask patches
+  [
+    set elevation elevation + random-normal 0 elev_noise
+  ]
+
+  smooth-elevation-all
+
+end
+
+to draw-elevation-pattern [ p1 len elev ]
+
+  let p2 0
+  let xDirection 0
+  let yDirection 0
+  let directionAngle 0
+
+  ask p1 [ set elevation elev set p2 one-of neighbors ]
+  set xDirection ([pxcor] of p2) - ([pxcor] of p1)
+  set yDirection ([pycor] of p2) - ([pycor] of p1)
+  ifelse (xDirection = 1 AND yDirection = 0) [ set directionAngle 0 ]
+  [ ifelse (xDirection = 1 AND yDirection = 1) [ set directionAngle 45 ]
+    [ ifelse (xDirection = 0 AND yDirection = 1) [ set directionAngle 90 ]
+      [ ifelse (xDirection = -1 AND yDirection = 1) [ set directionAngle 135 ]
+        [ ifelse (xDirection = -1 AND yDirection = 0) [ set directionAngle 180 ]
+          [ ifelse (xDirection = -1 AND yDirection = -1) [ set directionAngle 225 ]
+            [ ifelse (xDirection = 0 AND yDirection = -1) [ set directionAngle 270 ]
+              [ if (xDirection = 1 AND yDirection = -1) [ set directionAngle 315 ]]
+            ]
+          ]
+        ]
+      ]
+    ]
+  ]
+
+  repeat len
+  [
+    set directionAngle directionAngle + (random-exponential elev_featureAngleRange) * (1 - random 2)
+    set directionAngle directionAngle mod 360
+
+    set p1 p2
+    ask p2
+    [
+      set elevation elev
+      if (patch-at-heading-and-distance directionAngle 1 != nobody) [ set p2 patch-at-heading-and-distance directionAngle 1 ]
+    ]
+  ]
+
+end
+
+to smooth-elevation-all
+
+  ask patches
+  [
+    smooth-elevation
+  ]
+
+end
+
+to smooth-elevation
+
+  let smoothedElevation mean [elevation] of patches in-radius elev_smoothingRadius
+  set elevation elevation + (smoothedElevation - elevation) * elev_smoothStep
+
+end
+
+to set-xySlope
+
+  ask patches
+  [
+    set elevation (1 - elev_xSlope) * elevation + (elev_xSlope * (elev_rangeHeight - elev_riftHeight) * (pxcor - min-pxcor) / world-width)
+
+    set elevation (1 - elev_ySlope) * elevation + (elev_ySlope * (elev_rangeHeight - elev_riftHeight) * (pycor - min-pycor) / world-height)
+  ]
+
+end
+
+to set-valleySlope
+
+  ; bend terrain as a valley (valleySlope > 0) or a ridge (valleySlope < 0) following a North-South pattern
+  ask patches
+  [
+    let xValley (world-width / 2) + elev_valleyAxisInclination * (pycor - (world-height / 2))
+    set elevation (1 - elev_valleySlope) * elevation + (elev_valleySlope * (elev_rangeHeight - elev_riftHeight) * abs (xValley - pxcor))
+  ]
+
+end

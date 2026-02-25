@@ -1,0 +1,23 @@
+to reset-stock-stats
+
+  set sumOfStocksPerAge n-values maxStockAge [i -> 0]
+
+  set sumOfStocks 0
+
+  set sumOfCurrentProduction 0
+
+  set sumOfLosses 0
+
+end
+
+to update-stock-stats
+
+  set sumOfStocksPerAge n-values maxStockAge [i -> sum [item i hh_stocks] of households]
+
+  set sumOfStocks sum sumOfStocksPerAge
+
+  set sumOfCurrentProduction sum [item 0 hh_stocks] of households
+
+  ;;; sumOfLosses is updated every iteration of hh_stocks-decay.
+
+end

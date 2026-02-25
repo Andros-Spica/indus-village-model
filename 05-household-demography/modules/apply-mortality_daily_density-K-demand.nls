@@ -1,0 +1,119 @@
+to apply-mortality
+
+  set carrying-capacity-demand sum [hh_get-total-carrying-capacity-demand] of households
+  
+  ask households
+  [
+    hh_update-members-survival
+  ]
+
+end
+
+to hh_update-members-survival
+
+  ; applies age-specific mortality rates and delete dying members
+
+  ; get a list with true/false values flagging which members is dying during the current day
+  let dying? hh_whichMembersDying
+
+  ; iterate for the members from last to first, eliminating those that should be dying
+  let memberIndex (hh_count-members) - 1
+  repeat hh_count-members
+  [
+    if (item memberIndex dying?)
+    [
+      ; add to mortality
+      ifelse (item memberIndex hh_membersSex)
+      [ set womenDeathsToday womenDeathsToday + 1 ]
+      [ set menDeathsToday menDeathsToday + 1 ]
+
+      if (hh_tellYourStory) [ print (word "Member " memberIndex " from " self " dies with age " (item memberIndex hh_membersAge) ".") ]
+
+      hh_delete-member memberIndex
+    ]
+    set memberIndex memberIndex - 1
+  ]
+
+  hh_update-marriages-after-deaths
+
+end
+
+to-report hh_whichMembersDying
+
+  let densityEffect get-density-effect-of-day carrying-capacity-demand carrying-capacity
+
+  ; returns a list with true/false values flagging which members is dying during the current day
+  report map
+  [
+    i ->
+    (random-float 1 < get-mortality-prob-of-day (item i hh_membersSex) (item i hh_membersAge) densityEffect)
+  ] hh_membersIndexes
+
+end
+
+to hh_update-marriages-after-deaths
+
+  ; update hh_membersMarriage to consider any widow/widower as single
+  foreach hh_membersIndexes
+  [
+    i ->
+    if (item i hh_membersMarriage != -1                                           ; if the member is married
+      and length filter [j -> j = item i hh_membersMarriage] hh_membersMarriage = 1) ; and her/his partner died this day (so she/he is the only member with the marriage index)
+    [
+      set hh_membersMarriage replace-item i hh_membersMarriage -1
+
+      if (hh_tellYourStory) [ print (word "Member " i " of " self " has lost her/his partner.") ]
+    ]
+  ]
+
+end
+
+to-report get-mortality-prob-of-day [ isFemale ageInDays densityEffect ]
+
+  let ageInYears get-age-in-years-old ageInDays
+
+  let probDying (get-mortality-prob-from-table isFemale ageInYears)
+
+  set probDying 1 - (1 - probDying) ^ (1 / year-length-in-days)
+
+  report clamp01 (probDying + densityEffect)
+
+end
+
+to-report get-mortality-prob-from-table [ isFemale ageInYears ]
+
+  let probDying 0
+
+  ifelse (isFemale)
+  [
+    set probDying item ageInYears mortalityTable-women
+  ]
+  [
+    set probDying item ageInYears mortalityTable-men
+  ]
+
+  report probDying
+
+end
+
+to-report get-density-effect-of-day [ carryingCapacityDemand carryingCapacity ]
+
+  let densityEffect get-density-effect carryingCapacityDemand carryingCapacity
+  
+  set densityEffect clamp01 densityEffect
+
+  let densityEffectOfDay 1 - (1 - densityEffect) ^ (1 / year-length-in-days)
+
+  report densityEffectOfDay
+
+end
+
+to-report get-density-effect [ carryingCapacityDemand carryingCapacity ]
+
+  ; For example, in https://www.wolframalpha.com/, use:
+  ;plot 0.05*(x / 200) ^ 3 for x=1..1000
+  let densityEffect density-effect-scaling-factor * (carryingCapacityDemand / (carryingCapacity + 1E-6)) ^ density-effect-steepness
+
+  report densityEffect
+
+end

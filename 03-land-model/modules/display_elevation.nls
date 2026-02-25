@@ -1,0 +1,79 @@
+to refresh-view
+
+  update-plots
+
+  paint-patches
+
+end
+
+to refresh-view-after-seaLevel-change
+
+  ;;; this procedure will recentre patch elevations according to elev_seaLevelReferenceShift
+  ;;; and update landRatio and display
+
+  set elev_seaLevelReferenceShift par_elev_seaLevelReferenceShift
+
+  ask patches
+  [
+    ;;; recentre elevation so negative values are only below sea level
+    set elevation get-recentred-elevation elevation elev_seaLevelReferenceShift
+  ]
+
+  set-terrain-output-stats
+  
+  refresh-view
+
+end
+
+to paint-patches
+
+  if (display-mode = "elevation (m)")
+  [
+    ask patches
+    [
+      set pcolor get-elevation-color elevation
+    ]
+    set-legend-elevation 10
+  ]
+  ;;; other modes of display can be added here
+
+end
+
+to-report get-elevation-color [ elevationValue ]
+
+  let elevationGradient 0
+
+  ifelse (elevationValue < 0)
+  [
+    let normSubElevation (-1) * (0 - elevationValue)
+    let normSubMinElevation (-1) * (0 - minElevation) + 1E-6
+    set elevationGradient 20 + (200 * (1 - normSubElevation / normSubMinElevation))
+    report rgb 0 0 elevationGradient
+  ]
+  [
+    let normSupElevation elevationValue
+    let normSupMaxElevation maxElevation + 1E-6
+    set elevationGradient 100 + (155 * (normSupElevation / normSupMaxElevation))
+    report rgb (elevationGradient - 100) elevationGradient 0
+  ]
+
+end
+
+to set-legend-elevation [ numberOfKeys ]
+
+  set-current-plot "Legend"
+
+  clear-plot
+
+  let step precision ((maxElevation - minElevation) / numberOfKeys) 4
+
+  let value maxElevation
+
+  while [ value > minElevation ]
+  [
+    create-temporary-plot-pen (word "" (precision value 4) "")
+    set-plot-pen-color get-elevation-color value
+    set value value - step
+  ]
+
+end

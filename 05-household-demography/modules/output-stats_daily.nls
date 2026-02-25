@@ -1,0 +1,89 @@
+to reset-demography-stats-day
+
+  set womenBirthsToday 0
+  set menBirthsToday 0
+  set womenDeathsToday 0
+  set menDeathsToday 0
+
+  set totalWomen 0
+  set totalMen 0
+  set femaleRatio -1
+  set womenAgeStructure (list)
+  set menAgeStructure (list)
+  set womenFirstAgeGroup 0
+  set menFirstAgeGroup 0
+
+end
+
+to update-demography-stats
+
+  set totalHouseholds count households
+  set totalIndividuals 0
+
+  ask households
+  [
+    foreach hh_membersIndexes
+    [
+      memberIndex ->
+      let ageInYears get-age-in-years-old (item memberIndex hh_membersAge)
+      ifelse (item memberIndex hh_membersSex)
+      [
+        set totalWomen totalWomen + 1
+        set womenAgeStructure lput ageInYears womenAgeStructure
+        if (ageInYears < 5)
+        [ set womenFirstAgeGroup womenFirstAgeGroup + 1 ]
+      ]
+      [
+        set totalMen totalMen + 1
+        set menAgeStructure lput ageInYears menAgeStructure
+        if (ageInYears < 5)
+        [ set menFirstAgeGroup menFirstAgeGroup + 1 ]
+      ]
+      set totalIndividuals totalIndividuals + 1
+    ]
+  ]
+
+  carefully [ set femaleRatio totalWomen / totalIndividuals ] [ set femaleRatio "" ]
+
+  carefully [ set totalOrphans length orphanList ] [ set totalOrphans 0 ]
+
+  set womenBirthsThisYear womenBirthsThisYear + womenBirthsToday
+  set menBirthsThisYear menBirthsThisYear + menBirthsToday
+  set womenDeathsThisYear womenDeathsThisYear + womenDeathsToday
+  set menDeathsThisYear menDeathsThisYear + menDeathsToday
+  set womenInThisYear womenInThisYear + womenInToday
+  set menInThisYear menInThisYear + menInToday
+  set womenOutThisYear womenOutThisYear + womenOutToday
+  set menOutThisYear menOutThisYear + menOutToday
+  
+  if (currentDayOfYear = year-length-in-days)
+  [
+    carefully [ set totalPopulationGrowth 100 * (totalIndividuals - totalIndividualsLastYear) / totalIndividualsLastYear ] [ ]
+    set totalIndividualsLastYear totalIndividuals
+    
+    set womenBirthsLastYear womenBirthsThisYear
+    set menBirthsLastYear menBirthsThisYear
+    set womenDeathsLastYear womenDeathsThisYear
+    set menDeathsLastYear menDeathsThisYear
+    set womenInLastYear womenInThisYear
+    set menInLastYear menInThisYear
+    set womenOutLastYear womenOutThisYear
+    set menOutLastYear menOutThisYear
+    
+    reset-demography-stats-year
+  ]
+
+end
+
+to reset-demography-stats-year
+
+  set womenBirthsThisYear 0
+  set menBirthsThisYear 0
+  set womenDeathsThisYear 0
+  set menDeathsThisYear 0
+  set womenInThisYear 0
+  set menInThisYear 0
+  set womenOutThisYear 0
+  set menOutThisYear 0
+
+end

@@ -1,0 +1,38 @@
+to setup-patch-coordinates-labels [ XcoordPosition YcoordPosition ]
+
+  let xspacing floor (world-width / patch-size)
+  let yspacing floor (world-height / patch-size)
+
+  ifelse (XcoordPosition = "bottom")
+  [
+    ask patches with [ pycor = min-pycor + 1 ]
+    [
+      if (pxcor mod xspacing = 0)
+      [ set plabel (word pxcor) ]
+    ]
+  ]
+  [
+    ask patches with [ pycor = max-pycor - 1 ]
+    [
+      if (pxcor mod xspacing = 0)
+      [ set plabel (word pxcor) ]
+    ]
+  ]
+
+  ifelse (YcoordPosition = "left")
+  [
+    ask patches with [ pxcor = min-pxcor + 1 ]
+    [
+      if (pycor mod yspacing = 0)
+      [ set plabel (word pycor) ]
+    ]
+  ]
+  [
+    ask patches with [ pycor = max-pycor - 1 ]
+    [
+      if (pycor mod yspacing = 0)
+      [ set plabel (word pycor) ]
+    ]
+  ]
+
+end

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<model version="NetLogo 7.0.0-beta2" snapToGrid="false">
+<model version="NetLogo 7.0.2" snapToGrid="false">
   <code><![CDATA[;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; GNU GENERAL PUBLIC LICENSE ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2038,7 +2038,6 @@ end]]></code>
     <slider x="276" step="1" y="90" max="round max (list maxElevation par_elev_rangeHeight)" width="150" display="par_seaLevel" height="50" min="round min (list minElevation par_elev_riftHeight)" direction="Horizontal" default="-3.0" variable="par_seaLevel" units="m"></slider>
     <button x="191" actionKey="2" y="100" height="35" disableUntilTicks="false" forever="false" kind="Observer" width="72" display="refresh">refresh-view</button>
     <button x="7" actionKey="1" y="17" height="47" disableUntilTicks="false" forever="false" kind="Observer" width="67" display="create">create-terrain</button>
-    <note x="947" y="18" backgroundDark="0" fontSize="12" width="71" markdown="false" height="25" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">ELEVATION</note>
     <slider x="802" step="1" y="52" max="0" width="197" display="par_elev_riftHeight" height="50" min="-500" direction="Horizontal" default="0.0" variable="par_elev_riftHeight" units="m"></slider>
     <monitor x="1278" precision="0" y="103" height="60" fontSize="9" width="109">elev_numRanges</monitor>
     <input x="1144" multiline="false" y="104" height="60" variable="par_elev_numRanges" type="number" width="131">1.0</input>
@@ -2073,8 +2072,6 @@ end]]></code>
       <choice type="string" value="NetLogo"></choice>
       <choice type="string" value="C#"></choice>
     </chooser>
-    <note x="1514" y="182" backgroundDark="0" fontSize="12" width="216" markdown="false" height="25" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">used when algorithm-style = NetLogo</note>
-    <note x="1231" y="182" backgroundDark="0" fontSize="12" width="183" markdown="false" height="24" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">used when algorithm-style = C#</note>
     <slider x="45" step="1" y="143" max="max-pxcor" width="486" display="xTransect" height="50" min="min-pxcor" direction="Horizontal" default="0.0" variable="xTransect"></slider>
     <slider x="4" step="1" y="183" max="max-pycor" width="50" display="yTransect" height="478" min="min-pycor" direction="Vertical" default="0.0" variable="yTransect"></slider>
     <plot x="522" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="pycor" y="162" xMin="0.0" height="527" legend="false" xMax="10.0" yMin="0.0" width="160" xAxis="m" display="vertical transect">
@@ -2158,14 +2155,11 @@ update-plots</button>
     <switch x="1542" y="299" height="40" on="true" variable="flow_do-fill-sinks" width="132" display="flow_do-fill-sinks"></switch>
     <input x="1541" multiline="false" y="344" height="60" variable="par_flow_riverAccumulationAtStart" type="number" width="215">0.0</input>
     <monitor x="1541" precision="2" y="403" height="60" fontSize="9" width="215">flow_riverAccumulationAtStart</monitor>
-    <note x="1524" y="708" backgroundDark="0" fontSize="12" width="83" markdown="false" height="24" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">SOIL TEXTURE</note>
     <slider x="783" step="1" y="761" max="par_soil_maxDepth - 1" width="180" display="par_soil_minDepth" height="50" min="0" direction="Horizontal" default="0.0" variable="par_soil_minDepth" units="mm"></slider>
     <slider x="781" step="0.01" y="885" max="3" width="241" display="par_soil_formativeErosionRate" height="50" min="0" direction="Horizontal" default="0.68" variable="par_soil_formativeErosionRate"></slider>
     <slider x="783" step="1" y="817" max="100" width="180" display="par_soil_depthNoise" height="50" min="0" direction="Horizontal" default="45.0" variable="par_soil_depthNoise" units="mm"></slider>
     <slider x="967" step="1" y="762" max="600" width="180" display="par_soil_maxDepth" height="50" min="par_soil_minDepth + 1" direction="Horizontal" default="500.0" variable="par_soil_maxDepth" units="mm"></slider>
     <monitor x="966" precision="17" y="815" height="60" fontSize="9" width="230" display="depth parameters">(word "MIN = " (precision soil_minDepth 2) ", MAX = " (precision soil_maxDepth 2) ", depth noise = " (precision soil_depthNoise 2))</monitor>
-    <note x="928" y="733" backgroundDark="0" fontSize="12" width="78" markdown="false" height="24" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">SOIL DEPTH</note>
-    <monitor x="1026" precision="2" y="880" height="60" fontSize="9" width="136">soil_formativeErosionRate</monitor>
     <plot x="1160" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="% of soil" y="979" xMin="0.0" height="195" legend="true" xMax="10.0" yMin="0.0" width="683" xAxis="flow accumulation" display="Erosion curves of soil formation">
       <setup></setup>
       <update></update>
@@ -2204,7 +2198,6 @@ update-plots</button>
     <slider x="1430" step="1.0" y="736" max="par_soil_max%silt - 1" width="216" display="par_soil_min%silt" height="50" min="0" direction="Horizontal" default="40.0" variable="par_soil_min%silt" units="%"></slider>
     <slider x="1204" step="1.0" y="790" max="100.0" width="223" display="par_soil_max%sand" height="50" min="par_soil_min%sand + 1" direction="Horizontal" default="90.0" variable="par_soil_max%sand" units="%"></slider>
     <slider x="1204" step="1.0" y="736" max="par_soil_max%sand - 1" width="223" display="par_soil_min%sand" height="50" min="0" direction="Horizontal" default="60.0" variable="par_soil_min%sand" units="%"></slider>
-    <note x="309" y="889" backgroundDark="0" fontSize="12" width="166" markdown="false" height="24" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">ECOLOGICAL COMMUNITY</note>
     <slider x="28" step="0.01" y="923" max="100" width="305" display="par_ecol_grassFrequencyInflection" height="50" min="0" direction="Horizontal" default="0.0" variable="par_ecol_grassFrequencyInflection" units="flow accum."></slider>
     <monitor x="336" precision="4" y="916" height="60" fontSize="9" width="182">ecol_grassFrequencyInflection</monitor>
     <slider x="28" step="0.01" y="978" max="0.2" width="305" display="par_ecol_grassFrequencyRate" height="50" min="0" direction="Horizontal" default="0.0" variable="par_ecol_grassFrequencyRate"></slider>
@@ -2247,6 +2240,13 @@ update-plots</button>
     <monitor x="327" precision="6" y="822" height="60" fontSize="9" width="100">landWithRiver</monitor>
     <monitor x="429" precision="0" y="823" height="60" fontSize="9" width="171">mostCommonTextureType</monitor>
     <monitor x="604" precision="0" y="823" height="60" fontSize="9" width="159">mostCommonCoverType</monitor>
+    <note x="927" y="733" backgroundDark="0" fontSize="12" width="157" markdown="false" height="24" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">SOIL DEPTH</note>
+    <note x="1482" y="708" backgroundDark="0" fontSize="12" width="125" markdown="false" height="24" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">SOIL TEXTURE</note>
+    <note x="202" y="891" backgroundDark="0" fontSize="12" width="202" markdown="false" height="24" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">ECOLOGICAL COMMUNITY</note>
+    <note x="1167" y="182" backgroundDark="0" fontSize="12" width="244" markdown="false" height="24" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">used when algorithm-style = C#</note>
+    <note x="1495" y="182" backgroundDark="0" fontSize="12" width="252" markdown="false" height="25" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">used when algorithm-style = NetLogo</note>
+    <note x="947" y="18" backgroundDark="0" fontSize="12" width="95" markdown="false" height="25" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">ELEVATION</note>
+    <monitor x="1026" precision="2" y="880" height="60" fontSize="9" width="158">soil_formativeErosionRate</monitor>
   </widgets>
   <info>## WHAT IS IT?
 

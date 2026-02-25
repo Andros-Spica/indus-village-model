@@ -1,0 +1,66 @@
+to load-experiment
+
+  ;;; this procedure loads the values of each (explored) parameter from a csv file.
+  ;;; Note that the setup will use the value set by the user for any other parameter (e.g. scenario).
+
+  let FilePath "experiments//v1.1//" ;;; create folders in the model's directory before trying to load experiments
+  let filename (word FilePath exp-number ".txt")
+  file-open filename
+  while [not file-at-end?]
+    [
+      ;;; the values of the file must follow this same order
+
+      set initial-num-households file-read
+      set household-initial-age-distribution (list (file-read) (file-read))
+      set max-couple-count-distribution (list (file-read) (file-read))
+      set acceptable-kinship-degree-for-couples file-read
+
+      set cdmlt-level file-read
+
+      set c1-fert file-read
+      set mu-fert file-read
+      set sigma1-fert file-read
+      set sigma2-fert file-read
+
+      set c1-women file-read
+      set mu-women file-read
+      set sigma1-women file-read
+      set sigma2-women file-read
+      set c1-men file-read
+      set mu-men file-read
+      set sigma1-men file-read
+      set sigma2-men file-read
+
+      set max-iterations 2000
+      set max-population 10000
+    ]
+  file-close
+
+end
+
+to export-households
+
+  let FilePath "output//v1.1//"
+
+  file-open (word FilePath "exp-number=" exp-number "_SEED=" SEED "_households.csv")
+
+  file-print "household,lineage,householdAge,maxCoupleCount,membersAge,membersSex,membersMarriage"
+
+  foreach sort households
+  [
+    hh ->
+    ask hh
+    [
+      file-type who file-type ", "
+      file-type (word "'" hh_lineage "'") file-type ", "
+      file-type hh_age file-type ", "
+      file-type hh_maxCoupleCount file-type ", "
+      file-type (word "'" hh_membersAge "'") file-type ", "
+      file-type (word "'" hh_membersSex "'") file-type ", "
+      file-print (word "'" hh_membersMarriage "'")
+    ]
+  ]
+
+  file-close
+
+end

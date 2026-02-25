@@ -1,0 +1,5 @@
+to-report get-random-in-range [ minValue maxValue ]
+
+  report (minValue + random-float (maxValue - minValue))
+
+end

@@ -1,0 +1,79 @@
+to hh_initialise
+
+  ;;; Initialization of households
+
+  set hh_lineage (list who) ; initialise lineage ID with this household 'who'
+  set hh_age get-initial-household-age
+  set hh_maxCoupleCount get-initial-max-couple-count
+  set hh_memberIndexesToDelete (list)
+
+  hh_initialise-members
+
+  ;;; move to empty or less crowded patch, just in sake of visualisation
+  move-to min-one-of patches [count households-here]
+
+end
+
+to-report get-initial-household-age
+
+  report item 0 household-initial-age-distribution + random (item 1 household-initial-age-distribution - item 0 household-initial-age-distribution + 1)
+
+end
+
+to-report get-initial-max-couple-count
+
+  report item 0 max-couple-count-distribution + random (item 1 max-couple-count-distribution - item 0 max-couple-count-distribution + 1)
+
+end
+
+to hh_initialise-members
+
+  hh_reset-members
+
+  ; assures that at least two member are above (fertility age + household age) and have different sex
+  foreach (list 0 1)
+  [
+    ?1 ->
+    set hh_membersSex lput (?1 = 0) hh_membersSex
+    let marriageAge (get-initial-marriage-age (item ?1 hh_membersSex))
+    set hh_membersAge lput (min (list (hh_age + marriageAge) 100)) hh_membersAge
+    set hh_membersMarriage lput 0 hh_membersMarriage ; this couple will have the 0 index
+  ]
+
+  ; calculate offspring and offspring age
+  let offspringProb 0
+  let i hh_age
+  repeat hh_age
+  [
+    ; get the probability of the couple having descendence for a past year i
+    ; i.e. woman fertility at the corresponding age
+    set offspringProb get-fertility ((item 0 hh_membersAge) - i)
+
+    ; test the probability and add the offspring with the corresponding age
+    if (random-float 1 < offspringProb)
+    [
+      hh_add-offspring i ; a child with i years old
+    ]
+    set i i - 1
+  ]
+
+end
+
+to-report get-initial-marriage-age [ isFemale ]
+
+  ; get a marriage age as a stochastic function of nuptiality rates in earlier years
+  let notMarried true
+  let age 0
+
+  while [notMarried AND age < 100]
+  [
+    if ((get-nuptiality isFemale age) > random-float 1)
+    [
+      set notMarried false
+    ]
+    set age age + 1
+  ]
+
+  report age
+
+end

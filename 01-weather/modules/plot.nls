@@ -1,0 +1,42 @@
+to plot-precipitation-table
+
+  clear-plot
+
+  ;;; precipitation (mm/day) is summed by month
+  foreach n-values year-length-in-days [j -> j]
+  [
+    dayOfYearIndex ->
+    plotxy (dayOfYearIndex + 1) (item dayOfYearIndex precipitation_yearSeries)
+  ]
+  plot-pen-up
+
+end
+
+to plot-cumPrecipitation-table
+
+  ;;; precipitation (mm/day) is summed by month
+  foreach n-values year-length-in-days [j -> j]
+  [
+    dayOfYearIndex ->
+    plotxy (dayOfYearIndex + 1) (item dayOfYearIndex precipitation_cumYearSeries)
+  ]
+  plot-pen-up
+
+end
+
+to plot-precipitation-table-by-month
+
+  ;;; precipitation (mm/day) is summed by month
+  let daysPerMonths [ 31 28 31 30 31 30 31 31 30 31 30 31 ] ; days per months -- (31 * 7) + (30 * 4) + 28
+  foreach n-values 12 [j -> j]
+  [
+    month ->
+    let startDay 1
+    if (month = 1) [ set startDay (item 0 daysPerMonths) + 1 ]
+    if (month > 1) [ set startDay sum (sublist daysPerMonths 0 month) + 1 ]
+    let endDay startDay + item month daysPerMonths
+    plotxy (startDay) (sum sublist precipitation_yearSeries (startDay - 1) (endDay - 1)) ; correct to list indexes (starting with 0 instead of 1)
+  ]
+  plot-pen-up
+
+end

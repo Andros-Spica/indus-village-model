@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<model version="NetLogo 7.0.0-beta2" snapToGrid="false">
+<model version="NetLogo 7.0.2" snapToGrid="false">
   <code><![CDATA[;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; GNU GENERAL PUBLIC LICENSE ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -85,10 +85,10 @@ globals
   currentDayOfYear
 
   ;;;; main (these follow a seasonal pattern and apply for all patches)
-  T ; average temperature of current day (ºC)
-  T_max ; maximum temperature of current day (ºC)
-  T_min ; minimum temperature of current day (ºC)
-  RAIN ; precipitation of current day (mm)
+  temperature ; average temperature of current day (ºC)
+  maxTemperature ; maximum temperature of current day (ºC)
+  minTemperature ; minimum temperature of current day (ºC)
+  precipitation ; precipitation of current day (mm)
   CO2 ; average CO2 concentration of the current day (ppm)
   solarRadiation ; solar radiation of current day (MJ m-2)
   netSolarRadiation ; net solar radiation discount canopy reflection or albedo, assuming hypothetical grass reference crop (albedo = 0.23)
@@ -358,17 +358,17 @@ to update-weather
   set solarRadiation gen-solar-radiation currentDayOfYear
   set netSolarRadiation (1 - albedo) * solarRadiation
 
-  set ETr get-ETr
+  update-ETr
 
 end
 
 to update-temperature [ dayOfYear ]
 
-  set T gen-temperature dayOfYear
+  set temperature gen-temperature dayOfYear
 
-  set T_min T - temperature_dailyLowerDeviation
+  set minTemperature temperature - temperature_dailyLowerDeviation
 
-  set T_max T + temperature_dailyUpperDeviation
+  set maxTemperature temperature + temperature_dailyUpperDeviation
 
 end
 
@@ -390,7 +390,7 @@ to update-precipitation [ dayOfYear ]
 
   if (dayOfYear = 1) [ generate-annual-precipitation ]
 
-  set RAIN item (dayOfYear - 1) precipitation_yearSeries
+  set precipitation item (dayOfYear - 1) precipitation_yearSeries
 
 end
 
@@ -452,7 +452,13 @@ to-report gen-solar-radiation [ dayOfYear ]
 
 end
 
-to-report get-ETr
+to update-ETr
+  
+  set ETr get-ETr temperature minTemperature maxTemperature
+  
+end
+
+to-report get-ETr [ T T_min T_max ]
 
   ;;; useful references:
   ;;; Suleiman A A and Hoogenboom G 2007
@@ -773,15 +779,15 @@ end]]></code>
       <update></update>
       <pen interval="1.0" mode="0" display="mean" color="-16777216" legend="true">
         <setup></setup>
-        <update>plot T</update>
+        <update>plot temperature</update>
       </pen>
       <pen interval="1.0" mode="0" display="min" color="-13345367" legend="true">
         <setup></setup>
-        <update>plot T_min</update>
+        <update>plot minTemperature</update>
       </pen>
       <pen interval="1.0" mode="0" display="max" color="-2674135" legend="true">
         <setup></setup>
-        <update>plot T_max</update>
+        <update>plot maxTemperature</update>
       </pen>
     </plot>
     <monitor x="39" precision="0" y="267" height="60" fontSize="11" width="100">currentYear</monitor>
@@ -802,9 +808,9 @@ set-plot-x-range 0 (yearLengthInDays + 1)</setup>
     <plot x="291" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="mm" y="583" xMin="0.0" height="305" legend="true" xMax="10.0" yMin="0.0" width="654" xAxis="days" display="precipitation">
       <setup></setup>
       <update></update>
-      <pen interval="1.0" mode="1" display="RAIN" color="-16777216" legend="true">
+      <pen interval="1.0" mode="1" display="precipitation" color="-16777216" legend="true">
         <setup></setup>
-        <update>plot RAIN</update>
+        <update>plot precipitation</update>
       </pen>
       <pen interval="1.0" mode="0" display="ETr" color="-2674135" legend="true">
         <setup></setup>
