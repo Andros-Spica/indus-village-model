@@ -4,3 +4,4 @@
 .Ruserdata
 05-household-demography/analysis/simdata/v1.1/householdDemography v.1.1 - kinship tabu for new couples exp-trajectories-table.csv
 05-household-demography/analysis/simdata/v1.2.2/householdDemography v.1.2.2 - mortality regulated by density with weighted k and labour exp-trajectories-table.csv
+*.RData
