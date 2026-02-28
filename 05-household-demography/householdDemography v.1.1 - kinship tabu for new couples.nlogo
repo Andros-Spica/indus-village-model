@@ -197,16 +197,16 @@ to parameters-check1
   if (cdmlt-level = 0)                          [ set cdmlt-level                           8 ]
   if (c1-fert = 0)                              [ set c1-fert                               0.9 ]
   if (c1-women = 0)                             [ set c1-women                              0.9 ]
-  if (c1-men = 0)                               [ set c1-men                                0.85 ]
-  if (mu-fert = 0)                              [ set mu-fert                              15 ]
-  if (mu-women = 0)                             [ set mu-women                             15 ]
-  if (mu-men = 0)                               [ set mu-men                               20 ]
+  if (c1-men = 0)                               [ set c1-men                                0.8 ]
+  if (mu-fert = 0)                              [ set mu-fert                              23 ]
+  if (mu-women = 0)                             [ set mu-women                             18 ]
+  if (mu-men = 0)                               [ set mu-men                               22 ]
   if (sigma1-fert = 0)                          [ set sigma1-fert                           5 ]
   if (sigma1-women = 0)                         [ set sigma1-women                          5 ]
-  if (sigma1-men = 0)                           [ set sigma1-men                            2 ]
-  if (sigma2-fert = 0)                          [ set sigma2-fert                           2 ]
-  if (sigma2-women = 0)                         [ set sigma2-women                          2 ]
-  if (sigma2-men = 0)                           [ set sigma2-men                           10 ]
+  if (sigma1-men = 0)                           [ set sigma1-men                            5 ]
+  if (sigma2-fert = 0)                          [ set sigma2-fert                          13 ]
+  if (sigma2-women = 0)                         [ set sigma2-women                          8 ]
+  if (sigma2-men = 0)                           [ set sigma2-men                           15 ]
 
   ;;; string type inputs (vector of values)
   if (household-initial-age-distribution = 0 or
@@ -224,21 +224,23 @@ to parameters-to-default
 
   set initial-num-households               25
 
+  set coale-demeny-region                 "west"
   set cdmlt-level                           8
 
   set c1-fert                               0.9
-  set mu-fert                              15
+  set mu-fert                              23
   set sigma1-fert                           5
+  set sigma2-fert                          13
 
   set c1-women                              0.9
-  set mu-women                             15
-  set sigma2-women                          2
+  set mu-women                             18
   set sigma1-women                          5
+  set sigma2-women                          8
 
-  set c1-men                                0.85
-  set mu-men                               20
-  set sigma1-men                            2
-  set sigma2-men                           10
+  set c1-men                                0.8
+  set mu-men                               22
+  set sigma1-men                            5
+  set sigma2-men                           15
 
   set household-initial-age-distribution   "0 30"
   set max-couple-count-distribution        "1 6"
@@ -1389,7 +1391,7 @@ end
 
 to export-households
 
-  let FilePath "output//v1.1//"
+  let FilePath "analysis//simdata//v1.1//hh//"
 
   file-open (word FilePath "exp-number=" exp-number "_SEED=" SEED "_households.csv")
 
@@ -1933,7 +1935,7 @@ c1-men
 0.8359375
 0.001
 1
-(default: 0.85)
+(default: 0.8)
 HORIZONTAL
 
 SLIDER
@@ -2023,7 +2025,7 @@ mu-fert
 26.1328125
 0.001
 1
-(default: 15)
+(default: 23)
 HORIZONTAL
 
 BUTTON

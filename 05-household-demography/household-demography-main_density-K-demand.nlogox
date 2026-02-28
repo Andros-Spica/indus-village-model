@@ -35,7 +35,7 @@ __includes [
   "modules/fertility-nuptiality_peristera-kostaki.nls"
   "modules/mortality_coale-demeny.nls"
   "modules/output-stats.nls"
-  "modules/experiments.nls"
+  "modules/experiments_density.nls" ;---
   "../utils/plot-table.nls"
   "../utils/clamp.nls"
 ]
@@ -126,6 +126,8 @@ households-own
 update-plots</button>
     <slider x="332" step="0.01" y="474" max="0.5" width="323" display="par_density-effect-scaling-factor" height="50" min="0" direction="Horizontal" default="0.04" variable="par_density-effect-scaling-factor" units="(default: 0.05)"></slider>
     <slider x="30" step="1" y="475" max="1000" width="292" display="par_carrying-capacity" height="50" min="0" direction="Horizontal" default="200.0" variable="par_carrying-capacity" units="indiv. (default: 200)"></slider>
+    <monitor x="325" precision="17" y="467" height="60" fontSize="11" width="113">carrying-capacity</monitor>
+    <monitor x="329" precision="17" y="521" height="60" fontSize="11" width="177">density-effect-scaling-factor</monitor>
     <plot x="682" autoPlotX="true" yMax="10.0" autoPlotY="true" y="15" xMin="0.0" height="191" legend="true" xMax="10.0" yMin="0.0" width="464" display="Population">
       <setup></setup>
       <update></update>
@@ -212,7 +214,7 @@ set-plot-y-range -0.001 (precision (max (list max nuptialityTable-women max nupt
       <choice type="string" value="south"></choice>
       <choice type="string" value="north"></choice>
     </chooser>
-    <slider x="265" step="0.001" y="994" max="40" width="209" display="mu-women" height="50" min="0" direction="Horizontal" default="20.0" variable="mu-women" units="(default: 15)"></slider>
+    <slider x="265" step="0.001" y="994" max="40" width="209" display="mu-women" height="50" min="0" direction="Horizontal" default="20.0" variable="mu-women" units="(default: 23)"></slider>
     <slider x="265" step="0.001" y="1046" max="2 * 5" width="209" display="sigma1-women" height="50" min="0" direction="Horizontal" default="2.0" variable="sigma1-women" units="(default: 5)"></slider>
     <slider x="265" step="0.001" y="1097" max="2 * 5" width="209" display="sigma2-women" height="50" min="0" direction="Horizontal" default="10.0" variable="sigma2-women" units="(default: 5)"></slider>
     <slider x="475" step="0.001" y="942" max="1" width="201" display="c1-men" height="50" min="0" direction="Horizontal" default="1.0" variable="c1-men" units="(default: 0.85)"></slider>

@@ -167,23 +167,23 @@ set-plot-y-range -0.001 (precision (max (list max nuptialityTable-women max nupt
 update-plots</button>
     <slider x="253" step="1" y="550" max="25" width="214" display="cdmlt-level" height="50" min="1" direction="Horizontal" default="8.0" variable="cdmlt-level" units="levels from 1 to 25"></slider>
     <slider x="254" step="0.001" y="937" max="1" width="209" display="c1-women" height="50" min="0" direction="Horizontal" default="0.9" variable="c1-women" units="(default: 0.9)"></slider>
-    <slider x="258" step="0.001" y="765" max="40" width="208" display="mu-fert" height="50" min="0" direction="Horizontal" default="15.0" variable="mu-fert" units="(default: 15)"></slider>
-    <slider x="259" step="0.001" y="875" max="6 * 5" width="234" display="sigma2-fert" height="50" min="0" direction="Horizontal" default="7.695" variable="sigma2-fert" units="(default: 10)"></slider>
+    <slider x="258" step="0.001" y="765" max="40" width="208" display="mu-fert" height="50" min="0" direction="Horizontal" default="23.0" variable="mu-fert" units="(default: 23)"></slider>
+    <slider x="259" step="0.001" y="875" max="6 * 5" width="234" display="sigma2-fert" height="50" min="0" direction="Horizontal" default="13.0" variable="sigma2-fert" units="(default: 13)"></slider>
     <slider x="258" step="0.001" y="820" max="2 * 5" width="235" display="sigma1-fert" height="50" min="0" direction="Horizontal" default="5.0" variable="sigma1-fert" units="(default: 5)"></slider>
     <slider x="258" step="0.001" y="710" max="1" width="210" display="c1-fert" height="50" min="0" direction="Horizontal" default="0.9" variable="c1-fert" units="(default: 0.9)"></slider>
-    <chooser x="255" y="605" height="60" variable="coale-demeny-region" current="2" width="141" display="coale-demeny-region">
+    <chooser x="255" y="605" height="60" variable="coale-demeny-region" current="0" width="141" display="coale-demeny-region">
       <choice type="string" value="west"></choice>
       <choice type="string" value="east"></choice>
       <choice type="string" value="south"></choice>
       <choice type="string" value="north"></choice>
     </chooser>
-    <slider x="254" step="0.001" y="989" max="40" width="209" display="mu-women" height="50" min="0" direction="Horizontal" default="15.0" variable="mu-women" units="(default: 15)"></slider>
+    <slider x="254" step="0.001" y="989" max="40" width="209" display="mu-women" height="50" min="0" direction="Horizontal" default="18.0" variable="mu-women" units="(default: 18)"></slider>
     <slider x="254" step="0.001" y="1041" max="2 * 5" width="209" display="sigma1-women" height="50" min="0" direction="Horizontal" default="5.0" variable="sigma1-women" units="(default: 5)"></slider>
-    <slider x="254" step="0.001" y="1092" max="2 * 5" width="209" display="sigma2-women" height="50" min="0" direction="Horizontal" default="2.0" variable="sigma2-women" units="(default: 5)"></slider>
-    <slider x="464" step="0.001" y="937" max="1" width="201" display="c1-men" height="50" min="0" direction="Horizontal" default="0.85" variable="c1-men" units="(default: 0.85)"></slider>
-    <slider x="464" step="0.001" y="989" max="2 * 20" width="201" display="mu-men" height="50" min="0" direction="Horizontal" default="20.0" variable="mu-men" units="(default: 20)"></slider>
-    <slider x="464" step="0.001" y="1041" max="2 * 5" width="201" display="sigma1-men" height="50" min="0" direction="Horizontal" default="2.0" variable="sigma1-men" units="(default: 2)"></slider>
-    <slider x="464" step="0.001" y="1092" max="2 * 5" width="201" display="sigma2-men" height="50" min="0" direction="Horizontal" default="10.0" variable="sigma2-men" units="(default: 10)"></slider>
+    <slider x="254" step="0.001" y="1092" max="2 * 5" width="209" display="sigma2-women" height="50" min="0" direction="Horizontal" default="8.0" variable="sigma2-women" units="(default: 8)"></slider>
+    <slider x="464" step="0.001" y="937" max="1" width="201" display="c1-men" height="50" min="0" direction="Horizontal" default="0.8" variable="c1-men" units="(default: 0.8)"></slider>
+    <slider x="464" step="0.001" y="989" max="2 * 20" width="201" display="mu-men" height="50" min="0" direction="Horizontal" default="22.0" variable="mu-men" units="(default: 22)"></slider>
+    <slider x="464" step="0.001" y="1041" max="2 * 5" width="201" display="sigma1-men" height="50" min="0" direction="Horizontal" default="5.0" variable="sigma1-men" units="(default: 5)"></slider>
+    <slider x="464" step="0.001" y="1092" max="2 * 5" width="201" display="sigma2-men" height="50" min="0" direction="Horizontal" default="10.0" variable="sigma2-men" units="(default: 15)"></slider>
     <plot x="671" autoPlotX="true" yMax="10.0" autoPlotY="true" y="10" xMin="0.0" height="191" legend="true" xMax="10.0" yMin="0.0" width="464" display="Population">
       <setup></setup>
       <update></update>
@@ -1284,43 +1284,43 @@ ISSUES:
           <value value="&quot;west&quot;"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="cdmlt-level">
-          <value value="5"></value>
+          <value value="8"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="c1-fert">
           <value value="0.9"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="mu-fert">
-          <value value="15"></value>
+          <value value="23"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="sigma1-fert">
           <value value="5"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="sigma2-fert">
-          <value value="19.648"></value>
+          <value value="13"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="c1-men">
-          <value value="0.85"></value>
+          <value value="0.8"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="mu-men">
-          <value value="20"></value>
+          <value value="22"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="sigma1-men">
-          <value value="2"></value>
+          <value value="5"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="sigma2-men">
-          <value value="10"></value>
+          <value value="15"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="c1-women">
           <value value="0.9"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="mu-women">
-          <value value="15"></value>
+          <value value="18"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="sigma1-women">
           <value value="5"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="sigma2-women">
-          <value value="2"></value>
+          <value value="8"></value>
         </enumeratedValueSet>
       </constants>
     </experiment>
@@ -1537,37 +1537,37 @@ ISSUES:
           <value value="0.9"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="mu-fert">
-          <value value="15"></value>
+          <value value="23"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="sigma1-fert">
           <value value="5"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="sigma2-fert">
-          <value value="19.648"></value>
+          <value value="13"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="c1-men">
-          <value value="0.85"></value>
+          <value value="0.8"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="mu-men">
-          <value value="20"></value>
+          <value value="22"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="sigma1-men">
-          <value value="2"></value>
+          <value value="5"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="sigma2-men">
-          <value value="10"></value>
+          <value value="15"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="c1-women">
           <value value="0.9"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="mu-women">
-          <value value="15"></value>
+          <value value="18"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="sigma1-women">
           <value value="5"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="sigma2-women">
-          <value value="2"></value>
+          <value value="8"></value>
         </enumeratedValueSet>
       </constants>
     </experiment>
@@ -1646,41 +1646,41 @@ ISSUES:
           <value value="&quot;west&quot;"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="cdmlt-level">
-          <value value="5"></value>
+          <value value="8"></value>
         </enumeratedValueSet>
         <steppedValueSet variable="c1-fert" first="0.3" step="0.1" last="0.9"></steppedValueSet>
         <enumeratedValueSet variable="mu-fert">
-          <value value="15"></value>
+          <value value="23"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="sigma1-fert">
           <value value="5"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="sigma2-fert">
-          <value value="19.648"></value>
+          <value value="13"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="c1-men">
-          <value value="0.85"></value>
+          <value value="0.8"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="mu-men">
-          <value value="20"></value>
+          <value value="22"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="sigma1-men">
-          <value value="2"></value>
+          <value value="5"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="sigma2-men">
-          <value value="10"></value>
+          <value value="15"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="c1-women">
           <value value="0.9"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="mu-women">
-          <value value="15"></value>
+          <value value="18"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="sigma1-women">
           <value value="5"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="sigma2-women">
-          <value value="2"></value>
+          <value value="8"></value>
         </enumeratedValueSet>
       </constants>
     </experiment>

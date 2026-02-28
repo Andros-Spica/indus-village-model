@@ -210,16 +210,16 @@ to parameters-check1
   if (cdmlt-level = 0)                          [ set cdmlt-level                           8 ]
   if (c1-fert = 0)                              [ set c1-fert                               0.9 ]
   if (c1-women = 0)                             [ set c1-women                              0.9 ]
-  if (c1-men = 0)                               [ set c1-men                                0.85 ]
-  if (mu-fert = 0)                              [ set mu-fert                              15 ]
-  if (mu-women = 0)                             [ set mu-women                             15 ]
-  if (mu-men = 0)                               [ set mu-men                               20 ]
+  if (c1-men = 0)                               [ set c1-men                                0.8 ]
+  if (mu-fert = 0)                              [ set mu-fert                              23 ]
+  if (mu-women = 0)                             [ set mu-women                             18 ]
+  if (mu-men = 0)                               [ set mu-men                               22 ]
   if (sigma1-fert = 0)                          [ set sigma1-fert                           5 ]
   if (sigma1-women = 0)                         [ set sigma1-women                          5 ]
-  if (sigma1-men = 0)                           [ set sigma1-men                            2 ]
-  if (sigma2-fert = 0)                          [ set sigma2-fert                           2 ]
-  if (sigma2-women = 0)                         [ set sigma2-women                          2 ]
-  if (sigma2-men = 0)                           [ set sigma2-men                           10 ]
+  if (sigma1-men = 0)                           [ set sigma1-men                            5 ]
+  if (sigma2-fert = 0)                          [ set sigma2-fert                          13 ]
+  if (sigma2-women = 0)                         [ set sigma2-women                          8 ]
+  if (sigma2-men = 0)                           [ set sigma2-men                           15 ]
 
   if (carrying-capacity = 0)                    [ set carrying-capacity                   200 ]
   if (density-effect-scaling-factor = 0)        [ set density-effect-scaling-factor         0.1 ]
@@ -240,21 +240,23 @@ to parameters-to-default
 
   set initial-num-households               25
 
+  set coale-demeny-region                 "west"
   set cdmlt-level                           8
 
   set c1-fert                               0.9
-  set mu-fert                              15
+  set mu-fert                              23
   set sigma1-fert                           5
+  set sigma2-fert                          13
 
   set c1-women                              0.9
-  set mu-women                             15
-  set sigma2-women                          2
+  set mu-women                             18
   set sigma1-women                          5
+  set sigma2-women                          8
 
-  set c1-men                                0.85
-  set mu-men                               20
-  set sigma1-men                            2
-  set sigma2-men                           10
+  set c1-men                                0.8
+  set mu-men                               22
+  set sigma1-men                            5
+  set sigma2-men                           15
 
   set household-initial-age-distribution   "0 30"
   set max-couple-count-distribution        "1 6"
@@ -1416,7 +1418,7 @@ to load-experiment
   ;;; this procedure loads the values of each (explored) parameter from a csv file.
   ;;; Note that the setup will use the value set by the user for any other parameter (e.g. scenario).
 
-  let FilePath "experiments//v1.1//" ;;; create folders in the model's directory before trying to load experiments
+  let FilePath "analysis//experiments//v1.2//" ;;; create folders in the model's directory before trying to load experiments
   let filename (word FilePath exp-number ".txt")
   file-open filename
   while [not file-at-end?]
@@ -1457,7 +1459,7 @@ end
 
 to export-households
 
-  let FilePath "output//"
+  let FilePath "analysis//simdata//v1.2.1//hh//"
 
   file-open (word FilePath behaviorspace-experiment-name behaviorspace-run-number "_households.csv")
 
@@ -2110,7 +2112,7 @@ mu-fert
 17.202
 0.001
 1
-(default: 15)
+23)
 HORIZONTAL
 
 BUTTON
