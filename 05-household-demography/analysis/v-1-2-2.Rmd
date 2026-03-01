@@ -1,5 +1,5 @@
 ---
-title: "Household Demography model: sensitivity analysis on base model (v.1.1)"
+title: "Household Demography model: sensitivity analysis on fully distributed density-dependent (v.1.2.1 and v.1.2.2)"
 output: html_notebook
 ---
 
@@ -16,7 +16,7 @@ library(randomForest)
 ```
 
 ```{r}
-plotDirectory <- "plots/v11_"
+plotDirectory <- "plots/v121-2_"
 plot_file_format <- c("png", "eps")[1] # modify index number to change format
 ```
 
@@ -25,7 +25,7 @@ plot_file_format <- c("png", "eps")[1] # modify index number to change format
 ### Generate parameter values with Sobol Sampling
 
 ```{r}
-sobol_parameter_sample_dataFileName <- "data/v11_sobol_parameter_values.RData"
+sobol_parameter_sample_dataFileName <- "data/v122_sobol_parameter_values.RData"
 
 sobol_parameter_ranges <- list(
   `initial-num-households` = c(2, 50),         
@@ -46,7 +46,10 @@ sobol_parameter_ranges <- list(
   `c1-men` = c(0, 1),
   `mu-men` = c(15, 40), 
   `sigma1-men` = c(1, 20), 
-  `sigma2-men` = c(1, 20)
+  `sigma2-men` = c(1, 20),
+  `carrying-capacity` = c(100, 10000),
+  `density-effect-scaling-factor` = c(0.01, 0.5),
+  `labour-demand-per-capita` = c(0.2, 0.8)
 )
 ```
 
@@ -90,7 +93,10 @@ params_sobol <- data.frame(
   `c1-men` = get_values_from_sobol(16),
   `mu-men` = get_values_from_sobol(17),
   `sigma1-men` = get_values_from_sobol(18),
-  `sigma2-men` = get_values_from_sobol(19)
+  `sigma2-men` = get_values_from_sobol(19),
+  `carrying-capacity` = get_values_from_sobol(20),
+  `density-effect-scaling-factor` = get_values_from_sobol(21),
+  `labour-demand-per-capita` = get_values_from_sobol(22)
 )
 
 head(params_sobol)
@@ -125,12 +131,12 @@ Saving parameter configurations (experiments) in separate files:
 
 ```{r, eval=FALSE}
 save_experiment <- function(experiment_df, experiment_row, version_name) {
-  write(paste(unlist(experiment_df[experiment_row,], use.names = FALSE)), 
+  write(paste(unlist(experiment_df[experiment_row,], use.names = FALSE)),
         file = paste0(dirname(getwd()), "/analysis/experiments/", version_name, "/", experiment_row, ".txt"))
 }
 
 for (i in 1:nrow(params_sobol)) {
-  save_experiment(params_sobol, i, "v1.1")
+  save_experiment(params_sobol, i, "v1.2.2")
 }
 ```
 
@@ -140,18 +146,11 @@ for (i in 1:nrow(params_sobol)) {
 
 ### Data loading and preprocessing
 
-Define usable reference to parameter names:
-
-```{r}
-param_names_netlogo <- names(sobol_parameter_ranges)
-param_names_r <- gsub("-", ".", names(sobol_parameter_ranges))
-```
-
 Loading simulation experiments' end states:
 
 ```{r}
-endstates_matri <- read.csv("simdata/v1.1/householdDemography v.1.1 - kinship tabu for new couples exp-endstates-matri-table.csv", skip = 6)
-endstates_patri <- read.csv("simdata/v1.1/householdDemography v.1.1 - kinship tabu for new couples exp-endstates-patri-table.csv", skip = 6)
+endstates_matri <- read.csv("simdata/v1.2/household-demography-main_density exp-endstates-matri-table.csv", skip = 6)
+endstates_patri <- read.csv("simdata/v1.2/household-demography-main_density exp-endstates-patri-table.csv", skip = 6)
 ```
 
 Preprocess dataset adapting from NetLogo'S specific format. Categorise end states according to whether populations get extinct, survive and/or grow within the maximum number of simulation steps (`max-iterations`).
@@ -175,7 +174,20 @@ extract_values_from_NetLogo_list <- function(char_vector) {
   )
 }
 
-preprocess_params <- function(endstate_df) {
+set_survival_category <- function(population_count) {
+  survival_category <- ""
+  if (population_count > 0) {
+    survival_category <- "survival"
+    if (population_count > MAX_POPULATION) {
+      survival_category <- paste0(survival_category, " with growth")
+    }
+  } else {
+    survival_category <- "extinction"
+  }
+  survival_category
+}
+
+preprocess_endstates <- function(endstate_df) {
   household_initial_age_distribution_range <- extract_values_from_NetLogo_list(endstate_df$household.initial.age.distribution)
   max_couple_count_distribution_range <- extract_values_from_NetLogo_list(endstate_df$max.couple.count.distribution)
   
@@ -184,27 +196,13 @@ preprocess_params <- function(endstate_df) {
     household_initial_age_distribution_min = household_initial_age_distribution_range[[1]],
     household_initial_age_distribution_max = household_initial_age_distribution_range[[2]],
     max_couple_count_distribution_min = max_couple_count_distribution_range[[1]],
-    max_couple_count_distribution_max = max_couple_count_distribution_range[[2]]
+    max_couple_count_distribution_max = max_couple_count_distribution_range[[2]],
+    survival = sapply(endstate_df$totalIndividuals, set_survival_category)
   )
 }
 
-set_survival_category <- function(endstate_df) {
-  endstate_df |>
-    mutate(
-      survival = case_when(
-        totalIndividuals <= 0 ~ "extinction",
-        totalIndividuals > MAX_POPULATION ~ "survival with growth",
-        TRUE ~ "survival"
-      )
-    )
-}
-
-endstates_matri <- endstates_matri |>
-  preprocess_params() |>
-  set_survival_category()
-endstates_patri <- endstates_patri |>
-  preprocess_params() |>
-  set_survival_category()
+endstates_matri <- preprocess_endstates(endstates_matri)
+endstates_patri <- preprocess_endstates(endstates_patri)
 ```
 
 ### Overview of simulation results (population size)
@@ -238,7 +236,7 @@ extract_age_structure <- function(char_value) {
 }
 
 build_age_structure_df <- function(endstate_df, selected_case = 500, max_age = 110) {
-  survival_cases <- endstate_df |> filter(survival != "extinction")
+  survival_cases <- endstate_df %>% filter(survival != "extinction")
   
   age_structure_men <- extract_age_structure(survival_cases[selected_case, "menAgeStructure"])
   age_structure_women <- extract_age_structure(survival_cases[selected_case, "womenAgeStructure"])
@@ -251,13 +249,13 @@ build_age_structure_df <- function(endstate_df, selected_case = 500, max_age = 1
   )
   
   # Bin ages into groups (5-year bins, adjust as needed)
-  age_structure_df |>
+  age_structure_df %>%
     mutate(age_group = cut(age, breaks = seq(0, max_age, 5), right = FALSE))
 }
 
 summarise_age_structure_df <- function(age_structure_df) {
-  age_structure_df |>
-    count(sex, age_group) |> # Summarize counts per age group and sex
+  age_structure_df %>%
+    count(sex, age_group) %>% # Summarize counts per age group and sex
     mutate(count = ifelse(sex == "Male", -n, n)) # For pyramid: make men negative
 }
 ```
@@ -339,15 +337,15 @@ grid.arrange(grobs = c(plot_1, plot_2), ncol = 2, widths = c(1, 1.2))
 Calculate the Peristera-Kostaki parameter ranges associated to survival:
 ```{r}
 compute_param_envelope <- function(param_df, low=0.025, high=0.975){
-  apply(param_df, 2, quantile, probs = c(low, high), na.rm=TRUE) |>
-    t() |> as.data.frame() #|> rename(lower = `2.5%`, upper = `97.5%`)
+  apply(param_df, 2, quantile, probs = c(low, high), na.rm=TRUE) %>%
+    t() %>% as.data.frame() #%>% rename(lower = `2.5%`, upper = `97.5%`)
 }
 
 compute_survival_param_space <- function(endstate_df, param_names) {
-  compute_param_envelope(endstate_df |> filter(survival != "extinction") |> select(all_of(param_names)))
+  compute_param_envelope(endstate_df %>% filter(survival != "extinction") %>% select(all_of(param_names)))
 }
 
-param_names_pk <- param_names_r[7:19]
+param_names_pk <- gsub("-", ".", names(sobol_parameter_ranges)[7:19])
 
 survival_param_space_matri <- compute_survival_param_space(endstates_matri, param_names_pk)
 survival_param_space_patri <- compute_survival_param_space(endstates_patri, param_names_pk)
@@ -366,13 +364,20 @@ knitr::kable(survival_param_space_patri)
 ### Identifying relevant factors of survival
 
 ```{r}
+param_names <- c("initial.num.households", 
+                 "household_initial_age_distribution_min",
+                 "household_initial_age_distribution_max",
+                 "max_couple_count_distribution_min",
+                 "max_couple_count_distribution_max",
+                 param_names_pk)
+
 covert_to_long_by_param <- function(df, param_names) {
-  df |>
-    pivot_longer(cols = all_of(param_names)) |>
+  df %>%
+    pivot_longer(cols = all_of(param_names)) %>%
     mutate(name = factor(name, levels = param_names))  # Preserve order
 }
-endstates_matri_long <- covert_to_long_by_param(endstates_matri, param_names_r)
-endstates_patri_long <- covert_to_long_by_param(endstates_patri, param_names_r)
+endstates_matri_long <- covert_to_long_by_param(endstates_matri, param_names)
+endstates_patri_long <- covert_to_long_by_param(endstates_patri, param_names)
 ```
 
 ```{r}
@@ -411,7 +416,7 @@ Train a Random Forest model to assess parameter importance for each dataset:
 
 ```{r}
 run_rf_for_totalIndividuals <- function(endstates_df, param_names, seed = 123) {
-  endstates_df <- endstates_df |> select(all_of(c(param_names, "totalIndividuals")))
+  endstates_df <- endstates_df %>% select(all_of(c(param_names, "totalIndividuals")))
   
   # Train Random Forest to predict simulation output
   set.seed(seed)
@@ -420,12 +425,12 @@ run_rf_for_totalIndividuals <- function(endstates_df, param_names, seed = 123) {
 ```
 
 ```{r}
-rf_matri <- run_rf_for_totalIndividuals(endstates_matri, param_names_r)
+rf_matri <- run_rf_for_totalIndividuals(endstates_matri, param_names)
 print(rf_matri)
 ```
 
 ```{r}
-rf_patri <- run_rf_for_totalIndividuals(endstates_patri, param_names_r)
+rf_patri <- run_rf_for_totalIndividuals(endstates_patri, param_names)
 print(rf_patri)
 ```
 
@@ -501,24 +506,24 @@ This parameter has very small positive effect on population survival:
 
 ```{r}
 cat("matri | extinct |")
-endstates_matri |>
-  filter(totalIndividuals == 0) |>
-  select(initial.num.households) |>
+endstates_matri %>%
+  filter(totalIndividuals == 0) %>%
+  select(initial.num.households) %>%
   summary()
 cat("matri | survive |")
-endstates_matri |>
-  filter(totalIndividuals > 0) |>
-  select(initial.num.households) |>
+endstates_matri %>%
+  filter(totalIndividuals > 0) %>%
+  select(initial.num.households) %>%
   summary()
 cat("patri | extinct |")
-endstates_patri |>
-  filter(totalIndividuals == 0) |>
-  select(initial.num.households) |>
+endstates_patri %>%
+  filter(totalIndividuals == 0) %>%
+  select(initial.num.households) %>%
   summary()
 cat("patri | survive |")
-endstates_patri |>
-  filter(totalIndividuals > 0) |>
-  select(initial.num.households) |>
+endstates_patri %>%
+  filter(totalIndividuals > 0) %>%
+  select(initial.num.households) %>%
   summary()
 ```
 
@@ -534,24 +539,24 @@ Coale-Demeny Life Tables Model level parameter has great effect:
 
 ```{r}
 cat("matri | extinct |")
-endstates_matri |>
-  filter(totalIndividuals == 0) |>
-  select(cdmlt.level) |>
+endstates_matri %>%
+  filter(totalIndividuals == 0) %>%
+  select(cdmlt.level) %>%
   summary()
 cat("matri | survive |")
-endstates_matri |>
-  filter(totalIndividuals > 0) |>
-  select(cdmlt.level) |>
+endstates_matri %>%
+  filter(totalIndividuals > 0) %>%
+  select(cdmlt.level) %>%
   summary()
 cat("patri | extinct |")
-endstates_patri |>
-  filter(totalIndividuals == 0) |>
-  select(cdmlt.level) |>
+endstates_patri %>%
+  filter(totalIndividuals == 0) %>%
+  select(cdmlt.level) %>%
   summary()
 cat("patri | survive |")
-endstates_patri |>
-  filter(totalIndividuals > 0) |>
-  select(cdmlt.level) |>
+endstates_patri %>%
+  filter(totalIndividuals > 0) %>%
+  select(cdmlt.level) %>%
   summary()
 ```
 
@@ -575,15 +580,12 @@ table(endstates_patri$coale.demeny.region, endstates_patri$totalIndividuals > 0)
 All have a visible effect, but particularly c1.fert and sigma1.fert. 
 
 ```{r}
-layout(matrix(1:4, nrow = 1, byrow = F))
+layout(matrix(1:8, nrow = 4, byrow = F))
 boxplot(endstates_matri$c1.fert ~ (endstates_matri$totalIndividuals > 0), main = "matri\nc1.fert")
 boxplot(endstates_matri$mu.fert ~ (endstates_matri$totalIndividuals > 0), main = "mu.fert")
 boxplot(endstates_matri$sigma1.fert ~ (endstates_matri$totalIndividuals > 0), main = "sigma1.fert")
 boxplot(endstates_matri$sigma2.fert ~ (endstates_matri$totalIndividuals > 0), main = "sigma2.fert")
-```
 
-```{r}
-layout(matrix(1:4, nrow = 1, byrow = F))
 boxplot(endstates_patri$c1.fert ~ (endstates_patri$totalIndividuals > 0), main = "patri\nc1.fert")
 boxplot(endstates_patri$mu.fert ~ (endstates_patri$totalIndividuals > 0), main = "mu.fert")
 boxplot(endstates_patri$sigma1.fert ~ (endstates_patri$totalIndividuals > 0), main = "sigma1.fert")
@@ -612,7 +614,7 @@ boxplot(endstates_patri$acceptable.kinship.degree.for.couples ~ (endstates_patri
 All nuptiality parameters for both men and women present a small, yet apparently consistent effect. c1 and sigma parameters have a positive effect while mu has a smaller negative effect.
 
 ```{r}
-layout(matrix(1:8, nrow = 2, byrow = F))
+layout(matrix(1:16, nrow = 8, byrow = F))
 boxplot(endstates_matri$c1.women ~ (endstates_matri$totalIndividuals > 0), main = "matri\nc1.women")
 boxplot(endstates_matri$mu.women ~ (endstates_matri$totalIndividuals > 0), main = "mu.women")
 boxplot(endstates_matri$sigma1.women ~ (endstates_matri$totalIndividuals > 0), main = "sigma1.women")
@@ -621,10 +623,7 @@ boxplot(endstates_matri$c1.men ~ (endstates_matri$totalIndividuals > 0), main = 
 boxplot(endstates_matri$mu.men ~ (endstates_matri$totalIndividuals > 0), main = "mu.men")
 boxplot(endstates_matri$sigma1.men ~ (endstates_matri$totalIndividuals > 0), main = "sigma1.men")
 boxplot(endstates_matri$sigma2.men ~ (endstates_matri$totalIndividuals > 0), main = "sigma2.men")
-```
 
-```{r}
-layout(matrix(1:8, nrow = 2, byrow = F))
 boxplot(endstates_patri$c1.women ~ (endstates_patri$totalIndividuals > 0), main = "patri\nc1.women")
 boxplot(endstates_patri$mu.women ~ (endstates_patri$totalIndividuals > 0), main = "mu.women")
 boxplot(endstates_patri$sigma1.women ~ (endstates_patri$totalIndividuals > 0), main = "sigma1.women")
@@ -644,9 +643,9 @@ hist(endstates_patri$X.step.[endstates_patri$totalIndividuals > 0], main = "patr
 ```
 
 ```{r}
-endstates_matri_long_survived <- endstates_matri_long |>
+endstates_matri_long_survived <- endstates_matri_long %>%
   filter(totalIndividuals > 0)
-endstates_patri_long_survived <- endstates_patri_long |>
+endstates_patri_long_survived <- endstates_patri_long %>%
   filter(totalIndividuals > 0)
 ```
 
@@ -684,21 +683,23 @@ knitr::include_graphics(plotName_patri)
 
 ## Stochasticity and trajectory variation
 
-### Using a fixed parameter setting
+>Run experiments in NetLogo Behaviour Space using parameter configurations where populations tend to survive, according to the exploration above.
 
->Run simulations in NetLogo Behaviour Space using the same parameter configuration, except `residence-rule`, and varying `SEED`.
+```{r}
+endstates_matri <- read.csv("simdata/v1.1/householdDemography v.1.1 - kinship tabu for new couples exp-endstates-matri-table.csv", skip = 6)
+```
 
 Loading simulation experiments' end states:
 
 ```{r}
-#trajectories_v11 <- read.csv("simdata/v1.1/householdDemography v.1.1 - kinship tabu for new couples exp-trajectories-table.csv", skip = 6)
-trajectories_v11 <- read.csv("simdata/v1.1/household-demography-main exp-trajectories-table.csv", skip = 6)
+trajectories_v11 <- read.csv("simdata/v1.1/householdDemography v.1.1 - kinship tabu for new couples exp-trajectories-table.csv", skip = 6)
+trajectories_v122 <- read.csv("simdata/v1.2.2/householdDemography v.1.2.2 - mortality regulated by density with weighted k and labour exp-trajectories-table.csv", skip = 6)
 ```
 
-Preprocess dataset adapting from NetLogo'S specific format. Categorise trajectories according to whether populations get extinct, survive and/or grow within the maximum number of simulation steps (`max-iterations`).
+Preprocess dataset adapting from NetLogo'S specific format. Categorise end states according to whether populations get extinct, survive and/or grow within the maximum number of simulation steps (`max-iterations`).
 
 ```{r}
-MAX_POPULATION = trajectories_v11$max.population[1]
+MAX_POPULATION = endstates_matri$max.population[1]
 
 extract_values_from_NetLogo_list <- function(char_vector) {
   # Remove brackets and split each string into two parts
@@ -716,49 +717,103 @@ extract_values_from_NetLogo_list <- function(char_vector) {
   )
 }
 
-preprocess_params <- function(trajectories_df) {
+set_survival_category <- function(population_count) {
+  survival_category <- ""
+  if (population_count > 0) {
+    survival_category <- "survival"
+    if (population_count > MAX_POPULATION) {
+      survival_category <- paste0(survival_category, " with growth")
+    }
+  } else {
+    survival_category <- "extinction"
+  }
+  survival_category
+}
+
+preprocess_endstates <- function(trajectories_df) {
   household_initial_age_distribution_range <- extract_values_from_NetLogo_list(trajectories_df$household.initial.age.distribution)
-  max_couple_count_distribution_range <- extract_values_from_NetLogo_list(trajectories_df$max.couple.count.distribution)
+  max_couple_count_distribution_range <- extract_values_from_NetLogo_list(endstate_df$max.couple.count.distribution)
   
   cbind(
     trajectories_df,
     household_initial_age_distribution_min = household_initial_age_distribution_range[[1]],
     household_initial_age_distribution_max = household_initial_age_distribution_range[[2]],
     max_couple_count_distribution_min = max_couple_count_distribution_range[[1]],
-    max_couple_count_distribution_max = max_couple_count_distribution_range[[2]]
+    max_couple_count_distribution_max = max_couple_count_distribution_range[[2]],
+    survival = sapply(trajectories_df$totalIndividuals, set_survival_category)
   )
 }
 
-set_endstate_survival_category <- function(trajectories_df) {
-  trajectories_df |>
-    group_by(X.run.number.) |>
-    mutate(
-      endstate_total_individuals = dplyr::last(totalIndividuals),
-      survival = case_when(
-        endstate_total_individuals <= 0 ~ "extinction",
-        endstate_total_individuals > MAX_POPULATION ~ "survival with growth",
-        TRUE ~ "survival"
-      )
-    ) |>
-    ungroup()
+trajectories_matri <- preprocess_endstates(trajectories_matri)
+trajectories_patri <- preprocess_endstates(trajectories_patri)
+```
+
+Process parameters in list format in NetLogo:
+
+```{r}
+extract_values_from_NetLogo_list <- function(char_vector) {
+  # Remove brackets and split each string into two parts
+  split_values <- gsub("\\[|\\]", "", char_vector) |>
+    strsplit(" ")
+
+  # Convert to numeric vectors
+  first_values <- sapply(split_values, function(x) as.numeric(x[1]))
+  second_values <- sapply(split_values, function(x) as.numeric(x[2]))
+
+  # Return as a named list
+  list(
+    first = first_values,
+    second = second_values
+  )
 }
 
-trajectories_v11 <- trajectories_v11 |>
-  preprocess_params() |>
-  set_endstate_survival_category()
+household_initial_age_distribution_range_v11 <- extract_values_from_NetLogo_list(trajectories_v11$household.initial.age.distribution)
+max_couple_count_distribution_range_v11 <- extract_values_from_NetLogo_list(trajectories_v11$max.couple.count.distribution)
+
+household_initial_age_distribution_range_v122 <- extract_values_from_NetLogo_list(trajectories_v122$household.initial.age.distribution)
+max_couple_count_distribution_range_v122 <- extract_values_from_NetLogo_list(trajectories_v122$max.couple.count.distribution)
+
+trajectories_v11 <- cbind(
+  trajectories_v11,
+  household_initial_age_distribution_min = household_initial_age_distribution_range_v11[[1]],
+  household_initial_age_distribution_max = household_initial_age_distribution_range_v11[[2]],
+  max_couple_count_distribution_min = max_couple_count_distribution_range_v11[[1]],
+  max_couple_count_distribution_max = max_couple_count_distribution_range_v11[[2]]
+)
+
+trajectories_v122 <- cbind(
+  trajectories_v122,
+  household_initial_age_distribution_min = household_initial_age_distribution_range_v122[[1]],
+  household_initial_age_distribution_max = household_initial_age_distribution_range_v122[[2]],
+  max_couple_count_distribution_min = max_couple_count_distribution_range_v122[[1]],
+  max_couple_count_distribution_max = max_couple_count_distribution_range_v122[[2]]
+)
 ```
 
 ```{r}
-params_v11 <- trajectories_v11 |> 
-  select(all_of(param_names_r)) |> 
-  distinct() |> 
-  t() |>
+params_indexes <- c(3:21)
+param_names <- names(trajectories_v11)[params_indexes]
+params_v11 <- trajectories_v11 %>% 
+  select(all_of(param_names)) %>% 
+  distinct() %>% 
+  t %>%
   apply(1, unique)
 params_v11
 ```
 
 ```{r}
-plot_name <- file.path(plotDirectory, paste0("trajectories.", plot_file_format))
+params_indexes <- c(3:21, 22:24)
+param_names <- names(trajectories_v122)[params_indexes]
+params_v122 <- trajectories_v122 %>% 
+  select(all_of(param_names)) %>% 
+  distinct() %>% 
+  t %>%
+  apply(1, unique)
+params_v122
+```
+
+```{r}
+plot_name <- file.path(plotDirectory, paste0("HouseholdDemography-trajectories_v11-v122.", plot_file_format))
 
 if (plot_file_format == "png") {
   graphic_scale <- 1
@@ -782,80 +837,34 @@ if (plot_file_format == "png") {
                       )
 }
 
-ggplot(trajectories_v11, aes(x = X.step., y = totalIndividuals, group = X.run.number., color = as.factor(X.run.number.))) +
+p1 <- ggplot(trajectories_v11[trajectories_v11$X.step. < 600,], aes(x = X.step., y = totalIndividuals, group = X.run.number., color = cdmlt.level)) +
   geom_line(linewidth = .1) +
-  facet_wrap(~ residence.rule, scales = "free") +
+  title("v.1.1") +
   xlab("time (years)") +
   ylab("population (individuals)") +
-  #ylim(c(0, MAX_POPULATION)) +
+  ylim(c(0, 7000)) +
   guides(color = "none") +
   theme_minimal() +
   theme(axis.title = element_text(size = 10 * (graphic_scale + axis_title_rescale)),
         axis.text = element_text(size = 10 * (graphic_scale + axis_text_rescale)))
 
-dev.off()
-```
-
-```{r, out.width = "\\textwidth"}
-knitr::include_graphics(plot_name)
-```
-
-### Exploring `cdmlt-level` with a fixed parameter setting
-
->Run simulations in NetLogo Behaviour Space using the same parameter configuration, except `residence-rule`, and varying `cdmlt-level` and `SEED`.
-
-Loading simulation experiments' end states:
-
-```{r}
-trajectories_cdmlt_level <- read.csv("simdata/v1.1/householdDemography v.1.1 - kinship tabu for new couples exp-trajectories_cdmlt-level-table.csv", skip = 6)
-```
-
-Preprocess dataset adapting from NetLogo'S specific format. Categorise trajectories according to whether populations get extinct, survive and/or grow within the maximum number of simulation steps (`max-iterations`).
-
-```{r}
-MAX_POPULATION = trajectories_cdmlt_level$max.population[1]
-
-trajectories_cdmlt_level <- trajectories_cdmlt_level |>
-  preprocess_params() |>
-  set_endstate_survival_category()
-```
-
-```{r}
-plot_name <- file.path(plotDirectory, paste0("trajectories_cdmlt-level.", plot_file_format))
-
-if (plot_file_format == "png") {
-  graphic_scale <- 1
-  legend_text_rescale <- legend_key_rescale <- graphic_scale * -0.5
-  axis_text_rescale <- axis_title_rescale <- graphic_scale * -0.5
-
-  png(plot_name, width = graphic_scale * 1600, height = graphic_scale * 800, res = 300, pointsize = 4)
-} else if (plot_file_format == "eps") {
-  graphic_scale = 1.2
-  # font_rescale = -0.2
-  # axis_text_rescale = -0.1
-  # margin_text_rescale = -0.5
-
-  extrafont::loadfonts(device = "postscript")
-  grDevices::cairo_ps(filename = plot_name ,
-                      pointsize = 12,
-                      width = graphic_scale * 8,
-                      height = graphic_scale * 4,
-                      onefile = FALSE,
-                      family = "sans"
-                      )
-}
-
-ggplot(trajectories_cdmlt_level, aes(x = X.step., y = totalIndividuals, group = X.run.number., color = as.factor(cdmlt.level))) +
+p2 <- ggplot(trajectories_v122[trajectories_v122$X.step. < 600,], aes(x = X.step., y = totalIndividuals, group = X.run.number., color = cdmlt.level)) +
   geom_line(linewidth = .1) +
-  facet_wrap(~ residence.rule, scales = "free") +
+  geom_hline(yintercept = as.numeric(params_v122$par_carrying.capacity)) +
+  title("v.1.2.2") +
   xlab("time (years)") +
-  ylab("population (individuals)") +
-  #ylim(c(0, MAX_POPULATION)) +
-  guides(color = guide_legend(title = "cdmlt-level")) +
+  ylab("") +
+  ylim(c(0, 7000)) +
+  guides(color = guide_legend(title="Coale-Demeny\nLife Table Level", override.aes = list(linewidth = 2), reverse = TRUE)) +
   theme_minimal() +
   theme(axis.title = element_text(size = 10 * (graphic_scale + axis_title_rescale)),
         axis.text = element_text(size = 10 * (graphic_scale + axis_text_rescale)),
-        legend.position = "bottom")
+        legend.title = element_text(size = 10 * (graphic_scale + legend_text_rescale)),
+        legend.text = element_text(size = 10 * (graphic_scale + legend_text_rescale)),
+        legend.key.width = unit(2 * (graphic_scale + legend_key_rescale), 'lines'),
+        legend.key.height = unit(2 * (graphic_scale + legend_key_rescale), 'lines'))
+
+p3 <- grid.arrange(p1, p2, ncol = 2, widths = c(4, 5.1))
 
 dev.off()
 ```
@@ -864,66 +873,3 @@ dev.off()
 knitr::include_graphics(plot_name)
 ```
 
-### Exploring `c1-fert` Using a fixed parameter setting
-
->Run simulations in NetLogo Behaviour Space using the same parameter configuration, except `residence-rule`, and varying `c1-fert` and `SEED`.
-
-Loading simulation experiments' end states:
-
-```{r}
-trajectories_c1_fert <- read.csv("simdata/v1.1/householdDemography v.1.1 - kinship tabu for new couples exp-trajectories_c1-fert-table.csv", skip = 6)
-```
-
-Preprocess dataset adapting from NetLogo'S specific format. Categorise trajectories according to whether populations get extinct, survive and/or grow within the maximum number of simulation steps (`max-iterations`).
-
-```{r}
-MAX_POPULATION = trajectories_c1_fert$max.population[1]
-
-trajectories_c1_fert <- trajectories_c1_fert |>
-  preprocess_params() |>
-  set_endstate_survival_category()
-```
-
-```{r}
-plot_name <- file.path(plotDirectory, paste0("trajectories_c1_fert.", plot_file_format))
-
-if (plot_file_format == "png") {
-  graphic_scale <- 1
-  legend_text_rescale <- legend_key_rescale <- graphic_scale * -0.5
-  axis_text_rescale <- axis_title_rescale <- graphic_scale * -0.5
-
-  png(plot_name, width = graphic_scale * 1600, height = graphic_scale * 800, res = 300, pointsize = 4)
-} else if (plot_file_format == "eps") {
-  graphic_scale = 1.2
-  # font_rescale = -0.2
-  # axis_text_rescale = -0.1
-  # margin_text_rescale = -0.5
-
-  extrafont::loadfonts(device = "postscript")
-  grDevices::cairo_ps(filename = plot_name ,
-                      pointsize = 12,
-                      width = graphic_scale * 8,
-                      height = graphic_scale * 4,
-                      onefile = FALSE,
-                      family = "sans"
-                      )
-}
-
-ggplot(trajectories_c1_fert, aes(x = X.step., y = totalIndividuals, group = X.run.number., color = as.factor(c1.fert))) +
-  geom_line(linewidth = .1) +
-  facet_wrap(~ residence.rule, scales = "free") +
-  xlab("time (years)") +
-  ylab("population (individuals)") +
-  #ylim(c(0, MAX_POPULATION)) +
-  guides(color = guide_legend(title = "c1-fert")) +
-  theme_minimal() +
-  theme(axis.title = element_text(size = 10 * (graphic_scale + axis_title_rescale)),
-        axis.text = element_text(size = 10 * (graphic_scale + axis_text_rescale)),
-        legend.position = "bottom")
-
-dev.off()
-```
-
-```{r, out.width = "\\textwidth"}
-knitr::include_graphics(plot_name)
-```
