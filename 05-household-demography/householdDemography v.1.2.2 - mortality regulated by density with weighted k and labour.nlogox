@@ -228,7 +228,8 @@ to parameters-check1
   if (sigma2-men = 0)                           [ set sigma2-men                           15 ]
 
   if (carrying-capacity = 0)                    [ set carrying-capacity                   200 ]
-  if (density-effect-scaling-factor = 0)        [ set density-effect-scaling-factor         0.1 ]
+  if (density-effect-scaling-factor = 0)        [ set density-effect-scaling-factor         0.05 ]
+  if (labour-demand-per-capita = 0)             [ set labour-demand-per-capita              0.45 ]
 
   ;;; string type inputs (vector of values)
   if (par_household-initial-age-distribution = 0 or
@@ -268,7 +269,8 @@ to parameters-to-default
   set par_max-couple-count-distribution        "1 6"
 
   set carrying-capacity                   200
-  set density-effect-scaling-factor         0.1
+  set density-effect-scaling-factor         0.05
+  set labour-demand-per-capita              0.45
 
 end
 
@@ -1748,7 +1750,7 @@ set-plot-y-range -0.001 (precision (max fertilityTable + 0.001) 4)</update>
     </plot>
     <button x="535" y="585" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="109" display="refresh tables">build-demography-tables
 update-plots</button>
-    <slider x="209" step="0.01" y="523" max="1" width="252" display="par_labour-demand-per-capita" height="50" min="0" direction="Horizontal" default="0.6" variable="par_labour-demand-per-capita" units="indiv."></slider>
+    <slider x="209" step="0.01" y="523" max="1" width="252" display="par_labour-demand-per-capita" height="50" min="0" direction="Horizontal" default="0.45" variable="par_labour-demand-per-capita" units="indiv. (default: 0.45)"></slider>
     <slider x="392" step="1" y="408" max="10" width="281" display="par_acceptable-kinship-degree-for-couples" height="50" min="0" direction="Horizontal" default="9.0" variable="par_acceptable-kinship-degree-for-couples"></slider>
     <note x="25" y="386" backgroundDark="0" fontSize="9" width="155" markdown="false" height="18" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">value format: minimum maximum</note>
     <monitor x="209" precision="0" y="402" height="60" fontSize="9" width="186">max-couple-count-distribution</monitor>

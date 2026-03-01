@@ -123,7 +123,8 @@ to parameters-check1
   if (sigma2-men = 0)                           [ set sigma2-men                           15 ]
 
   if (carrying-capacity = 0)                    [ set carrying-capacity                   200 ]
-  if (density-effect-scaling-factor = 0)        [ set density-effect-scaling-factor         0.1 ]
+  if (density-effect-scaling-factor = 0)        [ set density-effect-scaling-factor         0.05 ]
+  if (labour-demand-per-capita = 0)             [ set labour-demand-per-capita              0.45 ]
 
   ;;; string type inputs (vector of values)
   if (par_household-initial-age-distribution = 0 or
@@ -163,7 +164,8 @@ to parameters-to-default
   set par_max-couple-count-distribution        "1 6"
 
   set carrying-capacity                   200
-  set density-effect-scaling-factor         0.1
+  set density-effect-scaling-factor         0.05
+  set labour-demand-per-capita              0.45
 
 end
 

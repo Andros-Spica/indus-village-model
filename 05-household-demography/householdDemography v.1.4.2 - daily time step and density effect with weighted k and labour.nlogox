@@ -272,7 +272,8 @@ to parameters-check1
   if (sigma2-men = 0)                           [ set sigma2-men                           15 ]
 
   if (carrying-capacity = 0)                    [ set carrying-capacity                   200 ]
-  if (density-effect-scaling-factor = 0)        [ set density-effect-scaling-factor         0.05 ]
+  if (density-effect-scaling-factor = 0)        [ set density-effect-scaling-factor         0.1 ]
+  if (labour-demand-per-capita = 0)             [ set labour-demand-per-capita              0.45 ]
 
   if (amenorrhea-period-in-weeks = 0)                    [ set amenorrhea-period-in-weeks                    24 ]
 
@@ -312,7 +313,8 @@ to parameters-to-default
   set amenorrhea-period-in-weeks                    24
 
   set carrying-capacity                   200
-  set density-effect-scaling-factor         0.05
+  set density-effect-scaling-factor         0.1
+  set labour-demand-per-capita              0.45
 
 end
 
@@ -1984,7 +1986,7 @@ set-plot-y-range -0.001 (precision (max fertilityTable + 0.001) 4)</update>
         <update>plot-table fertilityTable</update>
       </pen>
     </plot>
-    <slider x="301" step="0.01" y="563" max="1" width="298" display="par_labour-demand-per-capita" height="50" min="0" direction="Horizontal" default="0.6" variable="par_labour-demand-per-capita" units="indiv."></slider>
+    <slider x="301" step="0.01" y="563" max="1" width="298" display="par_labour-demand-per-capita" height="50" min="0" direction="Horizontal" default="0.45" variable="par_labour-demand-per-capita" units="indiv. (default: 0.45)"></slider>
     <button x="513" y="634" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="109" display="refresh tables">build-demography-tables
 update-plots</button>
     <input x="6" multiline="false" y="371" height="60" variable="par_household-initial-age-distribution" type="string" width="221">0 30</input>

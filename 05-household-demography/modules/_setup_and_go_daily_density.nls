@@ -135,7 +135,7 @@ to parameters-check1
   if (sigma2-men = 0)                           [ set sigma2-men                           15 ]
 
   if (carrying-capacity = 0)                    [ set carrying-capacity                   200 ]
-  if (par_density-effect-scaling-factor = 0)        [ set par_density-effect-scaling-factor         0.05 ]
+  if (par_density-effect-scaling-factor = 0)    [ set par_density-effect-scaling-factor     0.05 ]
 
   if (amenorrhea-period-in-weeks = 0)                    [ set amenorrhea-period-in-weeks                    24 ]
 
@@ -175,7 +175,7 @@ to parameters-to-default
   set amenorrhea-period-in-weeks                    24
 
   set carrying-capacity                   200
-  set par_density-effect-scaling-factor         0.05
+  set par_density-effect-scaling-factor     0.05
 
 end
 

@@ -138,6 +138,7 @@ to parameters-check1
 
   if (carrying-capacity = 0)                    [ set carrying-capacity                   200 ]
   if (density-effect-scaling-factor = 0)        [ set density-effect-scaling-factor         0.05 ]
+  if (labour-demand-per-capita = 0)             [ set labour-demand-per-capita              0.45 ]
 
   if (amenorrhea-period-in-weeks = 0)                    [ set amenorrhea-period-in-weeks                    24 ]
 
@@ -178,6 +179,7 @@ to parameters-to-default
 
   set carrying-capacity                   200
   set density-effect-scaling-factor         0.05
+  set labour-demand-per-capita              0.45
 
 end
 
