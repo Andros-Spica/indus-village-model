@@ -79,9 +79,10 @@ globals
   carrying-capacity-demand        ; number of adult equivalents (units of carrying capacity) that need to be currently sustained
   density-effect-scaling-factor     ; the maximum additional death probability (scaling factor for density-dependent mortality)
   labour-demand-per-capita ; share of labour adult equivalent to sustain one adult equivalent
-  carrying-capacity-effective     ; effective carrying capacity, weighted by the current contribution of available labour
 
   ;;; variables
+  carrying-capacity-effective     ; effective carrying capacity, weighted by the current contribution of available labour
+  
   ;;;; time tracking
   currentYear
   currentDayOfYear

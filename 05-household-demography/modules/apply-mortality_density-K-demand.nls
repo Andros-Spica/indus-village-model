@@ -17,20 +17,20 @@ to hh_update-members-survival
   let dying? hh_whichMembersDying
 
   ; iterate for the members from last to first, eliminating those that should be dying
-  let index (hh_count-members) - 1
+  let memberIndex (hh_count-members) - 1
   repeat hh_count-members
   [
-    if (item index dying?)
+    if (item memberIndex dying?)
     [
       ; add to mortality
-      ifelse (item index hh_membersSex)
+      ifelse (item memberIndex hh_membersSex)
       [ set womenDeaths womenDeaths + 1 ]
       [ set menDeaths menDeaths + 1 ]
 
       if (hh_tellYourStory) [ print (word "Member " memberIndex " from " self " dies with age " (item memberIndex hh_membersAge) ".") ]
-      hh_delete-member index
+      hh_delete-member memberIndex
     ]
-    set index index - 1
+    set memberIndex memberIndex - 1
   ]
 
   hh_update-marriages-after-deaths
