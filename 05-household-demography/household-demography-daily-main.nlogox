@@ -141,14 +141,14 @@ households-own
 ]]></code>
   <widgets>
     <view x="332" wrappingAllowedX="true" y="9" frameRate="30.0" minPycor="-9" height="308" showTickCounter="true" patchSize="16.0" fontSize="10" wrappingAllowedY="true" width="308" tickCounterLabel="ticks" maxPycor="9" updateMode="0" maxPxcor="9" minPxcor="-9"></view>
-    <input x="13" multiline="false" y="111" height="60" variable="SEED" type="number" width="100">10.0</input>
+    <input x="13" multiline="false" y="111" height="60" variable="SEED" type="number" width="100">8.0</input>
     <chooser x="10" y="178" height="60" variable="type-of-experiment" current="0" width="178" display="type-of-experiment">
       <choice type="string" value="user-defined"></choice>
       <choice type="string" value="random"></choice>
       <choice type="string" value="defined by exp-number"></choice>
     </chooser>
-    <input x="118" multiline="false" y="111" height="60" variable="max-iterations" type="number" width="100">2000.0</input>
-    <input x="193" multiline="false" y="178" height="60" variable="exp-number" type="number" width="100">800.0</input>
+    <input x="118" multiline="false" y="111" height="60" variable="max-iterations" type="number" width="100">500.0</input>
+    <input x="193" multiline="false" y="178" height="60" variable="exp-number" type="number" width="100">28.0</input>
     <input x="222" multiline="false" y="111" height="60" variable="max-population" type="number" width="101">10000.0</input>
     <monitor x="50" precision="0" y="50" height="60" fontSize="11" width="100">currentYear</monitor>
     <monitor x="164" precision="0" y="50" height="60" fontSize="11" width="114">currentDayOfYear</monitor>

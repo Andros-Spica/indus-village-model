@@ -75,7 +75,7 @@ end
 
 to-report get-mortality-prob-from-table [ isFemale age ]
 
-  ifelse (ageInYears > length mortalityTable-women)
+  ifelse (age > length mortalityTable-women)
   [
     print (word "WARNING: individual with age higher than 151 (" age ") detected in " self)
     report 1
