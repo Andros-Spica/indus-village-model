@@ -38,6 +38,8 @@ to set-constants
   set maturity-age-in-years 15
 
   set gestation-period-in-days 280 ; 280 (40 weeks)
+  
+  set max-iterations-in-days (max-iterations * year-length-in-days)
 
 end
 
@@ -99,6 +101,10 @@ to set-parameters
     set sigma1-men max (list 1E-6 (random-float mu-men))
     set sigma2-women max (list 1E-6 (random-float (40 - mu-women)))
     set sigma2-men max (list 1E-6 (random-float (40 - mu-men)))
+  ]
+  if (type-of-experiment = "defined by exp-number")
+  [
+    load-experiment
   ]
 
   ; check parameters values
@@ -242,7 +248,9 @@ to go
 
   ; --- stop conditions -------------------------
 
-  if (totalHouseholds = 0)
+  if (totalHouseholds = 0 or
+    ticks = max-iterations-in-days or
+    totalIndividuals > max-population)
   [
     ;if (length behaviorspace-experiment-name > 0 and count households > 0) [ export-households ]
     stop

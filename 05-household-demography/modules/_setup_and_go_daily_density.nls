@@ -108,6 +108,10 @@ to set-parameters
     set carrying-capacity 100 + random-float 900
     set density-effect-scaling-factor 0.05 + random-float 0.1
   ]
+  if (type-of-experiment = "defined by exp-number")
+  [
+    load-experiment
+  ]
 
   ; check parameters values
   parameters-check2
@@ -255,7 +259,9 @@ to go
 
   ; --- stop conditions -------------------------
 
-  if (totalHouseholds = 0)
+  if (totalHouseholds = 0 or
+    ticks = max-iterations or
+    totalIndividuals > max-population)
   [
     ;if (length behaviorspace-experiment-name > 0 and count households > 0) [ export-households ]
     stop

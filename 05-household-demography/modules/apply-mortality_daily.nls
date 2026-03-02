@@ -80,12 +80,19 @@ to-report get-mortality-prob-from-table [ isFemale ageInYears ]
 
   let probDying 0
 
-  ifelse (isFemale)
+  ifelse (ageInYears > length mortalityTable-women)
   [
-    set probDying item ageInYears mortalityTable-women
+    set probDying 1
+    print (word "WARNING: individual with age in years higher than 151 (" ageInYears ") detected in " self)
   ]
   [
-    set probDying item ageInYears mortalityTable-men
+    ifelse (isFemale)
+    [
+      set probDying item ageInYears mortalityTable-women
+    ]
+    [
+      set probDying item ageInYears mortalityTable-men
+    ]
   ]
 
   report probDying

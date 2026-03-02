@@ -4,6 +4,11 @@ to reset-demography-stats-day
   set menBirthsToday 0
   set womenDeathsToday 0
   set menDeathsToday 0
+  
+  set womenInToday 0
+  set menInToday 0
+  set womenOutToday 0
+  set menOutToday 0
 
   set totalWomen 0
   set totalMen 0

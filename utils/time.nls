@@ -5,8 +5,8 @@ to advance-time
   [
     set currentYear currentYear + 1
     set currentDayOfYear 1
-  ]
 
-  carefully [ if (member? true [hh_tellYourStory] of households) [ print (word "A new year starts.") ] ] [ ]
+    carefully [ if (member? true [hh_tellYourStory] of households) [ print (word "A new year starts.") ] ] [ ]
+  ]
 
 end

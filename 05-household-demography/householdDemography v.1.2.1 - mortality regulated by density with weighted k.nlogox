@@ -1217,6 +1217,11 @@ to reset-counters
   set menBirths 0
   set womenDeaths 0
   set menDeaths 0
+  
+  set womenIn 0
+  set menIn 0
+  set womenOut 0
+  set menOut 0
 
 end
 
