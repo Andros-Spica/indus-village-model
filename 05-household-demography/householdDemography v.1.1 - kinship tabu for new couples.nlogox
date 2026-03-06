@@ -693,6 +693,9 @@ to hh_initialise-members
     set hh_membersMarriage lput 0 hh_membersMarriage ; this couple will have the 0 index
   ]
 
+  if (max hh_membersAge >= length fertilityTable)
+  [ print (word "WARNING: Initialisation of individual(s) with age in years equal or higher than " (length fertilityTable) " (" age ") detected in " self ": " hh_membersAge ) ]
+
   if (max hh_membersAge > length fertilityTable)
   [ print (word "WARNING: Initialisation of individual(s) with age in years higher than 151 detected in " self ": " hh_membersAge ) ]
 
@@ -734,7 +737,7 @@ to-report get-initial-marriage-age [ isFemale ]
   ; To avoid errors during setup, we set the marriage age to the mean of the distribution.
   if (age == 100)
   [
-    print (word "WARNING: Initialisation of marriage age forced to mu in " self )
+    print (word "WARNING: Initialisation of marriage age forced to parametric mean (mu) in " self )
     ifelse (isFemale)
     [
       set age mu-women 

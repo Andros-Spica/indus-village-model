@@ -774,6 +774,9 @@ to hh_initialise-members
     set hh_membersAmenorrhea lput 0 hh_membersAmenorrhea
   ]
 
+  if (max hh_membersAge / year-length-in-days >= length fertilityTable )
+  [ print (word "WARNING: Initialisation of individual(s) with age in years higher than " (length fertilityTable) " (" age ") detected in " self ": " hh_membersAge ) ]
+  
   ; calculate offspring and offspring age
   let offspringProb 0
   let i hh_age
@@ -828,6 +831,20 @@ to-report get-initial-marriage-age [ isFemale ]
       set notMarried false
     ]
     set ageInYears ageInYears + 1
+  ]
+
+  ; if the procedure reaches 100 years old, it is likely that the parameters of the nuptiality table are not well calibrated
+  ; To avoid errors during setup, we set the marriage age to the mean of the distribution.
+  if (ageInYears == 100)
+  [
+    print (word "WARNING: Initialisation of marriage age forced to parametric mean (mu) in " self )
+    ifelse (isFemale)
+    [
+      set ageInYears mu-women 
+    ]
+    [
+      set ageInYears mu-men
+    ]
   ]
 
   report (ageInYears * year-length-in-days) + (random year-length-in-days)

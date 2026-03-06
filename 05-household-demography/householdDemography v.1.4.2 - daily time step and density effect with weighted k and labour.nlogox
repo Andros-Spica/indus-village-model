@@ -857,6 +857,20 @@ to-report get-initial-marriage-age [ isFemale ]
     set ageInYears ageInYears + 1
   ]
 
+  ; if the procedure reaches 100 years old, it is likely that the parameters of the nuptiality table are not well calibrated
+  ; To avoid errors during setup, we set the marriage age to the mean of the distribution.
+  if (ageInYears == 100)
+  [
+    print (word "WARNING: Initialisation of marriage age forced to parametric mean (mu) in " self )
+    ifelse (isFemale)
+    [
+      set ageInYears mu-women 
+    ]
+    [
+      set ageInYears mu-men
+    ]
+  ]
+
   report (ageInYears * year-length-in-days) + (random year-length-in-days)
 
 end
