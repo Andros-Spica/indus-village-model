@@ -781,6 +781,9 @@ to hh_initialise-members
     set hh_membersAmenorrhea lput 0 hh_membersAmenorrhea
   ]
 
+  if (max hh_membersAge >= length fertilityTable)
+  [ print (word "WARNING: Initialisation of individual(s) with age in years higher than 151 detected in " self ": " hh_membersAge ) ]
+  
   ; calculate offspring and offspring age
   let offspringProb 0
   let i hh_age
@@ -791,8 +794,8 @@ to hh_initialise-members
     [
       ; get the probability of the couple having descendence for a past day i
       ; i.e. woman fertility at the corresponding age
-      set offspringProb get-fertility-of-day ((item 0 hh_membersAge) - i)
-
+      let offspringProb get-fertility-from-table ((item 0 hh_membersAge) - i)
+      
       ; test the fertility probability and mark gestation
       if (random-float 1 < offspringProb)
       [
@@ -830,11 +833,25 @@ to-report get-initial-marriage-age [ isFemale ]
 
   while [notMarried AND ageInYears < 100]
   [
-    if ((get-nuptiality isFemale ageInYears) > random-float 1)
+    if ((get-nuptiality-prob-from-table isFemale ageInYears) > random-float 1)
     [
       set notMarried false
     ]
     set ageInYears ageInYears + 1
+  ]
+
+  ; if the procedure reaches 100 years old, it is likely that the parameters of the nuptiality table are not well calibrated
+  ; To avoid errors during setup, we set the marriage age to the mean of the distribution.
+  if (ageInYears == 100)
+  [
+    print (word "WARNING: Initialisation of marriage ageInYears forced to mu in " self )
+    ifelse (isFemale)
+    [
+      set ageInYears mu-women 
+    ]
+    [
+      set ageInYears mu-men
+    ]
   ]
 
   report (ageInYears * year-length-in-days) + (random year-length-in-days)
@@ -1266,7 +1283,7 @@ to-report get-fertility-of-day [ ageInDays ]
 
   let ageInYears get-age-in-years-old ageInDays
 
-  let probPregnancy (get-fertility ageInYears)
+  let probPregnancy (get-fertility-from-table ageInYears)
 
   set probPregnancy 1 - (1 - probPregnancy) ^ (1 / year-length-in-days)
 
@@ -1274,17 +1291,21 @@ to-report get-fertility-of-day [ ageInDays ]
 
 end
 
-to-report get-fertility [ ageInYears ]
+to-report get-fertility-from-table [ ageInYears ]
+  
+  let probPregnancy 0
 
-  report (item ageInYears fertilityTable)
+  if (ageInYears < length fertilityTable) 
+  [ set probPregnancy (item ageInYears fertilityTable) ]
+  ; In very rare cases, under certain parameter values, the woman could be initialise as very (impossibly) old.
 
-end
+  report probPregnancy
 
 to-report get-nuptiality-of-day [ isFemale ageInDays ]
 
   let ageInYears get-age-in-years-old ageInDays
 
-  let probMarry (get-nuptiality isFemale ageInYears)
+  let probMarry (get-nuptiality-prob-from-table isFemale ageInYears)
 
   set probMarry 1 - (1 - probMarry) ^ (1 / year-length-in-days)
 
@@ -1292,19 +1313,22 @@ to-report get-nuptiality-of-day [ isFemale ageInDays ]
 
 end
 
-to-report get-nuptiality [ isFemale ageInYears ]
+to-report get-nuptiality-prob-from-table [ isFemale ageInYears ]
 
-  let probMarry 0
+  let probMarrying 0
 
-  ifelse (isFemale)
+  if (ageInYears < length nuptialityTable-women) 
   [
-    set probMarry item ageInYears nuptialityTable-women
+    ifelse (isFemale)
+    [
+      set probMarrying item ageInYears nuptialityTable-women
+    ]
+    [
+      set probMarrying item ageInYears nuptialityTable-men
+    ]
   ]
-  [
-    set probMarry item ageInYears nuptialityTable-men
-  ]
-
-  report probMarry
+  
+  report probMarrying
 
 end
 
@@ -1322,7 +1346,7 @@ to-report get-mortality-of-day [ isFemale ageInDays ]
 
   let ageInYears get-age-in-years-old ageInDays
 
-  let probDying (get-mortality isFemale ageInYears)
+  let probDying (get-mortality-prob-from-table isFemale ageInYears)
 
   set probDying 1 - (1 - probDying) ^ (1 / year-length-in-days)
 
@@ -1330,16 +1354,22 @@ to-report get-mortality-of-day [ isFemale ageInDays ]
 
 end
 
-to-report get-mortality [ isFemale ageInYears ]
+to-report get-mortality-prob-from-table [ isFemale age ]
 
-  let probDying 0
+  let probDying 1
 
-  ifelse (isFemale)
+  ifelse (age < length nuptialityTable-women) 
   [
-    set probDying item ageInYears mortalityTable-women
+    ifelse (isFemale)
+    [
+      set probDying item age mortalityTable-women
+    ]
+    [
+      set probDying item age mortalityTable-men
+    ]
   ]
   [
-    set probDying item ageInYears mortalityTable-men
+    print (word "WARNING: individual with age higher than " (length nuptialityTable-women) " (" age ") detected in " self)
   ]
 
   report probDying

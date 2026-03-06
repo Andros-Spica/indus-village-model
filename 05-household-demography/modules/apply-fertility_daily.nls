@@ -83,7 +83,13 @@ to-report get-fertility-of-day [ ageInDays ]
 end
 
 to-report get-fertility-from-table [ ageInYears ]
+  
+  let probPregnancy 0
 
-  report (item ageInYears fertilityTable)
+  if (ageInYears < length fertilityTable) 
+  [ set probPregnancy (item ageInYears fertilityTable) ]
+  ; In very rare cases, under certain parameter values, the woman could be initialise as very (impossibly) old.
+
+  report probPregnancy
 
 end

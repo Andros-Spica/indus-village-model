@@ -370,16 +370,19 @@ end
 
 to-report get-nuptiality-prob-from-table [ isFemale ageInYears ]
 
-  let probMarry 0
+  let probMarrying 0
 
-  ifelse (isFemale)
+  if (ageInYears < length nuptialityTable-women) 
   [
-    set probMarry item ageInYears nuptialityTable-women
+    ifelse (isFemale)
+    [
+      set probMarrying item ageInYears nuptialityTable-women
+    ]
+    [
+      set probMarrying item ageInYears nuptialityTable-men
+    ]
   ]
-  [
-    set probMarry item ageInYears nuptialityTable-men
-  ]
-
-  report probMarry
+  
+  report probMarrying
 
 end

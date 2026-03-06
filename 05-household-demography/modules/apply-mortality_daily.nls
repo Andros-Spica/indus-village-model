@@ -76,23 +76,22 @@ to-report get-mortality-prob-of-day [ isFemale ageInDays ]
 
 end
 
-to-report get-mortality-prob-from-table [ isFemale ageInYears ]
+to-report get-mortality-prob-from-table [ isFemale age ]
 
-  let probDying 0
+  let probDying 1
 
-  ifelse (ageInYears > length mortalityTable-women)
-  [
-    set probDying 1
-    print (word "WARNING: individual with age in years higher than 151 (" ageInYears ") detected in " self)
-  ]
+  ifelse (age < length nuptialityTable-women) 
   [
     ifelse (isFemale)
     [
-      set probDying item ageInYears mortalityTable-women
+      set probDying item age mortalityTable-women
     ]
     [
-      set probDying item ageInYears mortalityTable-men
+      set probDying item age mortalityTable-men
     ]
+  ]
+  [
+    print (word "WARNING: individual with age higher than " (length nuptialityTable-women) " (" age ") detected in " self)
   ]
 
   report probDying

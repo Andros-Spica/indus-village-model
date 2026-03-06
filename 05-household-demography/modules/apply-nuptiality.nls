@@ -225,7 +225,7 @@ to hh_set-members-to-marry
     [
       let sex item memberIndex hh_membersSex
 
-      if (random-float 1 < get-nuptiality-prob sex (item memberIndex hh_membersAge))  ; passes nuptiality test according to age
+      if (random-float 1 < get-nuptiality-prob-from-table sex (item memberIndex hh_membersAge))  ; passes nuptiality test according to age
       [
         ifelse (sex)
         [
@@ -351,14 +351,21 @@ to hh_add-member-from [ memberData ]
 
 end
 
-to-report get-nuptiality-prob [ isFemale age ]
+to-report get-nuptiality-prob-from-table [ isFemale age ]
 
-  ifelse (isFemale)
+  let probMarrying 0
+
+  if (age < length nuptialityTable-women) 
   [
-    report item age nuptialityTable-women
+    ifelse (isFemale)
+    [
+      set probMarrying item age nuptialityTable-women
+    ]
+    [
+      set probMarrying item age nuptialityTable-men
+    ]
   ]
-  [
-    report item age nuptialityTable-men
-  ]
+  
+  report probMarrying
 
 end

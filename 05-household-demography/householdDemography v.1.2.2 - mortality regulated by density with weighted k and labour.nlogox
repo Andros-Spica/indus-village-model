@@ -728,6 +728,9 @@ to hh_initialise-members
     set hh_membersMarriage lput 0 hh_membersMarriage ; this couple will have the 0 index
   ]
 
+  if (max hh_membersAge > length fertilityTable)
+  [ print (word "WARNING: Initialisation of individual(s) with age in years higher than 151 detected in " self ": " hh_membersAge ) ]
+
   ; calculate offspring and offspring age
   let offspringProb 0
   let i hh_age
@@ -735,7 +738,7 @@ to hh_initialise-members
   [
     ; get the probability of the couple having descendence for a past year i
     ; i.e. woman fertility at the corresponding age
-    set offspringProb get-fertility ((item 0 hh_membersAge) - i)
+    let offspringProb get-fertility-prob-from-table ((item 0 hh_membersAge) - i)
 
     ; test the probability and add the offspring with the corresponding age
     if (random-float 1 < offspringProb)
@@ -755,11 +758,25 @@ to-report get-initial-marriage-age [ isFemale ]
 
   while [notMarried AND age < 100]
   [
-    if ((get-nuptiality isFemale age) > random-float 1)
+    if ((get-nuptiality-prob-from-table isFemale age) > random-float 1)
     [
       set notMarried false
     ]
     set age age + 1
+  ]
+
+  ; if the procedure reaches 100 years old, it is likely that the parameters of the nuptiality table are not well calibrated
+  ; To avoid errors during setup, we set the marriage age to the mean of the distribution.
+  if (age == 100)
+  [
+    print (word "WARNING: Initialisation of marriage age forced to mu in " self )
+    ifelse (isFemale)
+    [
+      set age mu-women 
+    ]
+    [
+      set age mu-men
+    ]
   ]
 
   report age
@@ -854,7 +871,7 @@ to hh_set-members-to-marry
     [
       let sex item memberIndex hh_membersSex
 
-      if (random-float 1 < get-nuptiality sex (item memberIndex hh_membersAge))  ; passes nuptiality test according to age
+      if (random-float 1 < get-nuptiality-prob-from-table sex (item memberIndex hh_membersAge))  ; passes nuptiality test according to age
       [
         ifelse (sex)
         [
@@ -955,9 +972,9 @@ to hh_reproduce
     ; there is still a couple to consider and the member is female
     if (couplesToTest > 0 and item memberIndex hh_membersSex)
     [
-      if (random-float 1 < get-fertility (item memberIndex hh_membersAge))
+      if (random-float 1 < get-fertility-prob-from-table (item memberIndex hh_membersAge))
       [
-        ;print get-fertility (item memberIndex hh_membersAge)
+        ;print get-fertility-prob-from-table (item memberIndex hh_membersAge)
         hh_add-offspring 0 ; add a newborn
         ;print (word "a new member is born in " self)
       ]
@@ -1175,33 +1192,56 @@ end
 ;;; Demographic rates 'getters' ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-to-report get-fertility [ age ]
+to-report get-fertility-prob-from-table [ age ]
 
-  report item age fertilityTable
+  let probPregnancy 0
 
-end
+  if (age < length fertilityTable) 
+  [ set probPregnancy (item age fertilityTable) ]
+  ; In very rare cases, under certain parameter values, the woman could be initialise as very (impossibly) old.
 
-to-report get-nuptiality [ isFemale age ]
-
-  ifelse (isFemale)
-  [
-    report item age nuptialityTable-women
-  ]
-  [
-    report item age nuptialityTable-men
-  ]
+  report probPregnancy
 
 end
 
-to-report get-mortality [ isFemale age ]
+to-report get-nuptiality-prob-from-table [ isFemale age ]
 
-  ifelse (isFemale)
+  let probMarrying 0
+
+  if (age < length nuptialityTable-women) 
   [
-    report item age mortalityTable-women
+    ifelse (isFemale)
+    [
+      set probMarrying item age nuptialityTable-women
+    ]
+    [
+      set probMarrying item age nuptialityTable-men
+    ]
+  ]
+  
+  report probMarrying
+
+end
+
+to-report get-mortality-prob-from-table [ isFemale age ]
+
+  let probDying 1
+
+  ifelse (age < length nuptialityTable-women) 
+  [
+    ifelse (isFemale)
+    [
+      set probDying item age mortalityTable-women
+    ]
+    [
+      set probDying item age mortalityTable-men
+    ]
   ]
   [
-    report item age mortalityTable-men
+    print (word "WARNING: individual with age higher than " (length nuptialityTable-women) " (" age ") detected in " self)
   ]
+
+  report probDying
 
 end
 
