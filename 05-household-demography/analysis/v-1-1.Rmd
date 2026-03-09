@@ -150,8 +150,8 @@ param_names_r <- gsub("-", ".", names(sobol_parameter_ranges))
 Loading simulation experiments' end states:
 
 ```{r}
-endstates_matri <- read.csv("simdata/v1.1/householdDemography v.1.1 - kinship tabu for new couples exp-endstates-matri-table.csv", skip = 6)
-endstates_patri <- read.csv("simdata/v1.1/householdDemography v.1.1 - kinship tabu for new couples exp-endstates-patri-table.csv", skip = 6)
+endstates_matri <- read.csv("simdata/v1.1/household-demography-main exp-endstates-matri-table.csv", skip = 6)
+endstates_patri <- read.csv("simdata/v1.1/household-demography-main exp-endstates-patri-table.csv", skip = 6)
 ```
 
 Preprocess dataset adapting from NetLogo'S specific format. Categorise end states according to whether populations get extinct, survive and/or grow within the maximum number of simulation steps (`max-iterations`).
@@ -460,11 +460,11 @@ source("library/variableImportancePlot.R")
 
 plotName = paste0(plotDirectory, "variableImportancePlot.png")
 
-color_variable_map <- rev(c("#0000a2", 
-                        "#bc272d", 
-                        rep("#e9c716", 4), 
-                        rep("#50ad9f", 8),
-                        rep("#0000a2", 4)
+color_variable_map <- rev(c(
+  rep("#0000a2", 6),
+  "#bc272d", 
+  rep("#db9b35", 4), 
+  rep("#50ad9f", 8)
 ))
 
 # png
@@ -639,8 +639,8 @@ boxplot(endstates_patri$sigma2.men ~ (endstates_patri$totalIndividuals > 0), mai
 
 ```{r}
 layout(matrix(1:2, ncol = 2))
-hist(endstates_matri$X.step.[endstates_matri$totalIndividuals > 0], main = "matri")
-hist(endstates_patri$X.step.[endstates_patri$totalIndividuals > 0], main = "patri")
+hist(endstates_matri$X.step.[endstates_matri$totalIndividuals > 0], main = "matri", breaks = 20)
+hist(endstates_patri$X.step.[endstates_patri$totalIndividuals > 0], main = "patri", breaks = 20)
 ```
 
 ```{r}
@@ -691,7 +691,6 @@ knitr::include_graphics(plotName_patri)
 Loading simulation experiments' end states:
 
 ```{r}
-#trajectories_v11 <- read.csv("simdata/v1.1/householdDemography v.1.1 - kinship tabu for new couples exp-trajectories-table.csv", skip = 6)
 trajectories_v11 <- read.csv("simdata/v1.1/household-demography-main exp-trajectories-table.csv", skip = 6)
 ```
 
@@ -758,7 +757,7 @@ params_v11
 ```
 
 ```{r}
-plot_name <- file.path(plotDirectory, paste0("trajectories.", plot_file_format))
+plot_name <- file.path(paste0(plotDirectory, paste0("trajectories.", plot_file_format)))
 
 if (plot_file_format == "png") {
   graphic_scale <- 1
@@ -807,21 +806,21 @@ knitr::include_graphics(plot_name)
 Loading simulation experiments' end states:
 
 ```{r}
-trajectories_cdmlt_level <- read.csv("simdata/v1.1/householdDemography v.1.1 - kinship tabu for new couples exp-trajectories_cdmlt-level-table.csv", skip = 6)
+trajectories_v11_cdmlt_level <- read.csv("simdata/v1.1/household-demography-main exp-trajectories_cdmlt-level-table.csv", skip = 6)
 ```
 
 Preprocess dataset adapting from NetLogo'S specific format. Categorise trajectories according to whether populations get extinct, survive and/or grow within the maximum number of simulation steps (`max-iterations`).
 
 ```{r}
-MAX_POPULATION = trajectories_cdmlt_level$max.population[1]
+MAX_POPULATION = trajectories_v11_cdmlt_level$max.population[1]
 
-trajectories_cdmlt_level <- trajectories_cdmlt_level |>
+trajectories_v11_cdmlt_level <- trajectories_v11_cdmlt_level |>
   preprocess_params() |>
   set_endstate_survival_category()
 ```
 
 ```{r}
-plot_name <- file.path(plotDirectory, paste0("trajectories_cdmlt-level.", plot_file_format))
+plot_name <- file.path(paste0(plotDirectory, paste0("trajectories_cdmlt-level.", plot_file_format)))
 
 if (plot_file_format == "png") {
   graphic_scale <- 1
@@ -845,7 +844,7 @@ if (plot_file_format == "png") {
                       )
 }
 
-ggplot(trajectories_cdmlt_level, aes(x = X.step., y = totalIndividuals, group = X.run.number., color = as.factor(cdmlt.level))) +
+ggplot(trajectories_v11_cdmlt_level, aes(x = X.step., y = totalIndividuals, group = X.run.number., color = as.factor(cdmlt.level))) +
   geom_line(linewidth = .1) +
   facet_wrap(~ residence.rule, scales = "free") +
   xlab("time (years)") +
@@ -871,21 +870,21 @@ knitr::include_graphics(plot_name)
 Loading simulation experiments' end states:
 
 ```{r}
-trajectories_c1_fert <- read.csv("simdata/v1.1/householdDemography v.1.1 - kinship tabu for new couples exp-trajectories_c1-fert-table.csv", skip = 6)
+trajectories_v11_c1_fert <- read.csv("simdata/v1.1/household-demography-main exp-trajectories_c1-fert-table.csv", skip = 6)
 ```
 
 Preprocess dataset adapting from NetLogo'S specific format. Categorise trajectories according to whether populations get extinct, survive and/or grow within the maximum number of simulation steps (`max-iterations`).
 
 ```{r}
-MAX_POPULATION = trajectories_c1_fert$max.population[1]
+MAX_POPULATION = trajectories_v11_c1_fert$max.population[1]
 
-trajectories_c1_fert <- trajectories_c1_fert |>
+trajectories_v11_c1_fert <- trajectories_v11_c1_fert |>
   preprocess_params() |>
   set_endstate_survival_category()
 ```
 
 ```{r}
-plot_name <- file.path(plotDirectory, paste0("trajectories_c1_fert.", plot_file_format))
+plot_name <- file.path(paste0(plotDirectory, paste0("trajectories_c1_fert.", plot_file_format)))
 
 if (plot_file_format == "png") {
   graphic_scale <- 1
@@ -909,7 +908,7 @@ if (plot_file_format == "png") {
                       )
 }
 
-ggplot(trajectories_c1_fert, aes(x = X.step., y = totalIndividuals, group = X.run.number., color = as.factor(c1.fert))) +
+ggplot(trajectories_v11_c1_fert, aes(x = X.step., y = totalIndividuals, group = X.run.number., color = as.factor(c1.fert))) +
   geom_line(linewidth = .1) +
   facet_wrap(~ residence.rule, scales = "free") +
   xlab("time (years)") +
