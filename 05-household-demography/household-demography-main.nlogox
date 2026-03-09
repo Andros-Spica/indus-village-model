@@ -1334,13 +1334,13 @@ ISSUES:
         <metric>maturity-age</metric>
         <metric>initial-num-households</metric>
         <metric>household-initial-age-distribution</metric>
-        <metric>max-couple-count-distribution</metric>
         <metric>cdmlt-level</metric>
         <metric>coale-demeny-region</metric>
         <metric>c1-fert</metric>
         <metric>mu-fert</metric>
         <metric>sigma1-fert</metric>
         <metric>sigma2-fert</metric>
+        <metric>max-couple-count-distribution</metric>
         <metric>acceptable-kinship-degree-for-couples</metric>
         <metric>c1-women</metric>
         <metric>c1-men</metric>
@@ -1401,13 +1401,13 @@ ISSUES:
         <metric>maturity-age</metric>
         <metric>initial-num-households</metric>
         <metric>household-initial-age-distribution</metric>
-        <metric>max-couple-count-distribution</metric>
         <metric>cdmlt-level</metric>
         <metric>coale-demeny-region</metric>
         <metric>c1-fert</metric>
         <metric>mu-fert</metric>
         <metric>sigma1-fert</metric>
         <metric>sigma2-fert</metric>
+        <metric>max-couple-count-distribution</metric>
         <metric>acceptable-kinship-degree-for-couples</metric>
         <metric>c1-women</metric>
         <metric>c1-men</metric>

@@ -42,7 +42,7 @@ to hh_initialise-members
   ]
 
   if (max hh_membersAge >= length fertilityTable)
-  [ print (word "WARNING: Initialisation of individual(s) with age in years equal or higher than " (length fertilityTable) " (" age ") detected in " self ": " hh_membersAge ) ]
+  [ print (word "WARNING: Initialisation of individual(s) with age in years equal or higher than " (length fertilityTable) " (" max hh_membersAge ") detected in " self ": " hh_membersAge ) ]
 
   ; calculate offspring and offspring age
   let offspringProb 0
@@ -51,7 +51,7 @@ to hh_initialise-members
   [
     ; get the probability of the couple having descendence for a past year i
     ; i.e. woman fertility at the corresponding age
-    let offspringProb get-fertility-prob-from-table ((item 0 hh_membersAge) - i)
+    set offspringProb get-fertility-prob-from-table ((item 0 hh_membersAge) - i)
 
     ; test the probability and add the offspring with the corresponding age
     if (random-float 1 < offspringProb)
@@ -80,7 +80,7 @@ to-report get-initial-marriage-age [ isFemale ]
 
   ; if the procedure reaches 100 years old, it is likely that the parameters of the nuptiality table are not well calibrated
   ; To avoid errors during setup, we set the marriage age to the mean of the distribution.
-  if (age == 100)
+  if (age = 100)
   [
     print (word "WARNING: Initialisation of marriage age forced to parametric mean (mu) in " self )
     ifelse (isFemale)

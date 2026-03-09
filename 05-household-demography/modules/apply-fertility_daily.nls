@@ -74,7 +74,7 @@ to-report get-fertility-of-day [ ageInDays ]
 
   let ageInYears get-age-in-years-old ageInDays
 
-  let probPregnancy (get-fertility-from-table ageInYears)
+  let probPregnancy (get-fertility-prob-from-table ageInYears)
 
   set probPregnancy 1 - (1 - probPregnancy) ^ (1 / year-length-in-days)
 
@@ -82,7 +82,7 @@ to-report get-fertility-of-day [ ageInDays ]
 
 end
 
-to-report get-fertility-from-table [ ageInYears ]
+to-report get-fertility-prob-from-table [ ageInYears ]
   
   let probPregnancy 0
 
