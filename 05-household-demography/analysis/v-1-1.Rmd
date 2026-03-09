@@ -728,7 +728,7 @@ preprocess_params <- function(trajectories_df) {
   )
 }
 
-set_endstate_survival_category <- function(trajectories_df) {
+set_survival_category <- function(trajectories_df) {
   trajectories_df |>
     group_by(X.run.number.) |>
     mutate(
@@ -744,7 +744,7 @@ set_endstate_survival_category <- function(trajectories_df) {
 
 trajectories_v11 <- trajectories_v11 |>
   preprocess_params() |>
-  set_endstate_survival_category()
+  set_survival_category()
 ```
 
 ```{r}
@@ -757,7 +757,7 @@ params_v11
 ```
 
 ```{r}
-plot_name <- file.path(paste0(plotDirectory, paste0("trajectories.", plot_file_format)))
+plot_name <- file.path(paste0(plotDirectory, "trajectories.", plot_file_format))
 
 if (plot_file_format == "png") {
   graphic_scale <- 1
@@ -820,7 +820,7 @@ trajectories_v11_cdmlt_level <- trajectories_v11_cdmlt_level |>
 ```
 
 ```{r}
-plot_name <- file.path(paste0(plotDirectory, paste0("trajectories_cdmlt-level.", plot_file_format)))
+plot_name <- file.path(paste0(plotDirectory, "trajectories_cdmlt-level.", plot_file_format))
 
 if (plot_file_format == "png") {
   graphic_scale <- 1
@@ -884,7 +884,7 @@ trajectories_v11_c1_fert <- trajectories_v11_c1_fert |>
 ```
 
 ```{r}
-plot_name <- file.path(paste0(plotDirectory, paste0("trajectories_c1_fert.", plot_file_format)))
+plot_name <- file.path(paste0(plotDirectory,"trajectories_c1_fert.", plot_file_format))
 
 if (plot_file_format == "png") {
   graphic_scale <- 1
