@@ -144,6 +144,13 @@ for (i in 1:nrow(params_sobol)) {
 
 ### Data loading and preprocessing
 
+Define usable reference to parameter names:
+
+```{r}
+param_names_netlogo <- names(sobol_parameter_ranges)
+param_names_r <- gsub("-", ".", names(sobol_parameter_ranges))
+```
+
 Loading simulation experiments' end states:
 
 ```{r}
@@ -172,12 +179,12 @@ extract_values_from_NetLogo_list <- function(char_vector) {
   )
 }
 
-set_survival_category <- function(population_count) {
+set_survival_category <- function(population_count, carrying_capacity) {
   survival_category <- ""
   if (population_count > 0) {
     survival_category <- "survival"
-    if (population_count > MAX_POPULATION) {
-      survival_category <- paste0(survival_category, " with growth")
+    if (population_count > carrying_capacity) {
+      survival_category <- paste0(survival_category, " with overshot")
     }
   } else {
     survival_category <- "extinction"
@@ -189,14 +196,18 @@ preprocess_endstates <- function(endstate_df) {
   household_initial_age_distribution_range <- extract_values_from_NetLogo_list(endstate_df$household.initial.age.distribution)
   max_couple_count_distribution_range <- extract_values_from_NetLogo_list(endstate_df$max.couple.count.distribution)
   
-  cbind(
+  endstates <- cbind(
     endstate_df,
     household_initial_age_distribution_min = household_initial_age_distribution_range[[1]],
     household_initial_age_distribution_max = household_initial_age_distribution_range[[2]],
     max_couple_count_distribution_min = max_couple_count_distribution_range[[1]],
-    max_couple_count_distribution_max = max_couple_count_distribution_range[[2]],
-    survival = sapply(endstate_df$totalIndividuals, set_survival_category)
+    max_couple_count_distribution_max = max_couple_count_distribution_range[[2]]
   )
+  
+  endstates |>
+    rowwise() |>
+    mutate(survival = set_survival_category(totalIndividuals, carrying.capacity)) |>
+    ungroup()
 }
 
 endstates_matri <- preprocess_endstates(endstates_matri)
@@ -222,6 +233,13 @@ table(endstates_patri$survival)
 layout(matrix(1:2, ncol = 2))
 barplot(table(endstates_matri$survival), main = "residential-rule = 'matrilocal-matrilineal'")
 barplot(table(endstates_patri$survival), main = "residential-rule = 'patrilocal-patrilineal'")
+```
+
+Visualise `totalIndividuals` in surviving configurations:
+```{r}
+layout(matrix(1:2, ncol = 2))
+hist(endstates_matri$totalIndividuals[endstates_matri$survival != "extinction"], breaks = 50, main = "residential-rule = 'matrilocal-matrilineal'")
+hist(endstates_patri$totalIndividuals[endstates_patri$survival != "extinction"], breaks = 50, main = "residential-rule = 'patrilocal-patrilineal'")
 ```
 
 ### Visualising population age structure
@@ -343,7 +361,7 @@ compute_survival_param_space <- function(endstate_df, param_names) {
   compute_param_envelope(endstate_df %>% filter(survival != "extinction") %>% select(all_of(param_names)))
 }
 
-param_names_pk <- gsub("-", ".", names(sobol_parameter_ranges)[7:19])
+param_names_pk <- param_names_r[7:19]
 
 survival_param_space_matri <- compute_survival_param_space(endstates_matri, param_names_pk)
 survival_param_space_patri <- compute_survival_param_space(endstates_patri, param_names_pk)
@@ -359,6 +377,25 @@ With residential-rule = 'patrilocal-patrilineal':
 knitr::kable(survival_param_space_patri)
 ```
 
+Identify the ranges for the version-specific parameters:
+
+```{r}
+param_names_v12 <- param_names_r[20:21]
+
+survival_param_space_matri_v12 <- compute_survival_param_space(endstates_matri, param_names_v12)
+survival_param_space_patri_v12 <- compute_survival_param_space(endstates_patri, param_names_v12)
+```
+
+With residential-rule = 'matrilocal-matrilineal':
+```{r}
+knitr::kable(survival_param_space_matri_v12)
+```
+
+With residential-rule = 'patrilocal-patrilineal':
+```{r}
+knitr::kable(survival_param_space_patri_v12)
+```
+
 ### Identifying relevant factors of survival
 
 ```{r}
@@ -367,7 +404,8 @@ param_names <- c("initial.num.households",
                  "household_initial_age_distribution_max",
                  "max_couple_count_distribution_min",
                  "max_couple_count_distribution_max",
-                 param_names_pk)
+                 param_names_pk,
+                 param_names_v12)
 
 covert_to_long_by_param <- function(df, param_names) {
   df %>%
@@ -463,11 +501,12 @@ source("library/variableImportancePlot.R")
 
 plotName = paste0(plotDirectory, "variableImportancePlot.png")
 
-color_variable_map <- rev(c("#0000a2", 
-                        "#bc272d", 
-                        rep("#e9c716", 4), 
-                        rep("#50ad9f", 8),
-                        rep("#0000a2", 4)
+color_variable_map <- rev(c(
+  rep("#0000a2", 5),
+  "#bc272d", 
+  rep("#db9b35", 4), 
+  rep("#50ad9f", 8),
+  rep("#7953b8", 2)
 ))
 
 # png
@@ -578,13 +617,16 @@ table(endstates_patri$coale.demeny.region, endstates_patri$totalIndividuals > 0)
 All have a visible effect, but particularly c1.fert and sigma1.fert. 
 
 ```{r}
-layout(matrix(1:8, nrow = 4, byrow = F))
-boxplot(endstates_matri$c1.fert ~ (endstates_matri$totalIndividuals > 0), main = "matri\nc1.fert")
+layout(matrix(1:4, nrow = 1, byrow = F))
+boxplot(endstates_matri$c1.fert ~ (endstates_matri$totalIndividuals > 0), main = "matri - c1.fert")
 boxplot(endstates_matri$mu.fert ~ (endstates_matri$totalIndividuals > 0), main = "mu.fert")
 boxplot(endstates_matri$sigma1.fert ~ (endstates_matri$totalIndividuals > 0), main = "sigma1.fert")
 boxplot(endstates_matri$sigma2.fert ~ (endstates_matri$totalIndividuals > 0), main = "sigma2.fert")
+```
 
-boxplot(endstates_patri$c1.fert ~ (endstates_patri$totalIndividuals > 0), main = "patri\nc1.fert")
+```{r}
+layout(matrix(1:4, nrow = 1, byrow = F))
+boxplot(endstates_patri$c1.fert ~ (endstates_patri$totalIndividuals > 0), main = "patri - c1.fert")
 boxplot(endstates_patri$mu.fert ~ (endstates_patri$totalIndividuals > 0), main = "mu.fert")
 boxplot(endstates_patri$sigma1.fert ~ (endstates_patri$totalIndividuals > 0), main = "sigma1.fert")
 boxplot(endstates_patri$sigma2.fert ~ (endstates_patri$totalIndividuals > 0), main = "sigma2.fert")
@@ -612,8 +654,8 @@ boxplot(endstates_patri$acceptable.kinship.degree.for.couples ~ (endstates_patri
 All nuptiality parameters for both men and women present a small, yet apparently consistent effect. c1 and sigma parameters have a positive effect while mu has a smaller negative effect.
 
 ```{r}
-layout(matrix(1:16, nrow = 8, byrow = F))
-boxplot(endstates_matri$c1.women ~ (endstates_matri$totalIndividuals > 0), main = "matri\nc1.women")
+layout(matrix(1:8, nrow = 2, byrow = F))
+boxplot(endstates_matri$c1.women ~ (endstates_matri$totalIndividuals > 0), main = "matri- c1.women")
 boxplot(endstates_matri$mu.women ~ (endstates_matri$totalIndividuals > 0), main = "mu.women")
 boxplot(endstates_matri$sigma1.women ~ (endstates_matri$totalIndividuals > 0), main = "sigma1.women")
 boxplot(endstates_matri$sigma2.women ~ (endstates_matri$totalIndividuals > 0), main = "sigma2.women")
@@ -621,8 +663,11 @@ boxplot(endstates_matri$c1.men ~ (endstates_matri$totalIndividuals > 0), main = 
 boxplot(endstates_matri$mu.men ~ (endstates_matri$totalIndividuals > 0), main = "mu.men")
 boxplot(endstates_matri$sigma1.men ~ (endstates_matri$totalIndividuals > 0), main = "sigma1.men")
 boxplot(endstates_matri$sigma2.men ~ (endstates_matri$totalIndividuals > 0), main = "sigma2.men")
+```
 
-boxplot(endstates_patri$c1.women ~ (endstates_patri$totalIndividuals > 0), main = "patri\nc1.women")
+```{r}
+layout(matrix(1:8, nrow = 2, byrow = F))
+boxplot(endstates_patri$c1.women ~ (endstates_patri$totalIndividuals > 0), main = "patri - c1.women")
 boxplot(endstates_patri$mu.women ~ (endstates_patri$totalIndividuals > 0), main = "mu.women")
 boxplot(endstates_patri$sigma1.women ~ (endstates_patri$totalIndividuals > 0), main = "sigma1.women")
 boxplot(endstates_patri$sigma2.women ~ (endstates_patri$totalIndividuals > 0), main = "sigma2.women")
@@ -683,15 +728,11 @@ knitr::include_graphics(plotName_patri)
 
 >Run experiments in NetLogo Behaviour Space using parameter configurations where populations tend to survive, according to the exploration above.
 
-```{r}
-endstates_matri <- read.csv("simdata/v1.1/householdDemography v.1.1 - kinship tabu for new couples exp-endstates-matri-table.csv", skip = 6)
-```
-
 Loading simulation experiments' end states:
 
 ```{r}
-trajectories_v11 <- read.csv("simdata/v1.1/householdDemography v.1.1 - kinship tabu for new couples exp-trajectories-table.csv", skip = 6)
-trajectories_v122 <- read.csv("simdata/v1.2.2/householdDemography v.1.2.2 - mortality regulated by density with weighted k and labour exp-trajectories-table.csv", skip = 6)
+trajectories_v11 <- read.csv("simdata/v1.1/household-demography-main exp-trajectories-table.csv", skip = 6)
+trajectories_v122 <- read.csv("simdata/v1.2/household-demography-main_density exp-trajectories-table.csv", skip = 6)
 ```
 
 Preprocess dataset adapting from NetLogo'S specific format. Categorise end states according to whether populations get extinct, survive and/or grow within the maximum number of simulation steps (`max-iterations`).
