@@ -161,8 +161,6 @@ endstates_patri_v12 <- read.csv("simdata/v1.2/household-demography-main_density 
 Preprocess dataset adapting from NetLogo'S specific format. Categorise end states according to whether populations get extinct, survive and/or grow within the maximum number of simulation steps (`max-iterations`).
 
 ```{r}
-MAX_POPULATION = endstates_matri_v12$max.population[1]
-
 extract_values_from_NetLogo_list <- function(char_vector) {
   # Remove brackets and split each string into two parts
   split_values <- gsub("\\[|\\]", "", char_vector) |>
@@ -495,7 +493,7 @@ rf_patri_importance <- extract_rf_param_importance(rf_patri)
 print(rf_patri_importance)
 ```
 
-Plot feature importance colouring parameters by domain (general, mortality, fertility, nuptiality):
+Plot feature importance colouring parameters by domain (general, mortality, fertility, nuptiality, density-related):
 
 ```{r}
 source("library/variableImportancePlot.R")
@@ -678,51 +676,60 @@ boxplot(endstates_patri_v12$sigma1.men ~ (endstates_patri_v12$totalIndividuals >
 boxplot(endstates_patri_v12$sigma2.men ~ (endstates_patri_v12$totalIndividuals > 0), main = "sigma2.men")
 ```
 
-### Pace of growth
+#### Density factors
+
+Both parameters have a visible effect. Unsurprisingly, the carrying capacity has the stronger effect. 
 
 ```{r}
-layout(matrix(1:2, ncol = 2))
-hist(endstates_matri_v12$X.step.[endstates_matri_v12$totalIndividuals > 0], main = "matri")
-hist(endstates_patri_v12$X.step.[endstates_patri_v12$totalIndividuals > 0], main = "patri")
+cat("matri | extinct |")
+endstates_matri_v12 %>%
+  filter(totalIndividuals == 0) %>%
+  select(carrying.capacity) %>%
+  summary()
+cat("matri | survive |")
+endstates_matri_v12 %>%
+  filter(totalIndividuals > 0) %>%
+  select(carrying.capacity) %>%
+  summary()
+cat("patri | extinct |")
+endstates_patri_v12 %>%
+  filter(totalIndividuals == 0) %>%
+  select(carrying.capacity) %>%
+  summary()
+cat("patri | survive |")
+endstates_patri_v12 %>%
+  filter(totalIndividuals > 0) %>%
+  select(carrying.capacity) %>%
+  summary()
 ```
 
 ```{r}
-endstates_matri_v12_long_survived <- endstates_matri_v12_long %>%
-  filter(totalIndividuals > 0)
-endstates_patri_v12_long_survived <- endstates_patri_v12_long %>%
-  filter(totalIndividuals > 0)
+cat("matri | extinct |")
+endstates_matri_v12 %>%
+  filter(totalIndividuals == 0) %>%
+  select(density.effect.scaling.factor) %>%
+  summary()
+cat("matri | survive |")
+endstates_matri_v12 %>%
+  filter(totalIndividuals > 0) %>%
+  select(density.effect.scaling.factor) %>%
+  summary()
+cat("patri | extinct |")
+endstates_patri_v12 %>%
+  filter(totalIndividuals == 0) %>%
+  select(density.effect.scaling.factor) %>%
+  summary()
+cat("patri | survive |")
+endstates_patri_v12 %>%
+  filter(totalIndividuals > 0) %>%
+  select(density.effect.scaling.factor) %>%
+  summary()
 ```
 
 ```{r}
-source("library/bifurcationPlot.R")
-
-create_bifurcation_plot_multiple <- function(df_long, plot_name, plot_scale = 10, num_columns = 3, width = 80, height = 150, strip_text_size = 1.2) {
-  png(plot_name,
-      width = width * plot_scale, height = height * plot_scale)
-  
-  ggplot(data = df_long, aes(x = value, y = X.step.)) +
-    geom_point(alpha = 0.5) +
-    geom_smooth(method = "glm") +
-    facet_wrap(vars(name), ncol = num_columns, scales = "free_x", as.table = TRUE) +
-    theme(
-      strip.text = element_text(size = strip_text_size * plot_scale)
-    )
-  #dev.off()
-}
-
-plotName_matri = paste0(plotDirectory, "endstates_matri_bifurcationPlot_growth.png")
-create_bifurcation_plot_multiple(endstates_matri_v12_long_survived, plot_name = plotName_matri)
-
-plotName_patri = paste0(plotDirectory, "endstates_patri_bifurcationPlot_growth.png")
-create_bifurcation_plot_multiple(endstates_patri_v12_long_survived, plot_name = plotName_patri)
-```
-
-```{r}
-knitr::include_graphics(plotName_matri)
-```
-
-```{r}
-knitr::include_graphics(plotName_patri)
+layout(matrix(1:2, nrow = 1, byrow = F))
+boxplot(endstates_matri_v12$carrying.capacity ~ (endstates_matri_v12$totalIndividuals > 0), main = "matri - c1.fert")
+boxplot(endstates_matri_v12$density.effect.scaling.factor ~ (endstates_matri_v12$totalIndividuals > 0), main = "mu.fert")
 ```
 
 ## Stochasticity and trajectory variation
@@ -736,7 +743,7 @@ trajectories_v11 <- read.csv("simdata/v1.1/household-demography-main exp-traject
 trajectories_v12 <- read.csv("simdata/v1.2/household-demography-main_density exp-trajectories-table.csv", skip = 6)
 ```
 
-Preprocess dataset adapting from NetLogo'S specific format. Categorise end states according to whether populations get extinct, survive and/or grow within the maximum number of simulation steps (`max-iterations`).
+Preprocess dataset adapting from NetLogo'S specific format. Categorise end states according to whether populations get extinct, survive and/or grow beyond the carrying capacity ("overshooting").
 
 ```{r}
 extract_values_from_NetLogo_list <- function(char_vector) {
@@ -850,25 +857,23 @@ if (plot_file_format == "png") {
                       )
 }
 
-p1 <- ggplot(trajectories_v11, aes(x = X.step., y = totalIndividuals, group = X.run.number., color = X.run.number.)) +
+p1 <- ggplot(trajectories_v11, aes(x = X.step., y = totalIndividuals, group = X.run.number., color = residence.rule)) +
   geom_line(linewidth = .1) +
-  #title("v.1.1") +
+  ggtitle("v.1.1") +
   xlab("time (years)") +
   ylab("population (individuals)") +
-  #ylim(c(0, 7000)) +
   guides(color = "none") +
   theme_minimal() +
   theme(axis.title = element_text(size = 10 * (graphic_scale + axis_title_rescale)),
         axis.text = element_text(size = 10 * (graphic_scale + axis_text_rescale)))
 
-p2 <- ggplot(trajectories_v12, aes(x = X.step., y = totalIndividuals, group = X.run.number., color = X.run.number.)) +
+p2 <- ggplot(trajectories_v12, aes(x = X.step., y = totalIndividuals, group = X.run.number., color = residence.rule)) +
   geom_line(linewidth = .1) +
   geom_hline(yintercept = as.numeric(CARRYING_CAPACITY)) +
-  #title("v.1.2") +
+  ggtitle("v.1.2") +
   xlab("time (years)") +
   ylab("") +
-  #ylim(c(0, 7000)) +
-  guides(color = "none") +
+  guides(color = guide_legend(title="Residential\nrule", override.aes = list(linewidth = 2), reverse = TRUE)) +
   theme_minimal() +
   theme(axis.title = element_text(size = 10 * (graphic_scale + axis_title_rescale)),
         axis.text = element_text(size = 10 * (graphic_scale + axis_text_rescale)),
@@ -877,7 +882,7 @@ p2 <- ggplot(trajectories_v12, aes(x = X.step., y = totalIndividuals, group = X.
         legend.key.width = unit(2 * (graphic_scale + legend_key_rescale), 'lines'),
         legend.key.height = unit(2 * (graphic_scale + legend_key_rescale), 'lines'))
 
-p3 <- grid.arrange(p1, p2, ncol = 2, widths = c(4, 5.1))
+p3 <- grid.arrange(p1, p2, ncol = 2, widths = c(1, 1.4))
 
 dev.off()
 ```
