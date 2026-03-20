@@ -106,7 +106,7 @@ head(params_sobol)
 save(params_sobol, file = sobol_parameter_sample_dataFileName)
 ```
 
-```{r, eval=FALSE}
+```{r}
 load(sobol_parameter_sample_dataFileName)
 ```
 
@@ -219,9 +219,43 @@ endstates_patri <- preprocess_endstates(endstates_patri)
 Visualise `totalIndividuals`:
 
 ```{r}
-layout(matrix(1:2, ncol = 2))
-hist(endstates_matri$totalIndividuals, breaks = 50, main = "residential-rule = 'matrilocal-matrilineal'")
-hist(endstates_patri$totalIndividuals, breaks = 50, main = "residential-rule = 'patrilocal-patrilineal'")
+plotName = paste0(plotDirectory, paste0("endstates_totalIndividuals.png"))
+
+if (plot_file_format == "png") {
+    graphic_scale <- 1
+    #legend_text_rescale <- legend_key_rescale <- graphic_scale * -0.5
+    #axis_text_rescale <- axis_title_rescale <- graphic_scale * -0.5
+    
+    png(plotName, width = graphic_scale * 1800, height = graphic_scale * 800, res = 300, pointsize = 4)
+  } else if (plot_file_format == "eps") {
+    graphic_scale = 1.2
+    # font_rescale = -0.2
+    # axis_text_rescale = -0.1
+    # margin_text_rescale = -0.5
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName ,
+                        pointsize = 12,
+                        width = graphic_scale * 8,
+                        height = graphic_scale * 4,
+                        onefile = FALSE,
+                        family = "sans"
+    )
+  }
+
+plot_1 <- ggplot(endstates_matri, aes(x = totalIndividuals)) +
+  geom_histogram() +
+  ggtitle("'matrilocal-matrilineal'")
+plot_2 <- ggplot(endstates_patri, aes(x = totalIndividuals)) +
+  geom_histogram() +
+  ggtitle("'patrilocal-patrilineal'") +
+  theme(axis.title.y = element_blank())
+grid.arrange(grobs = c(plot_1, plot_2), ncol = 2, widths = c(1, 1))
+dev.off()
+```
+
+```{r}
+knitr::include_graphics(plotName)
 ```
 
 ```{r}
@@ -230,9 +264,47 @@ table(endstates_patri$survival)
 ```
 
 ```{r}
-layout(matrix(1:2, ncol = 2))
-barplot(table(endstates_matri$survival), main = "residential-rule = 'matrilocal-matrilineal'")
-barplot(table(endstates_patri$survival), main = "residential-rule = 'patrilocal-patrilineal'")
+plotName = paste0(plotDirectory, paste0("endstates_survival.png"))
+
+if (plot_file_format == "png") {
+    graphic_scale <- 1
+    #legend_text_rescale <- legend_key_rescale <- graphic_scale * -0.5
+    #axis_text_rescale <- axis_title_rescale <- graphic_scale * -0.5
+    
+    png(plotName, width = graphic_scale * 1800, height = graphic_scale * 800, res = 300, pointsize = 4)
+  } else if (plot_file_format == "eps") {
+    graphic_scale = 1.2
+    # font_rescale = -0.2
+    # axis_text_rescale = -0.1
+    # margin_text_rescale = -0.5
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName ,
+                        pointsize = 12,
+                        width = graphic_scale * 8,
+                        height = graphic_scale * 4,
+                        onefile = FALSE,
+                        family = "sans"
+    )
+  }
+
+plot_1 <- ggplot(endstates_matri, aes(x = survival)) +
+  geom_bar() +
+  ggtitle("'matrilocal-matrilineal'") +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank())
+plot_2 <- ggplot(endstates_patri, aes(x = survival)) +
+  geom_bar() +
+  ggtitle("'patrilocal-patrilineal'") +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+grid.arrange(grobs = c(plot_1, plot_2), ncol = 2, widths = c(1, 1.2))
+dev.off()
+```
+
+```{r}
+knitr::include_graphics(plotName)
 ```
 
 ### Visualising population age structure
@@ -275,70 +347,81 @@ age_structure_patri <- build_age_structure_df(endstates_patri)
 ```
 
 ```{r}
-max_age = max(age_structure_matri$age, age_structure_patri$age)
-plot_1 <- ggplot(age_structure_matri, aes(x = age, fill = sex)) +
-  geom_histogram() +
-  coord_flip() +
-  scale_y_continuous(labels = abs) +
-  lims(x = c(0, max_age + 5)) +
-  guides(fill=FALSE) +
-  labs(
-    title = "Population Age Pyramid \n residential-rule = 'matrilocal-matrilineal'",
-    x = "Age",
-    y = "Population count"
-  ) +
-  theme_minimal()
-
-plot_2 <- ggplot(age_structure_patri, aes(x = age, fill = sex)) +
-  geom_histogram() +
-  coord_flip() +
-  scale_y_continuous(labels = abs) +
-  lims(x = c(0, max_age + 5)) +
-  labs(
-    title = "Population Age Pyramid \n residential-rule = 'patrilocal-patrilineal'",
-    x = "Age",
-    y = "Population count"
-  ) +
-  theme_minimal()
-# 
-# layout(matrix(1:4, nrow = 2, byrow = TRUE))
-# hist(age_structure_matri[sex == "women",], breaks = 101, main = "")
-# hist(age_structure_matri_men, breaks = 101, main = "")
-# hist(age_structure_patri_women, breaks = 101, main = "")
-# hist(age_structure_patri_men, breaks = 101, main = "")
-grid.arrange(grobs = c(plot_1, plot_2), ncol = 2, widths = c(1, 1.2))
-```
-
-```{r}
 age_structure_matri_summary <- summarise_age_structure_df(age_structure_matri)
 age_structure_patri_summary <- summarise_age_structure_df(age_structure_patri)
 ```
 
 ```{r}
-plot_1 <- ggplot(age_structure_matri_summary, aes(x = age_group, y = count, fill = sex)) +
-  geom_col(width = 1, color = "white") +
-  coord_flip() +
-  scale_y_continuous(labels = abs) +
-  guides(fill=FALSE) +
-  labs(
-    title = "Population Age Pyramid \n residential-rule = 'matrilocal-matrilineal'",
-    x = "Age group",
-    y = "Population count"
-  ) +
-  theme_minimal()
+create_age_pyramid <- function(age_structure, title, x_label, y_label, fill_guide = FALSE, axis.title.y = TRUE) {
+  
+  p <- ggplot(age_structure, aes(x = age_group, y = count, fill = sex)) +
+    geom_col(width = 1, color = "white") +
+    coord_flip() +
+    scale_y_continuous(labels = abs) +
+    labs(
+      title = title,
+      x = y_label,
+      y = x_label
+    ) +
+    theme_minimal()
+  
+  if (!fill_guide) {
+    p <- p + guides(fill = fill_guide)
+  }
+  if (!axis.title.y) {
+    p <- p + theme(axis.title.y = element_blank())
+  }
+  p
+}
 
-plot_2 <- ggplot(age_structure_patri_summary, aes(x = age_group, y = count, fill = sex)) +
-  geom_col(width = 1, color = "white") +
-  coord_flip() +
-  scale_y_continuous(labels = abs) +
-  labs(
-    title = "Population Age Pyramid \n residential-rule = 'patrilocal-patrilineal'",
-    x = "Age group",
-    y = "Population count"
-  ) +
-  theme_minimal()
+create_age_pyramid_pair <- function(age_structure_1, age_structure_2, 
+                                    title_1, title_2, x_label, y_label,
+                                    plot_name, plot_scale = 10, width = 80, height = 150)
+{
+  if (plot_file_format == "png") {
+    graphic_scale <- 1
+    #legend_text_rescale <- legend_key_rescale <- graphic_scale * -0.5
+    #axis_text_rescale <- axis_title_rescale <- graphic_scale * -0.5
+    
+    png(plot_name, width = graphic_scale * 1800, height = graphic_scale * 800, res = 300, pointsize = 4)
+  } else if (plot_file_format == "eps") {
+    graphic_scale = 1.2
+    # font_rescale = -0.2
+    # axis_text_rescale = -0.1
+    # margin_text_rescale = -0.5
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plot_name ,
+                        pointsize = 12,
+                        width = graphic_scale * 8,
+                        height = graphic_scale * 4,
+                        onefile = FALSE,
+                        family = "sans"
+    )
+  }
+  
+  plot_1 <- create_age_pyramid(age_structure_1, title = title_1, x_label = x_label, y_label = y_label)
+  
+  plot_2 <- create_age_pyramid(age_structure_2, title = title_2, x_label = x_label, y_label = y_label, fill_guide = TRUE, axis.title.y = FALSE)
+  
+  grid.arrange(grobs = c(plot_1, plot_2), ncol = 2, widths = c(1, 1.4))
+}
+```
 
-grid.arrange(grobs = c(plot_1, plot_2), ncol = 2, widths = c(1, 1.2))
+```{r}
+plotName = paste0(plotDirectory, paste0("endstates_age-pyramid-example.png"))
+
+create_age_pyramid_pair(age_structure_matri_summary, age_structure_patri_summary,
+                   title_1 = "'matrilocal-matrilineal'",
+                   title_2 = "'patrilocal-patrilineal'",
+                   x_label = "Population count",
+                   y_label = "Age group",
+                   plot_name = plotName)
+
+```
+
+```{r}
+knitr::include_graphics(plotName)
 ```
 
 ### Identifying survival parameter space
@@ -513,16 +596,6 @@ variableImportancePlotPair(rf_matri, rf_patri,
                            log_scale = FALSE,
                            layout_type = 'horizontal')
 
-# layout(matrix(1:2, ncol = 2))
-# 
-# op <- par(no.readonly = TRUE)
-# 
-# par(mar = c(5, 4, 4, 2) + 0.1)
-# variableImportancePlot(rf_matri, title_extra = "residential-rule = 'matrilocal-matrilineal'", plot_scale = 0.5, color_variable_map = color_variable_map, range_standardised = TRUE)
-# 
-# par(mar = c(5, 4, 4, 2) + 0.1)
-# variableImportancePlot(rf_patri, title_extra = "residential-rule = 'patrilocal-patrilineal'", plot_scale = 0.5, color_variable_map = color_variable_map, range_standardised = TRUE)
-
 dev.off()
 ```
 
@@ -558,9 +631,47 @@ endstates_patri %>%
 ```
 
 ```{r}
-layout(matrix(1:2, ncol = 2))
-boxplot(endstates_matri$initial.num.households ~ (endstates_matri$totalIndividuals > 0))
-boxplot(endstates_patri$initial.num.households ~ (endstates_patri$totalIndividuals > 0))
+plotName = paste0(plotDirectory, paste0("endstates_survival_initial-num-households.png"))
+
+if (plot_file_format == "png") {
+    graphic_scale <- 1
+    #legend_text_rescale <- legend_key_rescale <- graphic_scale * -0.5
+    #axis_text_rescale <- axis_title_rescale <- graphic_scale * -0.5
+    
+    png(plotName, width = graphic_scale * 1800, height = graphic_scale * 800, res = 300, pointsize = 4)
+  } else if (plot_file_format == "eps") {
+    graphic_scale = 1.2
+    # font_rescale = -0.2
+    # axis_text_rescale = -0.1
+    # margin_text_rescale = -0.5
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName ,
+                        pointsize = 12,
+                        width = graphic_scale * 8,
+                        height = graphic_scale * 4,
+                        onefile = FALSE,
+                        family = "sans"
+    )
+  }
+
+plot_1 <- ggplot(endstates_matri, aes(x = survival, y = initial.num.households)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank()) +
+  ggtitle("'matrilocal-matrilineal'")
+plot_2 <- ggplot(endstates_patri, aes(x = survival, y = initial.num.households)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank()) +
+  ggtitle("'patrilocal-patrilineal'")
+grid.arrange(grobs = c(plot_1, plot_2), ncol = 2, widths = c(1, 1))
+dev.off()
+```
+
+```{r}
+knitr::include_graphics(plotName)
 ```
 
 #### Mortality factors
@@ -591,9 +702,47 @@ endstates_patri %>%
 ```
 
 ```{r}
-layout(matrix(1:2, ncol = 2))
-boxplot(endstates_matri$cdmlt.level ~ (endstates_matri$totalIndividuals > 0))
-boxplot(endstates_patri$cdmlt.level ~ (endstates_patri$totalIndividuals > 0))
+plotName = paste0(plotDirectory, paste0("endstates_survival_cdmlt-level.png"))
+
+if (plot_file_format == "png") {
+    graphic_scale <- 1
+    #legend_text_rescale <- legend_key_rescale <- graphic_scale * -0.5
+    #axis_text_rescale <- axis_title_rescale <- graphic_scale * -0.5
+    
+    png(plotName, width = graphic_scale * 1800, height = graphic_scale * 800, res = 300, pointsize = 4)
+  } else if (plot_file_format == "eps") {
+    graphic_scale = 1.2
+    # font_rescale = -0.2
+    # axis_text_rescale = -0.1
+    # margin_text_rescale = -0.5
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName ,
+                        pointsize = 12,
+                        width = graphic_scale * 8,
+                        height = graphic_scale * 4,
+                        onefile = FALSE,
+                        family = "sans"
+    )
+  }
+
+plot_1 <- ggplot(endstates_matri, aes(x = survival, y = cdmlt.level)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank()) +
+  ggtitle("'matrilocal-matrilineal'")
+plot_2 <- ggplot(endstates_patri, aes(x = survival, y = cdmlt.level)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank()) +
+  ggtitle("'patrilocal-patrilineal'")
+grid.arrange(grobs = c(plot_1, plot_2), ncol = 2, widths = c(1, 1))
+dev.off()
+```
+
+```{r}
+knitr::include_graphics(plotName)
 ```
 
 but region parameter has a smaller effect. East tends to survive more often.  
@@ -607,23 +756,80 @@ table(endstates_patri$coale.demeny.region, endstates_patri$totalIndividuals > 0)
 
 #### Fertility factors
 
-All have a visible effect, but particularly c1.fert and sigma1.fert. 
+All have a visible positive effect, except `mu.fert`. `c1.fert` is the most influential. In contrast with v1.1, `sigma2.fert` presents a non-linear effect over population growth; apparently with higher values favouring survival, but not overshooting. 
 
 ```{r}
-layout(matrix(1:4, nrow = 2, byrow = F))
-boxplot(endstates_matri$c1.fert ~ (endstates_matri$totalIndividuals > 0), main = "matri\nc1.fert")
-boxplot(endstates_matri$mu.fert ~ (endstates_matri$totalIndividuals > 0), main = "mu.fert")
-boxplot(endstates_matri$sigma1.fert ~ (endstates_matri$totalIndividuals > 0), main = "sigma1.fert")
-boxplot(endstates_matri$sigma2.fert ~ (endstates_matri$totalIndividuals > 0), main = "sigma2.fert")
+plotName = paste0(plotDirectory, paste0("endstates_survival_pk-fert-params.png"))
+
+if (plot_file_format == "png") {
+    graphic_scale <- 1
+    #legend_text_rescale <- legend_key_rescale <- graphic_scale * -0.5
+    #axis_text_rescale <- axis_title_rescale <- graphic_scale * -0.5
+    
+    png(plotName, width = graphic_scale * 1600, height = graphic_scale * 2000, res = 300, pointsize = 4)
+  } else if (plot_file_format == "eps") {
+    graphic_scale = 1.2
+    # font_rescale = -0.2
+    # axis_text_rescale = -0.1
+    # margin_text_rescale = -0.5
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName ,
+                        pointsize = 12,
+                        width = graphic_scale * 8,
+                        height = graphic_scale * 4,
+                        onefile = FALSE,
+                        family = "sans"
+    )
+  }
+
+plot_1 <- ggplot(endstates_matri, aes(x = survival, y = c1.fert)) +
+  geom_boxplot() +
+  ggtitle("'matrilocal-matrilineal'") +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank())
+plot_2 <- ggplot(endstates_matri, aes(x = survival, y = mu.fert)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank())
+plot_3 <- ggplot(endstates_matri, aes(x = survival, y = sigma1.fert)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank())
+plot_4 <- ggplot(endstates_matri, aes(x = survival, y = sigma2.fert)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank())
+
+plot_5 <- ggplot(endstates_patri, aes(x = survival, y = c1.fert)) +
+  geom_boxplot() +
+  ggtitle("'patrilocal-patrilineal'") +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+plot_6 <- ggplot(endstates_patri, aes(x = survival, y = mu.fert)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+plot_7 <- ggplot(endstates_patri, aes(x = survival, y = sigma1.fert)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+plot_8 <- ggplot(endstates_patri, aes(x = survival, y = sigma2.fert)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+
+grid.arrange(grobs = c(plot_1, plot_5, plot_2, plot_6, plot_3, plot_7, plot_4, plot_8), ncol = 2)
+
+dev.off()
 ```
 
-
 ```{r}
-layout(matrix(1:4, nrow = 2, byrow = F))
-boxplot(endstates_patri$c1.fert ~ (endstates_patri$totalIndividuals > 0), main = "patri\nc1.fert")
-boxplot(endstates_patri$mu.fert ~ (endstates_patri$totalIndividuals > 0), main = "mu.fert")
-boxplot(endstates_patri$sigma1.fert ~ (endstates_patri$totalIndividuals > 0), main = "sigma1.fert")
-boxplot(endstates_patri$sigma2.fert ~ (endstates_patri$totalIndividuals > 0), main = "sigma2.fert")
+knitr::include_graphics(plotName)
 ```
 
 #### Nuptiality factors
@@ -637,44 +843,210 @@ cat("patri | survive? |")
 table(endstates_patri$residence.rule, endstates_patri$totalIndividuals > 0)
 ```
 
-The effect of the acceptable kinship degree is also unclear: 
+The effect of the acceptable kinship degree is not significant, although possible there is a very small positive effect under both residential rules (different from v1.1).
 
 ```{r}
-layout(matrix(1:2, ncol = 2))
-boxplot(endstates_matri$acceptable.kinship.degree.for.couples ~ (endstates_matri$totalIndividuals > 0))
-boxplot(endstates_patri$acceptable.kinship.degree.for.couples ~ (endstates_patri$totalIndividuals > 0))
+plotName = paste0(plotDirectory, paste0("endstates_survival_acceptable-kinship-degree-for-couples.png"))
+
+if (plot_file_format == "png") {
+    graphic_scale <- 1
+    #legend_text_rescale <- legend_key_rescale <- graphic_scale * -0.5
+    #axis_text_rescale <- axis_title_rescale <- graphic_scale * -0.5
+    
+    png(plotName, width = graphic_scale * 1800, height = graphic_scale * 800, res = 300, pointsize = 4)
+  } else if (plot_file_format == "eps") {
+    graphic_scale = 1.2
+    # font_rescale = -0.2
+    # axis_text_rescale = -0.1
+    # margin_text_rescale = -0.5
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName ,
+                        pointsize = 12,
+                        width = graphic_scale * 8,
+                        height = graphic_scale * 4,
+                        onefile = FALSE,
+                        family = "sans"
+    )
+  }
+
+plot_1 <- ggplot(endstates_matri, aes(x = survival, y = acceptable.kinship.degree.for.couples)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(size = 8)) +
+  ggtitle("'matrilocal-matrilineal'")
+plot_2 <- ggplot(endstates_patri, aes(x = survival, y = acceptable.kinship.degree.for.couples)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank()) +
+  ggtitle("'patrilocal-patrilineal'")
+grid.arrange(grobs = c(plot_1, plot_2), ncol = 2, widths = c(1, 1))
+# layout(matrix(1:2, ncol = 2))
+# boxplot(endstates_matri$cdmlt.level ~ (endstates_matri$totalIndividuals > 0))
+# boxplot(endstates_patri$cdmlt.level ~ (endstates_patri$totalIndividuals > 0))
+dev.off()
 ```
 
-All nuptiality parameters for both men and women present a small, yet apparently consistent effect. c1 and sigma parameters have a positive effect while mu has a smaller negative effect.
+```{r}
+knitr::include_graphics(plotName)
+```
+
+All nuptiality parameters for both men and women present a small, yet apparently consistent effect: c1 and sigma parameters have a positive effect while mu has a smaller negative effect. Effects are stronger for women's parameters when under the "matri" rule, while men's parameters are highlighted under the "patri" rule.
 
 ```{r}
-layout(matrix(1:8, nrow = 2, byrow = F))
-boxplot(endstates_matri$c1.women ~ (endstates_matri$totalIndividuals > 0), main = "matri\nc1.women")
-boxplot(endstates_matri$mu.women ~ (endstates_matri$totalIndividuals > 0), main = "mu.women")
-boxplot(endstates_matri$sigma1.women ~ (endstates_matri$totalIndividuals > 0), main = "sigma1.women")
-boxplot(endstates_matri$sigma2.women ~ (endstates_matri$totalIndividuals > 0), main = "sigma2.women")
-boxplot(endstates_matri$c1.men ~ (endstates_matri$totalIndividuals > 0), main = "c1.men")
-boxplot(endstates_matri$mu.men ~ (endstates_matri$totalIndividuals > 0), main = "mu.men")
-boxplot(endstates_matri$sigma1.men ~ (endstates_matri$totalIndividuals > 0), main = "sigma1.men")
-boxplot(endstates_matri$sigma2.men ~ (endstates_matri$totalIndividuals > 0), main = "sigma2.men")
+plotName = paste0(plotDirectory, paste0("endstates_survival_pk-nupt-women-params.png"))
+
+if (plot_file_format == "png") {
+    graphic_scale <- 1
+    #legend_text_rescale <- legend_key_rescale <- graphic_scale * -0.5
+    #axis_text_rescale <- axis_title_rescale <- graphic_scale * -0.5
+    
+    png(plotName, width = graphic_scale * 1600, height = graphic_scale * 2000, res = 300, pointsize = 4)
+  } else if (plot_file_format == "eps") {
+    graphic_scale = 1.2
+    # font_rescale = -0.2
+    # axis_text_rescale = -0.1
+    # margin_text_rescale = -0.5
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName ,
+                        pointsize = 12,
+                        width = graphic_scale * 8,
+                        height = graphic_scale * 4,
+                        onefile = FALSE,
+                        family = "sans"
+    )
+  }
+
+plot_1 <- ggplot(endstates_matri, aes(x = survival, y = c1.women)) +
+  geom_boxplot() +
+  ggtitle("'matrilocal-matrilineal'") +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank())
+plot_2 <- ggplot(endstates_matri, aes(x = survival, y = mu.women)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank())
+plot_3 <- ggplot(endstates_matri, aes(x = survival, y = sigma1.women)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank())
+plot_4 <- ggplot(endstates_matri, aes(x = survival, y = sigma2.women)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank())
+
+plot_5 <- ggplot(endstates_patri, aes(x = survival, y = c1.women)) +
+  geom_boxplot() +
+  ggtitle("'patrilocal-patrilineal'") +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+plot_6 <- ggplot(endstates_patri, aes(x = survival, y = mu.women)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+plot_7 <- ggplot(endstates_patri, aes(x = survival, y = sigma1.women)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+plot_8 <- ggplot(endstates_patri, aes(x = survival, y = sigma2.women)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+
+grid.arrange(grobs = c(plot_1, plot_5, plot_2, plot_6, plot_3, plot_7, plot_4, plot_8), ncol = 2)
+
+dev.off()
+```
+
+```{r}
+knitr::include_graphics(plotName)
 ```
 
 
 ```{r}
-layout(matrix(1:8, nrow = 2, byrow = F))
-boxplot(endstates_patri$c1.women ~ (endstates_patri$totalIndividuals > 0), main = "patri\nc1.women")
-boxplot(endstates_patri$mu.women ~ (endstates_patri$totalIndividuals > 0), main = "mu.women")
-boxplot(endstates_patri$sigma1.women ~ (endstates_patri$totalIndividuals > 0), main = "sigma1.women")
-boxplot(endstates_patri$sigma2.women ~ (endstates_patri$totalIndividuals > 0), main = "sigma2.women")
-boxplot(endstates_patri$c1.men ~ (endstates_patri$totalIndividuals > 0), main = "c1.men")
-boxplot(endstates_patri$mu.men ~ (endstates_patri$totalIndividuals > 0), main = "mu.men")
-boxplot(endstates_patri$sigma1.men ~ (endstates_patri$totalIndividuals > 0), main = "sigma1.men")
-boxplot(endstates_patri$sigma2.men ~ (endstates_patri$totalIndividuals > 0), main = "sigma2.men")
+plotName = paste0(plotDirectory, paste0("endstates_survival_pk-nupt-men-params.png"))
+
+if (plot_file_format == "png") {
+    graphic_scale <- 1
+    #legend_text_rescale <- legend_key_rescale <- graphic_scale * -0.5
+    #axis_text_rescale <- axis_title_rescale <- graphic_scale * -0.5
+    
+    png(plotName, width = graphic_scale * 1600, height = graphic_scale * 2000, res = 300, pointsize = 4)
+  } else if (plot_file_format == "eps") {
+    graphic_scale = 1.2
+    # font_rescale = -0.2
+    # axis_text_rescale = -0.1
+    # margin_text_rescale = -0.5
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName ,
+                        pointsize = 12,
+                        width = graphic_scale * 8,
+                        height = graphic_scale * 4,
+                        onefile = FALSE,
+                        family = "sans"
+    )
+  }
+
+plot_1 <- ggplot(endstates_matri, aes(x = survival, y = c1.men)) +
+  geom_boxplot() +
+  ggtitle("'matrilocal-matrilineal'") +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank())
+plot_2 <- ggplot(endstates_matri, aes(x = survival, y = mu.men)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank())
+plot_3 <- ggplot(endstates_matri, aes(x = survival, y = sigma1.men)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank())
+plot_4 <- ggplot(endstates_matri, aes(x = survival, y = sigma2.men)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank())
+
+plot_5 <- ggplot(endstates_patri, aes(x = survival, y = c1.men)) +
+  geom_boxplot() +
+  ggtitle("'patrilocal-patrilineal'") +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+plot_6 <- ggplot(endstates_patri, aes(x = survival, y = mu.men)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+plot_7 <- ggplot(endstates_patri, aes(x = survival, y = sigma1.men)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+plot_8 <- ggplot(endstates_patri, aes(x = survival, y = sigma2.men)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+
+grid.arrange(grobs = c(plot_1, plot_5, plot_2, plot_6, plot_3, plot_7, plot_4, plot_8), ncol = 2)
+
+dev.off()
+```
+
+```{r}
+knitr::include_graphics(plotName)
 ```
 
 #### Density factors
 
-All three parameters have a relevant effect over the absolute number of individuals. The scaler of the density effect has the stronger effect. The new parameter introduced in version 1.2.2 has a intermediate effect while carrying capacity, here representing more strictly environmental factors independent of labour available.
+All three parameters have a relevant effect over the absolute number of individuals. The scaler of the density effect has the stronger effect, with very low values being associated directly with overshoot cases. The new parameter introduced in version 1.2.2, `labour.demand.per.capita`, has a more complex effect: lower values are associated with survival without overshooting within the simulation timespan (i.e. less than `max-iterations`). Unlike in previous versions, carrying capacity represents in this version more strictly environmental factors independent of labour available.
 
 ```{r}
 cat("matri | extinct |")
@@ -746,13 +1118,71 @@ endstates_patri %>%
 ```
 
 ```{r}
-layout(matrix(1:3, nrow = 1, byrow = F))
-boxplot(endstates_matri$carrying.capacity ~ (endstates_matri$totalIndividuals > 0), main = "matri - carrying.capacity")
-boxplot(endstates_matri$density.effect.scaling.factor ~ (endstates_matri$totalIndividuals > 0), main = "density.effect.scaling.factor")
-boxplot(endstates_matri$labour.demand.per.capita ~ (endstates_matri$totalIndividuals > 0), main = "labour.demand.per.capita")
+plotName = paste0(plotDirectory, paste0("endstates_survival_dens-params.png"))
+
+if (plot_file_format == "png") {
+    graphic_scale <- 1
+    #legend_text_rescale <- legend_key_rescale <- graphic_scale * -0.5
+    #axis_text_rescale <- axis_title_rescale <- graphic_scale * -0.5
+    
+    png(plotName, width = graphic_scale * 1600, height = graphic_scale * 2000, res = 300, pointsize = 4)
+  } else if (plot_file_format == "eps") {
+    graphic_scale = 1.2
+    # font_rescale = -0.2
+    # axis_text_rescale = -0.1
+    # margin_text_rescale = -0.5
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName ,
+                        pointsize = 12,
+                        width = graphic_scale * 8,
+                        height = graphic_scale * 4,
+                        onefile = FALSE,
+                        family = "sans"
+    )
+  }
+
+plot_1 <- ggplot(endstates_matri, aes(x = survival, y = carrying.capacity)) +
+  geom_boxplot() +
+  ggtitle("'matrilocal-matrilineal'") +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank())
+plot_2 <- ggplot(endstates_matri, aes(x = survival, y = density.effect.scaling.factor)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank())
+plot_3 <- ggplot(endstates_matri, aes(x = survival, y = labour.demand.per.capita)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank())
+
+plot_4 <- ggplot(endstates_patri, aes(x = survival, y = carrying.capacity)) +
+  geom_boxplot() +
+  ggtitle("'patrilocal-patrilineal'") +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+plot_5 <- ggplot(endstates_patri, aes(x = survival, y = density.effect.scaling.factor)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+plot_6 <- ggplot(endstates_patri, aes(x = survival, y = labour.demand.per.capita)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+
+grid.arrange(grobs = c(plot_1, plot_4, plot_2, plot_5, plot_3, plot_6), ncol = 2)
+
+dev.off()
 ```
 
-Caution when interpreting the apparent neutrality of carrying capacity over survival and total individuals. Remember that carrying capacity will always strongly constrain the end state value (quasi-equilibrium) in surviving populations.
+```{r}
+knitr::include_graphics(plotName)
+```
+
+NOTE: Caution when interpreting the apparent neutrality of carrying capacity over survival and total individuals. Remember that carrying capacity will always strongly constrain the end state value (quasi-equilibrium) in surviving populations.
 
 ## Stochasticity and trajectory variation
 
@@ -908,4 +1338,4 @@ The introduction of age-dependent carrying capacity requirements (v1.2.1), where
 
 This effect is maintained when the use of the given carrying capacity is also age-dependent (v1.2.2), with children and elders contributing less labour than adults. However, in this case, survivability is penalised, with a higher incidence of extinctions or dips under carrying capacity.
 
-The higher survivability of populations following the matrilocal-matrilineal rule remains consistent throughout the versions.
+The higher survivability of populations following the matrilocal-matrilineal rule remains consistent through v1.1 up to v1.2.2.
