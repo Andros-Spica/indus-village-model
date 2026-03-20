@@ -1,5 +1,5 @@
 ---
-title: "Household Demography model: sensitivity analysis on fully distributed density-dependent (v.1.2.1 and v.1.2.2)"
+title: "Household Demography model: sensitivity analysis on fully distributed density-dependent model (v.1.2.1 and v.1.2.2)"
 output: html_notebook
 ---
 
