@@ -37,7 +37,7 @@ to load-experiment
       set labour-demand-per-capita file-read
 
       set max-iterations 500
-      set max-population 2000
+      set max-population 5000
     ]
   file-close
 

@@ -811,7 +811,7 @@ to hh_initialise-members
     [
       ; get the probability of the couple having descendence for a past day i
       ; i.e. woman fertility at the corresponding age
-      let offspringProb get-fertility-from-table ((item 0 hh_membersAge) - i)
+      set offspringProb get-fertility-from-table ((item 0 hh_membersAge) - i)
       
       ; test the fertility probability and mark gestation
       if (random-float 1 < offspringProb)
@@ -850,7 +850,7 @@ to-report get-initial-marriage-age [ isFemale ]
 
   while [notMarried AND ageInYears < 100]
   [
-    if ((get-nuptiality isFemale ageInYears) > random-float 1)
+    if ((get-nuptiality-prob-of-day isFemale ageInYears) > random-float 1)
     [
       set notMarried false
     ]
@@ -859,7 +859,7 @@ to-report get-initial-marriage-age [ isFemale ]
 
   ; if the procedure reaches 100 years old, it is likely that the parameters of the nuptiality table are not well calibrated
   ; To avoid errors during setup, we set the marriage age to the mean of the distribution.
-  if (ageInYears == 100)
+  if (ageInYears = 100)
   [
     print (word "WARNING: Initialisation of marriage age forced to parametric mean (mu) in " self )
     ifelse (isFemale)
@@ -965,7 +965,7 @@ to hh_set-members-to-marry
     [
       let sex item memberIndex hh_membersSex
 
-      if (random-float 1 < get-nuptiality-of-day sex (item memberIndex hh_membersAge))  ; passes nuptiality test according to age
+      if (random-float 1 < get-nuptiality-prob-of-day sex (item memberIndex hh_membersAge))  ; passes nuptiality test according to age
       [
         ifelse (sex)
         [
@@ -1351,7 +1351,7 @@ to-report get-fertility-from-table [ ageInYears ]
 
 end
 
-to-report get-nuptiality-of-day [ isFemale ageInDays ]
+to-report get-nuptiality-prob-of-day [ isFemale ageInDays ]
 
   let ageInYears get-age-in-years-old ageInDays
 
@@ -1960,7 +1960,7 @@ carefully [ set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)
     <input x="221" multiline="false" y="116" height="60" variable="max-population" type="number" width="101">10000.0</input>
     <input x="192" multiline="false" y="183" height="60" variable="exp-number" type="number" width="100">1.0</input>
     <input x="117" multiline="false" y="116" height="60" variable="max-iterations" type="number" width="100">2000.0</input>
-    <chooser x="9" y="183" height="60" variable="type-of-experiment" current="0" width="178" display="type-of-experiment">
+    <chooser x="9" y="183" height="60" variable="type-of-experiment" current="2" width="178" display="type-of-experiment">
       <choice type="string" value="user-defined"></choice>
       <choice type="string" value="random"></choice>
       <choice type="string" value="defined by exp-number"></choice>
