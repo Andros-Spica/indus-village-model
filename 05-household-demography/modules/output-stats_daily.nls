@@ -10,6 +10,9 @@ to reset-demography-stats-day
   set womenOutToday 0
   set menOutToday 0
 
+  set couplesAcceptedToday 0
+  set couplesRejectedToday 0
+
   set totalWomen 0
   set totalMen 0
   set femaleRatio -1
@@ -60,6 +63,8 @@ to update-demography-stats
   set menInThisYear menInThisYear + menInToday
   set womenOutThisYear womenOutThisYear + womenOutToday
   set menOutThisYear menOutThisYear + menOutToday
+  set couplesAcceptedThisYear couplesAcceptedThisYear + couplesAcceptedToday
+  set couplesRejectedThisYear couplesRejectedThisYear + couplesRejectedToday
   
   if (currentDayOfYear = year-length-in-days)
   [
@@ -74,6 +79,8 @@ to update-demography-stats
     set menInLastYear menInThisYear
     set womenOutLastYear womenOutThisYear
     set menOutLastYear menOutThisYear
+    set couplesAcceptedLastYear couplesAcceptedThisYear
+    set couplesRejectedLastYear couplesRejectedThisYear
     
     reset-demography-stats-year
   ]
@@ -90,5 +97,7 @@ to reset-demography-stats-year
   set menInThisYear 0
   set womenOutThisYear 0
   set menOutThisYear 0
+  set couplesAcceptedThisYear 0
+  set couplesRejectedLastYear 0
 
 end

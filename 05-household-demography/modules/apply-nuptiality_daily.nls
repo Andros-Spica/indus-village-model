@@ -114,11 +114,13 @@ to-report create-couple [ womanData manData ]
     ]
     ;;; Other residence rules can be added here
 ;    print "couple is acceptable."
+    set couplesAcceptedToday couplesAcceptedToday + 1
 
     report true
   ]
   [
 ;    print "couple is not acceptable."
+    set couplesRejectedToday couplesRejectedToday + 1
 
     report false
   ]

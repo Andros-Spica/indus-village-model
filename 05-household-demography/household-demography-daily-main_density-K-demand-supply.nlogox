@@ -130,6 +130,12 @@ globals
   menOutToday
   menOutThisYear
   menOutLastYear
+  couplesAcceptedToday           ; number of couples formed (integer)
+  couplesAcceptedThisYear
+  couplesAcceptedLastYear
+  couplesRejectedToday           ; number of couples rejected due to tabu restrictions (integer)
+  couplesRejectedThisYear
+  couplesRejectedLastYear
   totalOrphans                   ; number of children moving from an household where all adults are dead
 ]
 
@@ -378,6 +384,14 @@ set-plot-y-range -0.001 (precision (max (list max nuptialityTable-women max nupt
     <monitor x="321" precision="17" y="561" height="60" fontSize="11" width="177">density-effect-scaling-factor</monitor>
     <monitor x="283" precision="17" y="506" height="60" fontSize="11" width="113">carrying-capacity</monitor>
     <monitor x="311" precision="17" y="615" height="60" fontSize="11" width="100">labour-demand-per-capita</monitor>
+    <plot x="1139" autoPlotX="true" yMax="10.0" autoPlotY="true" y="422" xMin="0.0" height="175" legend="false" xMax="10.0" yMin="0.0" width="280" display="couples accepted over total trys">
+      <setup>set-plot-y-range -0.001 1.01</setup>
+      <update></update>
+      <pen interval="1.0" mode="0" display="default" color="-16777216" legend="true">
+        <setup></setup>
+        <update>carefully [ plot (couplesAcceptedThisYear / (couplesAcceptedThisYear + couplesRejectedThisYear)) ] [ plot 0 ]</update>
+      </pen>
+    </plot>
   </widgets>
   <info>## Development notes
 
@@ -1269,7 +1283,6 @@ ISSUES:
         <metric>SEED</metric>
         <metric>maturity-age-in-years</metric>
         <metric>gestation-period-in-days</metric>
-        <metric>density-effect-steepness</metric>
         <metric>year-length-in-days</metric>
         <metric>initial-num-households</metric>
         <metric>household-initial-age-distribution</metric>
@@ -1324,6 +1337,12 @@ ISSUES:
         <metric>menOutToday</metric>
         <metric>menOutThisYear</metric>
         <metric>menOutLastYear</metric>
+        <metric>couplesAcceptedToday</metric>
+        <metric>couplesAcceptedThisYear</metric>
+        <metric>couplesAcceptedLastYear</metric>
+        <metric>couplesRejectedToday</metric>
+        <metric>couplesRejectedThisYear</metric>
+        <metric>couplesRejectedLastYear</metric>
         <metric>totalOrphans</metric>
       </metrics>
       <constants>
@@ -1342,9 +1361,6 @@ ISSUES:
         </enumeratedValueSet>
         <enumeratedValueSet variable="par_carrying-capacity">
           <value value="200"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="par_labour-demand-per-capita">
-          <value value="0.45"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="residence-rule">
           <value value="&quot;matrilocal-matrilineal&quot;"></value>
@@ -1418,17 +1434,16 @@ ISSUES:
         <metric>max-population</metric>
         <metric>maturity-age-in-years</metric>
         <metric>gestation-period-in-days</metric>
-        <metric>density-effect-steepness</metric>
         <metric>year-length-in-days</metric>
         <metric>density-effect-steepness</metric>
         <metric>carrying-capacity</metric>
         <metric>density-effect-scaling-factor</metric>
-        <metric>labour-demand-per-capita</metric>
         <metric>initial-num-households</metric>
         <metric>household-initial-age-distribution</metric>
         <metric>max-couple-count-distribution</metric>
         <metric>cdmlt-level</metric>
         <metric>coale-demeny-region</metric>
+        <metric>amenorrhea-period-in-days</metric>
         <metric>c1-fert</metric>
         <metric>mu-fert</metric>
         <metric>sigma1-fert</metric>
@@ -1446,6 +1461,163 @@ ISSUES:
         <metric>totalIndividuals</metric>
         <metric>totalIndividualsLastYear</metric>
         <metric>totalPopulationGrowth</metric>
+        <metric>totalWomen</metric>
+        <metric>totalMen</metric>
+        <metric>femaleRatio</metric>
+        <metric>womenAgeStructure</metric>
+        <metric>menAgeStructure</metric>
+        <metric>womenFirstAgeGroup</metric>
+        <metric>menFirstAgeGroup</metric>
+        <metric>womenBirthsToday</metric>
+        <metric>womenBirthsThisYear</metric>
+        <metric>womenBirthsLastYear</metric>
+        <metric>menBirthsToday</metric>
+        <metric>menBirthsThisYear</metric>
+        <metric>menBirthsLastYear</metric>
+        <metric>womenDeathsToday</metric>
+        <metric>womenDeathsThisYear</metric>
+        <metric>womenDeathsLastYear</metric>
+        <metric>menDeathsToday</metric>
+        <metric>menDeathsThisYear</metric>
+        <metric>menDeathsLastYear</metric>
+        <metric>womenInToday</metric>
+        <metric>womenInThisYear</metric>
+        <metric>womenInLastYear</metric>
+        <metric>menInToday</metric>
+        <metric>menInThisYear</metric>
+        <metric>menInLastYear</metric>
+        <metric>womenOutToday</metric>
+        <metric>womenOutThisYear</metric>
+        <metric>womenOutLastYear</metric>
+        <metric>menOutToday</metric>
+        <metric>menOutThisYear</metric>
+        <metric>menOutLastYear</metric>
+        <metric>couplesAcceptedToday</metric>
+        <metric>couplesAcceptedThisYear</metric>
+        <metric>couplesAcceptedLastYear</metric>
+        <metric>couplesRejectedToday</metric>
+        <metric>couplesRejectedThisYear</metric>
+        <metric>couplesRejectedLastYear</metric>
+        <metric>totalOrphans</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="type-of-experiment">
+          <value value="&quot;defined by exp-number&quot;"></value>
+        </enumeratedValueSet>
+        <steppedValueSet variable="exp-number" first="1" step="1" last="2000"></steppedValueSet>
+        <enumeratedValueSet variable="SEED">
+          <value value="0"></value>
+          <value value="1"></value>
+          <value value="2"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="coale-demeny-region">
+          <value value="&quot;south&quot;"></value>
+          <value value="&quot;west&quot;"></value>
+          <value value="&quot;north&quot;"></value>
+          <value value="&quot;east&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="residence-rule">
+          <value value="&quot;patrilocal-patrilineal&quot;"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="exp-endstates-matri" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="false">
+      <setup>setup</setup>
+      <go>go</go>
+      <postRun>;if (totalHouseholds != 0) [ export-households ]</postRun>
+      <metrics>
+        <metric>max-iterations</metric>
+        <metric>max-population</metric>
+        <metric>maturity-age-in-years</metric>
+        <metric>gestation-period-in-days</metric>
+        <metric>year-length-in-days</metric>
+        <metric>density-effect-steepness</metric>
+        <metric>carrying-capacity</metric>
+        <metric>density-effect-scaling-factor</metric>
+        <metric>initial-num-households</metric>
+        <metric>household-initial-age-distribution</metric>
+        <metric>max-couple-count-distribution</metric>
+        <metric>cdmlt-level</metric>
+        <metric>coale-demeny-region</metric>
+        <metric>amenorrhea-period-in-days</metric>
+        <metric>c1-fert</metric>
+        <metric>mu-fert</metric>
+        <metric>sigma1-fert</metric>
+        <metric>sigma2-fert</metric>
+        <metric>acceptable-kinship-degree-for-couples</metric>
+        <metric>c1-women</metric>
+        <metric>c1-men</metric>
+        <metric>mu-women</metric>
+        <metric>mu-men</metric>
+        <metric>sigma1-women</metric>
+        <metric>sigma1-men</metric>
+        <metric>sigma2-women</metric>
+        <metric>sigma2-men</metric>
+        <metric>totalHouseholds</metric>
+        <metric>totalIndividuals</metric>
+        <metric>totalIndividualsLastYear</metric>
+        <metric>totalPopulationGrowth</metric>
+        <metric>totalWomen</metric>
+        <metric>totalMen</metric>
+        <metric>femaleRatio</metric>
+        <metric>womenAgeStructure</metric>
+        <metric>menAgeStructure</metric>
+        <metric>womenFirstAgeGroup</metric>
+        <metric>menFirstAgeGroup</metric>
+        <metric>womenBirthsToday</metric>
+        <metric>womenBirthsThisYear</metric>
+        <metric>womenBirthsLastYear</metric>
+        <metric>menBirthsToday</metric>
+        <metric>menBirthsThisYear</metric>
+        <metric>menBirthsLastYear</metric>
+        <metric>womenDeathsToday</metric>
+        <metric>womenDeathsThisYear</metric>
+        <metric>womenDeathsLastYear</metric>
+        <metric>menDeathsToday</metric>
+        <metric>menDeathsThisYear</metric>
+        <metric>menDeathsLastYear</metric>
+        <metric>womenInToday</metric>
+        <metric>womenInThisYear</metric>
+        <metric>womenInLastYear</metric>
+        <metric>menInToday</metric>
+        <metric>menInThisYear</metric>
+        <metric>menInLastYear</metric>
+        <metric>womenOutToday</metric>
+        <metric>womenOutThisYear</metric>
+        <metric>womenOutLastYear</metric>
+        <metric>menOutToday</metric>
+        <metric>menOutThisYear</metric>
+        <metric>menOutLastYear</metric>
+        <metric>couplesAcceptedToday</metric>
+        <metric>couplesAcceptedThisYear</metric>
+        <metric>couplesAcceptedLastYear</metric>
+        <metric>couplesRejectedToday</metric>
+        <metric>couplesRejectedThisYear</metric>
+        <metric>couplesRejectedLastYear</metric>
+        <metric>totalOrphans</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="type-of-experiment">
+          <value value="&quot;defined by exp-number&quot;"></value>
+        </enumeratedValueSet>
+        <steppedValueSet variable="exp-number" first="1" step="1" last="2000"></steppedValueSet>
+        <enumeratedValueSet variable="SEED">
+          <value value="0"></value>
+          <value value="1"></value>
+          <value value="2"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="coale-demeny-region">
+          <value value="&quot;south&quot;"></value>
+          <value value="&quot;west&quot;"></value>
+          <value value="&quot;north&quot;"></value>
+          <value value="&quot;east&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="residence-rule">
+          <value value="&quot;matrilocal-matrilineal&quot;"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+  </experiments>lPopulationGrowth</metric>
         <metric>totalWomen</metric>
         <metric>totalMen</metric>
         <metric>femaleRatio</metric>

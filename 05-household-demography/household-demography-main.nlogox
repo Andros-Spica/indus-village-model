@@ -1261,6 +1261,8 @@ ISSUES:
         <metric>menIn</metric>
         <metric>womenOut</metric>
         <metric>menOut</metric>
+        <metric>couplesAccepted</metric>
+        <metric>couplesRejected</metric>
         <metric>totalOrphans</metric>
       </metrics>
       <constants>
@@ -1378,6 +1380,8 @@ ISSUES:
         <metric>menIn</metric>
         <metric>womenOut</metric>
         <metric>menOut</metric>
+        <metric>couplesAccepted</metric>
+        <metric>couplesRejected</metric>
         <metric>totalOrphans</metric>
       </metrics>
       <constants>
@@ -1445,6 +1449,8 @@ ISSUES:
         <metric>menIn</metric>
         <metric>womenOut</metric>
         <metric>menOut</metric>
+        <metric>couplesAccepted</metric>
+        <metric>couplesRejected</metric>
         <metric>totalOrphans</metric>
       </metrics>
       <constants>
@@ -1510,6 +1516,8 @@ ISSUES:
         <metric>menIn</metric>
         <metric>womenOut</metric>
         <metric>menOut</metric>
+        <metric>couplesAccepted</metric>
+        <metric>couplesRejected</metric>
         <metric>totalOrphans</metric>
       </metrics>
       <constants>
@@ -1623,6 +1631,8 @@ ISSUES:
         <metric>menIn</metric>
         <metric>womenOut</metric>
         <metric>menOut</metric>
+        <metric>couplesAccepted</metric>
+        <metric>couplesRejected</metric>
         <metric>totalOrphans</metric>
       </metrics>
       <constants>
