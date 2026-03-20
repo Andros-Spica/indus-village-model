@@ -38,6 +38,8 @@ to set-constants
   set maturity-age-in-years 15
 
   set gestation-period-in-days 280 ; 280 (40 weeks)
+  
+  set max-iterations-in-days (max-iterations * year-length-in-days)
 
   set density-effect-steepness 3
 
@@ -260,7 +262,7 @@ to go
   ; --- stop conditions -------------------------
 
   if (totalHouseholds = 0 or
-    ticks = max-iterations or
+    ticks = max-iterations-in-days or
     totalIndividuals > max-population)
   [
     ;if (length behaviorspace-experiment-name > 0 and count households > 0) [ export-households ]

@@ -36,7 +36,7 @@ globals
 [
   ;;; constants
   maturity-age                     ; defaults to 15 years old; it affects the minimum age acceptable for individuals to keep a household without older individuals
-  density-effect-steepness
+  density-effect-steepness           ; steepness of the density effect function (higher values mean a more abrupt increase in mortality as population approaches carrying capacity)
 
   ;;; demography tables
   fertilityTable
@@ -1468,7 +1468,7 @@ to load-experiment
   ;;; this procedure loads the values of each (explored) parameter from a csv file.
   ;;; Note that the setup will use the value set by the user for any other parameter (e.g. scenario).
 
-  let FilePath "analysis//experiments//v1.2//" ;;; create folders in the model's directory before trying to load experiments
+  let FilePath "analysis//experiments//v1.2.1//" ;;; create folders in the model's directory before trying to load experiments
   let filename (word FilePath exp-number ".txt")
   file-open filename
   while [not file-at-end?]
@@ -1495,6 +1495,9 @@ to load-experiment
       set mu-men file-read
       set sigma1-men file-read
       set sigma2-men file-read
+
+      set carrying-capacity file-read
+      set density-effect-scaling-factor file-read
 
       set max-iterations 2000
       set max-population 10000

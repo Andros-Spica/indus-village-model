@@ -28,7 +28,7 @@ __includes [
   "modules/apply-fertility_daily.nls" ; ---
   "modules/apply-nuptiality_daily.nls" ; ---
   "modules/apply-mortality_daily_density-K-demand-supply.nls" ; ---
-  "modules/manage-orphanhood.nls"
+  "modules/manage-orphanhood_daily.nls" ; ---
   "modules/hh_init_daily.nls" ; ---
   "modules/hh_utils_daily.nls" ; ---
   "modules/kinship.nls"
@@ -58,9 +58,10 @@ globals
   ;;; constants
   maturity-age-in-years              ; defaults to 15 years old; it affects the minimum age acceptable for individuals to keep a household without older individuals
   gestation-period-in-days           ; assumed here as a constant fixed at 280
-
-  density-effect-steepness
   year-length-in-days
+  max-iterations-in-days
+  
+  density-effect-steepness
 
   ;;; demography tables
   fertilityTable

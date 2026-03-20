@@ -1,7 +1,5 @@
 to apply-mortality
 
-  set carrying-capacity-demand sum [hh_get-total-carrying-capacity-demand] of households
-
   ask households
   [
     hh_update-members-survival

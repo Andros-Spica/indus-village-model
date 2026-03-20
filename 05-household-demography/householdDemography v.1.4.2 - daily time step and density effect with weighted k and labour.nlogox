@@ -37,9 +37,10 @@ globals
   ;;; constants
   maturity-age-in-years              ; defaults to 15 years old; it affects the minimum age acceptable for individuals to keep a household without older individuals
   gestation-period-in-days           ; assumed here as a constant fixed at 280
-
-  density-effect-steepness
   year-length-in-days
+  max-iterations-in-days
+  
+  density-effect-steepness           ; steepness of the density effect function (higher values mean a more abrupt increase in mortality as population approaches carrying capacity)
 
   ;;; demography tables
   fertilityTable
@@ -173,6 +174,8 @@ to set-constants
   set maturity-age-in-years 15
 
   set gestation-period-in-days 280 ; 280 (40 weeks)
+  
+  set max-iterations-in-days (max-iterations * year-length-in-days)
 
   set density-effect-steepness 3
 
@@ -244,6 +247,10 @@ to set-parameters
     set carrying-capacity 100 + random-float 900
     set density-effect-scaling-factor 0.05 + random-float 0.1
     set labour-demand-per-capita 0.3 + random-float 0.6
+  ]
+  if (type-of-experiment = "defined by exp-number")
+  [
+    load-experiment
   ]
 
   ; check parameters values
@@ -386,7 +393,9 @@ to go
 
   ; --- stop conditions -------------------------
 
-  if (totalHouseholds = 0)
+  if (totalHouseholds = 0 or
+    ticks = max-iterations-in-days or
+    totalIndividuals > max-population)
   [
     ;if (length behaviorspace-experiment-name > 0 and count households > 0) [ export-households ]
     stop
@@ -1763,6 +1772,12 @@ to load-experiment
       set mu-men file-read
       set sigma1-men file-read
       set sigma2-men file-read
+
+      set amenorrhea-period-in-days file-read
+
+      set carrying-capacity file-read
+      set density-effect-scaling-factor file-read
+      set labour-demand-per-capita file-read
 
       set max-iterations 2000
       set max-population 10000

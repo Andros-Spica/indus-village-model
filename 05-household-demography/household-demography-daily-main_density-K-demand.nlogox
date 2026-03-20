@@ -28,7 +28,7 @@ __includes [
   "modules/apply-fertility_daily.nls" ; ---
   "modules/apply-nuptiality_daily.nls" ; ---
   "modules/apply-mortality_daily_density-K-demand.nls" ; ---
-  "modules/manage-orphanhood.nls"
+  "modules/manage-orphanhood_daily.nls" ; ---
   "modules/hh_init_daily.nls" ; ---
   "modules/hh_utils_daily.nls" ; ---
   "modules/kinship.nls"

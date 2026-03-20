@@ -37,9 +37,10 @@ globals
   ;;; constants
   maturity-age-in-years              ; defaults to 15 years old; it affects the minimum age acceptable for individuals to keep a household without older individuals
   gestation-period-in-days           ; assumed here as a constant fixed at 280
-
-  density-effect-steepness
   year-length-in-days
+  max-iterations-in-days
+  
+  density-effect-steepness           ; steepness of the density effect function (higher values mean a more abrupt increase in mortality as population approaches carrying capacity)
 
   ;;; demography tables
   fertilityTable
@@ -170,6 +171,8 @@ to set-constants
   set maturity-age-in-years 15
 
   set gestation-period-in-days 280 ; 280 (40 weeks)
+  
+  set max-iterations-in-days (max-iterations * year-length-in-days)
 
   set density-effect-steepness 3
 
@@ -239,6 +242,10 @@ to set-parameters
 
     set carrying-capacity 100 + random-float 900
     set density-effect-scaling-factor 0.05 + random-float 0.1
+  ]
+  if (type-of-experiment = "defined by exp-number")
+  [
+    load-experiment
   ]
 
   ; check parameters values
@@ -379,7 +386,9 @@ to go
 
   ; --- stop conditions -------------------------
 
-  if (totalHouseholds = 0)
+  if (totalHouseholds = 0 or
+    ticks = max-iterations-in-days or
+    totalIndividuals > max-population)
   [
     ;if (length behaviorspace-experiment-name > 0 and count households > 0) [ export-households ]
     stop
@@ -794,7 +803,7 @@ to hh_initialise-members
     [
       ; get the probability of the couple having descendence for a past day i
       ; i.e. woman fertility at the corresponding age
-      let offspringProb get-fertility-from-table ((item 0 hh_membersAge) - i)
+      set offspringProb get-fertility-from-table ((item 0 hh_membersAge) - i)
       
       ; test the fertility probability and mark gestation
       if (random-float 1 < offspringProb)
@@ -842,7 +851,7 @@ to-report get-initial-marriage-age [ isFemale ]
 
   ; if the procedure reaches 100 years old, it is likely that the parameters of the nuptiality table are not well calibrated
   ; To avoid errors during setup, we set the marriage age to the mean of the distribution.
-  if (ageInYears == 100)
+  if (ageInYears = 100)
   [
     print (word "WARNING: Initialisation of marriage age forced to parametric mean (mu) in " self )
     ifelse (isFemale)
@@ -1300,6 +1309,8 @@ to-report get-fertility-from-table [ ageInYears ]
   ; In very rare cases, under certain parameter values, the woman could be initialise as very (impossibly) old.
 
   report probPregnancy
+  
+end
 
 to-report get-nuptiality-of-day [ isFemale ageInDays ]
 
@@ -1693,6 +1704,11 @@ to load-experiment
       set sigma1-men file-read
       set sigma2-men file-read
 
+      set amenorrhea-period-in-days file-read
+
+      set carrying-capacity file-read
+      set density-effect-scaling-factor file-read
+
       set max-iterations 2000
       set max-population 10000
     ]
@@ -1901,7 +1917,7 @@ carefully [ set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)
     <input x="222" multiline="false" y="116" height="60" variable="max-population" type="number" width="101">10000.0</input>
     <input x="193" multiline="false" y="183" height="60" variable="exp-number" type="number" width="100">1.0</input>
     <input x="118" multiline="false" y="116" height="60" variable="max-iterations" type="number" width="100">2000.0</input>
-    <chooser x="10" y="183" height="60" variable="type-of-experiment" current="0" width="178" display="type-of-experiment">
+    <chooser x="10" y="183" height="60" variable="type-of-experiment" current="2" width="178" display="type-of-experiment">
       <choice type="string" value="user-defined"></choice>
       <choice type="string" value="random"></choice>
       <choice type="string" value="defined by exp-number"></choice>
@@ -1947,26 +1963,26 @@ set-plot-y-range -0.001 (precision (max (list max nuptialityTable-women max nupt
         <update>plot-table nuptialityTable-men</update>
       </pen>
     </plot>
-    <slider x="242" step="1" y="579" max="25" width="214" display="cdmlt-level" height="50" min="1" direction="Horizontal" default="8.0" variable="cdmlt-level" units="levels from 1 to 25"></slider>
-    <slider x="243" step="0.001" y="966" max="1" width="209" display="c1-women" height="50" min="0" direction="Horizontal" default="1.0" variable="c1-women" units="(default: 0.9)"></slider>
-    <slider x="247" step="0.001" y="794" max="40" width="208" display="mu-fert" height="50" min="0" direction="Horizontal" default="15.0" variable="mu-fert" units="(default: 23)"></slider>
-    <slider x="248" step="0.001" y="904" max="6 * 5" width="234" display="sigma2-fert" height="50" min="0" direction="Horizontal" default="10.0" variable="sigma2-fert" units="(default: 10)"></slider>
-    <slider x="247" step="0.001" y="849" max="2 * 5" width="235" display="sigma1-fert" height="50" min="0" direction="Horizontal" default="5.0" variable="sigma1-fert" units="(default: 5)"></slider>
-    <slider x="247" step="0.001" y="739" max="1" width="210" display="c1-fert" height="50" min="0" direction="Horizontal" default="1.0" variable="c1-fert" units="(default: 0.9)"></slider>
+    <slider x="242" step="1" y="579" max="25" width="214" display="cdmlt-level" height="50" min="1" direction="Horizontal" default="13.0" variable="cdmlt-level" units="levels from 1 to 25"></slider>
+    <slider x="243" step="0.001" y="966" max="1" width="209" display="c1-women" height="50" min="0" direction="Horizontal" default="0.5" variable="c1-women" units="(default: 0.9)"></slider>
+    <slider x="247" step="0.001" y="794" max="40" width="208" display="mu-fert" height="50" min="0" direction="Horizontal" default="22.5" variable="mu-fert" units="(default: 23)"></slider>
+    <slider x="248" step="0.001" y="904" max="6 * 5" width="234" display="sigma2-fert" height="50" min="0" direction="Horizontal" default="12.5" variable="sigma2-fert" units="(default: 10)"></slider>
+    <slider x="247" step="0.001" y="849" max="2 * 5" width="235" display="sigma1-fert" height="50" min="0" direction="Horizontal" default="5.5" variable="sigma1-fert" units="(default: 5)"></slider>
+    <slider x="247" step="0.001" y="739" max="1" width="210" display="c1-fert" height="50" min="0" direction="Horizontal" default="0.25" variable="c1-fert" units="(default: 0.9)"></slider>
     <chooser x="244" y="634" height="60" variable="coale-demeny-region" current="2" width="141" display="coale-demeny-region">
       <choice type="string" value="west"></choice>
       <choice type="string" value="east"></choice>
       <choice type="string" value="south"></choice>
       <choice type="string" value="north"></choice>
     </chooser>
-    <slider x="243" step="0.001" y="1018" max="40" width="209" display="mu-women" height="50" min="0" direction="Horizontal" default="15.0" variable="mu-women" units="(default: 15)"></slider>
-    <slider x="243" step="0.001" y="1070" max="2 * 5" width="209" display="sigma1-women" height="50" min="0" direction="Horizontal" default="5.0" variable="sigma1-women" units="(default: 5)"></slider>
-    <slider x="243" step="0.001" y="1121" max="2 * 5" width="209" display="sigma2-women" height="50" min="0" direction="Horizontal" default="10.0" variable="sigma2-women" units="(default: 5)"></slider>
-    <slider x="453" step="0.001" y="966" max="1" width="201" display="c1-men" height="50" min="0" direction="Horizontal" default="1.0" variable="c1-men" units="(default: 0.85)"></slider>
-    <slider x="453" step="0.001" y="1018" max="2 * 20" width="201" display="mu-men" height="50" min="0" direction="Horizontal" default="20.0" variable="mu-men" units="(default: 20)"></slider>
-    <slider x="453" step="0.001" y="1070" max="2 * 5" width="201" display="sigma1-men" height="50" min="0" direction="Horizontal" default="2.0" variable="sigma1-men" units="(default: 2)"></slider>
-    <slider x="453" step="0.001" y="1121" max="2 * 5" width="201" display="sigma2-men" height="50" min="0" direction="Horizontal" default="10.0" variable="sigma2-men" units="(default: 10)"></slider>
-    <slider x="301" step="0.01" y="512" max="0.5" width="297" display="par_density-effect-scaling-factor" height="50" min="0" direction="Horizontal" default="0.05" variable="density-effect-scaling-factor" units="(default: 0.05)"></slider>
+    <slider x="243" step="0.001" y="1018" max="40" width="209" display="mu-women" height="50" min="0" direction="Horizontal" default="27.5" variable="mu-women" units="(default: 15)"></slider>
+    <slider x="243" step="0.001" y="1070" max="2 * 5" width="209" display="sigma1-women" height="50" min="0" direction="Horizontal" default="10.5" variable="sigma1-women" units="(default: 5)"></slider>
+    <slider x="243" step="0.001" y="1121" max="2 * 5" width="209" display="sigma2-women" height="50" min="0" direction="Horizontal" default="10.5" variable="sigma2-women" units="(default: 5)"></slider>
+    <slider x="453" step="0.001" y="966" max="1" width="201" display="c1-men" height="50" min="0" direction="Horizontal" default="0.5" variable="c1-men" units="(default: 0.85)"></slider>
+    <slider x="453" step="0.001" y="1018" max="2 * 20" width="201" display="mu-men" height="50" min="0" direction="Horizontal" default="27.5" variable="mu-men" units="(default: 20)"></slider>
+    <slider x="453" step="0.001" y="1070" max="2 * 5" width="201" display="sigma1-men" height="50" min="0" direction="Horizontal" default="10.5" variable="sigma1-men" units="(default: 2)"></slider>
+    <slider x="453" step="0.001" y="1121" max="2 * 5" width="201" display="sigma2-men" height="50" min="0" direction="Horizontal" default="10.5" variable="sigma2-men" units="(default: 10)"></slider>
+    <slider x="301" step="0.01" y="512" max="0.5" width="297" display="par_density-effect-scaling-factor" height="50" min="0" direction="Horizontal" default="0.05" variable="par_density-effect-scaling-factor" units="(default: 0.05)"></slider>
     <slider x="16" step="1" y="512" max="1000" width="267" display="par_carrying-capacity" height="50" min="0" direction="Horizontal" default="249.0" variable="par_carrying-capacity" units="indiv. (default: 200)"></slider>
   </widgets>
   <info>## Development notes
