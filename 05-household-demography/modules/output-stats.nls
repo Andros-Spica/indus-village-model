@@ -10,6 +10,9 @@ to reset-demography-stats
   set womenOut 0
   set menOut 0
 
+  set couplesAccepted 0
+  set couplesRejected 0
+
 end
 
 to update-demography-stats

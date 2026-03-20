@@ -33,7 +33,7 @@ to load-experiment
       set amenorrhea-period-in-days file-read
 
       set max-iterations 500
-      set max-population 10000
+      set max-population 5000
     ]
   file-close
 

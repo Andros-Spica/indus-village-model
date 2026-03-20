@@ -90,6 +90,8 @@ globals
   menIn
   womenOut                       ; number of individuals exiting the system (due to couple creation with external population) (integer)
   menOut
+  couplesAccepted                ; number of couples formed within the system (integer)
+  couplesRejected                ; number of couples rejected due to kinship restrictions (integer)
   totalOrphans                   ; number of children moving from an household where all adults are dead
 ]
 
@@ -183,7 +185,7 @@ update-plots</button>
     <slider x="464" step="0.001" y="937" max="1" width="201" display="c1-men" height="50" min="0" direction="Horizontal" default="0.8" variable="c1-men" units="(default: 0.8)"></slider>
     <slider x="464" step="0.001" y="989" max="2 * 20" width="201" display="mu-men" height="50" min="0" direction="Horizontal" default="22.0" variable="mu-men" units="(default: 22)"></slider>
     <slider x="464" step="0.001" y="1041" max="2 * 5" width="201" display="sigma1-men" height="50" min="0" direction="Horizontal" default="5.0" variable="sigma1-men" units="(default: 5)"></slider>
-    <slider x="464" step="0.001" y="1092" max="2 * 5" width="201" display="sigma2-men" height="50" min="0" direction="Horizontal" default="10.0" variable="sigma2-men" units="(default: 15)"></slider>
+    <slider x="464" step="0.001" y="1092" max="2 * 5" width="201" display="sigma2-men" height="50" min="0" direction="Horizontal" default="15.0" variable="sigma2-men" units="(default: 15)"></slider>
     <plot x="671" autoPlotX="true" yMax="10.0" autoPlotY="true" y="10" xMin="0.0" height="191" legend="true" xMax="10.0" yMin="0.0" width="464" display="Population">
       <setup></setup>
       <update></update>
@@ -314,9 +316,8 @@ carefully [ set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)
     <monitor x="1180" precision="2" y="795" height="60" fontSize="11" width="100" display="% 0-4 (women)">100 * womenFirstAgeGroup / totalWomen</monitor>
     <input x="18" multiline="false" y="248" height="60" variable="par_initial-num-households" type="number" width="164">25.0</input>
     <monitor x="184" precision="0" y="249" height="60" fontSize="9" width="146">initial-num-households</monitor>
-    <slider x="384" step="1" y="410" max="10" width="281" display="par_acceptable-kinship-degree-for-couples" height="50" min="0" direction="Horizontal" default="8.0" variable="par_acceptable-kinship-degree-for-couples"></slider>
     <note x="23" y="390" backgroundDark="0" fontSize="9" width="155" markdown="false" height="18" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">value format: minimum maximum</note>
-    <chooser x="441" y="340" height="60" variable="residence-rule" current="1" width="157" display="residence-rule">
+    <chooser x="441" y="340" height="60" variable="residence-rule" current="0" width="157" display="residence-rule">
       <choice type="string" value="patrilocal-patrilineal"></choice>
       <choice type="string" value="matrilocal-matrilineal"></choice>
     </chooser>
@@ -325,6 +326,15 @@ carefully [ set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)
     <input x="6" multiline="false" y="407" height="60" variable="par_max-couple-count-distribution" type="string" width="206">1 6</input>
     <monitor x="204" precision="0" y="406" height="60" fontSize="9" width="186">max-couple-count-distribution</monitor>
     <button x="15" actionKey="1" y="10" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="63">setup</button>
+    <plot x="1139" autoPlotX="true" yMax="10.0" autoPlotY="true" y="422" xMin="0.0" height="175" legend="false" xMax="10.0" yMin="0.0" width="280" display="couples accepted over total trys">
+      <setup>set-plot-y-range -0.001 1.01</setup>
+      <update></update>
+      <pen interval="1.0" mode="0" display="default" color="-16777216" legend="true">
+        <setup></setup>
+        <update>carefully [ plot (couplesAccepted / (couplesAccepted + couplesRejected)) ] [ plot 0 ]</update>
+      </pen>
+    </plot>
+    <slider x="393" step="1" y="411" max="10" width="279" display="par_acceptable-kinship-degree-for-couples" height="50" min="-1" direction="Horizontal" default="-1.0" variable="par_acceptable-kinship-degree-for-couples"></slider>
   </widgets>
   <info>## Development notes
 

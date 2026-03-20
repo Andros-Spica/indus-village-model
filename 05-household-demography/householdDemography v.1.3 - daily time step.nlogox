@@ -779,7 +779,7 @@ to hh_initialise-members
     [
       ; get the probability of the couple having descendence for a past day i
       ; i.e. woman fertility at the corresponding age
-      let offspringProb get-fertility-from-table ((item 0 hh_membersAge) - i)
+      set offspringProb get-fertility-prob-from-table ((item 0 hh_membersAge) - i)
       
       ; test the fertility probability and mark gestation
       if (random-float 1 < offspringProb)
@@ -827,7 +827,7 @@ to-report get-initial-marriage-age [ isFemale ]
 
   ; if the procedure reaches 100 years old, it is likely that the parameters of the nuptiality table are not well calibrated
   ; To avoid errors during setup, we set the marriage age to the mean of the distribution.
-  if (ageInYears == 100)
+  if (ageInYears = 100)
   [
     print (word "WARNING: Initialisation of marriage age forced to parametric mean (mu) in " self )
     ifelse (isFemale)
@@ -1268,7 +1268,7 @@ to-report get-fertility-of-day [ ageInDays ]
 
   let ageInYears get-age-in-years-old ageInDays
 
-  let probPregnancy (get-fertility-from-table ageInYears)
+  let probPregnancy (get-fertility-prob-from-table ageInYears)
 
   set probPregnancy 1 - (1 - probPregnancy) ^ (1 / year-length-in-days)
 
