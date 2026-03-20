@@ -156,19 +156,6 @@ endstates_matri <- read.csv("simdata/v1.3/household-demography-daily-main exp-en
 endstates_patri <- read.csv("simdata/v1.3/household-demography-daily-main exp-endstates-patri-table.csv", skip = 6)
 ```
 
-```{r}
-# get_amonorrhea_period <- function(exp_number) {
-#   params_sobol$amenorrhea.period.in.days[exp_number]
-# }
-# 
-# # temporary fix: add missing amenorrhea-period-in-days
-# endstates_matri <- endstates_matri |>
-#   mutate(amenorrhea.period.in.days = get_amonorrhea_period(exp.number))
-# endstates_patri <- endstates_patri |>
-#   mutate(amenorrhea.period.in.days = get_amonorrhea_period(exp.number))
-```
-
-
 Preprocess dataset adapting from NetLogo'S specific format. Categorise end states according to whether populations get extinct, survive and/or grow within the maximum number of simulation steps (`max-iterations`).
 
 ```{r}
@@ -822,6 +809,52 @@ plot_8 <- ggplot(endstates_patri, aes(x = survival, y = sigma2.fert)) +
 
 grid.arrange(grobs = c(plot_1, plot_5, plot_2, plot_6, plot_3, plot_7, plot_4, plot_8), ncol = 2)
 
+dev.off()
+```
+
+```{r}
+knitr::include_graphics(plotName)
+```
+
+The additional parameter introduced in the daily version, `amenorrhea-period-in-days`, do not present a significant effect on the survival category.
+
+```{r}
+plotName = paste0(plotDirectory, paste0("endstates_survival_amenorrhea-period-in-days.png"))
+
+if (plot_file_format == "png") {
+    graphic_scale <- 1
+    #legend_text_rescale <- legend_key_rescale <- graphic_scale * -0.5
+    #axis_text_rescale <- axis_title_rescale <- graphic_scale * -0.5
+    
+    png(plotName, width = graphic_scale * 1800, height = graphic_scale * 800, res = 300, pointsize = 4)
+  } else if (plot_file_format == "eps") {
+    graphic_scale = 1.2
+    # font_rescale = -0.2
+    # axis_text_rescale = -0.1
+    # margin_text_rescale = -0.5
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName ,
+                        pointsize = 12,
+                        width = graphic_scale * 8,
+                        height = graphic_scale * 4,
+                        onefile = FALSE,
+                        family = "sans"
+    )
+  }
+
+plot_1 <- ggplot(endstates_matri, aes(x = survival, y = amenorrhea.period.in.days)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank()) +
+  ggtitle("'matrilocal-matrilineal'")
+plot_2 <- ggplot(endstates_patri, aes(x = survival, y = amenorrhea.period.in.days)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(size = 5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank()) +
+  ggtitle("'patrilocal-patrilineal'")
+grid.arrange(grobs = c(plot_1, plot_2), ncol = 2, widths = c(1, 1))
 dev.off()
 ```
 
