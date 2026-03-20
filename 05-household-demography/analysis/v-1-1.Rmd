@@ -811,7 +811,7 @@ knitr::include_graphics(plotName)
 
 #### Nuptiality factors
 
-Residential rule showing no clear effect:
+Residential rule showing only a small, with "matri" rule being slightly associated with survival.
 
 ```{r}
 cat("matri | survive? |")
@@ -820,7 +820,7 @@ cat("patri | survive? |")
 table(endstates_patri$residence.rule, endstates_patri$totalIndividuals > 0)
 ```
 
-The effect of the acceptable kinship degree is not significant: 
+The effect of the acceptable kinship degree is not significant. However, there could be a very small effect, positive under "patri" and negative under "matri". 
 
 ```{r}
 plotName = paste0(plotDirectory, paste0("endstates_survival_acceptable-kinship-degree-for-couples.png"))
