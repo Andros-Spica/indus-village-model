@@ -480,6 +480,7 @@ param_names <- c("initial.num.households",
                  "household_initial_age_distribution_max",
                  "max_couple_count_distribution_min",
                  "max_couple_count_distribution_max",
+                 "acceptable.kinship.degree.for.couples",
                  param_names_pk,
                  param_names_density)
 
@@ -578,7 +579,7 @@ source("library/variableImportancePlot.R")
 plotName = paste0(plotDirectory, "variableImportancePlot.png")
 
 color_variable_map <- rev(c(
-  rep("#0000a2", 5),
+  rep("#0000a2", 6),
   "#bc272d", 
   rep("#db9b35", 4), 
   rep("#50ad9f", 8),

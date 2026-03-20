@@ -580,7 +580,7 @@ source("library/variableImportancePlot.R")
 plotName = paste0(plotDirectory, "variableImportancePlot.png")
 
 color_variable_map <- rev(c(
-  rep("#0000a2", 5),
+  rep("#0000a2", 6),
   "#bc272d", 
   rep("#db9b35", 4), 
   rep("#50ad9f", 8),
@@ -1302,7 +1302,7 @@ p2 <- ggplot(trajectories_v12, aes(x = X.step., y = totalIndividuals, group = X.
         legend.key.width = unit(2 * (graphic_scale + legend_key_rescale), 'lines'),
         legend.key.height = unit(2 * (graphic_scale + legend_key_rescale), 'lines'))
 
-p3 <- grid.arrange(p1, p2, ncol = 2, widths = c(1, 1.4))
+p3 <- grid.arrange(p1, p2, ncol = 2, widths = c(1, 1.6))
 
 dev.off()
 ```
