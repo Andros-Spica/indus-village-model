@@ -1272,15 +1272,21 @@ ISSUES:
       <setup>setup</setup>
       <go>go</go>
       <metrics>
-        <metric>SEED</metric>
+        <metric>max-iterations</metric>
+        <metric>max-population</metric>
         <metric>maturity-age-in-years</metric>
         <metric>gestation-period-in-days</metric>
         <metric>year-length-in-days</metric>
+        <metric>max-iterations-in-days</metric>
+        <metric>density-effect-steepness</metric>
         <metric>initial-num-households</metric>
         <metric>household-initial-age-distribution</metric>
         <metric>max-couple-count-distribution</metric>
+        <metric>carrying-capacity</metric>
+        <metric>density-effect-scaling-factor</metric>
         <metric>cdmlt-level</metric>
         <metric>coale-demeny-region</metric>
+        <metric>amenorrhea-period-in-days</metric>
         <metric>c1-fert</metric>
         <metric>mu-fert</metric>
         <metric>sigma1-fert</metric>
@@ -1427,12 +1433,13 @@ ISSUES:
         <metric>maturity-age-in-years</metric>
         <metric>gestation-period-in-days</metric>
         <metric>year-length-in-days</metric>
+        <metric>max-iterations-in-days</metric>
         <metric>density-effect-steepness</metric>
-        <metric>carrying-capacity</metric>
-        <metric>density-effect-scaling-factor</metric>
         <metric>initial-num-households</metric>
         <metric>household-initial-age-distribution</metric>
         <metric>max-couple-count-distribution</metric>
+        <metric>carrying-capacity</metric>
+        <metric>density-effect-scaling-factor</metric>
         <metric>cdmlt-level</metric>
         <metric>coale-demeny-region</metric>
         <metric>amenorrhea-period-in-days</metric>
@@ -1523,12 +1530,13 @@ ISSUES:
         <metric>maturity-age-in-years</metric>
         <metric>gestation-period-in-days</metric>
         <metric>year-length-in-days</metric>
+        <metric>max-iterations-in-days</metric>
         <metric>density-effect-steepness</metric>
-        <metric>carrying-capacity</metric>
-        <metric>density-effect-scaling-factor</metric>
         <metric>initial-num-households</metric>
         <metric>household-initial-age-distribution</metric>
         <metric>max-couple-count-distribution</metric>
+        <metric>carrying-capacity</metric>
+        <metric>density-effect-scaling-factor</metric>
         <metric>cdmlt-level</metric>
         <metric>coale-demeny-region</metric>
         <metric>amenorrhea-period-in-days</metric>
