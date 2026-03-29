@@ -198,7 +198,9 @@ set_survival_category <- function(endstate_df) {
       )
     )
 }
+```
 
+```{r}
 endstates_matri <- endstates_matri |>
   preprocess_params() |>
   set_survival_category()
@@ -296,9 +298,6 @@ plot_2 <- ggplot(endstates_patri, aes(x = survival)) +
         axis.title.x = element_blank(),
         axis.title.y = element_blank())
 grid.arrange(grobs = c(plot_1, plot_2), ncol = 2, widths = c(1, 1.2))
-#layout(matrix(1:2, ncol = 2))
-#barplot(table(endstates_matri$survival), main = "residential-rule = 'matrilocal-matrilineal'")
-#barplot(table(endstates_patri$survival), main = "residential-rule = 'patrilocal-patrilineal'")
 dev.off()
 ```
 
@@ -307,6 +306,72 @@ knitr::include_graphics(plotName)
 ```
 
 ### Visualising population age structure
+
+```{r}
+source("library/age_structure.R")
+```
+
+```{r aggregated-pyramid}
+pyramid_matri <- build_population_pyramid(
+  endstates_matri,
+  age_breaks = seq(0, 80, 5),
+  normalize = FALSE
+)
+pyramid_patri <- build_population_pyramid(
+  endstates_patri,
+  age_breaks = seq(0, 80, 5),
+  normalize = FALSE
+)
+```
+
+
+```{r aggregated-pyramid}
+plotName = paste0(plotDirectory, paste0("endstates_age-pyramid_stats.png"))
+
+if (plot_file_format == "png") {
+    graphic_scale <- 1
+    #legend_text_rescale <- legend_key_rescale <- graphic_scale * -0.5
+    #axis_text_rescale <- axis_title_rescale <- graphic_scale * -0.5
+    
+    png(plotName, width = graphic_scale * 1800, height = graphic_scale * 800, res = 300, pointsize = 4)
+  } else if (plot_file_format == "eps") {
+    graphic_scale = 1.2
+    # font_rescale = -0.2
+    # axis_text_rescale = -0.1
+    # margin_text_rescale = -0.5
+    
+    extrafont::loadfonts(device = "postscript")
+    grDevices::cairo_ps(filename = plotName ,
+                        pointsize = 12,
+                        width = graphic_scale * 8,
+                        height = graphic_scale * 4,
+                        onefile = FALSE,
+                        family = "sans"
+    )
+  }
+
+plot_1 <- plot_population_pyramid(pyramid_matri, show_range = TRUE)
+plot_2 <- plot_population_pyramid(pyramid_patri, show_range = TRUE, show_legend = FALSE)
+grid.arrange(grobs = c(plot_1, plot_2), ncol = 2, widths = c(1, 1.2))
+dev.off()
+```
+
+```{r}
+plot_variability(plot_df)
+```
+
+```{r}
+age_structure_sample <- sample_runs(endstates_matri, normalize = FALSE)
+plot_sample_runs(age_structure_sample)
+```
+
+```{r}
+matri_patri_diff <- diff_population_pyramids(pyramid_matri, pyramid_patri)
+```
+
+```{r}
+plot_diff_population_pyramids(matri_patri_diff)
+```
 
 ```{r}
 extract_age_structure <- function(char_value) {
