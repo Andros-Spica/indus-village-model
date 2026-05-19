@@ -194,7 +194,7 @@ to create-couple-external [ singleData ]
 ;        ; add all members to deletion queue since the household would have only children (assuming they are moving out with the single individual)
 ;        set hh_memberIndexesToDelete hh_membersIndexes
 ;
-;        set childrenMovingOut hh_count-children
+;        set childrenMovingOut hh_count-children - 1
 ;      ]
 ;      [
         ; add the single individual to the deletion queue, avoiding duplicates
