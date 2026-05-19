@@ -1,0 +1,25 @@
+parameter_metadata <- tibble::tribble(
+  ~parameter, ~type, ~sampled, ~include_sensitivity, ~color,
+
+  "initial_num_households", "integer", TRUE, TRUE, "#0000a2",
+  "household_initial_age_distribution_min", "integer", TRUE, TRUE, "#0000a2",
+  "household_initial_age_distribution_max", "integer", TRUE, TRUE, "#0000a2",
+  "max_couple_count_distribution_min", "integer", TRUE, TRUE, "#0000a2",
+  "max_couple_count_distribution_max", "integer", TRUE, TRUE, "#0000a2",
+  "acceptable_kinship_degree_for_couples", "integer", TRUE, TRUE, "#0000a2",
+  "cdmlt_level", "integer", TRUE, TRUE, "#bc272d",
+  "c1_fert", "continuous", TRUE, TRUE, "#50ad9f",
+  "mu_fert", "continuous", TRUE, TRUE, "#50ad9f",
+  "sigma1_fert", "continuous", TRUE, TRUE, "#50ad9f",
+  "sigma2_fert", "continuous", TRUE, TRUE, "#50ad9f",
+  "c1_women", "continuous", TRUE, TRUE, "#db9b35",
+  "mu_women", "continuous", TRUE, TRUE, "#db9b35",
+  "sigma1_women", "continuous", TRUE, TRUE, "#db9b35",
+  "sigma2_women", "continuous", TRUE, TRUE, "#db9b35",
+  "c1_men", "continuous", TRUE, TRUE, "#db9b35",
+  "mu_men", "continuous", TRUE, TRUE, "#db9b35",
+  "sigma1_men", "continuous", TRUE, TRUE, "#db9b35",
+  "sigma2_men", "continuous", TRUE, TRUE, "#db9b35",
+  "residential_rule", "categorical", FALSE, FALSE, NULL,
+  "coale_demeny_region", "categorical", FALSE, FALSE, NULL
+)
