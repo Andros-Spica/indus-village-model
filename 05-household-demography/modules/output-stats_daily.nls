@@ -98,6 +98,5 @@ to reset-demography-stats-year
   set womenOutThisYear 0
   set menOutThisYear 0
   set couplesAcceptedThisYear 0
-  set couplesRejectedLastYear 0
 
 end
