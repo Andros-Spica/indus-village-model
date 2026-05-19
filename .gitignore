@@ -4,3 +4,4 @@
 .Ruserdata
 05-household-demography/analysis/simdata/
 *.RData
+.positai
