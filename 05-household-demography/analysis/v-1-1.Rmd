@@ -1,10 +1,13 @@
 ---
-title: "Household Demography model: sensitivity analysis on base model (v.1.1)"
-output: html_notebook
+title: 'Household Demography model: sensitivity analysis on base model (v.1.1)'
+output:
+  html_document:
+    df_print: paged
+    code_folding: hide
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message=FALSE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 VERSION <- "v1.1"
 SHOW_DIAGNOSTICS <- FALSE
 EXPORT_FIGURES <- TRUE
@@ -22,6 +25,7 @@ library(dplyr)
 library(tidyr)
 library(readr)
 library(ggplot2)
+library(zoo)
 library(randomForest)
 library(pdp)
 library(forcats)
@@ -36,7 +40,11 @@ source("library/load_trajectories.R")
 source("library/preprocess_simdata.R")
 
 source("library/export_figure.R")
-source("library/bifurcationPlot.R")
+
+source("library/structure/prepare_age_structure.R")
+source("library/structure/aggregate_age_structure.R")
+source("library/structure/plot_population_pyramid.R")
+source("library/structure/compare_population_pyramids.R")
 
 source("library/sensitivity/parameter_metadata.R")
 source("library/sensitivity/prepare_sensitivity_data.R")
@@ -67,11 +75,17 @@ This notebook analyses the behaviour of the baseline Household Demography model 
 - variation between residence systems,
 - and parameter influence on population trajectories and end states.
 
+
+### Note on variable denominations
+
+
+
+
 ## Experiment design
 
 ### Generate parameter values with Sobol Sampling
 
-Sobol sampling is used to generate a diverse set of parameter combinations across the defined parameter space. This allows us to explore how different parameter configurations affect the model's outcomes and to identify which parameters are most influential in driving population survival or extinction. The actual sampling was done with `generate_sobol.R` script, which generates a sample with 2000 parameter combinations across the parameter ranges defined in `parameter_ranges.R`. The generated parameter combinations were then used to run simulations in NetLogo's Behaviour Space, for each combination of `residential-rule` and `cdmlt-region` (2 x 4), varying the `SEED` parameter (n = 3) to introduce stochasticity, for a total of 48000 simulations.
+Sobol sampling is used to generate a diverse set of parameter combinations across the defined parameter space. This allows us to explore how different parameter configurations affect the model's outcomes and to identify which parameters are most influential in driving population survival or extinction. The actual sampling was done with `generate_sobol.R` script, which generates a sample with 2000 parameter combinations across the parameter ranges defined in `parameter_ranges.R`. 
 
 ```{r sobol_load}
 # Load object as Rdata file
@@ -93,6 +107,8 @@ plotName = paste0("diagnostics/", VERSION, "_sobol_param_pairsPlot.png")
 knitr::include_graphics(plotName)
 ```
 
+The generated parameter combinations were then used to run simulations in NetLogo's Behaviour Space, for each combination of `residence-rule` ("matrilineal-matrilocal" and "patrilineal-patrilocal", or "matri" and "patri" for short) and `coale-demeny-region` ("north", "south", "east", and "west"), varying the `SEED` parameter (n = 3) to introduce stochasticity, for a total of 48000 simulations. Moreover, all runs assume a fixed `mature_age` of 15 years old. Note that this constant determines a conservative age solely for social maturity, used as a criterion for household viability, while marital and reproductive maturity is regulated probabilistically through the Peristera-Kostaki parameters in the fertility and nuptiality submodels.
+
 ## Data loading and preprocessing
 
 Load simulation end states generated with the Sobol-sampled parameter combinations and sampled trajectories datasets. Preprocess datasets to adapt from NetLogo's specific format and categorise trajectories according to whether populations get extinct, survive and/or grow within the maximum number of simulation steps (`max-iterations`).
@@ -105,27 +121,37 @@ endstates <- load_endstates("v1.1") |>
 ```{r preprocessing_trajectories}
 sampled_trajectories <- load_trajectories("v1.1") |>
   preprocess_simdata("v1.1", full_trajectory = TRUE)
+sampled_trajectories_cdmlt_level <- load_trajectories("v1.1", suffix = "cdmlt-level") |>
+  preprocess_simdata("v1.1", full_trajectory = TRUE)
+sampled_trajectories_c1_fert <- load_trajectories("v1.1", suffix = "c1-fert") |>
+  preprocess_simdata("v1.1", full_trajectory = TRUE)
+
 ```
 
-## Population dynamics
+## Population dynamics and residence rule split
 
-### End-state distributions
+### Population persistence
 
-Overview of end states across residence rules. The histogram shows the distribution of final population sizes for each residence rule, with different colors indicating whether the population went extinct or survived. The vertical line represents the maximum population size defined in the model, which can help to visually assess how many simulations reached or exceeded this threshold. The x-axis can be set to a logarithmic scale to better visualize differences in population sizes among those that survived.
+Overview of end states across residence rules and the categorical "regions of the Coale-Demeny model (`coale-demeny-region`). The histogram shows the distribution of final population sizes for each residence rule, with different colours indicating whether the population went extinct or survived. The vertical line represents the maximum population size defined in the model, which can help to visually assess how many simulations reached or exceeded this threshold. The x-axis can be set to a logarithmic scale to better visualize differences in population sizes among those that survived.
 
-```{r fig-endstates-distrib}
+```{r endstates-distrib}
+log_max_population <- max(endstates$log_totalIndividuals)
+
 endstates_distrib_plot <- ggplot(
   endstates,
-  aes(x = totalIndividuals,
+  aes(x = log_totalIndividuals,
       fill = survival)) +
   
   geom_histogram(bins = 40) +
   
-  geom_vline(aes(xintercept = max_population)) +
+  geom_vline(xintercept = log_max_population) +
   
-  facet_wrap(~ residence_rule, ncol = 1) +
+  #facet_wrap(~ residence_rule, ncol = 1) +
+  facet_grid(cols = vars(residence_rule), rows = vars(coale_demeny_region)) +
   
   #scale_x_log10(labels = comma) + # to exclude extinction cases
+  scale_x_continuous(labels = c(0, 10^(1:log_max_population))) +
+  scale_y_log10(labels = comma) +
   
   labs(
     x = "Final population size",
@@ -143,16 +169,17 @@ if (EXPORT_FIGURES) {
 }
 ```
 
-Notice that only a small fraction of simulations reach the maximum population size, and that extinction predominate considering the entirity of the explored parameter space.
+Notice that only a small fraction of simulations reach the maximum population size (approximately 1/10 of those leading to extinction), and that extinction predominate considering the entirety of the explored parameter space.
 
-```{r fig-outcome-prop}
+```{r outcome-prop}
 outcome_prop_plot <- endstates |>
-  count(residence_rule, survival) |>
-  group_by(residence_rule) |>
+  count(residence_rule, coale_demeny_region, survival) |>
+  group_by(residence_rule, coale_demeny_region) |>
   mutate(freq = n / sum(n)) |>
   ggplot(aes(residence_rule, freq, fill = survival)) +
   geom_col(position = "fill") +
   scale_y_continuous(labels = percent) +
+  facet_wrap( ~ coale_demeny_region) +
   labs(
     x = NULL,
     y = "Share of simulations",
@@ -169,16 +196,117 @@ if (EXPORT_FIGURES) {
 }
 ```
 
-Taken as the exploration as a whole, `residential-rule` does not seem to have a strong influence on the overall distribution of end states, with both residence rules showing a similar predominance of extinction outcomes. However, there is a slightly higher proportion of survival outcomes under the "matri" rule compared to the "patri" rule, which could suggest a small influence of residence system on population persistence. This observation will be further explored in the subsequent analyses.
+```{r outcome-prop-noextinction}
+outcome_prop_plot_noextinction <- endstates |>
+  count(residence_rule, coale_demeny_region, survival) |>
+  group_by(residence_rule, coale_demeny_region) |>
+  mutate(freq = n / sum(n)) |>
+  filter(survival != "Extinction") |>
+  ggplot(aes(residence_rule, freq, fill = survival)) +
+  geom_col(position = "fill") +
+  scale_y_continuous(labels = percent) +
+  facet_wrap( ~ coale_demeny_region) +
+  labs(
+    x = NULL,
+    y = "Share of simulations",
+    fill = "Outcome"
+  )
+
+if (EXPORT_FIGURES) {
+  export_figure(
+    outcome_prop_plot_noextinction,
+    "v11_outcome_prop_plot_noextinction"
+  )
+}
+```
+
+Taken as the exploration as a whole, `residence-rule` and `coale-demeny-region` does not seem to have a strong influence on the overall distribution of end states, with both residence rules showing a similar predominance of extinction outcomes. However, there is a slightly higher proportion of survival outcomes under the "matri" rule compared to the "patri" rule, which could suggest a small influence of residence system on population persistence. This observation will be further explored in the subsequent analyses.
+
+### Surviving population structure
+
+```{r age-structure-prepare}
+age_structures <- endstates |>
+
+    filter(
+        survival != "Extinction"
+    ) |>
+
+    prepare_age_structure(
+        age_breaks = seq(0, 100, 5),
+        normalize = TRUE,
+        group_vars = c(
+            "survival",
+            "residence_rule",
+            "coale_demeny_region"
+        )
+    )
+```
+
+```{r age-structure-aggregate}
+age_structures_aggregated <- age_structures |>
+  aggregate_age_structure(
+    group_vars = c("survival", "residence_rule", "coale_demeny_region"),
+    smooth = FALSE
+    )
+```
+
+```{r age-structure-pyramid}
+pyramid_plot_df <- age_structures_aggregated |>
+  prepare_pyramid_plot()
+```
+
+```{r age-structure-pyramid-plot-survival}
+pyramid_plot_df |>
+  plot_population_pyramid(
+    facet = "survival",
+    show_mean = FALSE
+    )
+```
+
+Persistence vs growth: persistence without growth show typical irregularities given lower population sizes and generally a slightly younger population structure. 
+
+```{r age-structure-pyramid-plot-cdr-rr}
+pyramid_plot <- pyramid_plot_df |>
+  plot_population_pyramid(
+    facet = c("coale_demeny_region", "residence_rule"),
+    show_mean = FALSE
+    )
+
+if (EXPORT_FIGURES) {
+  export_figure(
+    pyramid_plot,
+    "v11_pyramid_residence_rule_region",
+    height = 10
+  )
+}
+```
+
+```{r age-structure-pyramid-plot-cdr-rr-display}
+plotName = paste0("plots/v11_pyramid_residence_rule_region.png")
+
+knitr::include_graphics(plotName)
+```
+
+Matrilocal system:
+- broader juvenile cohorts,
+- smoother tapering.
+
+Patrilocal system:
+- narrower lower cohorts,
+- more cohort irregularity,
+- steeper contraction.
+
 
 ### Temporal trajectories
 
 Dynamics of population trajectories across time steps, faceted by residence rule. The plot shows individual trajectories with low opacity and the median trajectory with higher opacity. The y-axis is on a logarithmic scale to better visualize differences in population sizes over time, especially when there are large variations between trajectories.
 
 ```{r trajectories}
+log_max_population <- ceiling(max(sampled_trajectories$log_totalIndividuals))
+
 pop_trajectories_plot <- ggplot(
   sampled_trajectories,
-  aes(step, totalIndividuals,
+  aes(step, log_totalIndividuals,
     group = run_number)) +
 
   geom_line(alpha = 0.08) +
@@ -192,7 +320,9 @@ pop_trajectories_plot <- ggplot(
 
   facet_wrap(~ residence_rule) +
 
-  scale_y_log10()
+  #scale_y_log10()
+  scale_y_continuous(labels = c(0, 10^(1:log_max_population)))
+  
 
 pop_trajectories_plot
 
@@ -208,16 +338,27 @@ The parameter configuration use to generate the trajectories is the same across 
 
 ```{r trajectories-params-display}
 knitr::kable(sampled_trajectories |> 
-  select(all_of(names(parameter_ranges_v11))) |> 
-  distinct() |>
-  t())
+               select(all_of(c("max_iterations", "max_population", 
+                               names(parameter_ranges_v11), 
+                               "coale_demeny_region", "maturity_age"))) |> 
+               distinct() |>
+               t() |>
+               as.data.frame() |>
+               rename(value = 1)
+)
 ```
 
-For this specific parameter configuration, we can see that the population under the "matri" rule shows a more consistent growth trajectory, with most runs showing an increase in population size over time. In contrast, the population under the "patri" rule shows more variability, with some runs showing growth while others show decline or extinction. This suggests that, at least for this parameter configuration, the "matri" residence system may be more conducive to population persistence and growth compared to the "patri" residence system. The asymmetry explored here is focused on the parameters regulating nuptiality in the Peristera-Kostaki model; generally prescribing a scenario where women marry slightly earlier and more often than men. However, it's important to note that this is just one parameter configuration, and the overall influence of residence system on population dynamics may vary across different parameter combinations. Further analysis will be needed to assess the robustness of this observation across the broader parameter space explored in the simulations. 
+For this specific parameter configuration, we can see that the population under the "matri" rule shows a more consistent growth trajectory, with all runs showing an increase in population size, particularly after 200 iteration steps. In contrast, the population under the "patri" rule shows generally declining and more variable trajectories, with some runs showing bursts of recovery while others decline more rapidly towards extinction. There seem to be, however, a certain level of persistence in numbers of individuals equivalent to one to two households (approximately, 10-20), most likely directly related through lineage; a phenomenon sustained only with the complete openness of the model towards the entry of new women through nuptial unions.
+
+This suggests that, at least for this parameter configuration, the "matri" residence system may be more conducive to population persistence and growth compared to the "patri" residence system. The asymmetry explored here is focused on the parameters regulating nuptiality in the Peristera-Kostaki model; generally prescribing a scenario where women marry slightly earlier and more often than men. However, it's important to note that this is just one possible parameter configuration, and the overall influence of residence system on population dynamics may vary across different parameter combinations. Further analysis will be assess the robustness of this observation across the broader parameter space explored in the simulations. 
 
 ## Sensitivity analysis
 
-```{r}
+### Prepare data for sensitivity analysis
+
+Prepare a dataframe out of `endstates` that contains only predictors (explored parameters) and response variables (`log_totalIndividuals`, `survival`), as well as splitting it according to `residence_rule`.
+
+```{r sensitivity-data}
 sensitivity_data <- list(
 
   matri =
@@ -242,10 +383,9 @@ sensitivity_data <- list(
 )
 ```
 
-
 ### Fitting Random-forest models
 
-```{r}
+```{r sensitivity-rf}
 rf_models <- load_or_build_rf_models(
   model_version = "v1.1",
   sensitivity_data = sensitivity_data
@@ -260,7 +400,7 @@ secondary, more nuanced response variable: log_totalIndividuals
 
 ### Parameter importance
 
-```{r}
+```{r sensitivity-importance}
 rf_survival_importance <- bind_rows(
   
   extract_importance(
@@ -279,18 +419,16 @@ rf_survival_importance <- bind_rows(
 )
 ```
 
+Note: associated colours for parameters based on their domain (general, mortality, fertility, nuptiality).
 
-
-```{r}
+```{r sensitivity-importance-barplot}
 plot_importance(
   rf_survival_importance, 
   param_color = parameter_metadata$color[match(rf_survival_importance$parameter, parameter_metadata$parameter)], 
   facet = "residence_rule")
 ```
 
-associated colors for parameters based on their domain (general, mortality, fertility, nuptiality)
-
-```{r}
+```{r sensitivity-importance-dumbbellplot}
 importance_dumbbell_plot <- plot_importance_dumbbell(
   rf_survival_importance, 
   groups = "residence_rule", 
@@ -311,7 +449,7 @@ if (EXPORT_FIGURES) {
 
 Select top parameters
 
-```{r}
+```{r sensitivity-top-param}
 top_parameters <- rf_survival_importance |>
   group_by(parameter) |>
   summarise(
@@ -327,10 +465,10 @@ top_parameters <- rf_survival_importance |>
 
 For each top parameter, calculate PD for RFs using `survival` as response variable and no population ("Extinction") as response class. Plot each PD result with `log_totalIndividuals` and per `residence_rule`.
 
-```{r}
+```{r sensitivity-pd}
 pd_results <- load_or_build_pd_results(
   model_version = "v1.1",
-  overwrite = TRUE,
+  overwrite = FALSE,
   sensitivity_data,
   rf_models$class_survival,
   parameters = top_parameters,
@@ -340,7 +478,7 @@ pd_results <- load_or_build_pd_results(
 
 Plot results
 
-```{r}
+```{r sensitivity-pd-plot}
 param_pd_plots <- plot_parameter_dependence_composite(
   sensitivity_data,
   pd_results,
@@ -360,8 +498,8 @@ if (EXPORT_FIGURES) {
 }
 ```
 
-```{r}
-plotName = paste0("plots/main/v11_param_pd.png")
+```{r sensitivity-pd-plot-display}
+plotName = paste0("plots/v11_param_pd.png")
 
 knitr::include_graphics(plotName)
 ```
@@ -370,131 +508,110 @@ knitr::include_graphics(plotName)
 
 #### `cdmlt-level`
 
->Run simulations in NetLogo Behaviour Space using the same parameter configuration, except `residence-rule`, and varying `cdmlt-level` and `SEED`.
+Simulations using the same parameter configuration, except `residence-rule`, and varying `cdmlt-level` and `SEED`.
 
-Loading simulation experiments' end states:
-
-```{r}
-trajectories_v11_cdmlt_level <- read.csv("simdata/v1.1/household-demography-main exp-trajectories_cdmlt-level-table.csv", skip = 6)
+```{r trajectories-params-cdmlt-level-display}
+knitr::kable(sampled_trajectories_cdmlt_level |> 
+  select(all_of(c("max_iterations", "max_population", 
+                  names(parameter_ranges_v11), 
+                  "coale_demeny_region", "maturity_age")),
+         -c("cdmlt_level")) |> 
+  distinct() |>
+  t())
 ```
 
-Preprocess dataset adapting from NetLogo'S specific format. Categorise trajectories according to whether populations get extinct, survive and/or grow within the maximum number of simulation steps (`max-iterations`).
+```{r trajectories-cdmlt-level}
+log_max_population <- ceiling(max(sampled_trajectories_cdmlt_level$log_totalIndividuals))
 
-```{r}
-MAX_POPULATION = trajectories_v11_cdmlt_level$max.population[1]
+pop_trajectories_plot <- ggplot(
+  sampled_trajectories_cdmlt_level,
+  aes(step, log_totalIndividuals,
+    group = run_number,
+    color = as.factor(cdmlt_level)
+    )) +
 
-trajectories_v11_cdmlt_level <- trajectories_v11_cdmlt_level |>
-  preprocess_params() |>
-  set_endstate_survival_category()
-```
+  geom_line(alpha = 0.08) +
 
-```{r}
-plot_name <- file.path(paste0(plotDirectory, "trajectories_cdmlt-level.", plot_file_format))
+  facet_wrap(~ residence_rule) +
 
-if (plot_file_format == "png") {
-  graphic_scale <- 1
-  legend_text_rescale <- legend_key_rescale <- graphic_scale * -0.5
-  axis_text_rescale <- axis_title_rescale <- graphic_scale * -0.5
+  scale_x_log10(labels = comma) +
+  
+  scale_y_continuous(labels = c(0, 10^(1:log_max_population))) +
+  
+  scale_color_viridis_d(
+    guide = guide_legend(
+      title = "cdmlt-level",
+      override.aes = list(linewidth = 5, alpha = 1),
+      reverse = TRUE
+      )
+  )
+  
 
-  png(plot_name, width = graphic_scale * 1600, height = graphic_scale * 800, res = 300, pointsize = 4)
-} else if (plot_file_format == "eps") {
-  graphic_scale = 1.2
-  # font_rescale = -0.2
-  # axis_text_rescale = -0.1
-  # margin_text_rescale = -0.5
+pop_trajectories_plot
 
-  extrafont::loadfonts(device = "postscript")
-  grDevices::cairo_ps(filename = plot_name ,
-                      pointsize = 12,
-                      width = graphic_scale * 8,
-                      height = graphic_scale * 4,
-                      onefile = FALSE,
-                      family = "sans"
-                      )
+if (EXPORT_FIGURES) {
+  export_figure(
+    pop_trajectories_plot,
+    "v11_pop_trajectories_cdmlt_level"
+  )
 }
-
-ggplot(trajectories_v11_cdmlt_level, aes(x = X.step., y = totalIndividuals, group = X.run.number., color = as.factor(cdmlt.level))) +
-  geom_line(linewidth = .1) +
-  facet_wrap(~ residence.rule, scales = "free") +
-  xlab("time (years)") +
-  ylab("population (individuals)") +
-  #ylim(c(0, MAX_POPULATION)) +
-  guides(color = guide_legend(title = "cdmlt-level")) +
-  theme_minimal() +
-  theme(axis.title = element_text(size = 10 * (graphic_scale + axis_title_rescale)),
-        axis.text = element_text(size = 10 * (graphic_scale + axis_text_rescale)),
-        legend.position = "bottom")
-
-dev.off()
 ```
 
-```{r, out.width = "\\textwidth"}
-knitr::include_graphics(plot_name)
+Note that for this specific parameter configuration, the threshold value for this key parameter is significantly different under the "matri" and "patri" rules (i.e. 5 or less compared to 8 or less), both significantly lower than the value found in the averaged Sobol exploration (15).
+
+#### `c1-fert`
+
+Simulations using the same parameter configuration, except `residence-rule`, and varying `c1-fert` and `SEED`. `cdmlt-level` is kept just above the safe value under both residence rules.
+
+```{r trajectories-params-c1-fert-display}
+knitr::kable(sampled_trajectories_c1_fert |> 
+  select(all_of(c("max_iterations", "max_population", 
+                  names(parameter_ranges_v11), 
+                  "coale_demeny_region", "maturity_age")),
+         -c("c1_fert")) |> 
+  distinct() |>
+  t())
 ```
 
-### `c1-fert`
+```{r trajectories-c1-fert}
+log_max_population <- ceiling(max(sampled_trajectories_c1_fert$log_totalIndividuals))
 
->Run simulations in NetLogo Behaviour Space using the same parameter configuration, except `residence-rule`, and varying `c1-fert` and `SEED`.
+pop_trajectories_plot <- ggplot(
+  sampled_trajectories_c1_fert,
+  aes(step, log_totalIndividuals,
+    group = run_number,
+    color = as.factor(c1_fert)
+    )) +
 
-Loading simulation experiments' end states:
+  geom_line(alpha = 0.08) +
 
-```{r}
-trajectories_v11_c1_fert <- read.csv("simdata/v1.1/household-demography-main exp-trajectories_c1-fert-table.csv", skip = 6)
-```
+  facet_wrap(~ residence_rule) +
 
-Preprocess dataset adapting from NetLogo'S specific format. Categorise trajectories according to whether populations get extinct, survive and/or grow within the maximum number of simulation steps (`max-iterations`).
+  scale_x_log10(labels = comma) +
+  
+  scale_y_continuous(labels = c(0, 10^(1:log_max_population))) +
+  
+  scale_color_viridis_d(
+    guide = guide_legend(
+      title = "c1_fert",
+      override.aes = list(linewidth = 5, alpha = 1),
+      reverse = TRUE
+      )
+  )
+  
 
-```{r}
-MAX_POPULATION = trajectories_v11_c1_fert$max.population[1]
+pop_trajectories_plot
 
-trajectories_v11_c1_fert <- trajectories_v11_c1_fert |>
-  preprocess_params() |>
-  set_endstate_survival_category()
-```
-
-```{r}
-plot_name <- file.path(paste0(plotDirectory,"trajectories_c1_fert.", plot_file_format))
-
-if (plot_file_format == "png") {
-  graphic_scale <- 1
-  legend_text_rescale <- legend_key_rescale <- graphic_scale * -0.5
-  axis_text_rescale <- axis_title_rescale <- graphic_scale * -0.5
-
-  png(plot_name, width = graphic_scale * 1600, height = graphic_scale * 800, res = 300, pointsize = 4)
-} else if (plot_file_format == "eps") {
-  graphic_scale = 1.2
-  # font_rescale = -0.2
-  # axis_text_rescale = -0.1
-  # margin_text_rescale = -0.5
-
-  extrafont::loadfonts(device = "postscript")
-  grDevices::cairo_ps(filename = plot_name ,
-                      pointsize = 12,
-                      width = graphic_scale * 8,
-                      height = graphic_scale * 4,
-                      onefile = FALSE,
-                      family = "sans"
-                      )
+if (EXPORT_FIGURES) {
+  export_figure(
+    pop_trajectories_plot,
+    "v11_pop_trajectories_c1_fert"
+  )
 }
-
-ggplot(trajectories_v11_c1_fert, aes(x = X.step., y = totalIndividuals, group = X.run.number., color = as.factor(c1.fert))) +
-  geom_line(linewidth = .1) +
-  facet_wrap(~ residence.rule, scales = "free") +
-  xlab("time (years)") +
-  ylab("population (individuals)") +
-  #ylim(c(0, MAX_POPULATION)) +
-  guides(color = guide_legend(title = "c1-fert")) +
-  theme_minimal() +
-  theme(axis.title = element_text(size = 10 * (graphic_scale + axis_title_rescale)),
-        axis.text = element_text(size = 10 * (graphic_scale + axis_text_rescale)),
-        legend.position = "bottom")
-
-dev.off()
 ```
 
-```{r, out.width = "\\textwidth"}
-knitr::include_graphics(plot_name)
-```
+As in the case of `cdmlt-level`, `c1-fert` presents a local threshold value, less definitive but still very influential, that differs under the two residence rules. Under "patri", only values greater than 0.8 will allow for persistence and growth while "matri" cases have persistent population with values as low as 0.5, leading to exponential growth rate already with 0.6. 
+
 
 ## Discussion notes
 
@@ -502,20 +619,22 @@ household demographic persistence in v1.1 is shaped at least as strongly by marr
 
 Most important overarching finding is that v1.1 persistence is jointly structured by mortality intensity (Coale-Demeny model's "level"), fertility intensity, and especially female nuptiality dynamics. All other parameters are much lower in importance in this regard. 
 
-The top 10 parameters in importance regarding population survival are:
+### The top-10 parameters
+
+The top-10 parameters in importance regarding population survival are:
 
 | Group               | Parameters          | Effect on P(Extinction) (direction/importance rank) |
-| ------------------- | ------------------- | --------------------------------------------------------- |
-| Mortality regime    | `cdmlt_level`       | - / 1
-| Fertility schedule  | `c1_fert`           | - / 2 |                                                             
-| Fertility schedule  | `sigma2_fert`       | - / 3 |                                   
-| Fertility schedule  | `mu_fert`           | - / 8 |
-| Nuptiality schedule | `c1_women`          | - / 5 |
-| Nuptiality schedule | `mu_women`          | + / 6 |
-| Nuptiality schedule | `sigma1_women`      | - / 4 |
-| Nuptiality schedule | `c1_men`            | - / 7 |
-| Nuptiality schedule | `mu_men`            | - / 10 |
-| Nuptiality schedule | `sigma1_men`        | - / 9 |
+| ------------------- | ------------------- | --------------------------------------------------- |
+| Mortality regime    | `cdmlt_level`       | - / 1                                               |
+| Fertility schedule  | `c1_fert`           | - / 2                                               |
+| Fertility schedule  | `sigma2_fert`       | - / 3                                               |
+| Fertility schedule  | `mu_fert`           | - / 8                                               |
+| Nuptiality schedule | `c1_women`          | - / 5                                               |
+| Nuptiality schedule | `mu_women`          | + / 6                                               |
+| Nuptiality schedule | `sigma1_women`      | - / 4                                               |
+| Nuptiality schedule | `c1_men`            | - / 7                                               |
+| Nuptiality schedule | `mu_men`            | - / 10                                              |
+| Nuptiality schedule | `sigma1_men`        | - / 9                                               |
 
 1. `cdmlt_level`. Mortality remains the dominant threshold parameter. Higher Coale-Demeny levels correspond to lower mortality, greater population survival, and therefore lower extinction probability. What is particularly important is the shape of the curve: a long plateau, followed by a relatively abrupt transition. This suggests that demographic persistence is buffered up to a critical mortality regime, after which household replacement processes fail rapidly. The difference between residence systems remains important: the patrilocal-patrilineal system appears slightly more sensitive to mortality deterioration.
 
@@ -545,25 +664,16 @@ B. Fertility intensity versus fertility timing (`c1_fert` vs. `sigma2_fert`, `mu
 
 C. Nuptiality as a demographic stabilisation mechanism. Delayed male marriage contributes to lower persistence, but not nearly as strongly as delayed female marriage. The model appears consistently more sensitive to female marriage intensity (`c1_women`) and female marriage timing (`mu_women`, `sigma1_women`) than to the equivalent male parameters. The high importance of reproductive scheduling (`sigma2_fert`, `mu_fert`) adds greatly the importance of female indicated by this asymmetry. That is extremely interesting because it emerges from household-demographic interaction structure, rather than being directly imposed analytically.
 
-### Residential rule
+### Residence rule
 
-Residential rule shows a moderate, but consistent effect over the probability of extinction, with "matrilineal-matrilocal" rule being slightly associated with survival. Consequence of this is that, when trajectories on the same parameter conditions are compared, the "matri" rule produces slightly more cases of rapid exponential, reaching `max-population` within the first hundreds of simulation steps.
+Residence rule shows a moderate, but consistent effect over the probability of extinction, with "matrilineal-matrilocal" rule being slightly associated with survival. Consequence of this is that, when trajectories on the same parameter conditions are compared, the "matri" rule produces slightly more cases of rapid exponential, reaching `max-population` within the first hundreds of simulation steps.
 
 This suggests kinship structure modifies demographic sensitivity, without completely overriding the underlying demographic mechanisms. Mortality, fertility, and nuptiality remain the core drivers, while residence rules modulate their effects. Not surprisingly, the effects of nuptiality parameters are generally stronger for women's parameters when under the "matri" rule, while men's parameters are highlighted under the "patri" rule.
 
 ### Other parameters
 
-Initial household population
+The remaining parameters have a very mild impact on population persistence and very little can be said currently about their implications for other aspects, possibly for age-sex structure at population and household levels. However, this requires further analyses and focused experimentation.
 
-This parameter has very small positive effect on population survival:
+The region parameter of the Coale-Demeny model, though not assessed quantitatively with the in-depth sensitivity analysis, has demonstrably a much smaller effect than the top-10 parameters. Noteworthy, however, is that populations in runs with East and South tend to survive more often, while West simulations present the greatest asymmetry between "matri" and "patri" rules. Rather than further sensitivity analysis on this parameter, it seems more promising to break down the country-period aggregation made in the Coale-Demeny model and investigate what demographic patterns could be pushing for this effect (e.g., higher mortality for some age-sex categories).
 
-Mortality model: region parameter has a smaller effect. East tends to survive more often.  
-
-```{r}
-cat("matri | survive? |")
-table(endstates_matri$coale.demeny.region, endstates_matri$totalIndividuals > 0)
-cat("patri | survive? |")
-table(endstates_patri$coale.demeny.region, endstates_patri$totalIndividuals > 0)
-```
-
-
+Notably, all parameters explored with Sobol sampling that are not related to the Coale-Demeny or Peristera-Kostaki components are consistently the least important for population survival. Initial household population rises as the most important among these, under both residence rules. Interesting, yet still inconclusive, is the higher importance of kinship distance under the "patri" rule. 

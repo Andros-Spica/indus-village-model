@@ -8,12 +8,12 @@ export_figure <- function(
     export_eps = TRUE
 ) {
 
-  dir.create("plots/main", recursive = TRUE, showWarnings = FALSE)
+  dir.create("plots", recursive = TRUE, showWarnings = FALSE)
 
   if (export_png) {
 
     ggsave(
-      filename = paste0("plots/main/", filename, ".png"),
+      filename = paste0("plots/", filename, ".png"),
       plot = plot,
       width = width,
       height = height,
@@ -24,7 +24,7 @@ export_figure <- function(
   if (export_eps) {
 
     ggsave(
-      filename = paste0("plots/main/", filename, ".eps"),
+      filename = paste0("plots/", filename, ".eps"),
       plot = plot,
       width = width,
       height = height,
