@@ -5,3 +5,4 @@
 05-household-demography/analysis/simdata/
 *.RData
 .positai
+*.eps
