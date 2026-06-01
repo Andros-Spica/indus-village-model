@@ -1,0 +1,20 @@
+# Intro
+
+## Purpose
+
+This notebook analyses the behaviour of the Household Demography model under Sobol-sampled parameter combinations. The analysis focuses on:
+
+- overall demographic outcomes,
+- persistence versus extinction dynamics,
+- variation between residence systems,
+- and parameter influence on population trajectories and end states.
+
+## Note on variable denominations
+
+For various reasons, the variable names in the NetLogo model and the ones used in the analysis and plotting code do not always match directly. 
+In general, the variable names in the analysis code are contrained by their usability in R scripting (e.g., no hyphens or special characters besides underscores), while the original variable names are adapted to NetLogo's conventions (i.e. using hyphens). 
+The parameters inherited by the model from the Coale-Demeny and Peristera-Kostaki models are named after the original parameters in those models (e.g., `mu_women`), whose meaning might be immediatly less clear than other, more extensive parameter names.
+Moreover, some variables in the analysis code are derived or transformed versions of the original NetLogo variables (e.g., `log_totalIndividuals` is the logarithm of `totalIndividuals` in NetLogo).
+For example, `cdmlt_level` in the analysis corresponds to `cdmlt-level` in NetLogo, and `c1_fert` corresponds to `c1-fert`. 
+When interpreting the results, it's important to keep this mapping in mind to understand which parameters are being referred to in each context.
+

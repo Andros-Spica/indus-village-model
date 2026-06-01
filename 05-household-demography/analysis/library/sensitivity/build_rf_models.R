@@ -106,3 +106,88 @@ build_rf_models_v11 <- function(sensitivity_data) {
   
     rf_models_v11
 }
+
+build_rf_models_v12 <- function(sensitivity_data) {
+
+    response_variables = c(
+            "log_totalIndividuals",
+            "pressure",
+            "survival"
+            )
+
+    rf_models_v12 = list(
+    
+        metadata = list(
+            model_version = "v1.2",
+            date = Sys.time(),
+            response_variables = response_variables,
+            r_version = version$version.string,
+            random_forest_package_version = as.character(packageVersion("randomForest"))
+        ),
+
+        regr_log_totalIndividuals = list(
+            matri = fit_rf_model(
+                sensitivity_data$matri |>
+                select(
+                    # Exclude any response variables other than log_totalIndividuals
+                    -response_variables[response_variables != "log_totalIndividuals"],
+                    -residence_rule
+                ),
+                "log_totalIndividuals"
+            ),
+            patri = fit_rf_model(
+                sensitivity_data$patri |>
+                select(
+                    # Exclude any response variables other than log_totalIndividuals
+                    -response_variables[response_variables != "log_totalIndividuals"],
+                    -residence_rule
+                ),
+                "log_totalIndividuals"
+            )
+        ),
+
+        regr_pressure = list(
+            matri = fit_rf_model(
+                sensitivity_data$matri |>
+                select(
+                    # Exclude any response variables other than pressure
+                    -response_variables[response_variables != "pressure"],
+                    -residence_rule
+                ),
+                "pressure"
+            ),
+            patri = fit_rf_model(
+                sensitivity_data$patri |>
+                select(
+                    # Exclude any response variables other than pressure
+                    -response_variables[response_variables != "pressure"],
+                    -residence_rule
+                ),
+                "pressure"
+            )
+        ),
+    
+        class_survival = list(
+            matri = fit_rf_model(
+                sensitivity_data$matri |>
+                select(
+                    # Exclude any response variables other than survival
+                    -response_variables[response_variables != "survival"],
+                    -residence_rule
+                ),
+                "survival"
+            ),
+            patri = fit_rf_model(
+                sensitivity_data$patri |>
+                select(
+                    # Exclude any response variables other than survival
+                    -response_variables[response_variables != "survival"],
+                    -residence_rule
+                ),
+                "survival"
+            )
+        )
+    )
+  
+    rf_models_v12
+}

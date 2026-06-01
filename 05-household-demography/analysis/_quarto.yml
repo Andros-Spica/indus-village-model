@@ -1,0 +1,47 @@
+project:
+  type: book
+  output-dir: docs
+
+execute:
+  freeze: auto
+
+book:
+  title: "Household Demography model: analysis notebook"
+  author: # vgl. https://quarto.org/docs/journals/authors.html
+  - name: Andreas Angourakis
+    orcid: 0000-0002-9946-8142
+    email: Andreas.Angourakis@ruhr-uni-bochum.de
+    affiliation: 
+      - name: Institut für Archäologische Wissenschaften, Ruhr University Bochum
+        url: https://www.ruhr-uni-bochum.de/archaeologie
+      - name: Institute of Archaeology, University of Cologne
+        url: https://archaeologie.phil-fak.uni-koeln.de/
+    attributes:
+      corresponding: true
+      equal-contributor: true
+  date: today
+  date-format: DD MMMM, YYYY
+  search: true
+  repo-url: https://github.com/Andros-Spica/indus-village-model/05-household-demography
+  site-url: https://github.com/Andros-Spica/indus-village-model
+  page-navigation: true
+  sidebar:
+    collapse-level: 1
+  chapters:
+    - index.qmd
+    - intro.qmd
+    - v-1-1.qmd
+    #- v-2.qmd
+    #- v-2-2.qmd
+    #- v-3.qmd
+    #- v-4.qmd
+    #- v-4-2.qmd
+    #- womenFertility.qmd
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    code-fold: true
+  pdf:
+    documentclass: book

@@ -16,7 +16,7 @@ aggregate_age_structure <- function(
             .groups = "drop"
         ) |>
         group_by(
-        residence_rule,
+        #residence_rule,
         sex
     ) |>
 
