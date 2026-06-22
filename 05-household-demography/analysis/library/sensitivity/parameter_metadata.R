@@ -20,6 +20,10 @@ parameter_metadata <- tibble::tribble(
   "mu_men", "continuous", TRUE, TRUE, "#db9b35",
   "sigma1_men", "continuous", TRUE, TRUE, "#db9b35",
   "sigma2_men", "continuous", TRUE, TRUE, "#db9b35",
+  "carrying_capacity", "continuous", TRUE, TRUE, "#7953b8",
+  "density_effect_scaling_factor", "continuous", TRUE, TRUE, "#7953b8",
+  "labour_demand_per_capita", "continuous", TRUE, TRUE, "#7953b8",
+  "amenorrhea_period_in_days", "continuous", TRUE, TRUE, "#7953b8",
   "residential_rule", "categorical", FALSE, FALSE, NULL,
   "coale_demeny_region", "categorical", FALSE, FALSE, NULL
 )

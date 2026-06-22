@@ -2,7 +2,8 @@ classify_regulation_regimes <- function(
     trajectories,
     overshoot_magnitude_threshold = 0.25,
     overshoot_time_threshold = 0.10,
-    oscillatory_threshold = 0.25
+    oscillatory_threshold = 0.25,
+    stress_threshold = 0.5
 ) {
 
   trajectories |>
@@ -18,13 +19,67 @@ classify_regulation_regimes <- function(
           time_above_capacity > overshoot_time_threshold
           ~ "Overshooting",
 
-        equilibrium_pressure_cv > oscillatory_threshold
+        equilibrium_pressure_mean > stress_threshold &
+          equilibrium_pressure_cv > oscillatory_threshold &
+          final_pressure > stress_threshold
+          ~ "Overshoot-prone",
+
+        equilibrium_pressure_mean > stress_threshold &
+          equilibrium_pressure_cv <= oscillatory_threshold &
+          final_pressure > stress_threshold
+          ~ "Stress-prone",
+
+        equilibrium_pressure_mean > stress_threshold &
+          equilibrium_pressure_cv > oscillatory_threshold &
+          final_pressure <= stress_threshold
+          ~ "Overshoot-prone\n(collapsing)",
+
+        equilibrium_pressure_mean > stress_threshold &
+          equilibrium_pressure_cv <= oscillatory_threshold &
+          final_pressure <= stress_threshold
+          ~ "Stress-prone\n(collapsing)",
+
+        equilibrium_pressure_mean <= stress_threshold &
+          equilibrium_pressure_cv > oscillatory_threshold &
+          final_pressure > stress_threshold
+          ~ "Oscillatory\n(growing)",
+
+        equilibrium_pressure_cv <= oscillatory_threshold &
+          equilibrium_pressure_mean <= stress_threshold &
+          final_pressure > stress_threshold
+          ~ "Stable\n(growing)",
+
+        equilibrium_pressure_cv > oscillatory_threshold &
+          equilibrium_pressure_mean <= stress_threshold &
+          final_pressure <= stress_threshold
           ~ "Oscillatory",
 
-        TRUE
-          ~ "Stable"
+        equilibrium_pressure_cv <= oscillatory_threshold &
+          equilibrium_pressure_mean <= stress_threshold &
+          final_pressure <= stress_threshold
+          ~ "Stable",
+
+        .default = "Unclassified"
       )
 
+    ) |>
+    mutate(
+      regulation_regime = factor(
+        regulation_regime,
+        levels = c(
+          "Collapse",
+          "Stable",
+          "Stable\n(growing)",
+          "Oscillatory",
+          "Oscillatory\n(growing)",
+          "Stress-prone\n(collapsing)",
+          "Stress-prone",
+          "Overshoot-prone\n(collapsing)",
+          "Overshoot-prone",
+          "Overshooting",
+          "Unclassified"
+        )
+      )
     )
 
 }

@@ -1,4 +1,4 @@
-fit_rf_model <- function(
+fit_random_forest <- function(
     df,
     response_variable,
     n_trees = 500,

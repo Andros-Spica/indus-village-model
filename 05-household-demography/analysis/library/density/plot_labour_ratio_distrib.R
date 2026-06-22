@@ -1,36 +1,38 @@
-plot_age_structure_indicators <- function(
-    indicators_df,
+plot_labour_ratio_distrib <- function(
+    endstates,
     x_var = NULL,
     fill_var = NULL,
     facet_var = NULL,
     pos_doge_width = 1.0,
     label_fill = ""
 ) {
-
-    indicators_plot <- NULL
+    endstates <- endstates |>
+        filter(survival != "Extinction")
+    
+    labour_plot <- NULL
 
     if (is.null(x_var)) {
-        indicators_plot <- ggplot(
-            indicators_df,
+        labour_plot <- ggplot(
+            endstates,
             aes(
                 x = 1,
-                y = median_age
+                y = labour_ratio
             )
         )
     } else if (is.null(fill_var)) {
-        indicators_plot <- ggplot(
-            indicators_df,
+        labour_plot <- ggplot(
+            endstates,
             aes(
                 x = !!rlang::sym(x_var),
-                y = median_age
+                y = labour_ratio
             )
         )
     } else {
-        indicators_plot <- ggplot(
-            indicators_df,
+        labour_plot <- ggplot(
+            endstates,
             aes(
                 x = !!rlang::sym(x_var),
-                y = median_age,
+                y = labour_ratio,
                 fill = !!rlang::sym(fill_var)
             )
         )
@@ -38,7 +40,7 @@ plot_age_structure_indicators <- function(
 
     dodge <- position_dodge(width = pos_doge_width)
 
-    indicators_plot <- indicators_plot +
+    labour_plot <- labour_plot +
 
     geom_violin(
         position = dodge,
@@ -54,7 +56,7 @@ plot_age_structure_indicators <- function(
 
     labs(
         x = NULL,
-        y = "Median age",
+        y = "Labour ratio",
         fill = label_fill
     ) +
 
@@ -62,12 +64,12 @@ plot_age_structure_indicators <- function(
 
     if (!is.null(facet_var)) {
 
-        indicators_plot <- indicators_plot + 
+        labour_plot <- labour_plot + 
 
             facet_wrap(
                 facets = rlang::sym(facet_var)
             )
     }
 
-    indicators_plot
+    labour_plot
 }

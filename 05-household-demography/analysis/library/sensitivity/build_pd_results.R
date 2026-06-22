@@ -2,6 +2,7 @@ build_pd_results <- function(
     sensitivity_data,
     rf_models,
     parameter,
+    response_variable,
     response_class = NULL
 ) {
     source("library/sensitivity/compute_partial_dependence.R")
@@ -11,6 +12,7 @@ build_pd_results <- function(
             rf_model = rf_models$matri,
             data = sensitivity_data$matri,
             parameter = parameter,
+            response_variable = response_variable,
             response_class = response_class
         ) |>
         mutate(
@@ -20,6 +22,7 @@ build_pd_results <- function(
             rf_model = rf_models$patri,
             data = sensitivity_data$patri,
             parameter = parameter,
+            response_variable = response_variable,
             response_class = response_class
         ) |>
         mutate(

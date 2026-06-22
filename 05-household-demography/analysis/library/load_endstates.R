@@ -12,6 +12,11 @@ load_endstates <- function(version) {
       patri = "simdata/v1.2/household-demography-main_density exp-endstates-patri-table.csv"
     ),
 
+    "v1.2.1" = list(
+      matri = "simdata/v1.2.1/household-demography-main_density-K-demand exp-endstates-matri-table.csv",
+      patri = "simdata/v1.2.1/household-demography-main_density-K-demand exp-endstates-patri-table.csv"
+    ),
+
     "v1.2.2" = list(
       matri = "simdata/v1.2.2/household-demography-main_density-K-demand-supply exp-endstates-matri-table.csv",
       patri = "simdata/v1.2.2/household-demography-main_density-K-demand-supply exp-endstates-patri-table.csv"
@@ -27,9 +32,14 @@ load_endstates <- function(version) {
       patri = "simdata/v1.4/household-demography-daily-main_density exp-endstates-patri-table.csv"
     ),
 
+    "v1.4.1" = list(
+      matri = "simdata/v1.4.1/household-demography-daily-main_density-K-demand exp-endstates-matri-table.csv",
+      patri = "simdata/v1.4.1/household-demography-daily-main_density-K-demand exp-endstates-patri-table.csv"
+    ),
+
     "v1.4.2" = list(
-      matri = "simdata/v1.4/household-demography-daily-main_density exp-endstates-matri-table.csv",
-      patri = "simdata/v1.4/household-demography-daily-main_density exp-endstates-patri-table.csv"
+      matri = "simdata/v1.4/household-demography-daily-main_density-K-demand-supply exp-endstates-matri-table.csv",
+      patri = "simdata/v1.4/household-demography-daily-main_density-K-demand-supply exp-endstates-patri-table.csv"
     )
   )
 

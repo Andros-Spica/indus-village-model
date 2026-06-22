@@ -18,9 +18,7 @@ prepare_age_structure <- function(
 
   tidy <- df |>
 
-    mutate(run_id = row_number()) |>
-
-    select(all_of(group_vars), "run_id", menAgeStructure, womenAgeStructure) |>
+    select(all_of(group_vars), "run_unique_id", menAgeStructure, womenAgeStructure) |>
 
     pivot_longer(
       cols = c(menAgeStructure, womenAgeStructure),
@@ -30,7 +28,7 @@ prepare_age_structure <- function(
 
     mutate(
       sex = ifelse(sex == "menAgeStructure", "Male", "Female"),
-      ages = map(age_list, parse_age_list)
+      ages = parse_age_list(age_list)
     ) |>
 
     unnest(ages) |>
@@ -49,7 +47,7 @@ prepare_age_structure <- function(
 
     count(
       !!!rlang::syms(group_vars),
-      run_id,
+      run_unique_id,
       sex,
       age_bin,
       name = "count"
@@ -58,7 +56,7 @@ prepare_age_structure <- function(
     complete(
       nesting(
         !!!rlang::syms(group_vars),
-        run_id,
+        run_unique_id,
         sex
       ),
       age_bin = all_bins,
@@ -67,7 +65,7 @@ prepare_age_structure <- function(
 
   if (normalize) {
     tidy <- tidy |>
-      group_by(run_id) |>
+      group_by(run_unique_id) |>
       mutate(count = count / sum(count)) |>
       ungroup()
   }
@@ -75,11 +73,23 @@ prepare_age_structure <- function(
   return(tidy)
 }
 
-parse_age_list <- function(age_string) {
-  age_string %>%
-    gsub("\\[|\\]", "", .) %>%
-    trimws() %>%
-    strsplit("\\s+") %>%
-    unlist() %>%
-    as.numeric()
+parse_age_list <- function(age_string_column) {
+    # 1. Strip brackets globally from the whole column
+    cleaned <- stringr::str_remove_all(age_string_column, "[|]")
+    
+    # 2. Extract all numbers as a list of character vectors per row
+    #    Using [0-9.]+ handles decimals safely if they exist
+    list_of_ages <- stringr::str_extract_all(cleaned, "[0-9.]+")
+    
+    # 3. Convert all character strings inside the nested list to numeric
+    #    Using map preserves the 1-row-to-1-list structure safely
+    purrr::map(list_of_ages, as.numeric)
 }
+# parse_age_list <- function(age_string) {
+#   age_string %>%
+#     gsub("\\[|\\]", "", .) %>%
+#     trimws() %>%
+#     strsplit("\\s+") %>%
+#     unlist() %>%
+#     as.numeric()
+# }

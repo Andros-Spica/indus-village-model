@@ -1,193 +1,93 @@
 build_rf_models <- function(
     sensitivity_data,
-    model_version
+    response_variables,
+    model_version,
+    SEED = 123,
+    verbose = TRUE
 ) {
     source("library/sensitivity/fit_random_forest.R")
 
-    if (model_version == "v1.1") {
+    # Check if residence_rule is present in the sensitivity data, which is a structural variable used to split the data for the random forest models
+    if (!"residence_rule" %in% colnames(sensitivity_data$matri)) {
+        stop("The 'residence_rule' variable is not present in the sensitivity data.")
+    }
+    # Check if all response variables are present in the sensitivity data
+    if (!all(response_variables %in% colnames(sensitivity_data$matri))) {
+        stop("Not all response variables are present in the sensitivity data.")
+    }
 
-        rf_models <- build_rf_models_v11(sensitivity_data)
+    rf_models = list(
+    
+        metadata = list(
+            model_version = model_version,
+            SEED = SEED,
+            date = Sys.time(),
+            response_variables = response_variables,
+            r_version = version$version.string,
+            random_forest_package_version = as.character(packageVersion("randomForest"))
+        )
+    )
 
-    } else if (model_version == "v1.2") {
+    for (response_variable in response_variables) {
 
-        rf_models <- build_rf_models_v12(sensitivity_data)
+        if (verbose) {
+            message(
+                paste(
+                    "Fitting random forest models for response variable:",
+                    response_variable
+                )
+            )
+        }
         
-    } else if (model_version == "v1.2.1") {
+        rf_models[[response_variable]] <- list()
 
-        rf_models <- build_rf_models_v121(sensitivity_data)
+        for (res_rule in c("matri", "patri")) {
 
-    } else if (model_version == "v1.2.2") {
+            if (verbose) {
+                message(
+                    paste(
+                        "  Residence rule:",
+                        res_rule
+                    )
+                )
+            }
 
-        rf_models <- build_rf_models_v122(sensitivity_data)
+            dt <- sensitivity_data[[res_rule]]
 
-    } else if (model_version == "v1.3") {
+            if (response_variable != "survival") {
+                dt <- sensitivity_data[[res_rule]] |>
+                    filter(
+                        survival != "Extinction"
+                    )
+            } # This step should prevent NA values in the response variable, as random forest models cannot handle them
 
-        rf_models <- build_rf_models_v13(sensitivity_data)
+            dt <- dt |>
+                select(
+                    # Exclude any response variables other than the current response variable
+                    -response_variables[response_variables != response_variable],
+                    -residence_rule
+                )
+                
+            rf_models[[response_variable]][[res_rule]] <- fit_random_forest(
+                df = dt,
+                response_variable = response_variable,
+                SEED = SEED
+            )
 
-    } else if (model_version == "v1.4") {
+            if (verbose) {
+                message("    Done.")
+            }
+        }
 
-        rf_models <- build_rf_models_v14(sensitivity_data)
+        if (verbose) {
+            message("Finished fitting random forest models for response variable:", response_variable)
+        }
+    }
 
-    } else if (model_version == "v1.4.1") {
-
-        rf_models <- build_rf_models_v141(sensitivity_data)
-
-    } else if (model_version == "v1.4.2") {
-
-        rf_models <- build_rf_models_v142(sensitivity_data)
-
-    } else {
-
-        stop("Invalid model_version specified.")
+    if (verbose) {
+        message("Finished fitting random forest models for all response variables.")
     }
 
     rf_models
 }
 
-build_rf_models_v11 <- function(sensitivity_data) {
-
-    response_variables = c(
-            "log_totalIndividuals",
-            "survival"
-            )
-
-    rf_models_v11 = list(
-    
-        metadata = list(
-            model_version = "v1.1",
-            date = Sys.time(),
-            response_variables = response_variables,
-            r_version = version$version.string,
-            random_forest_package_version = as.character(packageVersion("randomForest"))
-        ),
-
-        regr_log_totalIndividuals = list(
-            matri = fit_rf_model(
-                sensitivity_data$matri |>
-                select(
-                    # Exclude any response variables other than log_totalIndividuals
-                    -response_variables[response_variables != "log_totalIndividuals"],
-                    -residence_rule
-                ),
-                "log_totalIndividuals"
-            ),
-            patri = fit_rf_model(
-                sensitivity_data$patri |>
-                select(
-                    # Exclude any response variables other than log_totalIndividuals
-                    -response_variables[response_variables != "log_totalIndividuals"],
-                    -residence_rule
-                ),
-                "log_totalIndividuals"
-            )
-        ),
-    
-        class_survival = list(
-            matri = fit_rf_model(
-                sensitivity_data$matri |>
-                select(
-                    # Exclude any response variables other than survival
-                    -response_variables[response_variables != "survival"],
-                    -residence_rule
-                ),
-                "survival"
-            ),
-            patri = fit_rf_model(
-                sensitivity_data$patri |>
-                select(
-                    # Exclude any response variables other than survival
-                    -response_variables[response_variables != "survival"],
-                    -residence_rule
-                ),
-                "survival"
-            )
-        )
-    )
-  
-    rf_models_v11
-}
-
-build_rf_models_v12 <- function(sensitivity_data) {
-
-    response_variables = c(
-            "log_totalIndividuals",
-            "pressure",
-            "survival"
-            )
-
-    rf_models_v12 = list(
-    
-        metadata = list(
-            model_version = "v1.2",
-            date = Sys.time(),
-            response_variables = response_variables,
-            r_version = version$version.string,
-            random_forest_package_version = as.character(packageVersion("randomForest"))
-        ),
-
-        regr_log_totalIndividuals = list(
-            matri = fit_rf_model(
-                sensitivity_data$matri |>
-                select(
-                    # Exclude any response variables other than log_totalIndividuals
-                    -response_variables[response_variables != "log_totalIndividuals"],
-                    -residence_rule
-                ),
-                "log_totalIndividuals"
-            ),
-            patri = fit_rf_model(
-                sensitivity_data$patri |>
-                select(
-                    # Exclude any response variables other than log_totalIndividuals
-                    -response_variables[response_variables != "log_totalIndividuals"],
-                    -residence_rule
-                ),
-                "log_totalIndividuals"
-            )
-        ),
-
-        regr_pressure = list(
-            matri = fit_rf_model(
-                sensitivity_data$matri |>
-                select(
-                    # Exclude any response variables other than pressure
-                    -response_variables[response_variables != "pressure"],
-                    -residence_rule
-                ),
-                "pressure"
-            ),
-            patri = fit_rf_model(
-                sensitivity_data$patri |>
-                select(
-                    # Exclude any response variables other than pressure
-                    -response_variables[response_variables != "pressure"],
-                    -residence_rule
-                ),
-                "pressure"
-            )
-        ),
-    
-        class_survival = list(
-            matri = fit_rf_model(
-                sensitivity_data$matri |>
-                select(
-                    # Exclude any response variables other than survival
-                    -response_variables[response_variables != "survival"],
-                    -residence_rule
-                ),
-                "survival"
-            ),
-            patri = fit_rf_model(
-                sensitivity_data$patri |>
-                select(
-                    # Exclude any response variables other than survival
-                    -response_variables[response_variables != "survival"],
-                    -residence_rule
-                ),
-                "survival"
-            )
-        )
-    )
-  
-    rf_models_v12
-}

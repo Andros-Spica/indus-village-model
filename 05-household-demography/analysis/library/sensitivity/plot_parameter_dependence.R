@@ -63,6 +63,7 @@ plot_parameter_dependence <- function(
     }
 
     max_response <- max(data[[response]], na.rm = TRUE)
+    max_response_predicted <- max(pd_data[[pd_y]], na.rm = TRUE)
 
     dependence_plot <- ggplot() +
   
@@ -80,13 +81,14 @@ plot_parameter_dependence <- function(
             data = pd_data,
             aes(
             .data[[parameter]],
-            .data[[pd_y]],
+            .data[[pd_y]] / max_response_predicted,
             color = pd_label
             ),
             linewidth = 1.5
         ) +
 
         coord_cartesian(
+            # Set y-axis limits to [0, 1] to ensure that the partial dependence line is always visible and comparable across parameters
             ylim = c(0, 1)
         ) +
 
@@ -192,11 +194,20 @@ plot_parameter_dependence_composite <- function(
     plot_title_size = 10,
     plot_title_margin_bottom = 5
 ) {
+    data <- bind_rows(
+        sensitivity_data$matri,
+        sensitivity_data$patri
+    )
+
+    if (response_variable != "survival") {
+        data <- data |>
+            filter(
+                survival != "Extinction"
+            )
+    }
+
     GLOBAL_MAX_COUNT <- compute_global_max_bin_count(
-        data = bind_rows(
-            sensitivity_data$matri,
-            sensitivity_data$patri
-            ),
+        data = data,
         parameters = top_parameters,
         response = response_variable,
         bins = bins
@@ -207,10 +218,7 @@ plot_parameter_dependence_composite <- function(
     for (param in top_parameters) {
     
     pd_plots[[param]] <- plot_parameter_dependence(
-        data = bind_rows(
-        sensitivity_data$matri,
-        sensitivity_data$patri
-        ),
+        data = data,
         pd_data = pd_results[[param]],
         parameter = param,
         response = response_variable,

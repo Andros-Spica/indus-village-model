@@ -1,6 +1,9 @@
 load_or_build_rf_models <- function(
     model_version,
     sensitivity_data = NULL,
+    response_variables,
+    SEED = 123,
+    verbose = TRUE,
     overwrite = FALSE
 ) {
     source("library/sensitivity/build_rf_models.R")
@@ -34,7 +37,10 @@ load_or_build_rf_models <- function(
 
     rf_models <- build_rf_models(
       sensitivity_data = sensitivity_data,
-      model_version = model_version
+      response_variables = response_variables,
+      model_version = model_version,
+      SEED = SEED,
+      verbose = verbose
     )
 
     save(

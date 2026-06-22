@@ -3,12 +3,10 @@ load_or_build_pd_results <- function(
     overwrite = FALSE,
     sensitivity_data = NULL,
     rf_models = NULL,
-    response_class = NULL,
     parameters = NULL,
-    response_variables = c(
-        "log_totalIndividuals",
-        "survival"
-    )
+    response_variable = NULL,
+    response_class = NULL,
+    verbose = TRUE
 ) {
     source("library/sensitivity/build_pd_results.R")
 
@@ -16,6 +14,8 @@ load_or_build_pd_results <- function(
     pd_file <- paste0(
         "data/pd/",
         gsub("\\.", "", model_version),
+        "_",
+        response_variable,
         "_pd_results.RData"
     )
 
@@ -37,7 +37,7 @@ load_or_build_pd_results <- function(
             paste(
                 "No existing partial dependence results found for model version:",
                 model_version,
-                "or overwrite is set to TRUE. Building new results and plots."
+                "or overwrite is set to TRUE. Building new results."
             )
         )
 
@@ -54,31 +54,54 @@ load_or_build_pd_results <- function(
             stop("rf_models must be provided to build pd results.")
         }
 
-        pd_results <- list()
+        pd <- list(
+            metadata = list(
+                model_version = model_version,
+                date = Sys.time(),
+                parameters = parameters,
+                response_variable = response_variable,
+                response_class = response_class,
+                r_version = version$version.string
+            ),
 
+            results = list()
+        )
+
+        if (verbose) {
+            message(
+                paste(
+                    "Processing response variable:",
+                    response_variable
+                )
+            )
+        }
+        
         for (parameter in parameters) {
 
             # If pd results don't exist or we're overwriting results, build them
-            message(
-                paste(
-                    "Building partial dependence results for parameter:",
-                    parameter
+            if (verbose) {
+                message(
+                    paste(
+                        "Building partial dependence results for parameter:",
+                        parameter
+                    )
                 )
-            )
+            }
             
-            pd_results[[parameter]] <- build_pd_results(
+            pd[[parameter]] <- build_pd_results(
                 sensitivity_data = sensitivity_data,
-                rf_models = rf_models,
+                rf_models = rf_models[[response_variable]],
                 parameter = parameter,
+                response_variable = response_variable,
                 response_class = response_class
             )
         }
+        save(
+        pd,
+        file = pd_file
+        )
     }
-    save(
-    pd_results,
-    file = pd_file
-    )
     
-    pd_results
+    pd
   
 }

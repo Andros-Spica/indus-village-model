@@ -1,12 +1,14 @@
 plot_importance <- function(
     importance_df,
     metric = "MeanDecreaseGini",
-    facet = NULL,
+    facet_var = NULL,
+    facet_ncol = 2,
+    facet_scales = "fixed",
     param_color = "steelblue"
 ) {
 
   if (!metric %in% colnames(importance_df)) {
-    stop(paste("Metric", metric, "not found"))
+    stop(paste("Metric", metric, "not found."))
   }
 
   # Handle fill colours
@@ -21,7 +23,7 @@ plot_importance <- function(
   } else {
 
     stop(
-      "Parameter color must be length 1 or equal to nrow(importance_df)"
+      "Parameter color must be length 1 or equal to nrow(importance_df)."
     )
   }
 
@@ -60,14 +62,14 @@ plot_importance <- function(
       y = metric
     )
 
-  if (!is.null(facet)) {
+  if (!is.null(facet_var)) {
 
     importance_plot <- importance_plot +
 
       facet_wrap(
-        as.formula(paste("~", facet)),
-        ncol = 2,
-        scales = "fixed"
+          as.formula(paste("~", facet_var)),
+          ncol = facet_ncol,
+          scales = facet_scales
       )
   }
 

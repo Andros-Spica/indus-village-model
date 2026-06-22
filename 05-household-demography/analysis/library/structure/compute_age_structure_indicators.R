@@ -4,7 +4,7 @@ compute_age_structure_indicators <- function(
 ) {
     # check if age_structure_df has the required columns
     required_cols <- c(
-        "run_id",
+        "run_unique_id",
         "age_bin",
         "count"
     )
@@ -43,7 +43,7 @@ compute_age_structure_indicators <- function(
         ) |>
 
         group_by(
-            run_id,
+            run_unique_id,
             !!!rlang::syms(group_vars)
         ) |>
 
@@ -71,16 +71,23 @@ compute_age_structure_indicators <- function(
                 ) / total_population,
 
             dependency_ratio =
-                (
-                    sum(count[age_lower < 15]) +
-                    sum(count[age_lower >= 65])
-                ) /
-
-                sum(
-                    count[
-                        age_lower >= 15 &
-                        age_lower < 65
-                    ]
+                ifelse(
+                    sum(
+                        count[
+                            age_lower >= 15 &
+                            age_lower < 65
+                        ]
+                    ) == 0,
+                    NA,
+                    (
+                        sum(count[age_lower < 15]) +
+                        sum(count[age_lower >= 65])
+                    ) / sum(
+                        count[
+                            age_lower >= 15 &
+                            age_lower < 65
+                        ]
+                    )
                 ),
 
             median_age =
@@ -115,7 +122,7 @@ indicators_summary <- function(
             mean(youth_share),
 
         mean_dependency_ratio =
-            mean(dependency_ratio),
+            mean(dependency_ratio, na.rm = TRUE),
 
         .groups = "drop"
     )

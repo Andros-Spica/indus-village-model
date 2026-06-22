@@ -11,6 +11,16 @@
     "v1.4.1",
     "v1.4.2"
   )
+  versions_with_capacity_demand <- c(
+    "v1.2.1",
+    "v1.2.2",
+    "v1.4.1",
+    "v1.4.2"
+  )
+  versions_with_labour_capacity <- c(
+  "v1.2.2",
+  "v1.4.2"
+  )
 
 # Rename columns for consistency and clarity
 rename_columns <- function(df) {
@@ -42,21 +52,64 @@ rename_columns <- function(df) {
     "sigma1.men" = "sigma1_men",
     "sigma2.men" = "sigma2_men",
     "carrying.capacity" = "carrying_capacity",
+    "carrying.capacity.demand" = "carrying_capacity_demand",
     "density.effect.steepness" = "density_effect_steepness",
     "density.effect.scaling.factor" = "density_effect_scaling_factor",
-    "carrying.capacity.effective" = "carrying_capacity_effective"
+    "labour.available" = "labour_available",
+    "labour.required" = "labour_required",
+    "laboured.share" = "laboured_share",
+    "carrying.capacity.effective" = "carrying_capacity_effective",
+    "labour.demand.per.capita" = "labour_demand_per_capita"
   )
   df |>
     rename_with(~ lookup[.x], .cols = intersect(names(lookup), names(df)))
 }
 
+# Safe renaming logic function
+safe_rename <- function(.data, old, preferred, alternative) {
+  .data %>% 
+    rename_with(
+      ~ if_else(preferred %in% colnames(.data), alternative, preferred),
+      .cols = all_of(old)
+    )
+}
+
 # Remove duplicate columns in the original dataset (NetLogo and/or implementation particularities)
 remove_duplicate_columns <- function(df) {
-  df |>
+  # handle special cases (due to mistake in setting Behaviour Space experiment)
+  if ("par_carrying.capacity" %in% names(df)) {
+    df <- df |>
+      
+      safe_rename(
+        old  = "par_carrying.capacity",
+        preferred = "carrying.capacity",
+        alternative = "carrying.capacity.1"
+      )
+  }
+  if ("par_density.effect.scaling.factor" %in% names(df)) {
+    df <- df |>
+      safe_rename(
+        old  = "par_density.effect.scaling.factor",
+        preferred = "density.effect.scaling.factor",
+        alternative = "density.effect.scaling.factor.1"
+      )
+  }
+  if ("par_labour.demand.per.capita" %in% names(df)) {
+    df <- df |>
+      safe_rename(
+        old  = "par_labour.demand.per.capita",
+        preferred = "labour.demand.per.capita",
+        alternative = "labour.demand.per.capita.1"
+      )
+  }
+
+  df <- df |>
     # filter out duplicate parameter columns ending with ".1" (R's read.csv behavior when duplicate column names are present)
     select(-matches("\\.1$")) |>
     # filter out duplicate parameter columns starting with "par_"
     select(-matches("^par_"))
+  
+  df
 }
 
 # NetLogo range extraction
@@ -142,13 +195,16 @@ classify_survival <- function(
 }
 
 classify_survival_density <- function(
-  population,
+  population, 
   threshold
-) {
+  ) {
   case_when(
+    is.na(threshold) ~ "Extinction",
+    threshold <= 0 & population <= 0 ~ "Extinction",
+    threshold <= 0 & population > 0 ~ "Undefined",
     population <= 0 ~ "Extinction",
-    population > 0 & population <= 0.5 * threshold ~ "Persistence\n(low pressure)",
-    population > 0.5 * threshold & population < threshold ~ "Persistence\n(high pressure)",
+    population <= 0.5 * threshold ~ "Persistence\n(low pressure)",
+    population < threshold ~ "Persistence\n(high pressure)",
     population >= threshold ~ "Overshooting"
   )
 }
@@ -168,9 +224,16 @@ preprocess_simdata <- function(
   df,
   model_version,
   growth_threshold = 5000,
+  overshooting_threshold = 0,
   full_trajectory = FALSE,
-  flag_version = TRUE,
-  burn_in_fraction = 0.5
+  trajectory_id_vars = c(
+    # unique combinations of these variables id single runs
+    "run_number",
+    #"SEED",
+    "residence_rule"#,
+    #"coale_demeny_region"
+  ),
+  flag_version = TRUE
 ) {
 
   # Preprocess the simulation data for analysis. This includes renaming columns, extracting parameter ranges, and classifying survival outcomes.
@@ -185,29 +248,52 @@ preprocess_simdata <- function(
 
   # Step 1: Rename columns for consistency and clarity
   df <- df |>
-    rename_columns() |>
-    remove_duplicate_columns()
+    remove_duplicate_columns() |>
+    rename_columns()
   
-  # Step 2. Determine the appropriate capacity variable for versions with density-dependent mortality. 
+  # Step 2: Add a run_id column for uniquely identifying each simulation run, which will be useful for grouping and analysis later on. 
+  # This is especially important because run_number is not unique once multiple batches of simulations are combined.
+  if (!full_trajectory) {
+    # When dealing with end states, each row represents a unique run
+    df <- df |> 
+      mutate(run_unique_id = row_number())
+  } else {
+    # When dealing with full trajectories, rows with identical id variables share a run
+    df <- df |> 
+      group_by(across(all_of(trajectory_id_vars))) |> 
+      mutate(run_unique_id = cur_group_id()) |> 
+      ungroup()
+  }
+
+  # Step 3a. Determine the appropriate capacity variable for versions with density-dependent mortality. 
   # This is necessary because different versions of the simulation may use either "carrying_capacity_effective" or "carrying_capacity" 
   # to represent the carrying capacity, which is crucial for calculating pressure and classifying survival outcomes in those versions.
   capacity_var <- NULL
-  if (model_version %in% c("v1.2", "v1.2.1", "v1.4", "v1.4.1")) {
+  if (model_version %in% versions_with_density[!versions_with_density %in% versions_with_labour_capacity]) {
 
       if (!"carrying_capacity" %in% colnames(df)) {
           stop(
-              "For model versions v1.2, v1.2.1, v1.4, and v1.4.1, the data frame must contain a column named 'carrying_capacity'."
+              paste(
+                "For model versions",
+                paste0(versions_with_density[!versions_with_density %in% versions_with_labour_capacity], collapse = "|"),
+                "the data frame must contain a column named 'carrying_capacity'."
+              )
           )
       }
       capacity_var <- "carrying_capacity"
 
-  } else if (model_version %in% c("v1.2.2", "v1.4.2")) {
-
-      if (!"carrying_capacity_effective" %in% colnames(df)) {
-          stop(
-              "For model versions v1.2.2 and v1.4.2, the data frame must contain a column named 'carrying_capacity_effective'."
-          )
-      }
+  } else if (model_version %in% versions_with_labour_capacity) {
+      # Check deactivated because effective carrying capacity is being temporarily 
+      # recalculated in R and not imported from NetLogo (see step 3b)
+      # if (!"carrying_capacity_effective" %in% colnames(df)) {
+      #     stop(
+      #         paste(
+      #           "For model versions",
+      #            paste0(versions_with_labour_capacity, collapse = "|"),
+      #           "the data frame must contain a column named 'carrying_capacity_effective'."
+      #         )
+      #     )
+      # }
       capacity_var <- "carrying_capacity_effective"
 
   } else if (model_version %in% versions_with_density) {
@@ -219,7 +305,123 @@ preprocess_simdata <- function(
       capacity_var <- NULL
   }
 
-  # Step 3: Extract parameter ranges from NetLogo's string representation of ranges (e.g., "[min max]") and add them as separate columns
+  # Step 3b: Select totalIndividuals or calculate carrying capacity demand and effective carrying capacity when applicable
+  demand_var <- NULL
+  if (model_version %in% versions_with_capacity_demand) {
+    if (!"carrying_capacity_demand" %in% names(df)) {
+
+      if (full_trajectory) {
+        endstates_tmp <- df |>
+          group_by(across(all_of(trajectory_id_vars))) |>
+          slice_tail(n = 1) |>
+          ungroup() |>
+          compute_carrying_capacity_demand()
+
+        df <- df |>
+          left_join(
+            endstates_tmp |>
+              select(
+                all_of(trajectory_id_vars),
+                carrying_capacity_demand
+              ),
+            by = trajectory_id_vars
+          )
+
+      } else {
+        df <- df |>
+          compute_carrying_capacity_demand()
+      }
+
+    }
+    # if (full_trajectory) {
+
+    #   endstates_tmp <- df |>
+    #     group_by(across(all_of(trajectory_id_vars))) |>
+    #     slice_tail(n = 1) |>
+    #     ungroup() |>
+    #     compute_carrying_capacity_demand()
+
+    #   if (model_version %in% versions_with_labour_capacity) {
+    #     endstates_tmp <- endstates_tmp |>
+    #       compute_effective_carrying_capacity()
+        
+    #     df <- df |>
+    #       left_join(
+    #         endstates_tmp |>
+    #           select(
+    #             all_of(trajectory_id_vars),
+    #             carrying_capacity_demand,
+    #             carrying_capacity_effective,
+    #             labour_available,
+    #             labour_required,
+    #             laboured_share
+    #           ),
+    #         by = trajectory_id_vars
+    #       )
+    #   } else {
+    #     df <- df |>
+    #     left_join(
+    #       endstates_tmp |>
+    #         select(
+    #           all_of(trajectory_id_vars),
+    #           carrying_capacity_demand
+    #         ),
+    #       by = trajectory_id_vars
+    #     )
+    #   }
+
+    # } else {
+    #   df <- df |>
+    #     compute_carrying_capacity_demand()
+
+    #   if (model_version %in% versions_with_labour_capacity) {
+    #     df <- df |>
+    #       compute_effective_carrying_capacity()
+    #   }
+    # }
+    demand_var <- "carrying_capacity_demand"
+  } else {
+    demand_var <- "totalIndividuals"
+  }
+
+  # Step 3c: effective carrying capacity
+  if (model_version %in% versions_with_labour_capacity) {
+
+    required_vars <- c(
+      "labour_available",
+      "labour_required",
+      "laboured_share",
+      "carrying_capacity_effective"
+    )
+
+    if (!all(required_vars %in% names(df))) {
+
+      if (full_trajectory) {
+        endstates_tmp <- df |>
+          group_by(across(all_of(trajectory_id_vars))) |>
+          slice_tail(n = 1) |>
+          ungroup() |>
+          compute_effective_carrying_capacity()
+
+        df <- df |>
+          left_join(
+            endstates_tmp |>
+              select(
+                all_of(trajectory_id_vars),
+                all_of(required_vars)
+              ),
+            by = trajectory_id_vars
+          )
+
+      } else {
+        df <- df |>
+          compute_effective_carrying_capacity()
+      }
+
+    }
+  }
+
+  # Step 4: Extract parameter ranges from NetLogo's string representation of ranges (e.g., "[min max]") and add them as separate columns
   # This is necessary for parameters like "household_initial_age_distribution" and "max_couple_count_distribution" which are represented as ranges in the NetLogo model. The extracted min and max values will be used in the analysis to understand the parameter space explored in the simulations.
   # The function `extract_netlogo_range` takes a character vector of the form "[min max]", removes the brackets, splits the string by space, and converts the first and second elements to numeric values representing the minimum and maximum of the range, respectively. These values are then added as new columns to the data frame for easier analysis and interpretation.
   
@@ -239,13 +441,23 @@ preprocess_simdata <- function(
       max_couple_count_distribution_max = couple_range$max
     )
   
-  # Step 4: Create a log10 version of the total population size for better visualization and analysis. This transformation is common in demographic studies where population sizes can vary over several orders of magnitude, making it easier to visualize trends and patterns in the data.
+  # Step 5: Create a log10 version of the total population size and household count for better visualization and analysis. This transformation is common in demographic studies where population sizes can vary over several orders of magnitude, making it easier to visualize trends and patterns in the data.
   df <- df |>
     mutate(
-      log_totalIndividuals = log10(totalIndividuals + 1)
+      household_structure_ratio = totalIndividuals / totalHouseholds,
+      log_totalIndividuals = log10(totalIndividuals + 1),
+      log_totalHouseholds = log10(totalHouseholds + 1)
     )
+  
+  if (model_version %in% versions_with_labour_capacity) {
+    df <- df |>
+      mutate(
+        log_carrying_capacity_effective = log10(carrying_capacity_effective + 1),
+        labour_ratio = labour_available / labour_required
+      )
+  }
 
-  # Step 5: Classify survival outcomes based on version and the total population size at the end of the simulation or throughout the trajectory, depending on the `full_trajectory` flag. 
+  # Step 6: Classify survival outcomes based on version and the total population size at the end of the simulation or throughout the trajectory, depending on the `full_trajectory` flag. 
   # This classification will help in understanding the conditions under which populations go extinct, persist, or grow, which is crucial for analyzing the effects of different parameters and rules in the simulations.
 
   if (!full_trajectory) {
@@ -254,8 +466,8 @@ preprocess_simdata <- function(
       df <- df |>
         mutate(
           survival = classify_survival_density(
-            totalIndividuals,
-            !!!rlang::syms(capacity_var)
+            !!!rlang::syms(demand_var),
+            (1 + overshoot_magnitude_threshold) * (!!!rlang::syms(capacity_var))
           )
         )
     } else {
@@ -269,21 +481,32 @@ preprocess_simdata <- function(
     }
   } else {
     if (model_version %in% versions_with_density) {
+      endstates <- df |>
+        group_by(across(all_of(trajectory_id_vars))) |>
+        summarise(
+          endstate_total_individuals = dplyr::last(totalIndividuals),
+          endstate_total_households = dplyr::last(totalHouseholds),
+          endstate_carrying_capacity_demand = dplyr::last(.data[[demand_var]]),
+          endstate_capacity = dplyr::last(.data[[capacity_var]]),
+          .groups = "drop"
+        ) |>
+        mutate(
+          survival = classify_survival_density(
+            endstate_total_individuals,
+            endstate_capacity
+          )
+        ) |>
+        ungroup()
+
       df <- df |>
-      group_by(run_number) |>
-      mutate(
-        endstate_total_individuals = last(totalIndividuals),
-        survival = classify_survival_density(
-          endstate_total_individuals,
-          !!!rlang::syms(capacity_var)
-        )
-      ) |>
-      ungroup()
+        left_join(endstates, by = trajectory_id_vars)
     } else{
       df <- df |>
-      group_by(run_number) |>
+      group_by(across(all_of(trajectory_id_vars))) |>
+      arrange(step, .by_group = TRUE) |>
       mutate(
         endstate_total_individuals = last(totalIndividuals),
+        endstate_total_households = last(totalHouseholds),
         survival = classify_survival(
           endstate_total_individuals,
           growth_threshold
@@ -293,24 +516,24 @@ preprocess_simdata <- function(
     }
   }
 
-  # Step 6: Convert categorical variables to factors with specified levels for consistent ordering in analysis and visualization. This is important for ensuring that when we analyze or visualize the data, the categories are ordered in a meaningful way (e.g., "Extinction" before "Persistence" before "Growth", or "matrilocal-matrilineal" before "patrilocal-patrilineal"). This step enhances the interpretability of the results and ensures that any plots or summaries reflect the intended order of categories.
+  # Step 7: Convert categorical variables to factors with specified levels for consistent ordering in analysis and visualization. This is important for ensuring that when we analyze or visualize the data, the categories are ordered in a meaningful way (e.g., "Extinction" before "Persistence" before "Growth", or "matrilocal-matrilineal" before "patrilocal-patrilineal"). This step enhances the interpretability of the results and ensures that any plots or summaries reflect the intended order of categories.
   df <- df |>
     format_categorical_variables(
       model_version = model_version
       )
 
-  # Step 7: Add a version column to the data frame for tracking and analysis purposes. This is useful for distinguishing between different versions of the simulation or preprocessing steps, especially when comparing results across multiple runs or iterations of the analysis. The `flag_version` parameter allows the user to control whether this column is added, providing flexibility in how the data is organized and analyzed.
+  # Step 8: Add a version column to the data frame for tracking and analysis purposes. This is useful for distinguishing between different versions of the simulation or preprocessing steps, especially when comparing results across multiple runs or iterations of the analysis. The `flag_version` parameter allows the user to control whether this column is added, providing flexibility in how the data is organized and analyzed.
   if (flag_version) {
       df <- df |>
       mutate(model_version = model_version)
   }
 
-  # Step 8: Calculate pressure for versions with density-dependent mortality
+  # Step 9: Calculate pressure for versions with density-dependent mortality
   if (model_version %in% versions_with_density) {
     df <- df |>
       mutate(
         pressure = compute_pressure(
-          totalIndividuals, 
+          .data[[demand_var]], 
           .data[[capacity_var]]
           )
       )

@@ -50,7 +50,7 @@ prepare_pyramid_plot <- function(
 
 plot_population_pyramid <- function(
     plot_df,
-    facet = NULL,
+    facet_var = NULL,
     show_mean = TRUE,
     show_legend = TRUE,
     fill_alpha = 0.35,
@@ -143,32 +143,31 @@ plot_population_pyramid <- function(
     }
 
     # Optional faceting
-    if (!is.null(facet)) {
+    if (!is.null(facet_var)) {
 
-        if (!all(facet %in% colnames(plot_df))) {
+        if (!all(facet_var %in% colnames(plot_df))) {
             stop("Facet variable(s) not found in plot_df")
         }
         
-        if (length(facet) == 1) {
+        if (length(facet_var) == 1) {
             pyramid_plot <- pyramid_plot +
 
             facet_wrap(
                 as.formula(
-                    paste("~", facet)
+                    paste("~", facet_var)
                 )
             )
-        } else if (length(facet) == 2) {
+        } else if (length(facet_var) == 2) {
             pyramid_plot <- pyramid_plot +
 
             facet_grid(
                 as.formula(
-                    paste(facet[1], "~", facet[2])
+                    paste(facet_var[1], "~", facet_var[2])
                 )
             )
         } else {
             stop("Facet variable must be of length 1 or 2")
         }
-        
     }
 
     return(pyramid_plot)
