@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<model version="NetLogo 7.0.4" snapToGrid="false">
+<model version="NetLogo 7.0.2" snapToGrid="false">
   <code><![CDATA[;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; GNU GENERAL PUBLIC LICENSE ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;  Household Demography with density effect on mortality and demand of carrying capacity
-;;  Copyright (C) Andreas Angourakis (andros.spica@gmail.com)
+;;  Household Demography v.1.4.2
+;;  Copyright (C) 2021 Andreas Angourakis (andros.spica@gmail.com)
+;;  last update Nov 2021
 ;;  available at https://www.github.com/Andros-Spica/indus-village-model
 ;;
 ;;  This program is free software: you can redistribute it and/or modify
@@ -22,20 +23,23 @@
 ;;  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __includes [
-  "modules/_setup_and_go_density.nls" ;---
+  "modules/_setup_and_go_daily_density-K-supply-migration.nls" ; ------+
   "modules/age-households.nls"
-  "modules/apply-fertility.nls"
-  "modules/apply-nuptiality.nls"
-  "modules/apply-mortality_density-K-demand.nls" ;---
-  "modules/manage-orphanhood.nls"
-  "modules/hh_init.nls"
-  "modules/hh_utils.nls"
+  "modules/apply-fertility_daily.nls" ; ---
+  "modules/apply-nuptiality_daily-migration.nls" ; ------+
+  "modules/apply-mortality_daily_density-K-demand-supply.nls" ; ---
+  "modules/manage-orphanhood_daily.nls" ; ---
+  "modules/hh_init_daily.nls" ; ---
+  "modules/hh_utils_daily.nls" ; ---
   "modules/kinship.nls"
-  "modules/carrying-capacity.nls" ;---
+  "modules/carrying-capacity_daily.nls" ;---
+  "modules/labour.nls" ;---
+  "modules/migration.nls" ;---
   "modules/fertility-nuptiality_peristera-kostaki.nls"
   "modules/mortality_coale-demeny.nls"
-  "modules/output-stats.nls"
-  "modules/experiments_density.nls" ;---
+  "modules/output-stats_daily-migration.nls" ; ------+
+  "modules/experiments_daily_density-K-demand-suppy.nls" ; ---
+  "../utils/time.nls"
   "../utils/plot-table.nls"
   "../utils/clamp.nls"
 ]
@@ -53,7 +57,11 @@ breed [ households household ]
 globals
 [
   ;;; constants
-  maturity-age                     ; defaults to 15 years old; it affects the minimum age acceptable for individuals to keep a household without older individuals
+  maturity-age-in-years              ; defaults to 15 years old; it affects the minimum age acceptable for individuals to keep a household without older individuals
+  gestation-period-in-days           ; assumed here as a constant fixed at 280
+  year-length-in-days
+  max-iterations-in-days
+  
   density-effect-steepness
 
   ;;; demography tables
@@ -66,13 +74,26 @@ globals
   household-initial-age-distribution ; (list minimum maximum)
   max-couple-count-distribution      ; (list minimum maximum)
   acceptable-kinship-degree-for-couples ; degree of kinship acceptable between two individuals forming a new couple (1 = same household, 0.5 = level one relationship, etc.)
+  amenorrhea-period-in-days          ; length in days of the postpartum amenorrhea periodInDays
+  ; value guide: 23 (3 weeks, minimal), 42 (6 weeks, if not lactating), 180 (6 months or 24 weeks, average), 540 (18 months or 64 weeks, intentional delay, medical recommendation)
 
-  carrying-capacity               ; carrying capacity or maximum number of people that can be sustained, i.e. mortality is increased in prportion to closeness of population to it (density effect)
-  density-effect-scaling-factor   ; the maximum additional death probability (scaling factor for density-dependent mortality)
+  carrying-capacity               ; carrying capacity or maximum number of people that can be sustained feed, i.e. mortality is increased in proportion to closeness of population to it (density effect)
+  density-effect-scaling-factor     ; the maximum additional death probability (scaling factor for density-dependent mortality)
+  labour-demand-per-capita ; share of labour adult equivalent to sustain one adult equivalent
 
   ;;; variables
   carrying-capacity-demand        ; number of adult equivalents (units of carrying capacity) that need to be currently sustained
+  labour-available
+  labour-required
+  laboured-share
+  carrying-capacity-effective     ; effective carrying capacity, weighted by the current contribution of available labour
+  hh-migration-event-schedule     ; a list containing the prescribed migration event count for each day of a year (set at day 1 in each new year)
+  external-household-pool
   
+  ;;;; time tracking
+  currentYear
+  currentDayOfYear
+
   ;;;; auxiliar
   ; these are lists of string-coded individuals
   womenToMarry                   ; single individuals selected to marry ("<household who> <member index>")
@@ -82,7 +103,8 @@ globals
   ;;;; counters and final measures
   totalHouseholds                ; count households (integer)
   totalIndividuals               ; sum of members of households (integer)
-  totalPopulationGrowth          ; % of last totalIndividuals
+  totalIndividualsLastYear
+  totalPopulationGrowth          ; % of last year's totalIndividuals
   totalWomen                     ; sum of female members of households (integer)
   totalMen                       ; sum of male members of households (integer)
   femaleRatio                    ; total number of women over total number of individuals (float)
@@ -90,18 +112,48 @@ globals
   menAgeStructure                ; merge list of all households male members ages (list of integers)
   womenFirstAgeGroup             ; count of women with age from 0 to 4 years old (base of typical population pyramid) (integer)
   menFirstAgeGroup               ; count of men with age from 0 to 4 years old (base of typical population pyramid) (integer)
-  womenBirths                    ; number of births (integer)
-  menBirths
-  womenDeaths                    ; number of deaths (integer)
-  menDeaths
-  womenIn                        ; number of individuals entering the system (generated for couple creation with external population) (integer)
-  menIn
-  womenOut                       ; number of individuals exiting the system (due to couple creation with external population) (integer)
-  menOut
-  couplesAccepted                ; number of couples formed within the system (integer)
-  couplesRejected                ; number of couples rejected due to kinship restrictions (integer)
+  womenBirthsToday               ; number of births (integer)
+  womenBirthsThisYear
+  womenBirthsLastYear
+  menBirthsToday
+  menBirthsThisYear
+  menBirthsLastYear
+  womenDeathsToday                    ; number of deaths (integer)
+  womenDeathsThisYear
+  womenDeathsLastYear
+  menDeathsToday
+  menDeathsThisYear
+  menDeathsLastYear
+  womenInToday                        ; number of individuals entering the system (generated for couple creation with external population) (integer)
+  womenInThisYear
+  womenInLastYear
+  menInToday
+  menInThisYear
+  menInLastYear
+  womenOutToday                       ; number of individuals exiting the system (due to couple creation with external population) (integer)
+  womenOutThisYear
+  womenOutLastYear
+  menOutToday
+  menOutThisYear
+  menOutLastYear
+  couplesAcceptedToday           ; number of couples formed (integer)
+  couplesAcceptedThisYear
+  couplesAcceptedLastYear
+  couplesRejectedToday           ; number of couples rejected due to tabu restrictions (integer)
+  couplesRejectedThisYear
+  couplesRejectedLastYear
   totalOrphans                   ; number of children moving from an household where all adults are dead
   stopCondition                  ; registry of condition met causing simulation to halt
+  
+  hhInToday                 ; number of individuals entering the system due to migration (integer) 
+  hhInThisYear
+  hhInLastYear
+  hhOutToday              ; number of individuals exiting the system due to migration (integer) 
+  hhOutThisYear
+  hhOutLastYear
+  netMigrationToday       ; net migration (in - out) in the current day (integer)
+  netMigrationThisYear
+  netMigrationLastYear
 ]
 
 ;;; agents variables
@@ -109,26 +161,35 @@ globals
 households-own
 [
   hh_lineage                     ; identifier of the lineage history of a household (list of integers; integers are household 'who's)
-  hh_age                         ; number of years during which the household existed (integer)
+  hh_age                         ; number of days during which the household existed (integer)
   hh_maxCoupleCount              ; max. number of couples accepted within a household (integer)
-  hh_membersAge                  ; ages of every household member (list of integer)
+  hh_membersAge                  ; ages of every household member in days (list of integer)
   hh_membersSex                  ; sex of every household member (list of true/false, i.e. is female?)
   hh_membersMarriage             ; couple index of every member (list of integers; 0-Inf: couple index, -1: member is single)
+  hh_membersGestation            ; whether members are female and currently in the gestation or pregnancy period
+  hh_membersAmenorrhea            ; whether members are female and currently in postpartum amenorrhea period
 
   ;;; auxiliar
   hh_memberIndexesToDelete
-  
+
   hh_tellYourStory
 ]
 ]]></code>
   <widgets>
-    <view x="358" wrappingAllowedX="true" y="10" frameRate="30.0" minPycor="-9" height="308" showTickCounter="true" patchSize="16.0" fontSize="10" wrappingAllowedY="true" width="308" tickCounterLabel="ticks" maxPycor="9" updateMode="0" maxPxcor="9" minPxcor="-9"></view>
-    <button x="15" actionKey="1" y="10" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="63">setup</button>
-    <button x="93" actionKey="2" y="11" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="55">go</button>
-    <button x="159" actionKey="3" y="11" height="40" disableUntilTicks="false" forever="true" kind="Observer" width="55">go</button>
-    <slider x="30" step="1" y="475" max="1000" width="292" display="par_carrying-capacity" height="50" min="0" direction="Horizontal" default="200.0" variable="par_carrying-capacity" units="indiv. (default: 200)"></slider>
-    <monitor x="325" precision="17" y="467" height="60" fontSize="11" width="113">carrying-capacity</monitor>
-    <plot x="682" autoPlotX="true" yMax="10.0" autoPlotY="true" y="15" xMin="0.0" height="191" legend="true" xMax="10.0" yMin="0.0" width="464" display="Population">
+    <view x="343" wrappingAllowedX="true" y="13" frameRate="30.0" minPycor="-9" height="308" showTickCounter="true" patchSize="16.0" fontSize="10" wrappingAllowedY="true" width="308" tickCounterLabel="ticks" maxPycor="9" updateMode="0" maxPxcor="9" minPxcor="-9"></view>
+    <button x="273" actionKey="5" y="11" height="40" disableUntilTicks="false" forever="true" kind="Observer" width="55">go</button>
+    <button x="76" actionKey="2" y="11" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="55">go</button>
+    <button x="17" actionKey="1" y="11" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="55">setup</button>
+    <button x="134" actionKey="3" y="11" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="59" display="+ year">repeat 365 [ go ]</button>
+    <button x="198" actionKey="4" y="11" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="72" display="+ 25 years">repeat 25 * 365 [ go ]</button>
+    <monitor x="667" precision="4" y="207" height="60" fontSize="11" width="155" display="women immigration rate">womenInLastYear / totalWomen</monitor>
+    <monitor x="830" precision="4" y="207" height="60" fontSize="11" width="140" display="women emigration rate">womenOutLastYear / totalWomen</monitor>
+    <monitor x="978" precision="4" y="207" height="60" fontSize="11" width="134" display="men immigration rate">menInLastYear / totalMen</monitor>
+    <monitor x="1119" precision="4" y="207" height="60" fontSize="11" width="135" display="men emigration rate">menOutLastYear / totalMen</monitor>
+    <monitor x="1141" precision="2" y="44" height="60" fontSize="14" width="210" display="total population growth (% last year)">totalPopulationGrowth</monitor>
+    <monitor x="1142" precision="0" y="106" height="60" fontSize="11" width="100" display="orphans count">totalOrphans</monitor>
+    <monitor x="1246" precision="4" y="107" height="60" fontSize="11" width="100">femaleRatio</monitor>
+    <plot x="667" autoPlotX="true" yMax="10.0" autoPlotY="true" y="15" xMin="0.0" height="191" legend="true" xMax="10.0" yMin="0.0" width="464" display="Population">
       <setup></setup>
       <update></update>
       <pen interval="1.0" mode="0" display="total" color="-16777216" legend="true">
@@ -143,70 +204,165 @@ households-own
         <setup></setup>
         <update>plot totalMen</update>
       </pen>
-      <pen interval="1.0" mode="0" display="car.-cap." color="-12895429" legend="true">
+      <pen interval="1.0" mode="0" display="car.-cap." color="-7500403" legend="true">
         <setup></setup>
         <update>plot carrying-capacity</update>
       </pen>
-      <pen interval="1.0" mode="0" display="car.-cap.-dem." color="-14439633" legend="true">
-        <setup></setup>
-        <update>plot carrying-capacity-demand</update>
-      </pen>
     </plot>
-    <input x="17" multiline="false" y="65" height="60" variable="SEED" type="number" width="100">0.0</input>
-    <chooser x="14" y="132" height="60" variable="type-of-experiment" current="0" width="178" display="type-of-experiment">
+    <button x="19" y="248" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="135">export-households</button>
+    <button x="162" y="248" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="152" display="parameters to default">parameters-to-default</button>
+    <note x="24" y="431" backgroundDark="0" fontSize="9" width="155" markdown="false" height="18" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">value format: minimum maximum</note>
+    <monitor x="163" precision="0" y="55" height="60" fontSize="11" width="114">currentDayOfYear</monitor>
+    <monitor x="49" precision="0" y="55" height="60" fontSize="11" width="100">currentYear</monitor>
+    <input x="221" multiline="false" y="116" height="60" variable="max-population" type="number" width="101">5000.0</input>
+    <input x="192" multiline="false" y="183" height="60" variable="exp-number" type="number" width="100">1.0</input>
+    <input x="117" multiline="false" y="116" height="60" variable="max-iterations" type="number" width="100">500.0</input>
+    <chooser x="9" y="183" height="60" variable="type-of-experiment" current="2" width="178" display="type-of-experiment">
       <choice type="string" value="user-defined"></choice>
       <choice type="string" value="random"></choice>
       <choice type="string" value="defined by exp-number"></choice>
     </chooser>
-    <input x="122" multiline="false" y="65" height="60" variable="max-iterations" type="number" width="100">2000.0</input>
-    <button x="41" y="206" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="135">export-households</button>
-    <input x="197" multiline="false" y="132" height="60" variable="exp-number" type="number" width="100">1.0</input>
-    <input x="226" multiline="false" y="65" height="60" variable="max-population" type="number" width="101">500000.0</input>
-    <button x="184" y="206" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="152" display="parameters to default">parameters-to-default</button>
-    <note x="46" y="389" backgroundDark="0" fontSize="9" width="155" markdown="false" height="18" textColorDark="-1" textColorLight="-16777216" backgroundLight="0">value format: minimum maximum</note>
-    <chooser x="464" y="339" height="60" variable="residence-rule" current="1" width="157" display="residence-rule">
+    <input x="12" multiline="false" y="116" height="60" variable="SEED" type="number" width="100">5.0</input>
+    <input x="6" multiline="false" y="371" height="60" variable="par_household-initial-age-distribution" type="string" width="221">0 30</input>
+    <input x="7" multiline="false" y="448" height="60" variable="par_max-couple-count-distribution" type="string" width="210">1 6</input>
+    <monitor x="211" precision="0" y="447" height="60" fontSize="9" width="186">max-couple-count-distribution</monitor>
+    <monitor x="220" precision="17" y="370" height="60" fontSize="9" width="197">household-initial-age-distribution</monitor>
+    <chooser x="455" y="383" height="60" variable="residence-rule" current="1" width="157" display="residence-rule">
       <choice type="string" value="patrilocal-patrilineal"></choice>
       <choice type="string" value="matrilocal-matrilineal"></choice>
     </chooser>
-    <plot x="680" autoPlotX="true" yMax="10.0" autoPlotY="true" y="266" xMin="0.0" height="242" legend="true" xMax="10.0" yMin="0.0" width="464" display="Births and deaths">
+    <slider x="396" step="1" y="449" max="10" width="278" display="par_acceptable-kinship-degree-for-couples" height="50" min="0" direction="Horizontal" default="9.0" variable="par_acceptable-kinship-degree-for-couples"></slider>
+    <slider x="9" step="1" y="512" max="1000" width="273" display="par_carrying-capacity" height="50" min="0" direction="Horizontal" default="1000.0" variable="par_carrying-capacity" units="indiv. (default: 200)"></slider>
+    <monitor x="180" precision="0" y="295" height="60" fontSize="9" width="152">initial-num-households</monitor>
+    <input x="7" multiline="false" y="295" height="60" variable="par_initial-num-households" type="number" width="163">25.0</input>
+    <slider x="419" step="1" y="332" max="64" width="248" display="amenorrhea-period-in-weeks" height="50" min="2" direction="Horizontal" default="24.0" variable="amenorrhea-period-in-weeks" units="weeks"></slider>
+    <plot x="6" autoPlotX="false" yMax="10.0" autoPlotY="false" y="683" xMin="0.0" height="182" legend="false" xMax="10.0" yMin="0.0" width="226" xAxis="age" display="mortality (prob. dying)">
       <setup></setup>
-      <update></update>
-      <pen interval="1.0" mode="0" display="women deaths" color="-11053225" legend="true">
+      <update>clear-plot
+set-plot-x-range 0 100
+set-plot-y-range -0.001 (precision (max (list max mortalityTable-women max mortalityTable-men) + 0.001) 4)</update>
+      <pen interval="1.0" mode="0" display="default" color="-5298144" legend="true">
         <setup></setup>
-        <update>plot womenDeaths</update>
+        <update>plot-table mortalityTable-women</update>
       </pen>
-      <pen interval="1.0" mode="0" display="men deaths" color="-4539718" legend="true">
+      <pen interval="1.0" mode="0" display="pen-1" color="-14070903" legend="true">
         <setup></setup>
-        <update>plot menDeaths</update>
-      </pen>
-      <pen interval="1.0" mode="0" display="births" color="-14439633" legend="true">
-        <setup></setup>
-        <update>plot womenBirths + menBirths</update>
-      </pen>
-      <pen interval="1.0" mode="0" display="deaths" color="-16777216" legend="true">
-        <setup></setup>
-        <update>plot womenDeaths + menDeaths</update>
-      </pen>
-      <pen interval="1.0" mode="0" display="women births" color="-13210332" legend="true">
-        <setup></setup>
-        <update>plot womenBirths</update>
-      </pen>
-      <pen interval="1.0" mode="0" display="men births" color="-11881837" legend="true">
-        <setup></setup>
-        <update>plot menBirths</update>
+        <update>plot-table mortalityTable-men</update>
       </pen>
     </plot>
-    <monitor x="682" precision="4" y="207" height="60" fontSize="11" width="155" display="women immigration rate">womenIn / totalWomen</monitor>
-    <monitor x="845" precision="4" y="207" height="60" fontSize="11" width="140" display="women emigration rate">womenOut / totalWomen</monitor>
-    <monitor x="993" precision="4" y="207" height="60" fontSize="11" width="134" display="men immigration rate">menIn / totalMen</monitor>
-    <monitor x="1134" precision="4" y="207" height="60" fontSize="11" width="135" display="men emigration rate">menOut / totalMen</monitor>
-    <monitor x="1156" precision="2" y="44" height="60" fontSize="14" width="210" display="total population growth (%)">totalPopulationGrowth</monitor>
-    <monitor x="1157" precision="0" y="106" height="60" fontSize="11" width="100" display="orphans count">totalOrphans</monitor>
-    <monitor x="1154" precision="4" y="304" height="60" fontSize="11" width="114" display="women birth rate">womenBirths / totalWomen</monitor>
-    <monitor x="1272" precision="4" y="304" height="60" fontSize="11" width="100" display="men birth rate">menBirths / totalMen</monitor>
-    <monitor x="1155" precision="4" y="367" height="60" fontSize="11" width="113" display="women death rate">womenDeaths / totalWomen</monitor>
-    <monitor x="1273" precision="4" y="367" height="60" fontSize="11" width="100" display="men death rate">menDeaths / totalMen</monitor>
-    <plot x="680" autoPlotX="true" yMax="10.0" autoPlotY="true" y="684" xMin="0.0" height="195" legend="true" xMax="10.0" yMin="0.0" width="464" display="maxCoupleCount and actual count">
+    <button x="511" y="708" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="109" display="refresh tables">build-demography-tables
+update-plots</button>
+    <plot x="6" autoPlotX="false" yMax="10.0" autoPlotY="false" y="871" xMin="0.0" height="201" legend="false" xMax="10.0" yMin="0.0" width="226" xAxis="age" display="fertility (prob. of giving birth)">
+      <setup></setup>
+      <update>clear-plot
+set-plot-x-range 0 55
+set-plot-y-range -0.001 (precision (max fertilityTable + 0.001) 4)</update>
+      <pen interval="1.0" mode="0" display="default" color="-5298144" legend="true">
+        <setup></setup>
+        <update>plot-table fertilityTable</update>
+      </pen>
+    </plot>
+    <plot x="6" autoPlotX="false" yMax="10.0" autoPlotY="false" y="1082" xMin="0.0" height="186" legend="false" xMax="10.0" yMin="0.0" width="226" xAxis="age" display="nuptiality (prob. marrying)">
+      <setup></setup>
+      <update>clear-plot
+set-plot-x-range 0 55
+set-plot-y-range -0.001 (precision (max (list max nuptialityTable-women max nuptialityTable-men) + 0.001) 4)</update>
+      <pen interval="1.0" mode="0" display="default" color="-5298144" legend="true">
+        <setup></setup>
+        <update>plot-table nuptialityTable-women</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="pen-1" color="-14070903" legend="true">
+        <setup></setup>
+        <update>plot-table nuptialityTable-men</update>
+      </pen>
+    </plot>
+    <slider x="239" step="1" y="697" max="25" width="214" display="cdmlt-level" height="50" min="1" direction="Horizontal" default="13.0" variable="cdmlt-level" units="levels from 1 to 25"></slider>
+    <slider x="240" step="0.001" y="1084" max="1" width="209" display="c1-women" height="50" min="0" direction="Horizontal" default="0.5" variable="c1-women" units="(default: 0.9)"></slider>
+    <slider x="244" step="0.001" y="912" max="40" width="208" display="mu-fert" height="50" min="0" direction="Horizontal" default="22.5" variable="mu-fert" units="(default: 23)"></slider>
+    <slider x="245" step="0.001" y="1022" max="6 * 5" width="234" display="sigma2-fert" height="50" min="0" direction="Horizontal" default="12.5" variable="sigma2-fert" units="(default: 10)"></slider>
+    <slider x="244" step="0.001" y="967" max="2 * 5" width="235" display="sigma1-fert" height="50" min="0" direction="Horizontal" default="5.5" variable="sigma1-fert" units="(default: 5)"></slider>
+    <slider x="244" step="0.001" y="857" max="1" width="210" display="c1-fert" height="50" min="0" direction="Horizontal" default="0.25" variable="c1-fert" units="(default: 0.9)"></slider>
+    <chooser x="241" y="752" height="60" variable="coale-demeny-region" current="0" width="141" display="coale-demeny-region">
+      <choice type="string" value="west"></choice>
+      <choice type="string" value="east"></choice>
+      <choice type="string" value="south"></choice>
+      <choice type="string" value="north"></choice>
+    </chooser>
+    <slider x="240" step="0.001" y="1136" max="40" width="209" display="mu-women" height="50" min="0" direction="Horizontal" default="27.5" variable="mu-women" units="(default: 15)"></slider>
+    <slider x="240" step="0.001" y="1188" max="2 * 5" width="209" display="sigma1-women" height="50" min="0" direction="Horizontal" default="10.5" variable="sigma1-women" units="(default: 5)"></slider>
+    <slider x="240" step="0.001" y="1239" max="2 * 5" width="209" display="sigma2-women" height="50" min="0" direction="Horizontal" default="10.5" variable="sigma2-women" units="(default: 5)"></slider>
+    <slider x="450" step="0.001" y="1136" max="2 * 20" width="201" display="mu-men" height="50" min="0" direction="Horizontal" default="27.5" variable="mu-men" units="(default: 20)"></slider>
+    <slider x="450" step="0.001" y="1188" max="2 * 5" width="201" display="sigma1-men" height="50" min="0" direction="Horizontal" default="10.5" variable="sigma1-men" units="(default: 2)"></slider>
+    <slider x="450" step="0.001" y="1239" max="2 * 5" width="201" display="sigma2-men" height="50" min="0" direction="Horizontal" default="10.5" variable="sigma2-men" units="(default: 10)"></slider>
+    <slider x="9" step="0.01" y="564" max="0.5" width="309" display="par_density-effect-scaling-factor" height="50" min="0" direction="Horizontal" default="0.06" variable="par_density-effect-scaling-factor" units="(default: 0.05)"></slider>
+    <slider x="9" step="0.01" y="618" max="1" width="298" display="par_labour-demand-per-capita" height="50" min="0" direction="Horizontal" default="0.6" variable="par_labour-demand-per-capita" units="indiv."></slider>
+    <monitor x="321" precision="17" y="561" height="60" fontSize="11" width="177">density-effect-scaling-factor</monitor>
+    <monitor x="283" precision="17" y="506" height="60" fontSize="11" width="113">carrying-capacity</monitor>
+    <monitor x="311" precision="17" y="615" height="60" fontSize="11" width="100">labour-demand-per-capita</monitor>
+    <slider x="450" step="0.001" y="1084" max="1" width="201" display="c1-men" height="50" min="0" direction="Horizontal" default="0.5" variable="c1-men" units="(default: 0.85)"></slider>
+    <plot x="673" autoPlotX="true" yMax="5.0" autoPlotY="true" yAxis="rate" y="271" xMin="-5.0" height="174" legend="true" xMax="5.0" yMin="-5.0" width="460" xAxis="years" display="Migration">
+      <setup></setup>
+      <update></update>
+      <pen interval="1.0" mode="1" display="hh out" color="-3844592" legend="true">
+        <setup></setup>
+        <update>if (currentDayOfYear = year-length-in-days) [ plot -1 * hhOutLastYear ]</update>
+      </pen>
+      <pen interval="1.0" mode="1" display="hh in" color="-8630108" legend="true">
+        <setup></setup>
+        <update>if (currentDayOfYear = year-length-in-days) [ plot 1 * hhInLastYear ]</update>
+      </pen>
+      <pen interval="1.0" mode="1" display="women out" color="-8431303" legend="true">
+        <setup></setup>
+        <update>if (currentDayOfYear = year-length-in-days) [ plot -1 * womenOutLastYear ]</update>
+      </pen>
+      <pen interval="1.0" mode="1" display="women in" color="-5825686" legend="true">
+        <setup></setup>
+        <update>if (currentDayOfYear = year-length-in-days) [ plot 1 * womenInLastYear ]</update>
+      </pen>
+      <pen interval="1.0" mode="1" display="men out" color="-4079321" legend="true">
+        <setup></setup>
+        <update>if (currentDayOfYear = year-length-in-days) [ plot -1 * menOutLastYear ]</update>
+      </pen>
+      <pen interval="1.0" mode="1" display="men in" color="-2064490" legend="true">
+        <setup></setup>
+        <update>if (currentDayOfYear = year-length-in-days) [ plot 1 * menInLastYear ]</update>
+      </pen>
+    </plot>
+    <plot x="674" autoPlotX="true" yMax="10.0" autoPlotY="true" y="448" xMin="0.0" height="242" legend="true" xMax="10.0" yMin="0.0" display="Births and deaths (last year)" width="464" sizeVersion="0">
+      <setup></setup>
+      <update></update>
+      <pen interval="1.0" mode="1" display="women deaths" color="-1604481" legend="true">
+        <setup></setup>
+        <update>if (currentDayOfYear = year-length-in-days) [ plot -1 * womenDeathsLastYear ]</update>
+      </pen>
+      <pen interval="1.0" mode="1" display="women births" color="-5298144" legend="true">
+        <setup></setup>
+        <update>if (currentDayOfYear = year-length-in-days) [ plot womenBirthsLastYear ]</update>
+      </pen>
+      <pen interval="1.0" mode="1" display="men births" color="-14070903" legend="true">
+        <setup></setup>
+        <update>if (currentDayOfYear = year-length-in-days) [ plot womenBirthsLastYear + menBirthsLastYear ]</update>
+      </pen>
+      <pen interval="1.0" mode="1" display="men deaths" color="-8020277" legend="true">
+        <setup></setup>
+        <update>if (currentDayOfYear = year-length-in-days) [ plot -1 * (womenDeathsLastYear + menDeathsLastYear) ]</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="0" color="-7500403" legend="true">
+        <setup></setup>
+        <update>if (currentDayOfYear = year-length-in-days) [ plot 0 ]</update>
+      </pen>
+    </plot>
+    <monitor x="1185" precision="2" y="982" height="60" fontSize="11" width="100" display="% 0-4 (women)">100 * womenFirstAgeGroup / totalWomen</monitor>
+    <monitor x="1287" precision="2" y="981" height="60" fontSize="11" width="100" display="% 0-4 (men)">100 * menFirstAgeGroup / totalMen</monitor>
+    <plot x="1143" autoPlotX="true" yMax="10.0" autoPlotY="true" y="788" xMin="0.0" height="169" legend="false" xMax="10.0" yMin="0.0" width="284" display="couple count per household">
+      <setup>set-plot-y-range -0.001 (item 1 max-couple-count-distribution + 0.01)</setup>
+      <update></update>
+      <pen interval="1.0" mode="1" display="default" color="-16777216" legend="true">
+        <setup></setup>
+        <update>histogram [hh_count-couples] of households</update>
+      </pen>
+    </plot>
+    <plot x="674" autoPlotX="true" yMax="10.0" autoPlotY="true" y="866" xMin="0.0" height="195" legend="true" xMax="10.0" yMin="0.0" width="464" display="maxCoupleCount and actual count">
       <setup>set-plot-y-range -1 (1 + item 1 max-couple-count-distribution)</setup>
       <update></update>
       <pen interval="1.0" mode="0" display="max. mean" color="-8053223" legend="true">
@@ -234,7 +390,15 @@ households-own
         <update>carefully [ plot min [hh_count-couples] of households ] [ ]</update>
       </pen>
     </plot>
-    <plot x="680" autoPlotX="true" yMax="10.0" autoPlotY="true" y="512" xMin="0.0" height="167" legend="true" xMax="10.0" yMin="0.0" width="464" display="Households">
+    <plot x="1148" autoPlotX="true" yMax="10.0" autoPlotY="true" y="604" xMin="0.0" height="175" legend="false" xMax="10.0" yMin="0.0" width="280" display="couples accepted over total trys">
+      <setup>set-plot-y-range -0.001 1.01</setup>
+      <update></update>
+      <pen interval="1.0" mode="0" display="default" color="-16777216" legend="true">
+        <setup></setup>
+        <update>carefully [ plot (couplesAcceptedThisYear / (couplesAcceptedThisYear + couplesRejectedThisYear)) ] [ plot 0 ]</update>
+      </pen>
+    </plot>
+    <plot x="674" autoPlotX="true" yMax="10.0" autoPlotY="true" y="694" xMin="0.0" height="167" legend="true" xMax="10.0" yMin="0.0" width="464" display="Households">
       <setup></setup>
       <update></update>
       <pen interval="1.0" mode="0" display="households" color="-16777216" legend="true">
@@ -246,15 +410,11 @@ households-own
         <update>plot sum [hh_count-couples] of households</update>
       </pen>
     </plot>
-    <plot x="1149" autoPlotX="true" yMax="10.0" autoPlotY="true" y="606" xMin="0.0" height="169" legend="false" xMax="10.0" yMin="0.0" width="284" display="couple count per household">
-      <setup>set-plot-y-range -0.001 (item 1 max-couple-count-distribution + 0.01)</setup>
-      <update></update>
-      <pen interval="1.0" mode="1" display="default" color="-16777216" legend="true">
-        <setup></setup>
-        <update>histogram [hh_count-couples] of households</update>
-      </pen>
-    </plot>
-    <plot x="683" autoPlotX="true" yMax="10.0" autoPlotY="true" y="882" xMin="0.0" height="263" legend="true" xMax="10.0" yMin="0.0" width="461" display="Age structure (population)">
+    <monitor x="1267" precision="4" y="549" height="60" fontSize="11" width="100" display="men death rate">menDeathsLastYear / totalMen</monitor>
+    <monitor x="1149" precision="4" y="549" height="60" fontSize="11" width="113" display="women death rate">womenDeathsLastYear / totalWomen</monitor>
+    <monitor x="1266" precision="4" y="486" height="60" fontSize="11" width="100" display="men birth rate">menBirthsLastYear / totalMen</monitor>
+    <monitor x="1148" precision="4" y="486" height="60" fontSize="11" width="114" display="women birth rate">womenBirthsLastYear / totalWomen</monitor>
+    <plot x="677" autoPlotX="true" yMax="10.0" autoPlotY="true" y="1064" xMin="0.0" height="225" legend="true" xMax="10.0" yMin="0.0" width="461" display="Age structure (population)">
       <setup>set-histogram-num-bars 20
 set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)</setup>
       <update>set-plot-y-range 0 10
@@ -269,8 +429,7 @@ carefully [ set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)
         <update>carefully [ histogram menAgeStructure ] [ ]</update>
       </pen>
     </plot>
-    <monitor x="1261" precision="4" y="107" height="60" fontSize="11" width="100">femaleRatio</monitor>
-    <plot x="1148" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="mean members age" y="882" xMin="0.0" height="262" legend="false" xMax="10.0" yMin="0.0" width="290" xAxis="members count" display="Household structure">
+    <plot x="1142" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="mean members age" y="1064" xMin="0.0" height="225" legend="false" xMax="10.0" yMin="0.0" width="290" xAxis="members count" display="Household structure">
       <setup></setup>
       <update>clear-plot</update>
       <pen interval="1.0" mode="2" display="" color="-16777216" legend="true">
@@ -278,84 +437,22 @@ carefully [ set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)
         <update>ask households [ plotxy (length hh_membersAge) (mean hh_membersAge) ]</update>
       </pen>
     </plot>
-    <monitor x="1293" precision="2" y="799" height="60" fontSize="11" width="100" display="% 0-4 (men)">100 * menFirstAgeGroup / totalMen</monitor>
-    <monitor x="1191" precision="2" y="800" height="60" fontSize="11" width="100" display="% 0-4 (women)">100 * womenFirstAgeGroup / totalWomen</monitor>
-    <input x="12" multiline="false" y="253" height="60" variable="par_initial-num-households" type="number" width="164">100.0</input>
-    <monitor x="182" precision="0" y="253" height="60" fontSize="9" width="144">initial-num-households</monitor>
-    <input x="5" multiline="false" y="329" height="60" variable="par_household-initial-age-distribution" type="string" width="220">0 30</input>
-    <monitor x="227" precision="17" y="330" height="60" fontSize="9" width="198">household-initial-age-distribution</monitor>
-    <input x="7" multiline="false" y="406" height="60" variable="par_max-couple-count-distribution" type="string" width="218">1 6</input>
-    <monitor x="226" precision="0" y="405" height="60" fontSize="9" width="186">max-couple-count-distribution</monitor>
-    <slider x="404" step="1" y="408" max="10" width="280" display="par_acceptable-kinship-degree-for-couples" height="50" min="0" direction="Horizontal" default="9.0" variable="par_acceptable-kinship-degree-for-couples"></slider>
-    <button x="537" y="601" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="109" display="refresh tables">build-demography-tables
-update-plots</button>
-    <slider x="477" step="0.001" y="1147" max="2 * 5" width="201" display="sigma2-men" height="50" min="0" direction="Horizontal" default="10.0" variable="sigma2-men" units="(default: 10)"></slider>
-    <slider x="477" step="0.001" y="1096" max="2 * 5" width="201" display="sigma1-men" height="50" min="0" direction="Horizontal" default="2.0" variable="sigma1-men" units="(default: 2)"></slider>
-    <slider x="477" step="0.001" y="1044" max="2 * 20" width="201" display="mu-men" height="50" min="0" direction="Horizontal" default="20.0" variable="mu-men" units="(default: 20)"></slider>
-    <slider x="477" step="0.001" y="992" max="1" width="201" display="c1-men" height="50" min="0" direction="Horizontal" default="1.0" variable="c1-men" units="(default: 0.85)"></slider>
-    <slider x="267" step="0.001" y="1147" max="2 * 5" width="209" display="sigma2-women" height="50" min="0" direction="Horizontal" default="10.0" variable="sigma2-women" units="(default: 5)"></slider>
-    <slider x="267" step="0.001" y="1096" max="2 * 5" width="209" display="sigma1-women" height="50" min="0" direction="Horizontal" default="2.0" variable="sigma1-women" units="(default: 5)"></slider>
-    <slider x="267" step="0.001" y="1044" max="40" width="209" display="mu-women" height="50" min="0" direction="Horizontal" default="20.0" variable="mu-women" units="(default: 23)"></slider>
-    <chooser x="268" y="660" height="60" variable="coale-demeny-region" current="2" width="141" display="coale-demeny-region">
-      <choice type="string" value="west"></choice>
-      <choice type="string" value="east"></choice>
-      <choice type="string" value="south"></choice>
-      <choice type="string" value="north"></choice>
+    <slider x="1169" step="1" y="430" max="10" width="318" display="hh-migration-households-per-event" height="50" min="0" direction="Horizontal" default="2.0" variable="hh-migration-households-per-event" units="households"></slider>
+    <slider x="1208" step="1" y="380" max="25" width="247" display="hh-migration-events-per-year" height="50" min="0" direction="Horizontal" default="5.0" variable="hh-migration-events-per-year"></slider>
+    <slider x="1206" step="0.01" y="333" max="1" width="250" display="singles-migration-prob" height="50" min="0" direction="Horizontal" default="1.0" variable="singles-migration-prob"></slider>
+    <chooser x="1149" y="272" height="60" variable="migrant-type" current="2" width="140" display="migrant-type">
+      <choice type="string" value="mature singles"></choice>
+      <choice type="string" value="households"></choice>
+      <choice type="string" value="both"></choice>
     </chooser>
-    <slider x="271" step="0.001" y="765" max="1" width="210" display="c1-fert" height="50" min="0" direction="Horizontal" default="0.408" variable="c1-fert" units="(default: 0.9)"></slider>
-    <slider x="271" step="0.001" y="875" max="2 * 5" width="235" display="sigma1-fert" height="50" min="0" direction="Horizontal" default="3.0" variable="sigma1-fert" units="(default: 5)"></slider>
-    <slider x="272" step="0.001" y="930" max="6 * 5" width="234" display="sigma2-fert" height="50" min="0" direction="Horizontal" default="16.0" variable="sigma2-fert" units="(default: 10)"></slider>
-    <slider x="271" step="0.001" y="820" max="40" width="208" display="mu-fert" height="50" min="0" direction="Horizontal" default="17.0" variable="mu-fert" units="(default: 15)"></slider>
-    <slider x="267" step="0.001" y="992" max="1" width="209" display="c1-women" height="50" min="0" direction="Horizontal" default="1.0" variable="c1-women" units="(default: 0.9)"></slider>
-    <slider x="266" step="1" y="605" max="25" width="214" display="cdmlt-level" height="50" min="1" direction="Horizontal" default="19.0" variable="cdmlt-level" units="levels from 1 to 25"></slider>
-    <plot x="33" autoPlotX="false" yMax="10.0" autoPlotY="false" y="990" xMin="0.0" height="186" legend="false" xMax="10.0" yMin="0.0" width="226" xAxis="age" display="nuptiality (prob. marrying)">
-      <setup></setup>
-      <update>clear-plot
-set-plot-x-range 0 55
-set-plot-y-range -0.001 (precision (max (list max nuptialityTable-women max nuptialityTable-men) + 0.001) 4)</update>
-      <pen interval="1.0" mode="0" display="default" color="-5298144" legend="true">
-        <setup></setup>
-        <update>plot-table nuptialityTable-women</update>
-      </pen>
-      <pen interval="1.0" mode="0" display="pen-1" color="-14070903" legend="true">
-        <setup></setup>
-        <update>plot-table nuptialityTable-men</update>
-      </pen>
-    </plot>
-    <plot x="33" autoPlotX="false" yMax="10.0" autoPlotY="false" y="591" xMin="0.0" height="182" legend="false" xMax="10.0" yMin="0.0" width="226" xAxis="age" display="mortality (prob. dying)">
-      <setup></setup>
-      <update>clear-plot
-set-plot-x-range 0 100
-set-plot-y-range -0.001 (precision (max (list max mortalityTable-women max mortalityTable-men) + 0.001) 4)</update>
-      <pen interval="1.0" mode="0" display="default" color="-5298144" legend="true">
-        <setup></setup>
-        <update>plot-table mortalityTable-women</update>
-      </pen>
-      <pen interval="1.0" mode="0" display="pen-1" color="-14070903" legend="true">
-        <setup></setup>
-        <update>plot-table mortalityTable-men</update>
-      </pen>
-    </plot>
-    <plot x="33" autoPlotX="false" yMax="10.0" autoPlotY="false" y="779" xMin="0.0" height="201" legend="false" xMax="10.0" yMin="0.0" width="226" xAxis="age" display="fertility (prob. of giving birth)">
-      <setup></setup>
-      <update>clear-plot
-set-plot-x-range 0 55
-set-plot-y-range -0.001 (precision (max fertilityTable + 0.001) 4)</update>
-      <pen interval="1.0" mode="0" display="default" color="-5298144" legend="true">
-        <setup></setup>
-        <update>plot-table fertilityTable</update>
-      </pen>
-    </plot>
-    <slider x="24" step="0.01" y="531" max="0.5" width="323" display="par_density-effect-scaling-factor" height="50" min="0" direction="Horizontal" default="0.04" variable="par_density-effect-scaling-factor" units="(default: 0.05)"></slider>
-    <monitor x="353" precision="17" y="528" height="60" fontSize="11" width="177">density-effect-scaling-factor</monitor>
-    <plot x="1139" autoPlotX="true" yMax="10.0" autoPlotY="true" y="422" xMin="0.0" height="175" legend="false" xMax="10.0" yMin="0.0" width="280" display="couples accepted over total trys">
-      <setup>set-plot-y-range -0.001 1.01</setup>
-      <update></update>
-      <pen interval="1.0" mode="0" display="default" color="-16777216" legend="true">
-        <setup></setup>
-        <update>carefully [ plot (couplesAccepted / (couplesAccepted + couplesRejected)) ] [ plot 0 ]</update>
-      </pen>
-    </plot>
+    <chooser x="1294" y="271" height="60" variable="migration-mode" current="2" width="128" display="migration-mode">
+      <choice type="string" value="inflow"></choice>
+      <choice type="string" value="outflow"></choice>
+      <choice type="string" value="mixed"></choice>
+    </chooser>
+    <switch x="1295" y="222" height="40" on="true" variable="enable-migration" width="126" display="enable-migration"></switch>
+    <monitor x="1253" precision="17" y="165" height="60" fontSize="11" width="122" display="hh immigration rate">hhInToday / totalHouseholds</monitor>
+    <monitor x="1375" precision="17" y="164" height="60" fontSize="11" width="122" display="hh emigration rate">hhOutToday / totalHouseholds</monitor>
   </widgets>
   <info>## Development notes
 
@@ -1244,15 +1341,22 @@ ISSUES:
       <setup>setup</setup>
       <go>go</go>
       <metrics>
-        <metric>SEED</metric>
-        <metric>maturity-age</metric>
+        <metric>max-iterations</metric>
+        <metric>max-population</metric>
+        <metric>maturity-age-in-years</metric>
+        <metric>gestation-period-in-days</metric>
+        <metric>year-length-in-days</metric>
+        <metric>max-iterations-in-days</metric>
         <metric>density-effect-steepness</metric>
         <metric>initial-num-households</metric>
         <metric>household-initial-age-distribution</metric>
         <metric>max-couple-count-distribution</metric>
+        <metric>carrying-capacity</metric>
+        <metric>density-effect-scaling-factor</metric>
+        <metric>labour-demand-per-capita</metric>
         <metric>cdmlt-level</metric>
         <metric>coale-demeny-region</metric>
-        <metric>carrying-capacity</metric>
+        <metric>amenorrhea-period-in-days</metric>
         <metric>c1-fert</metric>
         <metric>mu-fert</metric>
         <metric>sigma1-fert</metric>
@@ -1268,6 +1372,7 @@ ISSUES:
         <metric>sigma2-men</metric>
         <metric>totalHouseholds</metric>
         <metric>totalIndividuals</metric>
+        <metric>totalIndividualsLastYear</metric>
         <metric>totalPopulationGrowth</metric>
         <metric>totalWomen</metric>
         <metric>totalMen</metric>
@@ -1276,19 +1381,37 @@ ISSUES:
         <metric>menAgeStructure</metric>
         <metric>womenFirstAgeGroup</metric>
         <metric>menFirstAgeGroup</metric>
-        <metric>womenBirths</metric>
-        <metric>menBirths</metric>
-        <metric>womenDeaths</metric>
-        <metric>menDeaths</metric>
-        <metric>womenIn</metric>
-        <metric>menIn</metric>
-        <metric>womenOut</metric>
-        <metric>menOut</metric>
-        <metric>couplesAccepted</metric>
-        <metric>couplesRejected</metric>
+        <metric>womenBirthsToday</metric>
+        <metric>womenBirthsThisYear</metric>
+        <metric>womenBirthsLastYear</metric>
+        <metric>menBirthsToday</metric>
+        <metric>menBirthsThisYear</metric>
+        <metric>menBirthsLastYear</metric>
+        <metric>womenDeathsToday</metric>
+        <metric>womenDeathsThisYear</metric>
+        <metric>womenDeathsLastYear</metric>
+        <metric>menDeathsToday</metric>
+        <metric>menDeathsThisYear</metric>
+        <metric>menDeathsLastYear</metric>
+        <metric>womenInToday</metric>
+        <metric>womenInThisYear</metric>
+        <metric>womenInLastYear</metric>
+        <metric>menInToday</metric>
+        <metric>menInThisYear</metric>
+        <metric>menInLastYear</metric>
+        <metric>womenOutToday</metric>
+        <metric>womenOutThisYear</metric>
+        <metric>womenOutLastYear</metric>
+        <metric>menOutToday</metric>
+        <metric>menOutThisYear</metric>
+        <metric>menOutLastYear</metric>
+        <metric>couplesAcceptedToday</metric>
+        <metric>couplesAcceptedThisYear</metric>
+        <metric>couplesAcceptedLastYear</metric>
+        <metric>couplesRejectedToday</metric>
+        <metric>couplesRejectedThisYear</metric>
+        <metric>couplesRejectedLastYear</metric>
         <metric>totalOrphans</metric>
-        <metric>stopCondition</metric>
-        <metric>carrying-capacity-demand</metric>
       </metrics>
       <constants>
         <enumeratedValueSet variable="type-of-experiment">
@@ -1306,6 +1429,9 @@ ISSUES:
         </enumeratedValueSet>
         <enumeratedValueSet variable="par_carrying-capacity">
           <value value="200"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_labour-demand-per-capita">
+          <value value="0.45"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="residence-rule">
           <value value="&quot;matrilocal-matrilineal&quot;"></value>
@@ -1365,6 +1491,9 @@ ISSUES:
         <enumeratedValueSet variable="sigma2-women">
           <value value="8"></value>
         </enumeratedValueSet>
+        <enumeratedValueSet variable="amenorrhea-period-in-days">
+          <value value="180"></value>
+        </enumeratedValueSet>
       </constants>
     </experiment>
     <experiment name="exp-endstates-patri" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="false">
@@ -1374,15 +1503,20 @@ ISSUES:
       <metrics>
         <metric>max-iterations</metric>
         <metric>max-population</metric>
-        <metric>maturity-age</metric>
+        <metric>maturity-age-in-years</metric>
+        <metric>gestation-period-in-days</metric>
+        <metric>year-length-in-days</metric>
+        <metric>max-iterations-in-days</metric>
         <metric>density-effect-steepness</metric>
-        <metric>carrying-capacity</metric>
-        <metric>density-effect-scaling-factor</metric>
         <metric>initial-num-households</metric>
         <metric>household-initial-age-distribution</metric>
         <metric>max-couple-count-distribution</metric>
+        <metric>carrying-capacity</metric>
+        <metric>density-effect-scaling-factor</metric>
+        <metric>labour-demand-per-capita</metric>
         <metric>cdmlt-level</metric>
         <metric>coale-demeny-region</metric>
+        <metric>amenorrhea-period-in-days</metric>
         <metric>c1-fert</metric>
         <metric>mu-fert</metric>
         <metric>sigma1-fert</metric>
@@ -1398,6 +1532,7 @@ ISSUES:
         <metric>sigma2-men</metric>
         <metric>totalHouseholds</metric>
         <metric>totalIndividuals</metric>
+        <metric>totalIndividualsLastYear</metric>
         <metric>totalPopulationGrowth</metric>
         <metric>totalWomen</metric>
         <metric>totalMen</metric>
@@ -1406,19 +1541,37 @@ ISSUES:
         <metric>menAgeStructure</metric>
         <metric>womenFirstAgeGroup</metric>
         <metric>menFirstAgeGroup</metric>
-        <metric>womenBirths</metric>
-        <metric>menBirths</metric>
-        <metric>womenDeaths</metric>
-        <metric>menDeaths</metric>
-        <metric>womenIn</metric>
-        <metric>menIn</metric>
-        <metric>womenOut</metric>
-        <metric>menOut</metric>
-        <metric>couplesAccepted</metric>
-        <metric>couplesRejected</metric>
+        <metric>womenBirthsToday</metric>
+        <metric>womenBirthsThisYear</metric>
+        <metric>womenBirthsLastYear</metric>
+        <metric>menBirthsToday</metric>
+        <metric>menBirthsThisYear</metric>
+        <metric>menBirthsLastYear</metric>
+        <metric>womenDeathsToday</metric>
+        <metric>womenDeathsThisYear</metric>
+        <metric>womenDeathsLastYear</metric>
+        <metric>menDeathsToday</metric>
+        <metric>menDeathsThisYear</metric>
+        <metric>menDeathsLastYear</metric>
+        <metric>womenInToday</metric>
+        <metric>womenInThisYear</metric>
+        <metric>womenInLastYear</metric>
+        <metric>menInToday</metric>
+        <metric>menInThisYear</metric>
+        <metric>menInLastYear</metric>
+        <metric>womenOutToday</metric>
+        <metric>womenOutThisYear</metric>
+        <metric>womenOutLastYear</metric>
+        <metric>menOutToday</metric>
+        <metric>menOutThisYear</metric>
+        <metric>menOutLastYear</metric>
+        <metric>couplesAcceptedToday</metric>
+        <metric>couplesAcceptedThisYear</metric>
+        <metric>couplesAcceptedLastYear</metric>
+        <metric>couplesRejectedToday</metric>
+        <metric>couplesRejectedThisYear</metric>
+        <metric>couplesRejectedLastYear</metric>
         <metric>totalOrphans</metric>
-        <metric>stopCondition</metric>
-        <metric>carrying-capacity-demand</metric>
       </metrics>
       <constants>
         <enumeratedValueSet variable="type-of-experiment">
@@ -1448,15 +1601,20 @@ ISSUES:
       <metrics>
         <metric>max-iterations</metric>
         <metric>max-population</metric>
-        <metric>maturity-age</metric>
+        <metric>maturity-age-in-years</metric>
+        <metric>gestation-period-in-days</metric>
+        <metric>year-length-in-days</metric>
+        <metric>max-iterations-in-days</metric>
         <metric>density-effect-steepness</metric>
-        <metric>carrying-capacity</metric>
-        <metric>density-effect-scaling-factor</metric>
         <metric>initial-num-households</metric>
         <metric>household-initial-age-distribution</metric>
         <metric>max-couple-count-distribution</metric>
+        <metric>carrying-capacity</metric>
+        <metric>density-effect-scaling-factor</metric>
+        <metric>labour-demand-per-capita</metric>
         <metric>cdmlt-level</metric>
         <metric>coale-demeny-region</metric>
+        <metric>amenorrhea-period-in-days</metric>
         <metric>c1-fert</metric>
         <metric>mu-fert</metric>
         <metric>sigma1-fert</metric>
@@ -1472,6 +1630,7 @@ ISSUES:
         <metric>sigma2-men</metric>
         <metric>totalHouseholds</metric>
         <metric>totalIndividuals</metric>
+        <metric>totalIndividualsLastYear</metric>
         <metric>totalPopulationGrowth</metric>
         <metric>totalWomen</metric>
         <metric>totalMen</metric>
@@ -1480,19 +1639,37 @@ ISSUES:
         <metric>menAgeStructure</metric>
         <metric>womenFirstAgeGroup</metric>
         <metric>menFirstAgeGroup</metric>
-        <metric>womenBirths</metric>
-        <metric>menBirths</metric>
-        <metric>womenDeaths</metric>
-        <metric>menDeaths</metric>
-        <metric>womenIn</metric>
-        <metric>menIn</metric>
-        <metric>womenOut</metric>
-        <metric>menOut</metric>
-        <metric>couplesAccepted</metric>
-        <metric>couplesRejected</metric>
+        <metric>womenBirthsToday</metric>
+        <metric>womenBirthsThisYear</metric>
+        <metric>womenBirthsLastYear</metric>
+        <metric>menBirthsToday</metric>
+        <metric>menBirthsThisYear</metric>
+        <metric>menBirthsLastYear</metric>
+        <metric>womenDeathsToday</metric>
+        <metric>womenDeathsThisYear</metric>
+        <metric>womenDeathsLastYear</metric>
+        <metric>menDeathsToday</metric>
+        <metric>menDeathsThisYear</metric>
+        <metric>menDeathsLastYear</metric>
+        <metric>womenInToday</metric>
+        <metric>womenInThisYear</metric>
+        <metric>womenInLastYear</metric>
+        <metric>menInToday</metric>
+        <metric>menInThisYear</metric>
+        <metric>menInLastYear</metric>
+        <metric>womenOutToday</metric>
+        <metric>womenOutThisYear</metric>
+        <metric>womenOutLastYear</metric>
+        <metric>menOutToday</metric>
+        <metric>menOutThisYear</metric>
+        <metric>menOutLastYear</metric>
+        <metric>couplesAcceptedToday</metric>
+        <metric>couplesAcceptedThisYear</metric>
+        <metric>couplesAcceptedLastYear</metric>
+        <metric>couplesRejectedToday</metric>
+        <metric>couplesRejectedThisYear</metric>
+        <metric>couplesRejectedLastYear</metric>
         <metric>totalOrphans</metric>
-        <metric>stopCondition</metric>
-        <metric>carrying-capacity-demand</metric>
       </metrics>
       <constants>
         <enumeratedValueSet variable="type-of-experiment">
@@ -1513,11 +1690,144 @@ ISSUES:
         <enumeratedValueSet variable="residence-rule">
           <value value="&quot;matrilocal-matrilineal&quot;"></value>
         </enumeratedValueSet>
-        <enumeratedValueSet variable="par_density-effect-scaling-factor">
-          <value value="0.05"></value>
+      </constants>
+    </experiment>
+    <experiment name="exp-endstates-migration" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="false">
+      <setup>setup</setup>
+      <go>go</go>
+      <postRun>;if (totalHouseholds != 0) [ export-households ]</postRun>
+      <metrics>
+        <metric>max-iterations</metric>
+        <metric>max-population</metric>
+        <metric>maturity-age-in-years</metric>
+        <metric>gestation-period-in-days</metric>
+        <metric>year-length-in-days</metric>
+        <metric>max-iterations-in-days</metric>
+        <metric>density-effect-steepness</metric>
+        <metric>initial-num-households</metric>
+        <metric>household-initial-age-distribution</metric>
+        <metric>max-couple-count-distribution</metric>
+        <metric>carrying-capacity</metric>
+        <metric>density-effect-scaling-factor</metric>
+        <metric>labour-demand-per-capita</metric>
+        <metric>cdmlt-level</metric>
+        <metric>coale-demeny-region</metric>
+        <metric>amenorrhea-period-in-days</metric>
+        <metric>c1-fert</metric>
+        <metric>mu-fert</metric>
+        <metric>sigma1-fert</metric>
+        <metric>sigma2-fert</metric>
+        <metric>acceptable-kinship-degree-for-couples</metric>
+        <metric>c1-women</metric>
+        <metric>c1-men</metric>
+        <metric>mu-women</metric>
+        <metric>mu-men</metric>
+        <metric>sigma1-women</metric>
+        <metric>sigma1-men</metric>
+        <metric>sigma2-women</metric>
+        <metric>sigma2-men</metric>
+        <metric>totalHouseholds</metric>
+        <metric>totalIndividuals</metric>
+        <metric>totalIndividualsLastYear</metric>
+        <metric>totalPopulationGrowth</metric>
+        <metric>totalWomen</metric>
+        <metric>totalMen</metric>
+        <metric>femaleRatio</metric>
+        <metric>womenAgeStructure</metric>
+        <metric>menAgeStructure</metric>
+        <metric>womenFirstAgeGroup</metric>
+        <metric>menFirstAgeGroup</metric>
+        <metric>womenBirthsToday</metric>
+        <metric>womenBirthsThisYear</metric>
+        <metric>womenBirthsLastYear</metric>
+        <metric>menBirthsToday</metric>
+        <metric>menBirthsThisYear</metric>
+        <metric>menBirthsLastYear</metric>
+        <metric>womenDeathsToday</metric>
+        <metric>womenDeathsThisYear</metric>
+        <metric>womenDeathsLastYear</metric>
+        <metric>menDeathsToday</metric>
+        <metric>menDeathsThisYear</metric>
+        <metric>menDeathsLastYear</metric>
+        <metric>womenInToday</metric>
+        <metric>womenInThisYear</metric>
+        <metric>womenInLastYear</metric>
+        <metric>menInToday</metric>
+        <metric>menInThisYear</metric>
+        <metric>menInLastYear</metric>
+        <metric>womenOutToday</metric>
+        <metric>womenOutThisYear</metric>
+        <metric>womenOutLastYear</metric>
+        <metric>menOutToday</metric>
+        <metric>menOutThisYear</metric>
+        <metric>menOutLastYear</metric>
+        <metric>couplesAcceptedToday</metric>
+        <metric>couplesAcceptedThisYear</metric>
+        <metric>couplesAcceptedLastYear</metric>
+        <metric>couplesRejectedToday</metric>
+        <metric>couplesRejectedThisYear</metric>
+        <metric>couplesRejectedLastYear</metric>
+        <metric>totalOrphans</metric>
+        <metric>stopCondition</metric>
+        <metric>hhInToday</metric>
+        <metric>hhInThisYear</metric>
+        <metric>hhInLastYear</metric>
+        <metric>hhOutToday</metric>
+        <metric>hhOutThisYear</metric>
+        <metric>hhOutLastYear</metric>
+        <metric>netMigrationToday</metric>
+        <metric>netMigrationThisYear</metric>
+        <metric>netMigrationLastYear</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="type-of-experiment">
+          <value value="&quot;defined by exp-number&quot;"></value>
         </enumeratedValueSet>
-        <enumeratedValueSet variable="par_carrying-capacity">
-          <value value="200"></value>
+        <enumeratedValueSet variable="exp-number">
+          <value value="1"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="SEED">
+          <value value="0"></value>
+          <value value="1"></value>
+          <value value="2"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="coale-demeny-region">
+          <value value="&quot;west&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="residence-rule">
+          <value value="&quot;patrilocal-patrilineal&quot;"></value>
+          <value value="&quot;matrilocal-matrilineal&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="enable-migration">
+          <value value="true"></value>
+          <value value="false"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="migrant-type">
+          <value value="&quot;mature singles&quot;"></value>
+          <value value="&quot;households&quot;"></value>
+          <value value="&quot;both&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="migration-mode">
+          <value value="&quot;inflow&quot;"></value>
+          <value value="&quot;mixed&quot;"></value>
+          <value value="&quot;outflow&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="singles-migration-prob">
+          <value value="0.1"></value>
+          <value value="0.5"></value>
+          <value value="1"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="hh-migration-events-per-year">
+          <value value="1"></value>
+          <value value="5"></value>
+          <value value="10"></value>
+          <value value="15"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="hh-migration-households-per-event">
+          <value value="0.1"></value>
+          <value value="0.5"></value>
+          <value value="1"></value>
+          <value value="5"></value>
         </enumeratedValueSet>
       </constants>
     </experiment>

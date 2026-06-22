@@ -2813,7 +2813,7 @@ ISSUES:
         </enumeratedValueSet>
       </constants>
     </experiment>
-    <experiment name="exp-trajectories_cdmlt-level" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="true">
+    <experiment name="exp-trajectories-cdmlt-level" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="true">
       <setup>setup</setup>
       <go>go</go>
       <metrics>
@@ -2926,7 +2926,7 @@ ISSUES:
         </enumeratedValueSet>
       </constants>
     </experiment>
-    <experiment name="exp-trajectories_c1-fert" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="true">
+    <experiment name="exp-trajectories-c1-fert" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="true">
       <setup>setup</setup>
       <go>go</go>
       <metrics>

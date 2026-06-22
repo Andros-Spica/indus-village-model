@@ -209,6 +209,8 @@ to setup-households
 end
 
 to go
+  
+  if (stopCondition != 0) [ stop ]
 
   reset-demography-stats
 
@@ -216,13 +218,8 @@ to go
 
   update-demography-stats
 
-  if (totalHouseholds = 0 or
-    ticks = max-iterations or
-    totalIndividuals > max-population)
-  [
-    ;if (length behaviorspace-experiment-name > 0 and count households > 0) [ export-households ]
-    stop
-  ]
+  check-stop-condition ;;; triggers stop in the next step
+  
   ;print "-------tick----"
   tick
 
@@ -244,5 +241,13 @@ to update-households
 
   ;print "-------manage-orphanhood----"
   manage-orphanhood
+
+end
+
+to check-stop-condition
+
+  if (totalHouseholds = 0) [ set stopCondition "totalHouseholds = 0" ]
+  if (ticks = max-iterations) [ set stopCondition "ticks = max-iterations" ]
+  if (totalIndividuals > max-population) [ set stopCondition "totalIndividuals > max-population" ]
 
 end

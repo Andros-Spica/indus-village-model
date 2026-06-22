@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<model version="NetLogo 7.0.2" snapToGrid="false">
+<model version="NetLogo 7.0.4" snapToGrid="false">
   <code><![CDATA[;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; GNU GENERAL PUBLIC LICENSE ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -69,11 +69,14 @@ globals
   acceptable-kinship-degree-for-couples ; degree of kinship acceptable between two individuals forming a new couple (1 = same household, 0.5 = level one relationship, etc.)
 
   carrying-capacity               ; carrying capacity or maximum number of people that can be sustained, i.e. mortality is increased in prportion to closeness of population to it (density effect)
-  carrying-capacity-demand        ; number of adult equivalents (units of carrying capacity) that need to be currently sustained
   density-effect-scaling-factor   ; the maximum additional death probability (scaling factor for density-dependent mortality)
   labour-demand-per-capita ; share of labour adult equivalent to sustain one adult equivalent
 
   ;;; variables
+  carrying-capacity-demand        ; number of adult equivalents (units of carrying capacity) that need to be currently sustained
+  labour-available
+  labour-required
+  laboured-share
   carrying-capacity-effective     ; effective carrying capacity, weighted by the current contribution of available labour
   
   ;;;; auxiliar
@@ -104,6 +107,7 @@ globals
   couplesAccepted                ; number of couples formed within the system (integer)
   couplesRejected                ; number of couples rejected due to kinship restrictions (integer)
   totalOrphans                   ; number of children moving from an household where all adults are dead
+  stopCondition                  ; registry of condition met causing simulation to halt
 ]
 
 ;;; agents variables
@@ -128,7 +132,7 @@ households-own
     <button x="15" actionKey="1" y="10" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="63">setup</button>
     <button x="93" actionKey="2" y="10" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="55">go</button>
     <button x="159" actionKey="3" y="10" height="40" disableUntilTicks="false" forever="true" kind="Observer" width="55">go</button>
-    <slider x="30" step="1" y="472" max="1000" width="292" display="par_carrying-capacity" height="50" min="0" direction="Horizontal" default="5000.0" variable="par_carrying-capacity" units="indiv. (default: 200)"></slider>
+    <slider x="30" step="1" y="472" max="1000" width="292" display="par_carrying-capacity" height="50" min="0" direction="Horizontal" default="200.0" variable="par_carrying-capacity" units="indiv. (default: 200)"></slider>
     <monitor x="325" precision="17" y="467" height="60" fontSize="11" width="113">carrying-capacity</monitor>
     <plot x="682" autoPlotX="true" yMax="10.0" autoPlotY="true" y="12" xMin="0.0" height="191" legend="true" xMax="10.0" yMin="0.0" width="464" display="Population">
       <setup></setup>
@@ -145,12 +149,20 @@ households-own
         <setup></setup>
         <update>plot totalMen</update>
       </pen>
-      <pen interval="1.0" mode="0" display="car.-cap." color="-7500403" legend="true">
+      <pen interval="1.0" mode="0" display="car.-cap." color="-11053225" legend="true">
         <setup></setup>
         <update>plot carrying-capacity</update>
       </pen>
+      <pen interval="1.0" mode="0" display="car.-cap.-dem." color="-14439633" legend="true">
+        <setup></setup>
+        <update>plot carrying-capacity-demand</update>
+      </pen>
+      <pen interval="1.0" mode="0" display="car.-cap.-eff." color="-7858858" legend="true">
+        <setup></setup>
+        <update>plot carrying-capacity-effective</update>
+      </pen>
     </plot>
-    <input x="17" multiline="false" y="62" height="60" variable="SEED" type="number" width="100">0.0</input>
+    <input x="17" multiline="false" y="62" height="60" variable="SEED" type="number" width="100">9.0</input>
     <chooser x="14" y="129" height="60" variable="type-of-experiment" current="0" width="178" display="type-of-experiment">
       <choice type="string" value="user-defined"></choice>
       <choice type="string" value="random"></choice>
@@ -280,7 +292,7 @@ carefully [ set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)
     <input x="12" multiline="false" y="250" height="60" variable="par_initial-num-households" type="number" width="164">25.0</input>
     <monitor x="183" precision="0" y="250" height="60" fontSize="9" width="144">initial-num-households</monitor>
     <monitor x="230" precision="17" y="326" height="60" fontSize="9" width="201">household-initial-age-distribution</monitor>
-    <chooser x="466" y="329" height="60" variable="residence-rule" current="1" width="157" display="residence-rule">
+    <chooser x="466" y="329" height="60" variable="residence-rule" current="0" width="157" display="residence-rule">
       <choice type="string" value="patrilocal-patrilineal"></choice>
       <choice type="string" value="matrilocal-matrilineal"></choice>
     </chooser>
@@ -1252,6 +1264,9 @@ ISSUES:
         <metric>max-couple-count-distribution</metric>
         <metric>cdmlt-level</metric>
         <metric>coale-demeny-region</metric>
+        <metric>carrying-capacity</metric>
+        <metric>density-effect-scaling-factor</metric>
+        <metric>labour-demand-per-capita</metric>
         <metric>c1-fert</metric>
         <metric>mu-fert</metric>
         <metric>sigma1-fert</metric>
@@ -1286,6 +1301,12 @@ ISSUES:
         <metric>couplesAccepted</metric>
         <metric>couplesRejected</metric>
         <metric>totalOrphans</metric>
+        <metric>stopCondition</metric>
+        <metric>carrying-capacity-demand</metric>
+        <metric>labour-available</metric>
+        <metric>labour-required</metric>
+        <metric>laboured-share</metric>
+        <metric>carrying-capacity-effective</metric>
       </metrics>
       <constants>
         <enumeratedValueSet variable="type-of-experiment">
@@ -1418,6 +1439,12 @@ ISSUES:
         <metric>couplesAccepted</metric>
         <metric>couplesRejected</metric>
         <metric>totalOrphans</metric>
+        <metric>stopCondition</metric>
+        <metric>carrying-capacity-demand</metric>
+        <metric>labour-available</metric>
+        <metric>labour-required</metric>
+        <metric>laboured-share</metric>
+        <metric>carrying-capacity-effective</metric>
       </metrics>
       <constants>
         <enumeratedValueSet variable="type-of-experiment">
@@ -1491,6 +1518,12 @@ ISSUES:
         <metric>couplesAccepted</metric>
         <metric>couplesRejected</metric>
         <metric>totalOrphans</metric>
+        <metric>stopCondition</metric>
+        <metric>carrying-capacity-demand</metric>
+        <metric>labour-available</metric>
+        <metric>labour-required</metric>
+        <metric>laboured-share</metric>
+        <metric>carrying-capacity-effective</metric>
       </metrics>
       <constants>
         <enumeratedValueSet variable="type-of-experiment">
@@ -1516,6 +1549,149 @@ ISSUES:
         </enumeratedValueSet>
         <enumeratedValueSet variable="par_carrying-capacity">
           <value value="200"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="exp-trajectories-labour-demand-per-capita" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="true">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>SEED</metric>
+        <metric>maturity-age</metric>
+        <metric>density-effect-steepness</metric>
+        <metric>initial-num-households</metric>
+        <metric>household-initial-age-distribution</metric>
+        <metric>max-couple-count-distribution</metric>
+        <metric>cdmlt-level</metric>
+        <metric>coale-demeny-region</metric>
+        <metric>carrying-capacity</metric>
+        <metric>density-effect-scaling-factor</metric>
+        <metric>labour-demand-per-capita</metric>
+        <metric>c1-fert</metric>
+        <metric>mu-fert</metric>
+        <metric>sigma1-fert</metric>
+        <metric>sigma2-fert</metric>
+        <metric>acceptable-kinship-degree-for-couples</metric>
+        <metric>c1-women</metric>
+        <metric>c1-men</metric>
+        <metric>mu-women</metric>
+        <metric>mu-men</metric>
+        <metric>sigma1-women</metric>
+        <metric>sigma1-men</metric>
+        <metric>sigma2-women</metric>
+        <metric>sigma2-men</metric>
+        <metric>totalHouseholds</metric>
+        <metric>totalIndividuals</metric>
+        <metric>totalPopulationGrowth</metric>
+        <metric>totalWomen</metric>
+        <metric>totalMen</metric>
+        <metric>femaleRatio</metric>
+        <metric>womenAgeStructure</metric>
+        <metric>menAgeStructure</metric>
+        <metric>womenFirstAgeGroup</metric>
+        <metric>menFirstAgeGroup</metric>
+        <metric>womenBirths</metric>
+        <metric>menBirths</metric>
+        <metric>womenDeaths</metric>
+        <metric>menDeaths</metric>
+        <metric>womenIn</metric>
+        <metric>menIn</metric>
+        <metric>womenOut</metric>
+        <metric>menOut</metric>
+        <metric>couplesAccepted</metric>
+        <metric>couplesRejected</metric>
+        <metric>totalOrphans</metric>
+        <metric>stopCondition</metric>
+        <metric>carrying-capacity-demand</metric>
+        <metric>labour-available</metric>
+        <metric>labour-required</metric>
+        <metric>laboured-share</metric>
+        <metric>carrying-capacity-effective</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="type-of-experiment">
+          <value value="&quot;user-defined&quot;"></value>
+        </enumeratedValueSet>
+        <steppedValueSet variable="SEED" first="0" step="1" last="99"></steppedValueSet>
+        <enumeratedValueSet variable="max-iterations">
+          <value value="2000"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="max-population">
+          <value value="5000"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_density-effect-scaling-factor">
+          <value value="0.05"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_carrying-capacity">
+          <value value="200"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_labour-demand-per-capita">
+          <value value="0.01"></value>
+          <value value="0.05"></value>
+          <value value="0.1"></value>
+          <value value="0.2"></value>
+          <value value="0.3"></value>
+          <value value="0.4"></value>
+          <value value="0.5"></value>
+          <value value="0.6"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="residence-rule">
+          <value value="&quot;matrilocal-matrilineal&quot;"></value>
+          <value value="&quot;patrilocal-patrilineal&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_initial-num-households">
+          <value value="25"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_max-couple-count-distribution">
+          <value value="&quot;1 6&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_acceptable-kinship-degree-for-couples">
+          <value value="8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_household-initial-age-distribution">
+          <value value="&quot;0 30&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="coale-demeny-region">
+          <value value="&quot;west&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="cdmlt-level">
+          <value value="8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="c1-fert">
+          <value value="0.9"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="mu-fert">
+          <value value="23"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-fert">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-fert">
+          <value value="13"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="c1-men">
+          <value value="0.8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="mu-men">
+          <value value="22"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-men">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-men">
+          <value value="15"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="c1-women">
+          <value value="0.9"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="mu-women">
+          <value value="18"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-women">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-women">
+          <value value="8"></value>
         </enumeratedValueSet>
       </constants>
     </experiment>

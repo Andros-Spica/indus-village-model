@@ -124,6 +124,7 @@ globals
   couplesRejectedThisYear
   couplesRejectedLastYear
   totalOrphans                   ; number of children moving from an household where all adults are dead
+  stopCondition                  ; registry of condition met causing simulation to halt
 ]
 
 ;;; agents variables
@@ -1560,6 +1561,7 @@ ISSUES:
         <metric>couplesRejectedThisYear</metric>
         <metric>couplesRejectedLastYear</metric>
         <metric>totalOrphans</metric>
+        <metric>stopCondition</metric>
       </metrics>
       <constants>
         <enumeratedValueSet variable="type-of-experiment">

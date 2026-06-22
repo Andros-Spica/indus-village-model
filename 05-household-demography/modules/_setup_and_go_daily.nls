@@ -230,6 +230,8 @@ end
 
 
 to go
+  
+  if (stopCondition != 0) [ stop ]
 
   ; --- core procedures -------------------------
 
@@ -243,18 +245,10 @@ to go
 
   advance-time
 
-  tick
+  check-stop-condition ;;; triggers stop in the next step
+  
   ;print "-------tick----"
-
-  ; --- stop conditions -------------------------
-
-  if (totalHouseholds = 0 or
-    ticks = max-iterations-in-days or
-    totalIndividuals > max-population)
-  [
-    ;if (length behaviorspace-experiment-name > 0 and count households > 0) [ export-households ]
-    stop
-  ]
+  tick
 
 end
 
@@ -274,5 +268,13 @@ to update-households
 
   ;print "-------manage-orphanhood----"
   manage-orphanhood
+
+end
+
+to check-stop-condition
+
+  if (totalHouseholds = 0) [ set stopCondition "totalHouseholds = 0" ]
+  if (ticks = max-iterations) [ set stopCondition "ticks = max-iterations" ]
+  if (totalIndividuals > max-population) [ set stopCondition "totalIndividuals > max-population" ]
 
 end

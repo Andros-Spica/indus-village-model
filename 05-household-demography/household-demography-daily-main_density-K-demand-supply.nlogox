@@ -77,11 +77,14 @@ globals
   ; value guide: 23 (3 weeks, minimal), 42 (6 weeks, if not lactating), 180 (6 months or 24 weeks, average), 540 (18 months or 64 weeks, intentional delay, medical recommendation)
 
   carrying-capacity               ; carrying capacity or maximum number of people that can be sustained feed, i.e. mortality is increased in proportion to closeness of population to it (density effect)
-  carrying-capacity-demand        ; number of adult equivalents (units of carrying capacity) that need to be currently sustained
   density-effect-scaling-factor     ; the maximum additional death probability (scaling factor for density-dependent mortality)
   labour-demand-per-capita ; share of labour adult equivalent to sustain one adult equivalent
 
   ;;; variables
+  carrying-capacity-demand        ; number of adult equivalents (units of carrying capacity) that need to be currently sustained
+  labour-available
+  labour-required
+  laboured-share
   carrying-capacity-effective     ; effective carrying capacity, weighted by the current contribution of available labour
   
   ;;;; time tracking
@@ -137,6 +140,7 @@ globals
   couplesRejectedThisYear
   couplesRejectedLastYear
   totalOrphans                   ; number of children moving from an household where all adults are dead
+  stopCondition                  ; registry of condition met causing simulation to halt
 ]
 
 ;;; agents variables
@@ -1609,6 +1613,7 @@ ISSUES:
         <metric>couplesRejectedThisYear</metric>
         <metric>couplesRejectedLastYear</metric>
         <metric>totalOrphans</metric>
+        <metric>stopCondition</metric>
       </metrics>
       <constants>
         <enumeratedValueSet variable="type-of-experiment">

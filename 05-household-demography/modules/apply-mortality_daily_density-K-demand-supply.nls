@@ -1,8 +1,8 @@
 to apply-mortality
 
-  let labour-available sum [hh_get-total-labour] of households
-  let labour-required carrying-capacity * labour-demand-per-capita
-  let laboured-share 1
+  set labour-available sum [hh_get-total-labour] of households
+  set labour-required carrying-capacity * labour-demand-per-capita
+  set laboured-share 1
   if (labour-available < labour-required)
   [ set laboured-share labour-available / labour-required ]
 
