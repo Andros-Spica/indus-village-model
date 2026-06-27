@@ -1412,6 +1412,12 @@ ISSUES:
         <metric>couplesRejectedThisYear</metric>
         <metric>couplesRejectedLastYear</metric>
         <metric>totalOrphans</metric>
+        <metric>stopCondition</metric>
+        <metric>carrying-capacity-demand</metric>
+        <metric>labour-available</metric>
+        <metric>labour-required</metric>
+        <metric>laboured-share</metric>
+        <metric>carrying-capacity-effective</metric>
       </metrics>
       <constants>
         <enumeratedValueSet variable="type-of-experiment">
@@ -1572,6 +1578,12 @@ ISSUES:
         <metric>couplesRejectedThisYear</metric>
         <metric>couplesRejectedLastYear</metric>
         <metric>totalOrphans</metric>
+        <metric>stopCondition</metric>
+        <metric>carrying-capacity-demand</metric>
+        <metric>labour-available</metric>
+        <metric>labour-required</metric>
+        <metric>laboured-share</metric>
+        <metric>carrying-capacity-effective</metric>
       </metrics>
       <constants>
         <enumeratedValueSet variable="type-of-experiment">
@@ -1670,6 +1682,12 @@ ISSUES:
         <metric>couplesRejectedThisYear</metric>
         <metric>couplesRejectedLastYear</metric>
         <metric>totalOrphans</metric>
+        <metric>stopCondition</metric>
+        <metric>carrying-capacity-demand</metric>
+        <metric>labour-available</metric>
+        <metric>labour-required</metric>
+        <metric>laboured-share</metric>
+        <metric>carrying-capacity-effective</metric>
       </metrics>
       <constants>
         <enumeratedValueSet variable="type-of-experiment">
@@ -1769,6 +1787,11 @@ ISSUES:
         <metric>couplesRejectedLastYear</metric>
         <metric>totalOrphans</metric>
         <metric>stopCondition</metric>
+        <metric>carrying-capacity-demand</metric>
+        <metric>labour-available</metric>
+        <metric>labour-required</metric>
+        <metric>laboured-share</metric>
+        <metric>carrying-capacity-effective</metric>
         <metric>hhInToday</metric>
         <metric>hhInThisYear</metric>
         <metric>hhInLastYear</metric>

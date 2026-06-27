@@ -274,7 +274,7 @@ end
 to check-stop-condition
 
   if (totalHouseholds = 0) [ set stopCondition "totalHouseholds = 0" ]
-  if (ticks = max-iterations) [ set stopCondition "ticks = max-iterations" ]
+  if (ticks = max-iterations-in-days) [ set stopCondition "ticks = max-iterations-in-days" ]
   if (totalIndividuals > max-population) [ set stopCondition "totalIndividuals > max-population" ]
 
 end

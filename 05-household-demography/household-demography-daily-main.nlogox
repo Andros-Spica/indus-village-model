@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<model version="NetLogo 7.0.2" snapToGrid="false">
+<model version="NetLogo 7.0.4" snapToGrid="false">
   <code><![CDATA[;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; GNU GENERAL PUBLIC LICENSE ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -149,7 +149,7 @@ households-own
   <widgets>
     <view x="332" wrappingAllowedX="true" y="9" frameRate="30.0" minPycor="-9" height="308" showTickCounter="true" patchSize="16.0" fontSize="10" wrappingAllowedY="true" width="308" tickCounterLabel="ticks" maxPycor="9" updateMode="0" maxPxcor="9" minPxcor="-9"></view>
     <input x="13" multiline="false" y="111" height="60" variable="SEED" type="number" width="100">0.0</input>
-    <chooser x="10" y="178" height="60" variable="type-of-experiment" current="2" width="178" display="type-of-experiment">
+    <chooser x="10" y="178" height="60" variable="type-of-experiment" current="0" width="178" display="type-of-experiment">
       <choice type="string" value="user-defined"></choice>
       <choice type="string" value="random"></choice>
       <choice type="string" value="defined by exp-number"></choice>
@@ -190,25 +190,25 @@ set-plot-y-range -0.001 (precision (max (list max nuptialityTable-women max nupt
         <update>plot-table nuptialityTable-men</update>
       </pen>
     </plot>
-    <slider x="241" step="1" y="530" max="25" width="214" display="cdmlt-level" height="50" min="1" direction="Horizontal" default="24.0" variable="cdmlt-level" units="levels from 1 to 25"></slider>
-    <slider x="242" step="0.001" y="917" max="1" width="209" display="c1-women" height="50" min="0" direction="Horizontal" default="0.758" variable="c1-women" units="(default: 0.9)"></slider>
-    <slider x="246" step="0.001" y="745" max="40" width="208" display="mu-fert" height="50" min="0" direction="Horizontal" default="23.32" variable="mu-fert" units="(default: 23)"></slider>
-    <slider x="247" step="0.001" y="855" max="6 * 5" width="234" display="sigma2-fert" height="50" min="0" direction="Horizontal" default="14.258" variable="sigma2-fert" units="(default: 10)"></slider>
-    <slider x="246" step="0.001" y="800" max="2 * 5" width="235" display="sigma1-fert" height="50" min="0" direction="Horizontal" default="8.242" variable="sigma1-fert" units="(default: 5)"></slider>
-    <slider x="246" step="0.001" y="690" max="1" width="210" display="c1-fert" height="50" min="0" direction="Horizontal" default="0.379" variable="c1-fert" units="(default: 0.9)"></slider>
-    <chooser x="243" y="585" height="60" variable="coale-demeny-region" current="1" width="141" display="coale-demeny-region">
+    <slider x="241" step="1" y="530" max="25" width="214" display="cdmlt-level" height="50" min="1" direction="Horizontal" default="8.0" variable="cdmlt-level" units="levels from 1 to 25"></slider>
+    <slider x="242" step="0.001" y="917" max="1" width="209" display="c1-women" height="50" min="0" direction="Horizontal" default="0.9" variable="c1-women" units="(default: 0.9)"></slider>
+    <slider x="246" step="0.001" y="745" max="40" width="208" display="mu-fert" height="50" min="0" direction="Horizontal" default="23.0" variable="mu-fert" units="(default: 23)"></slider>
+    <slider x="247" step="0.001" y="855" max="6 * 5" width="234" display="sigma2-fert" height="50" min="0" direction="Horizontal" default="13.0" variable="sigma2-fert" units="(default: 10)"></slider>
+    <slider x="246" step="0.001" y="800" max="2 * 5" width="235" display="sigma1-fert" height="50" min="0" direction="Horizontal" default="5.0" variable="sigma1-fert" units="(default: 5)"></slider>
+    <slider x="246" step="0.001" y="690" max="1" width="210" display="c1-fert" height="50" min="0" direction="Horizontal" default="0.9" variable="c1-fert" units="(default: 0.9)"></slider>
+    <chooser x="243" y="585" height="60" variable="coale-demeny-region" current="0" width="141" display="coale-demeny-region">
       <choice type="string" value="west"></choice>
       <choice type="string" value="east"></choice>
       <choice type="string" value="south"></choice>
       <choice type="string" value="north"></choice>
     </chooser>
-    <slider x="242" step="0.001" y="969" max="40" width="209" display="mu-women" height="50" min="0" direction="Horizontal" default="28.477" variable="mu-women" units="(default: 15)"></slider>
-    <slider x="242" step="0.001" y="1021" max="2 * 5" width="209" display="sigma1-women" height="50" min="0" direction="Horizontal" default="8.57" variable="sigma1-women" units="(default: 5)"></slider>
-    <slider x="242" step="0.001" y="1072" max="2 * 5" width="209" display="sigma2-women" height="50" min="0" direction="Horizontal" default="4.711" variable="sigma2-women" units="(default: 5)"></slider>
-    <slider x="452" step="0.001" y="917" max="1" width="201" display="c1-men" height="50" min="0" direction="Horizontal" default="0.398" variable="c1-men" units="(default: 0.85)"></slider>
-    <slider x="452" step="0.001" y="969" max="2 * 20" width="201" display="mu-men" height="50" min="0" direction="Horizontal" default="15.195" variable="mu-men" units="(default: 20)"></slider>
-    <slider x="452" step="0.001" y="1021" max="2 * 5" width="201" display="sigma1-men" height="50" min="0" direction="Horizontal" default="9.461" variable="sigma1-men" units="(default: 2)"></slider>
-    <slider x="452" step="0.001" y="1072" max="2 * 5" width="201" display="sigma2-men" height="50" min="0" direction="Horizontal" default="5.305" variable="sigma2-men" units="(default: 10)"></slider>
+    <slider x="242" step="0.001" y="969" max="40" width="209" display="mu-women" height="50" min="0" direction="Horizontal" default="18.0" variable="mu-women" units="(default: 15)"></slider>
+    <slider x="242" step="0.001" y="1021" max="2 * 5" width="209" display="sigma1-women" height="50" min="0" direction="Horizontal" default="5.0" variable="sigma1-women" units="(default: 5)"></slider>
+    <slider x="242" step="0.001" y="1072" max="2 * 5" width="209" display="sigma2-women" height="50" min="0" direction="Horizontal" default="8.0" variable="sigma2-women" units="(default: 5)"></slider>
+    <slider x="452" step="0.001" y="917" max="1" width="201" display="c1-men" height="50" min="0" direction="Horizontal" default="0.8" variable="c1-men" units="(default: 0.85)"></slider>
+    <slider x="452" step="0.001" y="969" max="2 * 20" width="201" display="mu-men" height="50" min="0" direction="Horizontal" default="22.0" variable="mu-men" units="(default: 20)"></slider>
+    <slider x="452" step="0.001" y="1021" max="2 * 5" width="201" display="sigma1-men" height="50" min="0" direction="Horizontal" default="5.0" variable="sigma1-men" units="(default: 2)"></slider>
+    <slider x="452" step="0.001" y="1072" max="2 * 5" width="201" display="sigma2-men" height="50" min="0" direction="Horizontal" default="15.0" variable="sigma2-men" units="(default: 10)"></slider>
     <plot x="8" autoPlotX="false" yMax="10.0" autoPlotY="false" y="516" xMin="0.0" height="182" legend="false" xMax="10.0" yMin="0.0" width="226" xAxis="age" display="mortality (prob. dying)">
       <setup></setup>
       <update>clear-plot
@@ -357,11 +357,11 @@ carefully [ set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)
     <input x="8" multiline="false" y="443" height="60" variable="par_max-couple-count-distribution" type="string" width="206">1 6</input>
     <monitor x="206" precision="0" y="442" height="60" fontSize="9" width="186">max-couple-count-distribution</monitor>
     <slider x="411" step="1" y="321" max="64" width="241" display="amenorrhea-period-in-weeks" height="50" min="2" direction="Horizontal" default="24.0" variable="amenorrhea-period-in-weeks" units="weeks"></slider>
-    <chooser x="446" y="367" height="60" variable="residence-rule" current="1" width="157" display="residence-rule">
+    <chooser x="446" y="367" height="60" variable="residence-rule" current="0" width="157" display="residence-rule">
       <choice type="string" value="patrilocal-patrilineal"></choice>
       <choice type="string" value="matrilocal-matrilineal"></choice>
     </chooser>
-    <slider x="391" step="1" y="443" max="10" width="280" display="par_acceptable-kinship-degree-for-couples" height="50" min="0" direction="Horizontal" default="9.0" variable="par_acceptable-kinship-degree-for-couples"></slider>
+    <slider x="391" step="1" y="443" max="10" width="280" display="par_acceptable-kinship-degree-for-couples" height="50" min="0" direction="Horizontal" default="8.0" variable="par_acceptable-kinship-degree-for-couples"></slider>
     <plot x="1139" autoPlotX="true" yMax="10.0" autoPlotY="true" y="422" xMin="0.0" height="175" legend="false" xMax="10.0" yMin="0.0" width="280" display="couples accepted over total trys">
       <setup>set-plot-y-range -0.001 1.01</setup>
       <update></update>
@@ -1254,149 +1254,6 @@ ISSUES:
   </linkShapes>
   <previewCommands>setup repeat 75 [ go ]</previewCommands>
   <experiments>
-    <experiment name="exp-trajectories" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="true">
-      <setup>setup</setup>
-      <go>go</go>
-      <metrics>
-        <metric>SEED</metric>
-        <metric>maturity-age-in-years</metric>
-        <metric>gestation-period-in-days</metric>
-        <metric>year-length-in-days</metric>
-        <metric>initial-num-households</metric>
-        <metric>household-initial-age-distribution</metric>
-        <metric>max-couple-count-distribution</metric>
-        <metric>cdmlt-level</metric>
-        <metric>coale-demeny-region</metric>
-        <metric>c1-fert</metric>
-        <metric>mu-fert</metric>
-        <metric>sigma1-fert</metric>
-        <metric>sigma2-fert</metric>
-        <metric>acceptable-kinship-degree-for-couples</metric>
-        <metric>c1-women</metric>
-        <metric>c1-men</metric>
-        <metric>mu-women</metric>
-        <metric>mu-men</metric>
-        <metric>sigma1-women</metric>
-        <metric>sigma1-men</metric>
-        <metric>sigma2-women</metric>
-        <metric>sigma2-men</metric>
-        <metric>totalHouseholds</metric>
-        <metric>totalIndividuals</metric>
-        <metric>totalIndividualsLastYear</metric>
-        <metric>totalPopulationGrowth</metric>
-        <metric>totalWomen</metric>
-        <metric>totalMen</metric>
-        <metric>femaleRatio</metric>
-        <metric>womenAgeStructure</metric>
-        <metric>menAgeStructure</metric>
-        <metric>womenFirstAgeGroup</metric>
-        <metric>menFirstAgeGroup</metric>
-        <metric>womenBirthsToday</metric>
-        <metric>womenBirthsThisYear</metric>
-        <metric>womenBirthsLastYear</metric>
-        <metric>menBirthsToday</metric>
-        <metric>menBirthsThisYear</metric>
-        <metric>menBirthsLastYear</metric>
-        <metric>womenDeathsToday</metric>
-        <metric>womenDeathsThisYear</metric>
-        <metric>womenDeathsLastYear</metric>
-        <metric>menDeathsToday</metric>
-        <metric>menDeathsThisYear</metric>
-        <metric>menDeathsLastYear</metric>
-        <metric>womenInToday</metric>
-        <metric>womenInThisYear</metric>
-        <metric>womenInLastYear</metric>
-        <metric>menInToday</metric>
-        <metric>menInThisYear</metric>
-        <metric>menInLastYear</metric>
-        <metric>womenOutToday</metric>
-        <metric>womenOutThisYear</metric>
-        <metric>womenOutLastYear</metric>
-        <metric>menOutToday</metric>
-        <metric>menOutThisYear</metric>
-        <metric>menOutLastYear</metric>
-        <metric>couplesAcceptedToday</metric>
-        <metric>couplesAcceptedThisYear</metric>
-        <metric>couplesAcceptedLastYear</metric>
-        <metric>couplesRejectedToday</metric>
-        <metric>couplesRejectedThisYear</metric>
-        <metric>couplesRejectedLastYear</metric>
-        <metric>totalOrphans</metric>
-      </metrics>
-      <constants>
-        <enumeratedValueSet variable="type-of-experiment">
-          <value value="&quot;user-defined&quot;"></value>
-        </enumeratedValueSet>
-        <steppedValueSet variable="SEED" first="0" step="1" last="99"></steppedValueSet>
-        <enumeratedValueSet variable="max-iterations">
-          <value value="2000"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="max-population">
-          <value value="5000"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="residence-rule">
-          <value value="&quot;matrilocal-matrilineal&quot;"></value>
-          <value value="&quot;patrilocal-patrilineal&quot;"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="par_initial-num-households">
-          <value value="25"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="par_max-couple-count-distribution">
-          <value value="&quot;1 6&quot;"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="par_acceptable-kinship-degree-for-couples">
-          <value value="8"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="par_household-initial-age-distribution">
-          <value value="&quot;0 30&quot;"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="coale-demeny-region">
-          <value value="&quot;west&quot;"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="cdmlt-level">
-          <value value="8"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="c1-fert">
-          <value value="0.9"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="mu-fert">
-          <value value="23"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="sigma1-fert">
-          <value value="5"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="sigma2-fert">
-          <value value="13"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="c1-men">
-          <value value="0.8"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="mu-men">
-          <value value="22"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="sigma1-men">
-          <value value="5"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="sigma2-men">
-          <value value="15"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="c1-women">
-          <value value="0.9"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="mu-women">
-          <value value="18"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="sigma1-women">
-          <value value="5"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="sigma2-women">
-          <value value="8"></value>
-        </enumeratedValueSet>
-        <enumeratedValueSet variable="amenorrhea-period-in-days">
-          <value value="180"></value>
-        </enumeratedValueSet>
-      </constants>
-    </experiment>
     <experiment name="exp-endstates-patri" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="false">
       <setup>setup</setup>
       <go>go</go>
@@ -1581,6 +1438,578 @@ ISSUES:
         </enumeratedValueSet>
         <enumeratedValueSet variable="residence-rule">
           <value value="&quot;matrilocal-matrilineal&quot;"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="exp-trajectories" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="true">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>SEED</metric>
+        <metric>maturity-age-in-years</metric>
+        <metric>gestation-period-in-days</metric>
+        <metric>year-length-in-days</metric>
+        <metric>initial-num-households</metric>
+        <metric>household-initial-age-distribution</metric>
+        <metric>max-couple-count-distribution</metric>
+        <metric>cdmlt-level</metric>
+        <metric>coale-demeny-region</metric>
+        <metric>c1-fert</metric>
+        <metric>mu-fert</metric>
+        <metric>sigma1-fert</metric>
+        <metric>sigma2-fert</metric>
+        <metric>acceptable-kinship-degree-for-couples</metric>
+        <metric>c1-women</metric>
+        <metric>c1-men</metric>
+        <metric>mu-women</metric>
+        <metric>mu-men</metric>
+        <metric>sigma1-women</metric>
+        <metric>sigma1-men</metric>
+        <metric>sigma2-women</metric>
+        <metric>sigma2-men</metric>
+        <metric>totalHouseholds</metric>
+        <metric>totalIndividuals</metric>
+        <metric>totalIndividualsLastYear</metric>
+        <metric>totalPopulationGrowth</metric>
+        <metric>totalWomen</metric>
+        <metric>totalMen</metric>
+        <metric>femaleRatio</metric>
+        <metric>womenAgeStructure</metric>
+        <metric>menAgeStructure</metric>
+        <metric>womenFirstAgeGroup</metric>
+        <metric>menFirstAgeGroup</metric>
+        <metric>womenBirthsToday</metric>
+        <metric>womenBirthsThisYear</metric>
+        <metric>womenBirthsLastYear</metric>
+        <metric>menBirthsToday</metric>
+        <metric>menBirthsThisYear</metric>
+        <metric>menBirthsLastYear</metric>
+        <metric>womenDeathsToday</metric>
+        <metric>womenDeathsThisYear</metric>
+        <metric>womenDeathsLastYear</metric>
+        <metric>menDeathsToday</metric>
+        <metric>menDeathsThisYear</metric>
+        <metric>menDeathsLastYear</metric>
+        <metric>womenInToday</metric>
+        <metric>womenInThisYear</metric>
+        <metric>womenInLastYear</metric>
+        <metric>menInToday</metric>
+        <metric>menInThisYear</metric>
+        <metric>menInLastYear</metric>
+        <metric>womenOutToday</metric>
+        <metric>womenOutThisYear</metric>
+        <metric>womenOutLastYear</metric>
+        <metric>menOutToday</metric>
+        <metric>menOutThisYear</metric>
+        <metric>menOutLastYear</metric>
+        <metric>couplesAcceptedToday</metric>
+        <metric>couplesAcceptedThisYear</metric>
+        <metric>couplesAcceptedLastYear</metric>
+        <metric>couplesRejectedToday</metric>
+        <metric>couplesRejectedThisYear</metric>
+        <metric>couplesRejectedLastYear</metric>
+        <metric>totalOrphans</metric>
+        <metric>stopCondition</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="type-of-experiment">
+          <value value="&quot;user-defined&quot;"></value>
+        </enumeratedValueSet>
+        <steppedValueSet variable="SEED" first="0" step="1" last="99"></steppedValueSet>
+        <enumeratedValueSet variable="max-iterations">
+          <value value="500"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="max-population">
+          <value value="5000"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="residence-rule">
+          <value value="&quot;matrilocal-matrilineal&quot;"></value>
+          <value value="&quot;patrilocal-patrilineal&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_initial-num-households">
+          <value value="25"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_max-couple-count-distribution">
+          <value value="&quot;1 6&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_acceptable-kinship-degree-for-couples">
+          <value value="8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_household-initial-age-distribution">
+          <value value="&quot;0 30&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="coale-demeny-region">
+          <value value="&quot;west&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="cdmlt-level">
+          <value value="8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="c1-fert">
+          <value value="0.9"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="mu-fert">
+          <value value="23"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-fert">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-fert">
+          <value value="13"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="c1-men">
+          <value value="0.8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="mu-men">
+          <value value="22"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-men">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-men">
+          <value value="15"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="c1-women">
+          <value value="0.9"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="mu-women">
+          <value value="18"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-women">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-women">
+          <value value="8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="amenorrhea-period-in-days">
+          <value value="180"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="exp-trajectories-cdmlt-level" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="true">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>SEED</metric>
+        <metric>maturity-age-in-years</metric>
+        <metric>gestation-period-in-days</metric>
+        <metric>year-length-in-days</metric>
+        <metric>initial-num-households</metric>
+        <metric>household-initial-age-distribution</metric>
+        <metric>max-couple-count-distribution</metric>
+        <metric>cdmlt-level</metric>
+        <metric>coale-demeny-region</metric>
+        <metric>c1-fert</metric>
+        <metric>mu-fert</metric>
+        <metric>sigma1-fert</metric>
+        <metric>sigma2-fert</metric>
+        <metric>acceptable-kinship-degree-for-couples</metric>
+        <metric>c1-women</metric>
+        <metric>c1-men</metric>
+        <metric>mu-women</metric>
+        <metric>mu-men</metric>
+        <metric>sigma1-women</metric>
+        <metric>sigma1-men</metric>
+        <metric>sigma2-women</metric>
+        <metric>sigma2-men</metric>
+        <metric>totalHouseholds</metric>
+        <metric>totalIndividuals</metric>
+        <metric>totalIndividualsLastYear</metric>
+        <metric>totalPopulationGrowth</metric>
+        <metric>totalWomen</metric>
+        <metric>totalMen</metric>
+        <metric>femaleRatio</metric>
+        <metric>womenAgeStructure</metric>
+        <metric>menAgeStructure</metric>
+        <metric>womenFirstAgeGroup</metric>
+        <metric>menFirstAgeGroup</metric>
+        <metric>womenBirthsToday</metric>
+        <metric>womenBirthsThisYear</metric>
+        <metric>womenBirthsLastYear</metric>
+        <metric>menBirthsToday</metric>
+        <metric>menBirthsThisYear</metric>
+        <metric>menBirthsLastYear</metric>
+        <metric>womenDeathsToday</metric>
+        <metric>womenDeathsThisYear</metric>
+        <metric>womenDeathsLastYear</metric>
+        <metric>menDeathsToday</metric>
+        <metric>menDeathsThisYear</metric>
+        <metric>menDeathsLastYear</metric>
+        <metric>womenInToday</metric>
+        <metric>womenInThisYear</metric>
+        <metric>womenInLastYear</metric>
+        <metric>menInToday</metric>
+        <metric>menInThisYear</metric>
+        <metric>menInLastYear</metric>
+        <metric>womenOutToday</metric>
+        <metric>womenOutThisYear</metric>
+        <metric>womenOutLastYear</metric>
+        <metric>menOutToday</metric>
+        <metric>menOutThisYear</metric>
+        <metric>menOutLastYear</metric>
+        <metric>couplesAcceptedToday</metric>
+        <metric>couplesAcceptedThisYear</metric>
+        <metric>couplesAcceptedLastYear</metric>
+        <metric>couplesRejectedToday</metric>
+        <metric>couplesRejectedThisYear</metric>
+        <metric>couplesRejectedLastYear</metric>
+        <metric>totalOrphans</metric>
+        <metric>stopCondition</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="type-of-experiment">
+          <value value="&quot;user-defined&quot;"></value>
+        </enumeratedValueSet>
+        <steppedValueSet variable="SEED" first="0" step="5" last="99"></steppedValueSet>
+        <enumeratedValueSet variable="max-iterations">
+          <value value="500"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="max-population">
+          <value value="5000"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="residence-rule">
+          <value value="&quot;matrilocal-matrilineal&quot;"></value>
+          <value value="&quot;patrilocal-patrilineal&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_initial-num-households">
+          <value value="25"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_max-couple-count-distribution">
+          <value value="&quot;1 6&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_acceptable-kinship-degree-for-couples">
+          <value value="8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_household-initial-age-distribution">
+          <value value="&quot;0 30&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="coale-demeny-region">
+          <value value="&quot;west&quot;"></value>
+        </enumeratedValueSet>
+        <steppedValueSet variable="cdmlt-level" first="2" step="3" last="25"></steppedValueSet>
+        <enumeratedValueSet variable="c1-fert">
+          <value value="0.9"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="mu-fert">
+          <value value="23"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-fert">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-fert">
+          <value value="13"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="c1-men">
+          <value value="0.8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="mu-men">
+          <value value="22"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-men">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-men">
+          <value value="15"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="c1-women">
+          <value value="0.9"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="mu-women">
+          <value value="18"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-women">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-women">
+          <value value="8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="amenorrhea-period-in-days">
+          <value value="180"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="exp-trajectories-c1-fert" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="true">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>SEED</metric>
+        <metric>maturity-age-in-years</metric>
+        <metric>gestation-period-in-days</metric>
+        <metric>year-length-in-days</metric>
+        <metric>initial-num-households</metric>
+        <metric>household-initial-age-distribution</metric>
+        <metric>max-couple-count-distribution</metric>
+        <metric>cdmlt-level</metric>
+        <metric>coale-demeny-region</metric>
+        <metric>c1-fert</metric>
+        <metric>mu-fert</metric>
+        <metric>sigma1-fert</metric>
+        <metric>sigma2-fert</metric>
+        <metric>acceptable-kinship-degree-for-couples</metric>
+        <metric>c1-women</metric>
+        <metric>c1-men</metric>
+        <metric>mu-women</metric>
+        <metric>mu-men</metric>
+        <metric>sigma1-women</metric>
+        <metric>sigma1-men</metric>
+        <metric>sigma2-women</metric>
+        <metric>sigma2-men</metric>
+        <metric>totalHouseholds</metric>
+        <metric>totalIndividuals</metric>
+        <metric>totalIndividualsLastYear</metric>
+        <metric>totalPopulationGrowth</metric>
+        <metric>totalWomen</metric>
+        <metric>totalMen</metric>
+        <metric>femaleRatio</metric>
+        <metric>womenAgeStructure</metric>
+        <metric>menAgeStructure</metric>
+        <metric>womenFirstAgeGroup</metric>
+        <metric>menFirstAgeGroup</metric>
+        <metric>womenBirthsToday</metric>
+        <metric>womenBirthsThisYear</metric>
+        <metric>womenBirthsLastYear</metric>
+        <metric>menBirthsToday</metric>
+        <metric>menBirthsThisYear</metric>
+        <metric>menBirthsLastYear</metric>
+        <metric>womenDeathsToday</metric>
+        <metric>womenDeathsThisYear</metric>
+        <metric>womenDeathsLastYear</metric>
+        <metric>menDeathsToday</metric>
+        <metric>menDeathsThisYear</metric>
+        <metric>menDeathsLastYear</metric>
+        <metric>womenInToday</metric>
+        <metric>womenInThisYear</metric>
+        <metric>womenInLastYear</metric>
+        <metric>menInToday</metric>
+        <metric>menInThisYear</metric>
+        <metric>menInLastYear</metric>
+        <metric>womenOutToday</metric>
+        <metric>womenOutThisYear</metric>
+        <metric>womenOutLastYear</metric>
+        <metric>menOutToday</metric>
+        <metric>menOutThisYear</metric>
+        <metric>menOutLastYear</metric>
+        <metric>couplesAcceptedToday</metric>
+        <metric>couplesAcceptedThisYear</metric>
+        <metric>couplesAcceptedLastYear</metric>
+        <metric>couplesRejectedToday</metric>
+        <metric>couplesRejectedThisYear</metric>
+        <metric>couplesRejectedLastYear</metric>
+        <metric>totalOrphans</metric>
+        <metric>stopCondition</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="type-of-experiment">
+          <value value="&quot;user-defined&quot;"></value>
+        </enumeratedValueSet>
+        <steppedValueSet variable="SEED" first="0" step="5" last="99"></steppedValueSet>
+        <enumeratedValueSet variable="max-iterations">
+          <value value="500"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="max-population">
+          <value value="5000"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="residence-rule">
+          <value value="&quot;matrilocal-matrilineal&quot;"></value>
+          <value value="&quot;patrilocal-patrilineal&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_initial-num-households">
+          <value value="25"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_max-couple-count-distribution">
+          <value value="&quot;1 6&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_acceptable-kinship-degree-for-couples">
+          <value value="8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_household-initial-age-distribution">
+          <value value="&quot;0 30&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="coale-demeny-region">
+          <value value="&quot;west&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="cdmlt-level">
+          <value value="8"></value>
+        </enumeratedValueSet>
+        <steppedValueSet variable="c1-fert" first="0.3" step="0.1" last="0.9"></steppedValueSet>
+        <enumeratedValueSet variable="mu-fert">
+          <value value="23"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-fert">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-fert">
+          <value value="13"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="c1-men">
+          <value value="0.8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="mu-men">
+          <value value="22"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-men">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-men">
+          <value value="15"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="c1-women">
+          <value value="0.9"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="mu-women">
+          <value value="18"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-women">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-women">
+          <value value="8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="amenorrhea-period-in-days">
+          <value value="180"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="exp-trajectories-symmetric" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="true">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>SEED</metric>
+        <metric>maturity-age-in-years</metric>
+        <metric>gestation-period-in-days</metric>
+        <metric>year-length-in-days</metric>
+        <metric>initial-num-households</metric>
+        <metric>household-initial-age-distribution</metric>
+        <metric>max-couple-count-distribution</metric>
+        <metric>cdmlt-level</metric>
+        <metric>coale-demeny-region</metric>
+        <metric>c1-fert</metric>
+        <metric>mu-fert</metric>
+        <metric>sigma1-fert</metric>
+        <metric>sigma2-fert</metric>
+        <metric>acceptable-kinship-degree-for-couples</metric>
+        <metric>c1-women</metric>
+        <metric>c1-men</metric>
+        <metric>mu-women</metric>
+        <metric>mu-men</metric>
+        <metric>sigma1-women</metric>
+        <metric>sigma1-men</metric>
+        <metric>sigma2-women</metric>
+        <metric>sigma2-men</metric>
+        <metric>totalHouseholds</metric>
+        <metric>totalIndividuals</metric>
+        <metric>totalIndividualsLastYear</metric>
+        <metric>totalPopulationGrowth</metric>
+        <metric>totalWomen</metric>
+        <metric>totalMen</metric>
+        <metric>femaleRatio</metric>
+        <metric>womenAgeStructure</metric>
+        <metric>menAgeStructure</metric>
+        <metric>womenFirstAgeGroup</metric>
+        <metric>menFirstAgeGroup</metric>
+        <metric>womenBirthsToday</metric>
+        <metric>womenBirthsThisYear</metric>
+        <metric>womenBirthsLastYear</metric>
+        <metric>menBirthsToday</metric>
+        <metric>menBirthsThisYear</metric>
+        <metric>menBirthsLastYear</metric>
+        <metric>womenDeathsToday</metric>
+        <metric>womenDeathsThisYear</metric>
+        <metric>womenDeathsLastYear</metric>
+        <metric>menDeathsToday</metric>
+        <metric>menDeathsThisYear</metric>
+        <metric>menDeathsLastYear</metric>
+        <metric>womenInToday</metric>
+        <metric>womenInThisYear</metric>
+        <metric>womenInLastYear</metric>
+        <metric>menInToday</metric>
+        <metric>menInThisYear</metric>
+        <metric>menInLastYear</metric>
+        <metric>womenOutToday</metric>
+        <metric>womenOutThisYear</metric>
+        <metric>womenOutLastYear</metric>
+        <metric>menOutToday</metric>
+        <metric>menOutThisYear</metric>
+        <metric>menOutLastYear</metric>
+        <metric>couplesAcceptedToday</metric>
+        <metric>couplesAcceptedThisYear</metric>
+        <metric>couplesAcceptedLastYear</metric>
+        <metric>couplesRejectedToday</metric>
+        <metric>couplesRejectedThisYear</metric>
+        <metric>couplesRejectedLastYear</metric>
+        <metric>totalOrphans</metric>
+        <metric>stopCondition</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="type-of-experiment">
+          <value value="&quot;user-defined&quot;"></value>
+        </enumeratedValueSet>
+        <steppedValueSet variable="SEED" first="0" step="1" last="99"></steppedValueSet>
+        <enumeratedValueSet variable="max-iterations">
+          <value value="500"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="max-population">
+          <value value="5000"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="residence-rule">
+          <value value="&quot;matrilocal-matrilineal&quot;"></value>
+          <value value="&quot;patrilocal-patrilineal&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_initial-num-households">
+          <value value="25"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_max-couple-count-distribution">
+          <value value="&quot;1 6&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_acceptable-kinship-degree-for-couples">
+          <value value="8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="par_household-initial-age-distribution">
+          <value value="&quot;0 30&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="coale-demeny-region">
+          <value value="&quot;west&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="cdmlt-level">
+          <value value="8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="c1-fert">
+          <value value="0.9"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="mu-fert">
+          <value value="23"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-fert">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-fert">
+          <value value="13"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="c1-men">
+          <value value="0.85"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="mu-men">
+          <value value="20"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-men">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-men">
+          <value value="10"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="c1-women">
+          <value value="0.85"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="mu-women">
+          <value value="20"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma1-women">
+          <value value="5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="sigma2-women">
+          <value value="10"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="amenorrhea-period-in-days">
+          <value value="180"></value>
         </enumeratedValueSet>
       </constants>
     </experiment>

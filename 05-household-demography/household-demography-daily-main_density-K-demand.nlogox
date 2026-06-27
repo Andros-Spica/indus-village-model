@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<model version="NetLogo 7.0.2" snapToGrid="false">
+<model version="NetLogo 7.0.4" snapToGrid="false">
   <code><![CDATA[;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; GNU GENERAL PUBLIC LICENSE ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1354,7 +1354,7 @@ ISSUES:
         </enumeratedValueSet>
         <steppedValueSet variable="SEED" first="0" step="1" last="99"></steppedValueSet>
         <enumeratedValueSet variable="max-iterations">
-          <value value="2000"></value>
+          <value value="500"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="max-population">
           <value value="5000"></value>

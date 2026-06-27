@@ -143,10 +143,10 @@ to parameters-check1
   if (sigma2-men = 0)                           [ set sigma2-men                           15 ]
 
   if (carrying-capacity = 0)                    [ set carrying-capacity                   200 ]
-  if (density-effect-scaling-factor = 0)        [ set density-effect-scaling-factor         0.05 ]
-  if (labour-demand-per-capita = 0)             [ set labour-demand-per-capita              0.45 ]
+  ;if (density-effect-scaling-factor = 0)        [ set density-effect-scaling-factor         0.05 ]
+  ;if (labour-demand-per-capita = 0)             [ set labour-demand-per-capita              0.45 ]
 
-  if (amenorrhea-period-in-weeks = 0)                    [ set amenorrhea-period-in-weeks                    24 ]
+  ;if (amenorrhea-period-in-weeks = 0)                    [ set amenorrhea-period-in-weeks                    24 ]
 
   ;;; string type inputs (vector of values)
   if (par_household-initial-age-distribution = 0 or
@@ -291,7 +291,7 @@ end
 to check-stop-condition
 
   if (totalHouseholds = 0) [ set stopCondition "totalHouseholds = 0" ]
-  if (ticks = max-iterations) [ set stopCondition "ticks = max-iterations" ]
+  if (ticks = max-iterations-in-days) [ set stopCondition "ticks = max-iterations-in-days" ]
   if (totalIndividuals > max-population) [ set stopCondition "totalIndividuals > max-population" ]
 
 end

@@ -5,7 +5,7 @@ to-report hh_get-total-labour
   foreach hh_membersAge
   [
     memberAge ->
-    set labour labour + (get-labour-at-age memberAge)
+    set labour labour + (get-labour-at-age (get-age-in-years-old memberAge))
   ]
 
   report labour

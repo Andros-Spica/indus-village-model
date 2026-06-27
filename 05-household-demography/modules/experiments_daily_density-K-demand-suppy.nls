@@ -45,7 +45,7 @@ end
 
 to export-households
 
-  let FilePath "analysis//simdata//v1.3//hh//"
+  let FilePath "analysis//simdata//v1.4.2//hh//"
 
   file-open (word FilePath "exp-number=" exp-number "_SEED=" SEED "_households.csv")
 

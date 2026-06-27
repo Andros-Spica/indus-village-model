@@ -4,19 +4,17 @@ to-report hh_get-total-carrying-capacity-demand
 
   foreach hh_membersAge
   [
-    memberIndex ->
-    set my-carrying-capacity-demand my-carrying-capacity-demand + (get-carrying-capacity-demand-at-age memberIndex)
+    memberAge ->
+    set my-carrying-capacity-demand my-carrying-capacity-demand + (get-carrying-capacity-demand-at-age (get-age-in-years-old memberAge))
   ]
 
   report my-carrying-capacity-demand
 
 end
 
-to-report get-carrying-capacity-demand-at-age [ ageInDays ]
+to-report get-carrying-capacity-demand-at-age [ age ]
 
   let my-carrying-capacity-demand 1
-
-  let age get-age-in-years-old ageInDays
 
   if (age < 15) [ set my-carrying-capacity-demand (age / 15) ^ 1.2 ]
 
