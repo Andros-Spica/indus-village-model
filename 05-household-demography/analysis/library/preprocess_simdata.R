@@ -59,7 +59,11 @@ rename_columns <- function(df) {
     "labour.required" = "labour_required",
     "laboured.share" = "laboured_share",
     "carrying.capacity.effective" = "carrying_capacity_effective",
-    "labour.demand.per.capita" = "labour_demand_per_capita"
+    "labour.demand.per.capita" = "labour_demand_per_capita",
+    "year.length.in.days" = "year_length_in_days",
+    "maturity.age.in.years" = "maturity_age_in_years",
+    "gestation.period.in.days" = "gestation_period_in_days",
+    "amenorrhea.period.in.days" = "amenorrhea_period_in_days"
   )
   df |>
     rename_with(~ lookup[.x], .cols = intersect(names(lookup), names(df)))

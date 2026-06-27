@@ -7,7 +7,7 @@ params:
   show_diagnostics: false
 ---
 
-# Demand-weighted density dependent model (v.1.2.1)
+# Demand-weighted density dependent model with daily iteration (v.1.4.1)
 
 ## Setup
 
@@ -15,7 +15,7 @@ Set constant variables for this chapter.
 
 ```{r}
 #| label: setup_constants
-MODEL_VERSION <- "v1.2.1"
+MODEL_VERSION <- "v1.4.1"
 EXPORT_FIGURES <- TRUE
 REMAKE_RF <- FALSE
 REMAKE_DP <- FALSE
@@ -25,14 +25,18 @@ Load libraries, sources and set ggplot theme for the notebook.
 
 ```{r} 
 #| label: setup_libraries
+library(data.table)
 library(dplyr)
 library(tidyr)
 library(readr)
 library(ggplot2)
+library(ggtext)
 library(zoo)
 library(stringr)
 library(effectsize)
 library(randomForest)
+library(randtoolbox)
+library(rngWELL)
 library(pdp)
 library(forcats)
 library(patchwork)
@@ -62,20 +66,24 @@ theme_set(
 
 ## Experiment design
 
-As version v1.2.1 does not introduce new parameters explored in relation to v1.2, the same Sobol-sampled values are used here. Notice however that this model does introduce new constants used to determine the correspondence between age and the adult-equivalent unit (i.e., 15, 45, and the exponentials 1.2 and 2; see `get-carrying-capacity-demand-at-age`).
+### Generate parameter values with Sobol Sampling
+
+As version v1.4.1 does not introduce new parameters explored in relation to v1.4, the same Sobol-sampled values are used here. Notice however that this model does introduce new constants used to determine the correspondence between age and the adult-equivalent unit (i.e., 15, 45, and the exponentials 1.2 and 2; see `get-carrying-capacity-demand-at-age`).
 
 ```{r} 
 #| label: sobol_load
 # Load object as Rdata file
-load("data/v12_sobol_parameter_values.RData")
+load("data/v14_sobol_parameter_values.RData")
 ```
+
+Sobol sampling is applied to the following parameter ranges:
 
 ```{r} 
 #| label: sobol_ranges_display
-parameter_ranges_v121 <- as.data.frame(parameter_ranges$v1.2)
+parameter_ranges_v141 <- as.data.frame(parameter_ranges$v1.4)
 
 knitr::kable(
-  parameter_ranges_v121 |>
+  parameter_ranges_v141 |>
     as.matrix() |>
     t() |>
     as.data.frame() |>
@@ -86,16 +94,16 @@ knitr::kable(
 ```{r} 
 #| label: sobol_pairs 
 #| include: !expr params$show_diagnostics 
-#| fig.cap: "Parameter ranges explored in the Sobol sampling for v1.2 and v1.2.1."
+#| fig.cap: "Parameter ranges explored in the Sobol sampling for v1.4.1."
 # Visualising parameter space with `pairs()`:
-plotName = paste0("diagnostics/v1.2_sobol_param_pairsPlot.png")
+plotName = paste0("diagnostics/v1.4_sobol_param_pairsPlot.png")
 
 knitr::include_graphics(plotName)
 ```
 
 ## Data loading and preprocessing
 
-Load simulation end states generated with the Sobol-sampled parameter combinations and sampled trajectories datasets. Preprocess datasets to adapt from NetLogo's specific format and categorise end states and trajectories.
+Load simulation end states generated with the Sobol-sampled parameter combinations and sampled trajectories datasets. Preprocess datasets to adapt from NetLogo's specific format and categorise end states and trajectories. 
 
 ```{r}
 #| label: preprocessing_vars
@@ -107,30 +115,48 @@ stress_threshold <- 0.5 # pressures over this value are considered as population
 ```
 
 ```{r} 
-#| label: preprocessing_endstates
+#| label: preprocessing
 endstates <- load_endstates(MODEL_VERSION) |>
   preprocess_simdata(MODEL_VERSION)
 ```
 
 ```{r} 
 #| label: preprocessing_trajectories
-sampled_trajectories <- load_trajectories(MODEL_VERSION) |>
-  preprocess_simdata(
-    model_version = MODEL_VERSION,
-    full_trajectory = TRUE
+file_name <- "data/v141_trajectories.RData"
+if (file.exists(file_name))
+{
+  sampled_trajectories <- readRDS(file_name)
+} else {
+  sampled_trajectories <- load_trajectories(
+    MODEL_VERSION,
+    ignored_variables = c("womenAgeStructure", "menAgeStructure"),
+    step_start = 1,
+    step_end = 182500 # max-iterations is 500 years or 182500 days; cut down this number to save RAM
   ) |>
-  compute_density_metrics(
-    burn_in_fraction = burn_in_fraction
-  ) |>
-  classify_regulation_regimes(
-    overshoot_magnitude_threshold = overshoot_magnitude_threshold,
-    overshoot_time_threshold = overshoot_time_threshold,
-    oscillatory_threshold = oscillatory_threshold,
-    stress_threshold = stress_threshold
+    preprocess_simdata(
+      model_version = MODEL_VERSION,
+      full_trajectory = TRUE
+    ) |>
+    compute_density_metrics(
+      burn_in_fraction = burn_in_fraction
+    ) |>
+    classify_regulation_regimes(
+      overshoot_magnitude_threshold = overshoot_magnitude_threshold,
+      overshoot_time_threshold = overshoot_time_threshold,
+      oscillatory_threshold = oscillatory_threshold,
+      stress_threshold = stress_threshold
+    )
+  
+  save_trajectories(
+    sampled_trajectories,
+    model_version = MODEL_VERSION
   )
+}
 ```
 
 A particularity in processing the data with age-weighted variables is that we need to use (or compute) the total carrying capacity demand (`carrying_capacity_demand`) and use it to calculate `pressure` instead of using `totalIndividuals` directly (i.e., `pressure = carrying_capacity_demand / carrying_capacity`). Although this variable can be exported through NetLogo's Behavior Space, it was not specified for all massive Sobol sampled experiments, so it is necessary to calculate it using `womenAgeStructure` and `menAgeStructure` (see "library/density/compute_carrying_capacity_demand.R").
+
+Because of the sheer number of daily iterations required to approach comparable time scales of previous versions, trajectories datasets are simply too large to be loaded conventionally in R. For this reason, we need to use the function argument `ignored_variables` (alternatively also `selected_variables` is available) to skip loading unnecessary variables, as well as potentially restricting the span of the simulation data to a subset of iteration steps (`start_step`, `end_step`).
 
 ### Surviving population structure
 
@@ -152,7 +178,8 @@ group_vars = c(
   "marriage_spread_pre_peak_women",
   "marriage_spread_pre_peak_men",
   "marriage_spread_post_peak_women",
-  "marriage_spread_post_peak_men"
+  "marriage_spread_post_peak_men",
+  "amenorrhea_length"
 )
 
 age_structures <- endstates |>
@@ -170,15 +197,7 @@ age_structures <- endstates |>
   )
 
 age_structure_indicators <- age_structures |>
-  compute_age_structure_indicators(group_vars = group_vars) |>
-  # make a binomial classification for Cohen's d test
-  mutate(
-    pressure_regime = ifelse(
-      survival == "Persistence\n(low pressure)",
-      "Low pressure\nregimes",
-      "High pressure\nregimes"
-    )
-  )
+  compute_age_structure_indicators(group_vars = group_vars)
 
 endstates <- endstates |>
   left_join(
@@ -199,7 +218,7 @@ endstates <- endstates |>
 ### Population persistence
 
 ```{r} 
-#| label: endstates_distrib_size 
+#| label: endstates_distrib 
 #| fig.cap: "Distribution of final population sizes across residence rules and Coale-Demeny regions."
 log_max_population <- max(endstates$log_totalIndividuals)
 
@@ -221,12 +240,12 @@ endstates_distrib_size_plot
 ```
 
 ```{r}
-#| label: endstates_distrib_size_export
+#| label: endstates_distrib_export
 #| echo: false
 if (EXPORT_FIGURES) {
   export_figure(
     endstates_distrib_size_plot,
-    "v121_endstates_size_distrib"
+    "v141_endstates_distrib"
   )
 }
 ```
@@ -257,11 +276,10 @@ endstates_pressure_plot
 if (EXPORT_FIGURES) {
   export_figure(
     endstates_pressure_plot,
-    "v121_endstates_pressure"
+    "v141_endstates_pressure"
   )
 }
 ```
-
 ```{r} 
 #| label: outcome_prop 
 #| fig.cap: "Proportion of simulations across survival category, residence rules and Coale-Demeny regions."
@@ -283,26 +301,32 @@ outcome_prop_plot
 if (EXPORT_FIGURES) {
   export_figure(
     outcome_prop_plot,
-    "v121_outcome_prop"
+    "v141_outcome_prop"
   )
 }
 ```
 
-Unsurprisingly, the overall distribution of end states in version 1.2.1 is very similar to the one observed in v1.2. The proportion of non-extinction cases around 22% and the nuanced effect of `residence-rule` and `coale-demeny-region` is still equivalent to the one observed in v1.1 and v1.2. Most notably, the small asymmetry between matrilineal-matrilocal rule (n = ```r endstates |> filter(residence_rule == "matrilocal-matrilineal", survival != "Extinction") |> nrow()```) and patrilineal-patrilocal rule (n = ```r endstates |> filter(residence_rule == "patrilocal-patrilineal", survival != "Extinction") |> nrow()```) continues, with the same hint of slightly higher overshooting under patrilineal-patrilocal (n = ```r endstates |> filter(residence_rule == "patrilocal-patrilineal", survival == "Overshooting") |> nrow()``` compared to matrilineal-matrilocal's ```r endstates |> filter(residence_rule == "matrilocal-matrilineal", survival == "Overshooting") |> nrow()```). However, compared with v1.2, an even smaller fraction of simulations pushes populations beyond carrying capacity (n = ```r endstates |> filter(survival == "Overshooting") |> nrow()``` out of 48000 runs), which points to the rarity of conditions necessary, including those marginal phenomena not accounted explicitly, but inherently represented in the model stochasticity.
+!!!
 
 ### Temporal trajectories
 
-The parameter configuration used to generate the trajectories is the same across residence rules, except for the `residence_rule` parameter itself. The configuration used for this was:
+The parameter configuration use to generate the trajectories is the same across residence rules, except for the `residence_rule` parameter itself. The configuration used for this was:
 
 ```{r} 
-#| label: trajectories_params_display 
+#| label: trajectories_size_params_display 
 #| tab.cap: "Parameter configuration for the population trajectories sampled."
 knitr::kable(sampled_trajectories |> 
-               select(all_of(c("max_iterations", "max_population", 
-                               names(parameter_ranges_v121), 
-                               "coale_demeny_region", "maturity_age", 
-                               "density_effect_steepness"
-                               ))) |>
+               mutate(
+                 max_iterations_in_days = max_iterations * year_length_in_days,
+                 max_iterations_in_days_cut = max(step)
+               ) |>
+               select(all_of(c("max_iterations",
+                               "max_iterations_in_days",
+                               "max_iterations_in_days_cut", # show this in case loading was partial
+                               "max_population", 
+                               names(parameter_ranges_v141), 
+                               "coale_demeny_region", 
+                               "maturity_age_in_years", "gestation_period_in_days", "year_length_in_days" ))) |> 
                distinct() |>
                t() |>
                as.data.frame() |>
@@ -310,21 +334,21 @@ knitr::kable(sampled_trajectories |>
 )
 ```
 
-Dynamics of population trajectories across time steps, faceted by residence rule. The plot shows individual trajectories with low opacity and the median trajectory with higher opacity. The y-axis is on a logarithmic scale to better visualise differences in population sizes over time, especially when trajectories vary widely.
+Dynamics of population trajectories across time steps, faceted by residence rule. The plot shows individual trajectories with low opacity and the median trajectory with higher opacity. The y-axis is on a logarithmic scale to better visualize differences in population sizes over time, especially when there are large variations between trajectories.
 
 ```{r} 
-#| label: trajectories 
+#| label: trajectories_size_plot 
 #| fig.cap: "A sample of population trajectories across time steps, faceted by residence rule."
 pop_trajectories_plot <- sampled_trajectories |>
   plot_trajectories(
     y_var = "log_totalIndividuals",
     trajectory_id = "run_unique_id",
-    line_alpha = 0.035,
+    line_alpha = 0.04,
     median_alpha = 0.8,
     median_linewidth = 1,
     y_axis_log10 = TRUE,
     y_axis_label = "number of individuals",
-    group_var = "regulation_regime",
+    group_var =  "regulation_regime",
     facet_var = "residence_rule",
     facet_ncol = 2,
     facet_scales = "fixed",
@@ -335,19 +359,17 @@ pop_trajectories_plot
 ```
 
 ```{r}
-#| label: trajectories_export
+#| label: trajectories_size_plot_export
 #| echo: false
 if (EXPORT_FIGURES) {
   export_figure(
     pop_trajectories_plot,
-    "v121_pop_trajectories"
+    "v141_pop_trajectories"
   )
 }
 ```
 
-Despite the introduction of demand-weighted density effects, the broad trajectory classes identified in v1.2 remain visible. Most surviving populations still converge toward regulated equilibria, while some exist in higher pressures and experience elevated mortality. Notice that population size is shifted up to some degree in relation to the equivalent runs in v1.2; some of the trajectories become stable even beyond the carrying capacity (in this case, all under matrilineal-matrilocal rule). This is because a fraction of the population now weighs less than an adult equivalent.
-
-Moreover, the relationship between population size and regulatory pressure becomes less direct. Populations with similar headcounts may experience different levels of density-dependent mortality, depending on their demographic composition and associated demand. It is important to remember that low-pressure surviving populations are not “underpopulated” but demographically efficient and, within the simplistic context of the model, those where individuals enjoy plentiful exogenous (i.e. "natural") resources.
+!!!
 
 ### Household composition
 
@@ -376,14 +398,15 @@ household_structure_plot
 if (EXPORT_FIGURES) {
   export_figure(
     household_structure_plot,
-    "v121_household_structure"
+    "v141_household_structure"
   )
 }
 ```
 
 ```{r}
-#| label: trajectories_household_structure_plot_regulation
-trajectories_household_structure_plot_regulation <- 
+#| label: trajectories_household_structure_plot 
+#| fig.cap: "A sample of household population trajectories across time steps, faceted by residence rule."
+trajectories_household_structure_plot <- 
   sampled_trajectories |>
   group_by(residence_rule) |>
   mutate(
@@ -401,30 +424,23 @@ trajectories_household_structure_plot_regulation <-
     group_var = "regulation_regime",
     facet_var = "residence_rule",
     facet_ncol = 2,
-    facet_scales = "fixed",
+    facet_scales = "free_x",
     y_threshold_var = NULL
   )
+trajectories_household_structure_plot
 ```
 
 ```{r}
-#| label: trajectories_household_structure_plot_regulation_export
+#| label: trajectories_household_structure_plot_export
 #| echo: false
 if (EXPORT_FIGURES) {
   export_figure(
-    trajectories_household_structure_plot_regulation,
-    "v121_trajectories_household_structure_regulation",
+    trajectories_household_structure_plot,
+    "v141_trajectories_household_structure",
     width = 8,
     height = 4
   )
 }
-```
-
-```{r} 
-#| label: trajectories_household_structure_plot_regulation_display 
-#| fig.cap: "A sample of household population trajectories across time steps, grouped by regulation_regime and faceted by residence rule."
-plotName = paste0("plots/v121_trajectories_household_structure_regulation.png")
-
-knitr::include_graphics(plotName)
 ```
 
 ```{r}
@@ -477,7 +493,7 @@ trajectories_household_structure_plot_peaks <-
 if (EXPORT_FIGURES) {
   export_figure(
     trajectories_household_structure_plot_peaks,
-    "v121_household_structure_trajectories_peaks",
+    "v141_household_structure_trajectories_peaks",
     width = 8,
     height = 4
   )
@@ -485,14 +501,14 @@ if (EXPORT_FIGURES) {
 ```
 
 ```{r} 
-#| label: trajectories_household_structure_plot_peaks_display
+#| label: trajectories_household_structure_plot_peaks_display 
 #| fig.cap: "A sample of household population trajectories across time steps, faceted by residence rule, highlighting in red the trajectories that achieve the maximum value in each subset."
-plotName = paste0("plots/v121_household_structure_trajectories_peaks.png")
+plotName = paste0("plots/v141_household_structure_trajectories_peaks.png")
 
 knitr::include_graphics(plotName)
 ```
 
-Household-level outcomes remain broadly consistent with those observed in v1.2. This suggests that the introduction of demand-weighted mortality primarily modifies population-level regulation rather than the mechanisms governing household formation, division, and persistence. Ecological constraints therefore continue to act indirectly through demographic processes rather than directly restructuring household organisation.
+!!!
 
 ### Density regulation dynamics
 
@@ -502,7 +518,6 @@ regulation_dynamics_rr_prop_plot <- sampled_trajectories |>
   group_by(run_unique_id) |>
   filter(row_number() == 1) |> 
   ungroup() |>
-  
   plot_category_proportion(
     category_var = "regulation_regime",
     facet_var = "residence_rule",
@@ -513,14 +528,13 @@ regulation_dynamics_rr_prop_plot <- sampled_trajectories |>
   )
 ```
 
-
 ```{r}
 #| label: regulation_dynamics_rr_prop_plot_export
 #| echo: false
 if (EXPORT_FIGURES) {
   export_figure(
     regulation_dynamics_rr_prop_plot,
-    "v121_regulation_dynamics_rr_prop",
+    "v141_regulation_dynamics_rr_prop",
     width = 5,
     height = 3
   )
@@ -530,7 +544,7 @@ if (EXPORT_FIGURES) {
 ```{r} 
 #| label: regulation_dynamics_rr_prop_plot_display 
 #| fig.cap: "Distribution of density regulation regimes accross residence rules, for the trajectories sampled."
-plotName = paste0("plots/v121_regulation_dynamics_rr_prop.png")
+plotName = paste0("plots/v141_regulation_dynamics_rr_prop.png")
 
 knitr::include_graphics(plotName)
 ```
@@ -549,27 +563,26 @@ regulation_dynamics_rr_mean_cv_plot <- sampled_trajectories |>
   )
 ```
 
-
 ```{r}
 #| label: regulation_dynamics_rr_mean_cv_plot_export
 #| echo: false
 if (EXPORT_FIGURES) {
   export_figure(
     regulation_dynamics_rr_mean_cv_plot,
-    "v121_regulation_dynamics_rr_mean_cv"
+    "v141_regulation_dynamics_rr_mean_cv"
   )
 }
 ```
 
 ```{r} 
 #| label: regulation_dynamics_rr_mean_cv_plot_display 
-#| fig.cap: "A sample of household population trajectories across time steps, grouped by regulation_regime and faceted by residence rule."
-plotName = paste0("plots/v121_regulation_dynamics_rr_mean_cv.png")
+#| fig.cap: "Distribution of mean and CV of population pressure accross density regulation regimes and residence rules, for the trajectories sampled."
+plotName = paste0("plots/v141_regulation_dynamics_rr_mean_cv.png")
 
 knitr::include_graphics(plotName)
 ```
 
-The pressure metric becomes more informative in v1.2.1 than in v1.2. Under simple density dependence, pressure largely reflected the ratio between population size and carrying capacity. Under demand-weighted regulation, pressure additionally incorporates variation in demographic structure. Consequently, populations of similar size can occupy different pressure regimes depending on their age composition and dependency burden. The consequence for the variety of regulation regimes is noticeable; the separation between the mean-cv pressure quadrants is now more clear, with only two cases falling into the "Stable (growing)".
+!!!
 
 ### Age structure
 
@@ -585,7 +598,7 @@ age_structures |>
     ) |>
   prepare_pyramid_plot() |>
   plot_population_pyramid(
-    facet = "survival",
+    facet_var = "survival",
     show_mean = TRUE
     )
 ```
@@ -606,12 +619,12 @@ knitr::kable(indicators_summary(age_structure_indicators, group_vars = "survival
 ```
 
 ```{r} 
-#| label: age_structure_pressure_median_cohend 
-#| tab.cap: "Cohen's d for median age across low and high population pressure."
+#| label: age_structure_survival_median_cohend 
+#| tab.cap: "Cohen's d for median age across survival categories."
 knitr::kable(
   interpret_cohens_d(
     cohens_d(
-      median_age ~ pressure_regime,
+      median_age ~ survival,
       data = age_structure_indicators
     ),
     rules = "cohen1988"
@@ -619,7 +632,7 @@ knitr::kable(
 )
 ```
 
-Surviving populations under lower pressure tend to display higher median ages and more extended upper tails in their age distributions. Rather than indicating demographic decline, these characteristics appear to reflect stable demographic regimes in which population renewal remains sufficient for persistence while avoiding the high dependency burdens associated with rapidly expanding populations.
+!!!
 
 #### Residence rule and Coale-Demeny regions
 
@@ -632,7 +645,7 @@ pyramid_plot <- age_structures |>
     ) |>
   prepare_pyramid_plot() |>
   plot_population_pyramid(
-    facet = c("coale_demeny_region", "residence_rule"),
+    facet_var = c("coale_demeny_region", "residence_rule"),
     show_mean = FALSE
     )
 ```
@@ -643,7 +656,7 @@ pyramid_plot <- age_structures |>
 if (EXPORT_FIGURES) {
   export_figure(
     pyramid_plot,
-    "v121_pyramid_residence_rule_region",
+    "v141_pyramid_residence_rule_region",
     height = 10
   )
 }
@@ -652,7 +665,7 @@ if (EXPORT_FIGURES) {
 ```{r} 
 #| label: age_structure_pyramid_plot_cdr_rr_display 
 #| fig.cap: "Aggregate age structures of surviving populations across residence rules and Coale-Demeny regions."
-plotName = paste0("plots/v121_pyramid_residence_rule_region.png")
+plotName = paste0("plots/v141_pyramid_residence_rule_region.png")
 
 knitr::include_graphics(plotName)
 ```
@@ -674,8 +687,8 @@ violin_plot <- age_structure_indicators |>
 if (EXPORT_FIGURES) {
   export_figure(
     violin_plot,
-    "v121_violin_residence_rule_region",
-    width = 8,
+    "v141_violin_residence_rule_region",
+    width = 6,
     height = 3
   )
 }
@@ -684,7 +697,7 @@ if (EXPORT_FIGURES) {
 ```{r} 
 #| label: age_structure_indicators_plot_median_cdr_rr_display 
 #| fig.cap: "Aggregate age structures of surviving populations across residence rules and Coale-Demeny regions."
-plotName = paste0("plots/v121_violin_residence_rule_region.png")
+plotName = paste0("plots/v141_violin_residence_rule_region.png")
 
 knitr::include_graphics(plotName)
 ```
@@ -714,7 +727,7 @@ knitr::kable(
 )
 ```
 
-Cohen's d for median age across pressure regimes, by residence rule:
+Cohen's d for median age across survival categories, by residence rule:
 
 ```{r} 
 #| label: age_structure_cohens_d_cdr_rr_by_rr_matri 
@@ -722,7 +735,7 @@ Cohen's d for median age across pressure regimes, by residence rule:
 knitr::kable(
   interpret_cohens_d(
     effectsize::cohens_d(
-      median_age ~ pressure_regime,
+      median_age ~ survival,
 
       data =
           age_structure_indicators |>
@@ -743,7 +756,7 @@ knitr::kable(
 knitr::kable(
   interpret_cohens_d(
       effectsize::cohens_d(
-        median_age ~ pressure_regime,
+        median_age ~ survival,
 
       data =
           age_structure_indicators |>
@@ -758,9 +771,7 @@ knitr::kable(
 )
 ```
 
-The age-structure analyses suggest that demand-weighted regulation creates feedback between demographic composition and mortality pressure. In v1.2, ecological pressure was determined primarily by total population size. Under such a formulation, demographic composition played no direct role in mortality regulation. In v1.2.1, however, mortality pressure depends on carrying-capacity demand, which is influenced by the population's age structure.
-
-The age-structure results suggest that populations minimise pressure not by maintaining large juvenile cohorts, but by maintaining favourable dependency ratios. Older populations can therefore experience lower effective pressure when they contain relatively large proportions of productive adults and relatively small proportions of dependent children. Consequently, ecological regulation becomes sensitive not only to population size but also to demographic maturity.
+!!!
 
 ## Sensitivity analysis
 
@@ -852,7 +863,7 @@ rf_survival_importance <- bind_rows(
 )
 ```
 
-Note: associated colours for parameters based on their domain (general, mortality, fertility, nuptiality, density).
+Note: associated colours for parameters based on their domain (general, mortality, fertility, nuptiality).
 
 ```{r} 
 #| label: sensitivity_survival_importance_barplot 
@@ -881,7 +892,7 @@ importance_dumbbell_plot
 if (EXPORT_FIGURES) {
   export_figure(
     importance_dumbbell_plot,
-    "v121_survival_importance_dumbbell"
+    "v141_survival_importance_dumbbell"
   )
 }
 ```
@@ -937,7 +948,7 @@ param_pd_plots <- plot_parameter_dependence_composite(
 if (EXPORT_FIGURES) {
   export_figure(
     param_pd_plots,
-    "v121_survival_param_pd",
+    "v141_survival_param_pd",
     height = 10
   )
 }
@@ -946,7 +957,7 @@ if (EXPORT_FIGURES) {
 ```{r} 
 #| label: sensitivity_survival_pd_plot_display 
 #| fig.cap: "Partial dependence plots for the top parameters influencing population survival, by residence rule."
-plotName = paste0("plots/v121_survival_param_pd.png")
+plotName = paste0("plots/v141_survival_param_pd.png")
 
 knitr::include_graphics(plotName)
 ```
@@ -979,7 +990,7 @@ Note: associated colours for parameters based on their domain (general, mortalit
 
 ```{r} 
 #| label: sensitivity_pressure_importance_barplot 
-#| fig.cap: "Variable importance for the Random Forest models predicting population pressure, by residence rule."
+#| fig.cap: "Variable importance for the Random Forest models predicting population size, by residence rule."
 plot_importance(
   rf_pressure_importance, 
   param_color = parameter_metadata$color[match(rf_pressure_importance$parameter, parameter_metadata$parameter)], 
@@ -1006,16 +1017,16 @@ importance_dumbbell_plot
 if (EXPORT_FIGURES) {
   export_figure(
     importance_dumbbell_plot,
-    "v121_pressure_importance_dumbbell"
+    "v141_pressure_importance_dumbbell"
   )
 }
 ```
 
-Select top parameters predicting pressure:
+Select top parameters predicting survival:
 
 ```{r} 
 #| label: sensitivity_pressure_top_param
-top_parameters_pressure <- rf_pressure_importance |>
+top_parameters_size <- rf_pressure_importance |>
   group_by(parameter) |>
   summarise(
     mean_importance =
@@ -1032,12 +1043,12 @@ For each top parameter, calculate PDs for the corresponding RFs using `pressure`
 
 ```{r} 
 #| label: sensitivity_pressure_pd
-pd_pressure <- load_or_build_pd_results(
+pd_size <- load_or_build_pd_results(
   model_version = MODEL_VERSION,
-  overwrite = REMAKE_DP, # set REMAKE_DP = TRUE (first code chunk) to overwrite any previous results
+  overwrite = REMAKE_DP, # set REMAKE_DP = TRUE (first code chunck) to overwrite any previous results
   sensitivity_data,
   rf_models,
-  parameters = top_parameters_pressure,
+  parameters = top_parameters_size,
   response_variable = "pressure"
 )
 ```
@@ -1046,10 +1057,10 @@ pd_pressure <- load_or_build_pd_results(
 #| label: sensitivity_pressure_pd_plot
 param_pd_plots <- plot_parameter_dependence_composite(
   sensitivity_data,
-  pd_pressure,
-  top_parameters_pressure,
+  pd_size,
+  top_parameters_size,
   response_variable = "pressure",
-  pd_label = "Expected change in population pressure",
+  pd_label = "Expected change in population size",
   ncol = 2,
   plot_title_margin_bottom = -5
 )
@@ -1061,7 +1072,7 @@ param_pd_plots <- plot_parameter_dependence_composite(
 if (EXPORT_FIGURES) {
   export_figure(
     param_pd_plots,
-    "v121_pressure_param_pd",
+    "v141_pressure_param_pd",
     height = 10
   )
 }
@@ -1070,12 +1081,12 @@ if (EXPORT_FIGURES) {
 ```{r} 
 #| label: sensitivity_pressure_pd_plot_display 
 #| fig.cap: "Partial dependence plots for the top parameters influencing population pressure, by residence rule."
-plotName = paste0("plots/v121_pressure_param_pd.png")
+plotName = paste0("plots/v141_pressure_param_pd.png")
 
 knitr::include_graphics(plotName)
 ```
 
-The overall importance ranking between parameters in relation to pressure remain structurally similar, but with a stronger demographic mediation in relation to v1.2. In v1.2.1, fertility parameters now influence pressure indirectly through age composition, not only through total growth.
+!!!
 
 #### Median age in end state population
 
@@ -1130,7 +1141,7 @@ importance_dumbbell_plot
 if (EXPORT_FIGURES) {
   export_figure(
     importance_dumbbell_plot,
-    "v121_median_age_importance_dumbbell"
+    "v141_median_age_importance_dumbbell"
   )
 }
 ```
@@ -1185,7 +1196,7 @@ param_pd_plots <- plot_parameter_dependence_composite(
 if (EXPORT_FIGURES) {
   export_figure(
     param_pd_plots,
-    "v121_median_age_param_pd",
+    "v141_median_age_param_pd",
     height = 10
   )
 }
@@ -1194,18 +1205,18 @@ if (EXPORT_FIGURES) {
 ```{r} 
 #| label: sensitivity_median_age_pd_plot_display 
 #| fig.cap: "Partial dependence plots for the top parameters influencing median age, by residence rule."
-plotName = paste0("plots/v121_median_age_param_pd.png")
+plotName = paste0("plots/v141_median_age_param_pd.png")
 
 knitr::include_graphics(plotName)
 ```
 
-The overall importance ranking between parameters in relation to median age remain largely unchanged in relation to v1.2.
+!!!
 
 ### Age structure of surviving populations for selected parameters
 
 Note: parameters are ordered in importance towards median age. The binomial categories created earlier in preprocessing, which split the parameter range according to the distribution median, are used.
 
-#### `c1-fert`: high *versus* low fertility regimes
+#### `c1_fert`: high *versus* low fertility regimes
 
 ```{r} 
 #| label: age_structure_c1_fert_pyramid_plot
@@ -1225,8 +1236,6 @@ age_structures |>
 ```{r} 
 #| label: age_structure_c1_fert_median_plot
 #| fig.cap: "Median age of surviving populations across fertility regimes, by residence rule."
-#| fig.width: 10
-#| fig.height: 4
 plot_age_structure_indicators(
   age_structure_indicators, 
   x_var = "survival", 
@@ -1290,7 +1299,94 @@ knitr::kable(
 )
 ```
 
-#### `cdmlt-level`: mortality regimes
+!!!
+
+#### `sigma2_fert`: broad *versus* narrow post-peak fertility regimes
+
+```{r} 
+#| label: age_structure_sigma2_fert_pyramid_plot
+#| fig.cap: "Population pyramids across fertility post-peak spread regimes, by residence rule."
+age_structures |>
+  aggregate_age_structure(
+    group_vars = c("fertility_spread_post_peak"),
+    smooth = FALSE
+    ) |>
+  prepare_pyramid_plot() |>
+  plot_population_pyramid(
+    facet_var = "fertility_spread_post_peak",
+    show_mean = TRUE
+    )
+```
+
+```{r} 
+#| label: age_structure_sigma2_fert_median_plot
+#| fig.cap: "Median age of surviving populations across fertility post-peak spread regimes, by residence rule."
+plot_age_structure_indicators(
+  age_structure_indicators, 
+  x_var = "survival", 
+  fill_var = "residence_rule", 
+  facet_var = "fertility_spread_post_peak"
+)
+```
+
+```{r} 
+#| label: age_structure_sigma2_fert_indicators_summary
+#| tab.cap: "Summary of age structure indicators across fertility post-peak spread regimes and residence rules."
+knitr::kable(
+  indicators_summary(
+    age_structure_indicators, 
+    group_vars = c("residence_rule", "fertility_spread_post_peak")
+    )
+)
+```
+
+Cohen's d for median age across fertility spread regimes, by residence rule:
+
+```{r} 
+#| label: age_structure_sigma2_fert_median_cohend_matri
+#| tab.cap: "matrilocal-matrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ fertility_spread_post_peak,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "matrilocal-matrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+```{r} 
+#| label: age_structure_sigma2_fert_median_cohend_patri
+#| tab.cap: "patrilocal-patrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ fertility_spread_post_peak,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "patrilocal-patrilineal"
+        )
+  ),
+    rules = "cohen1988"
+  )
+)
+```
+
+!!!
+
+#### `cdmlt_level`: mortality regimes
 
 ```{r}
 #| label: age_structure_cdmlt_level_pyramid_plot
@@ -1310,8 +1406,6 @@ age_structures |>
 ```{r} 
 #| label: age_structure_cdmlt_level_median_plot
 #| fig.cap: "Median age of surviving populations across mortality regimes, by residence rule."
-#| fig.width: 10
-#| fig.height: 4
 plot_age_structure_indicators(
   age_structure_indicators, 
   x_var = "survival", 
@@ -1372,56 +1466,56 @@ knitr::kable(
 )
 ```
 
-#### `sigma2_fert`: broad *versus* narrow post-peak fertility regimes
+!!!
+
+#### `c1_men`: high *versus* low male marriage intensity regimes
 
 ```{r} 
-#| label: age_structure_sigma2_fert_pyramid_plot
-#| fig.cap: "Population pyramids across fertility spread regimes, by residence rule."
+#| label: age_structure_c1_men_pyramid_plot
+#| fig.cap: "Population pyramids across male marriage intensity regimes, by residence rule."
 age_structures |>
   aggregate_age_structure(
-    group_vars = c("fertility_spread_post_peak"),
+    group_vars = c("marriage_intensity_men"),
     smooth = FALSE
     ) |>
   prepare_pyramid_plot() |>
   plot_population_pyramid(
-    facet_var = "fertility_spread_post_peak",
+    facet_var = "marriage_intensity_men",
     show_mean = TRUE
     )
 ```
 
 ```{r} 
-#| label: age_structure_sigma2_fert_median_plot
-#| fig.cap: "Median age of surviving populations across fertility spread regimes, by residence rule."
-#| fig.width: 10
-#| fig.height: 4
+#| label: age_structure_c1_men_median_plot
+#| fig.cap: "Median age of surviving populations across male marriage intensity regimes, by residence rule."
 plot_age_structure_indicators(
   age_structure_indicators, 
   x_var = "survival", 
   fill_var = "residence_rule", 
-  facet_var = "fertility_spread_post_peak"
+  facet_var = "marriage_intensity_men"
 )
 ```
 
 ```{r} 
-#| label: age_structure_sigma2_fert_indicators_summary
-#| tab.cap: "Summary of age structure indicators across fertility spread regimes and residence rules."
+#| label: age_structure_c1_men_indicators_summary
+#| tab.cap: "Summary of age structure indicators across male marriage intensity regimes and residence rules."
 knitr::kable(
   indicators_summary(
     age_structure_indicators, 
-    group_vars = c("residence_rule", "fertility_spread_post_peak")
+    group_vars = c("residence_rule", "marriage_intensity_men")
     )
 )
 ```
 
-Cohen's d for median age across fertility spread regimes, by residence rule:
+Cohen's d for median age across male marriage intensity regimes, by residence rule:
 
 ```{r} 
-#| label: age_structure_sigma2_fert_median_cohend_matri
+#| label: age_structure_c1_men_median_cohend_matri
 #| tab.cap: "matrilocal-matrilineal"
 knitr::kable(
   interpret_cohens_d(
     effectsize::cohens_d(
-      median_age ~ fertility_spread_post_peak,
+      median_age ~ marriage_intensity_men,
 
     data =
         age_structure_indicators |>
@@ -1437,97 +1531,12 @@ knitr::kable(
 ```
 
 ```{r} 
-#| label: age_structure_sigma2_fert_median_cohend_patri
+#| label: age_structure_c1_men_median_cohend_patri
 #| tab.cap: "patrilocal-patrilineal"
 knitr::kable(
   interpret_cohens_d(
     effectsize::cohens_d(
-      median_age ~ fertility_spread_post_peak,
-
-    data =
-        age_structure_indicators |>
-
-        filter(
-            residence_rule ==
-                "patrilocal-patrilineal"
-        )
-  ),
-    rules = "cohen1988"
-  )
-)
-```
-
-#### `c1_women`: high *versus* low female marriage intensity regimes
-
-```{r} 
-#| label: age_structure_c1_women_pyramid_plot
-#| fig.cap: "Population pyramids across female marriage intensity regimes, by residence rule."
-age_structures |>
-  aggregate_age_structure(
-    group_vars = c("marriage_intensity_women"),
-    smooth = FALSE
-    ) |>
-  prepare_pyramid_plot() |>
-  plot_population_pyramid(
-    facet_var = "marriage_intensity_women",
-    show_mean = TRUE
-    )
-```
-
-```{r} 
-#| label: age_structure_c1_women_median_plot
-#| fig.cap: "Median age of surviving populations across female marriage intensity regimes, by residence rule."
-#| fig.width: 10
-#| fig.height: 4
-plot_age_structure_indicators(
-  age_structure_indicators, 
-  x_var = "survival", 
-  fill_var = "residence_rule", 
-  facet_var = "marriage_intensity_women"
-)
-```
-
-```{r} 
-#| label: age_structure_c1_women_indicators_summary
-#| tab.cap: "Summary of age structure indicators across female marriage intensity regimes and residence rules."
-knitr::kable(
-  indicators_summary(
-    age_structure_indicators, 
-    group_vars = c("residence_rule", "marriage_intensity_women")
-    )
-)
-```
-
-Cohen's d for median age across female marriage intensity regimes, by residence rule:
-
-```{r} 
-#| label: age_structure_c1_women_median_cohend_matri
-#| tab.cap: "matrilocal-matrilineal"
-knitr::kable(
-  interpret_cohens_d(
-    effectsize::cohens_d(
-      median_age ~ marriage_intensity_women,
-
-    data =
-        age_structure_indicators |>
-
-        filter(
-            residence_rule ==
-                "matrilocal-matrilineal"
-        )
-    ),
-    rules = "cohen1988"
-  )
-)
-```
-
-```{r} 
-#| label: age_structure_c1_women_median_cohend_patri
-#| tab.cap: "patrilocal-patrilineal"
-knitr::kable(
-  interpret_cohens_d(
-    effectsize::cohens_d(
-      median_age ~ marriage_intensity_women,
+      median_age ~ marriage_intensity_men,
 
     data =
         age_structure_indicators |>
@@ -1541,6 +1550,8 @@ knitr::kable(
   )
 )
 ```
+
+!!!
 
 #### `sigma1_men`: broad *versus* narrow male pre-peak marriage spread regimes
 
@@ -1625,6 +1636,93 @@ knitr::kable(
 )
 ```
 
+!!!
+
+#### `c1_women`: high *versus* low female marriage intensity regimes
+
+```{r} 
+#| label: age_structure_c1_women_pyramid_plot
+#| fig.cap: "Population pyramids across female marriage intensity regimes, by residence rule."
+age_structures |>
+  aggregate_age_structure(
+    group_vars = c("marriage_intensity_women"),
+    smooth = FALSE
+    ) |>
+  prepare_pyramid_plot() |>
+  plot_population_pyramid(
+    facet_var = "marriage_intensity_women",
+    show_mean = TRUE
+    )
+```
+
+```{r} 
+#| label: age_structure_c1_women_median_plot
+#| fig.cap: "Median age of surviving populations across female marriage intensity regimes, by residence rule."
+plot_age_structure_indicators(
+  age_structure_indicators, 
+  x_var = "survival", 
+  fill_var = "residence_rule", 
+  facet_var = "marriage_intensity_women"
+)
+```
+
+```{r} 
+#| label: age_structure_c1_women_indicators_summary
+#| tab.cap: "Summary of age structure indicators across female marriage intensity regimes and residence rules."
+knitr::kable(
+  indicators_summary(
+    age_structure_indicators, 
+    group_vars = c("residence_rule", "marriage_intensity_women")
+    )
+)
+```
+
+Cohen's d for median age across female marriage intensity regimes, by residence rule:
+
+```{r} 
+#| label: age_structure_c1_women_median_cohend_matri
+#| tab.cap: "matrilocal-matrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ marriage_intensity_women,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "matrilocal-matrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+```{r} 
+#| label: age_structure_c1_women_median_cohend_patri
+#| tab.cap: "patrilocal-patrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ marriage_intensity_women,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "patrilocal-patrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+!!!
+
 #### `mu_men`: late *versus* early male marriage regimes
 
 ```{r} 
@@ -1645,8 +1743,6 @@ age_structures |>
 ```{r} 
 #| label: age_structure_mu_men_median_plot
 #| fig.cap: "Median age of surviving populations across male marriage timing regimes, by residence rule."
-#| fig.width: 10
-#| fig.height: 4
 plot_age_structure_indicators(
   age_structure_indicators, 
   x_var = "survival", 
@@ -1710,6 +1806,93 @@ knitr::kable(
 )
 ```
 
+!!!
+
+#### `sigma1_fert`: broad *versus* narrow pre-peak fertility spread regimes
+
+```{r} 
+#| label: age_structure_sigma1_fert_pyramid_plot
+#| fig.cap: "Population pyramids across pre-peak fertility spread regimes, by residence rule."
+age_structures |>
+  aggregate_age_structure(
+    group_vars = c("fertility_spread_pre_peak"),
+    smooth = FALSE
+    ) |>
+  prepare_pyramid_plot() |>
+  plot_population_pyramid(
+    facet_var = "fertility_spread_pre_peak",
+    show_mean = TRUE
+    )
+```
+
+```{r} 
+#| label: age_structure_sigma1_fert_median_plot
+#| fig.cap: "Median age of surviving populations across pre-peak fertility spread regimes, by residence rule."
+plot_age_structure_indicators(
+  age_structure_indicators, 
+  x_var = "survival", 
+  fill_var = "residence_rule", 
+  facet_var = "fertility_spread_pre_peak"
+)
+```
+
+```{r} 
+#| label: age_structure_sigma1_fert_indicators_summary
+#| tab.cap: "Summary of age structure indicators across pre-peak fertility spread regimes and residence rules."
+knitr::kable(
+  indicators_summary(
+    age_structure_indicators, 
+    group_vars = c("residence_rule", "fertility_spread_pre_peak")
+    )
+)
+```
+
+Cohen's d for median age across pre-peak fertility spread regimes, by residence rule:
+
+```{r} 
+#| label: age_structure_sigma1_fert_median_cohend_matri
+#| tab.cap: "matrilocal-matrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ fertility_spread_pre_peak,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "matrilocal-matrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+```{r} 
+#| label: age_structure_sigma1_fert_median_cohend_patri
+#| tab.cap: "patrilocal-patrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ fertility_spread_pre_peak,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "patrilocal-patrilineal"
+        )
+  ),
+    rules = "cohen1988"
+  )
+)
+```
+
+!!!
+
 #### `sigma1_women`: broad *versus* narrow pre-peak fertility spread regimes
 
 ```{r} 
@@ -1717,12 +1900,12 @@ knitr::kable(
 #| fig.cap: "Population pyramids across pre-peak fertility spread regimes, by residence rule."
 age_structures |>
   aggregate_age_structure(
-    group_vars = c("fertility_timing"),
+    group_vars = c("marriage_spread_pre_peak_women"),
     smooth = FALSE
     ) |>
   prepare_pyramid_plot() |>
   plot_population_pyramid(
-    facet_var = "fertility_timing",
+    facet_var = "marriage_spread_pre_peak_women",
     show_mean = TRUE
     )
 ```
@@ -1734,7 +1917,7 @@ plot_age_structure_indicators(
   age_structure_indicators, 
   x_var = "survival", 
   fill_var = "residence_rule", 
-  facet_var = "fertility_timing"
+  facet_var = "marriage_spread_pre_peak_women"
 )
 ```
 
@@ -1744,7 +1927,7 @@ plot_age_structure_indicators(
 knitr::kable(
   indicators_summary(
     age_structure_indicators, 
-    group_vars = c("residence_rule", "fertility_timing")
+    group_vars = c("residence_rule", "marriage_spread_pre_peak_women")
     )
 )
 ```
@@ -1757,7 +1940,7 @@ Cohen's d for median age across pre-peak fertility spread regimes, by residence 
 knitr::kable(
   interpret_cohens_d(
     effectsize::cohens_d(
-      median_age ~ fertility_timing,
+      median_age ~ marriage_spread_pre_peak_women,
 
     data =
         age_structure_indicators |>
@@ -1778,7 +1961,7 @@ knitr::kable(
 knitr::kable(
   interpret_cohens_d(
     effectsize::cohens_d(
-      median_age ~ fertility_timing,
+      median_age ~ marriage_spread_pre_peak_women,
 
     data =
         age_structure_indicators |>
@@ -1793,56 +1976,56 @@ knitr::kable(
 )
 ```
 
-#### `c1_men`: high *versus* low male marriage intensity regimes
+!!!
+
+#### `amenorrhea_period_in_days`: long *versus* short amenorrhea period
 
 ```{r} 
-#| label: age_structure_c1_men_pyramid_plot
-#| fig.cap: "Population pyramids across male marriage intensity regimes, by residence rule."
+#| label: age_structure_amenorrhea_pyramid_plot
+#| fig.cap: "Population pyramids across amenorrhea period lengths, by residence rule."
 age_structures |>
   aggregate_age_structure(
-    group_vars = c("marriage_intensity_men"),
+    group_vars = c("amenorrhea_length"),
     smooth = FALSE
     ) |>
   prepare_pyramid_plot() |>
   plot_population_pyramid(
-    facet_var = "marriage_intensity_men",
+    facet_var = "amenorrhea_length",
     show_mean = TRUE
     )
 ```
 
 ```{r} 
-#| label: age_structure_c1_men_median_plot
-#| fig.cap: "Median age of surviving populations across male marriage intensity regimes, by residence rule."
-#| fig.width: 10
-#| fig.height: 4
+#| label: age_structure_amenorrhea_median_plot
+#| fig.cap: "Median age of surviving populations across amenorrhea period lengths, by residence rule."
 plot_age_structure_indicators(
   age_structure_indicators, 
   x_var = "survival", 
   fill_var = "residence_rule", 
-  facet_var = "marriage_intensity_men"
+  facet_var = "amenorrhea_length"
 )
 ```
 
 ```{r} 
-#| label: age_structure_c1_men_indicators_summary
-#| tab.cap: "Summary of age structure indicators across male marriage intensity regimes and residence rules."
+#| label: age_structure_amenorrhea_indicators_summary
+#| tab.cap: "Summary of age structure indicators across amenorrhea period lengths and residence rules."
 knitr::kable(
   indicators_summary(
     age_structure_indicators, 
-    group_vars = c("residence_rule", "marriage_intensity_men")
+    group_vars = c("residence_rule", "amenorrhea_length")
     )
 )
 ```
 
-Cohen's d for median age across male marriage intensity regimes, by residence rule:
+Cohen's d for median age across amenorrhea period lengths, by residence rule:
 
 ```{r} 
-#| label: age_structure_c1_men_median_cohend_matri
+#| label: age_structure_amenorrhea_median_cohend_matri
 #| tab.cap: "matrilocal-matrilineal"
 knitr::kable(
   interpret_cohens_d(
     effectsize::cohens_d(
-      median_age ~ marriage_intensity_men,
+      median_age ~ amenorrhea_length,
 
     data =
         age_structure_indicators |>
@@ -1858,12 +2041,12 @@ knitr::kable(
 ```
 
 ```{r} 
-#| label: age_structure_c1_men_median_cohend_patri
+#| label: age_structure_amenorrhea_median_cohend_patri
 #| tab.cap: "patrilocal-patrilineal"
 knitr::kable(
   interpret_cohens_d(
     effectsize::cohens_d(
-      median_age ~ marriage_intensity_men,
+      median_age ~ amenorrhea_length,
 
     data =
         age_structure_indicators |>
@@ -1872,32 +2055,362 @@ knitr::kable(
             residence_rule ==
                 "patrilocal-patrilineal"
         )
+  ),
+    rules = "cohen1988"
+  )
+)
+```
+
+!!!
+
+#### `sigma2_men`: broad *versus* narrow post-peak male marriage spread regimes
+
+```{r} 
+#| label: age_structure_sigma2_men_pyramid_plot
+#| fig.cap: "Population pyramids across post-peak male marriage spread regimes, by residence rule."
+age_structures |>
+  aggregate_age_structure(
+    group_vars = c("marriage_spread_post_peak_men"),
+    smooth = FALSE
+    ) |>
+  prepare_pyramid_plot() |>
+  plot_population_pyramid(
+    facet_var = "marriage_spread_post_peak_men",
+    show_mean = TRUE
+    )
+```
+
+```{r} 
+#| label: age_structure_sigma2_men_median_plot
+#| fig.cap: "Median age of surviving populations across post-peak male marriage spread regimes, by residence rule."
+plot_age_structure_indicators(
+  age_structure_indicators, 
+  x_var = "survival", 
+  fill_var = "residence_rule", 
+  facet_var = "marriage_spread_post_peak_men"
+)
+```
+
+```{r} 
+#| label: age_structure_sigma2_men_indicators_summary
+#| tab.cap: "Summary of age structure indicators across post-peak male marriage spread regimes and residence rules."
+knitr::kable(
+  indicators_summary(
+    age_structure_indicators, 
+    group_vars = c("residence_rule", "marriage_spread_post_peak_men")
+    )
+)
+```
+
+Cohen's d for median age across post-peak male marriage spread regimes, by residence rule:
+
+```{r} 
+#| label: age_structure_sigma2_men_median_cohend_matri
+#| tab.cap: "matrilocal-matrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ marriage_spread_post_peak_men,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "matrilocal-matrilineal"
+        )
     ),
     rules = "cohen1988"
   )
 )
 ```
 
-### Interpretation
+```{r} 
+#| label: age_structure_sigma2_men_median_cohend_patri
+#| tab.cap: "patrilocal-patrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ marriage_spread_post_peak_men,
 
-The effect of parameters on median age and age structure more generally in v1.2.1 are broadly similar to those observed in v1.1 and v.1.2, despite the reshuffling in ranking of parameters with an intermediate impact. Results for each response variable remain broadly the same as in previous versions, with mortality and fertility continuing to rank highest relative to survival and median age, while the two density-related parameters continue to play a greater role in determining pressure.
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "patrilocal-patrilineal"
+        )
+  ),
+    rules = "cohen1988"
+  )
+)
+```
+
+!!!
+
+#### `mu_fert`: early *versus* late fertility timing
+
+```{r} 
+#| label: age_structure_mu_fert_pyramid_plot
+#| fig.cap: "Population pyramids across (female) fertility timing regimes, by residence rule."
+age_structures |>
+  aggregate_age_structure(
+    group_vars = c("fertility_timing"),
+    smooth = FALSE
+    ) |>
+  prepare_pyramid_plot() |>
+  plot_population_pyramid(
+    facet_var = "fertility_timing",
+    show_mean = TRUE
+    )
+```
+
+```{r} 
+#| label: age_structure_mu_fert_median_plot
+#| fig.cap: "Median age of surviving populations across (female) fertility timing regimes, by residence rule."
+plot_age_structure_indicators(
+  age_structure_indicators, 
+  x_var = "survival", 
+  fill_var = "residence_rule", 
+  facet_var = "fertility_timing"
+)
+```
+
+```{r} 
+#| label: age_structure_mu_fert_indicators_summary
+#| tab.cap: "Summary of age structure indicators across (female) fertility timing regimes and residence rules."
+knitr::kable(
+  indicators_summary(
+    age_structure_indicators, 
+    group_vars = c("residence_rule", "fertility_timing")
+    )
+)
+```
+
+Cohen's d for median age across female marriage timing regimes, by residence rule:
+
+```{r} 
+#| label: age_structure_mu_fert_median_cohend_matri
+#| tab.cap: "matrilocal-matrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ fertility_timing,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "matrilocal-matrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+```{r} 
+#| label: age_structure_mu_fert_median_cohend_patri
+#| tab.cap: "patrilocal-patrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ fertility_timing,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "patrilocal-patrilineal"
+        )
+  ),
+    rules = "cohen1988"
+  )
+)
+```
+
+!!!
+
+#### `mu_women`: late *versus* early female marriage regimes
+
+```{r} 
+#| label: age_structure_mu_women_pyramid_plot
+#| fig.cap: "Population pyramids across female marriage timing regimes, by residence rule."
+age_structures |>
+  aggregate_age_structure(
+    group_vars = c("marriage_timing_women"),
+    smooth = FALSE
+    ) |>
+  prepare_pyramid_plot() |>
+  plot_population_pyramid(
+    facet_var = "marriage_timing_women",
+    show_mean = TRUE
+    )
+```
+
+```{r} 
+#| label: age_structure_mu_women_median_plot
+#| fig.cap: "Median age of surviving populations across female marriage timing regimes, by residence rule."
+plot_age_structure_indicators(
+  age_structure_indicators, 
+  x_var = "survival", 
+  fill_var = "residence_rule", 
+  facet_var = "marriage_timing_women"
+)
+```
+
+```{r} 
+#| label: age_structure_mu_women_indicators_summary
+#| tab.cap: "Summary of age structure indicators across female marriage timing regimes and residence rules."
+knitr::kable(
+  indicators_summary(
+    age_structure_indicators, 
+    group_vars = c("residence_rule", "marriage_timing_women")
+    )
+)
+```
+
+Cohen's d for median age across female marriage timing regimes, by residence rule:
+
+```{r} 
+#| label: age_structure_mu_women_median_cohend_matri
+#| tab.cap: "matrilocal-matrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ marriage_timing_women,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "matrilocal-matrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+```{r} 
+#| label: age_structure_mu_women_median_cohend_patri
+#| tab.cap: "patrilocal-patrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ marriage_timing_women,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "patrilocal-patrilineal"
+        )
+  ),
+    rules = "cohen1988"
+  )
+)
+```
+
+!!!
+
+#### `sigma2_women`: broad *versus* narrow post-peak female marriage spread regimes
+
+```{r} 
+#| label: age_structure_sigma2_women_pyramid_plot
+#| fig.cap: "Population pyramids across post-peak female marriage spread regimes, by residence rule."
+age_structures |>
+  aggregate_age_structure(
+    group_vars = c("marriage_spread_post_peak_women"),
+    smooth = FALSE
+    ) |>
+  prepare_pyramid_plot() |>
+  plot_population_pyramid(
+    facet_var = "marriage_spread_post_peak_women",
+    show_mean = TRUE
+    )
+```
+
+```{r} 
+#| label: age_structure_sigma2_women_median_plot
+#| fig.cap: "Median age of surviving populations across post-peak female marriage spread regimes, by residence rule."
+plot_age_structure_indicators(
+  age_structure_indicators, 
+  x_var = "survival", 
+  fill_var = "residence_rule", 
+  facet_var = "marriage_spread_post_peak_women"
+)
+```
+
+```{r} 
+#| label: age_structure_sigma2_women_indicators_summary
+#| tab.cap: "Summary of age structure indicators across post-peak female marriage spread regimes and residence rules."
+knitr::kable(
+  indicators_summary(
+    age_structure_indicators, 
+    group_vars = c("residence_rule", "marriage_spread_post_peak_women")
+    )
+)
+```
+
+Cohen's d for median age across post-peak female marriage spread regimes, by residence rule:
+
+```{r} 
+#| label: age_structure_sigma2_women_median_cohend_matri
+#| tab.cap: "matrilocal-matrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ marriage_spread_post_peak_women,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "matrilocal-matrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+```{r} 
+#| label: age_structure_sigma2_women_median_cohend_patri
+#| tab.cap: "patrilocal-patrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ marriage_spread_post_peak_women,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "patrilocal-patrilineal"
+        )
+  ),
+    rules = "cohen1988"
+  )
+)
+```
+
+!!!
+
+#### Interpretation
+
+!!!
 
 ## Discussion notes
 
-Version 1.2.1 extends the density-dependent framework introduced in v1.2 by linking mortality pressure to demographic demand rather than population size alone. This modification preserves the overall regulatory behaviour of the system while introducing sensitivity to population composition.
-
-The results indicate that the principal demographic drivers identified in earlier versions remain dominant. Fertility intensity, fertility timing, and mortality schedules continue to explain most variation in persistence, population size, and age structure. Demand-weighted regulation therefore does not replace demographic determinants of population dynamics but instead alters the context in which they operate.
-
-The most important consequence of the new mechanism is the partial decoupling of ecological pressure from population abundance. In v1.2, populations with similar sizes generally experienced similar levels of density-dependent regulation. In v1.2.1, regulatory pressure additionally depends on demographic composition through the demand generated by different age groups. Population size therefore becomes a less reliable proxy for ecological stress. 
-
-This change highlights the importance of age structure as both a consequence and a driver of demographic dynamics. The general trend observed in v1.2 remains, younger populations sustain relatively large populations and pressure whereas older are smaller and suffer comparatively lower pressures. Nevertheless, the scale of this relationship is augmented in v1.2.1. Ecological regulation therefore emerges more explicitly from the interaction between population quantity and population composition.
-
-Unsurprisingly, however, the sensitivity analyses suggest that all parameters, including both density-related, keep the same level of importance and directional effect. This finding indicates that demand-weighted mortality introduces a stronger coupling between demographic and ecological processes without fundamentally altering the hierarchy of influential parameters.
-
-Residence rules continue to generate consistent but secondary differences across outcomes. As in previous versions, kinship organisation modifies demographic trajectories while leaving the principal mechanisms of population regulation unchanged.
-
-Overall, v1.2.1 represents a conceptual transition from density-dependent regulation toward demand-dependent regulation. Ecological limits are no longer imposed solely by the number of individuals present but increasingly by the demographic structure of the population itself. This provides a more realistic foundation for subsequent model developments that explicitly incorporate labour availability and resource production.
+!!!
 
 ## Chapter conclusion
 
-The results of v1.2.1 demonstrate that incorporating demographic demand into density-dependent mortality produces meaningful differences in population regulation while preserving the broader behavioural patterns observed in v1.2. The model thus moves beyond simple population-density constraints toward a representation in which ecological pressure depends on both population size and population composition. However, carrying capacity itself remains fixed and exogenous. The next version addresses this limitation by introducing labour-mediated variation in effective carrying capacity, allowing demographic composition to influence not only demand but also productive capacity.
+!!!
