@@ -5,27 +5,37 @@ source("library/parameter_ranges.R")
 
 # Global settings
 
-VERSION <- "v1.1"
+MODEL_VERSION <- "v1.1"
 N_SAMPLES <- 2000
+SUFFIX <- "" # suffix used for distinguishing reduced or alternative batches
 SEED <- 123
 GENERATE_DIAGNOSTICS <- TRUE
 
 # Load version-specific ranges
 
-if (is.null(sobol_parameter_ranges)) {
-  stop("Unknown model version.")
-}
-sobol_parameter_ranges <- parameter_ranges[[VERSION]]
+sobol_parameter_ranges <- parameter_ranges[[MODEL_VERSION]]
 
-INTEGER_PARAMETERS <- c(
-  "initial-num-households",
+if (is.null(sobol_parameter_ranges)) {
+  stop("Unknown model version: ", MODEL_VERSION)
+}
+
+normalise_parameter_name <- function(x) {
+  gsub(
+    "[-.]",
+    "_",
+    x
+  )
+}
+
+integer_parameter_keys <- c(
+  "initial_num_households",
   "household_initial_age_distribution_min",
   "household_initial_age_distribution_max",
   "max_couple_count_distribution_min",
   "max_couple_count_distribution_max",
-  "acceptable-kinship-degree-for-couples",
-  "cdmlt-level",
-  "amenorrhea-period-in-days"
+  "acceptable_kinship_degree_for_couples",
+  "cdmlt_level",
+  "amenorrhea_period_in_days"
 )
 
 # Helper function
@@ -49,13 +59,13 @@ k <- length(sobol_parameter_ranges)
 
 sobol_matrix <- sobol(
   n = N_SAMPLES,
-  dim = k,
-  scrambling = 3
+  dim = k
 )
 
 # Transform distributions, format data frame
 
-params_sobol <- data.frame()
+# 1. Initialize as an empty list instead of a data frame
+params_list <- list()
 
 for (i in seq_along(sobol_parameter_ranges)) {
   param_name <- names(sobol_parameter_ranges)[i]
@@ -64,19 +74,27 @@ for (i in seq_along(sobol_parameter_ranges)) {
     sobol_parameter_ranges,
     i
   )
-
-  if (param_name %in% INTEGER_PARAMETERS) {
+  
+  if (
+    normalise_parameter_name(param_name) %in%
+      integer_parameter_keys
+  ) {
     values <- round(values)
   }
-
-  params_sobol[[param_name]] <- values
+  
+  # 2. Assign to the list
+  params_list[[param_name]] <- values
 }
+
+# 3. Convert the complete list to a data frame at the end
+params_sobol <- as.data.frame(params_list)
 
 # Save sample
 
 output_file <- paste0(
   "data/",
-  gsub("\\.", "", VERSION),
+  gsub("\\.", "", MODEL_VERSION),
+  SUFFIX,
   "_sobol_parameter_values.RData"
 )
 
@@ -87,11 +105,17 @@ save(params_sobol, file = output_file)
 save_experiment <- function(
   experiment_df,
   experiment_row,
-  version_name
+  version_name,
+  suffix
 ) {
 
+  experiment_directory <- file.path(
+    "experiments",
+    paste0(version_name, suffix)
+  )
+
   dir.create(
-    paste0("experiments/", version_name),
+    experiment_directory,
     recursive = TRUE,
     showWarnings = FALSE
   )
@@ -106,6 +130,7 @@ save_experiment <- function(
     file = paste0(
       "experiments/",
       version_name,
+      suffix,
       "/",
       experiment_row,
       ".txt"
@@ -117,7 +142,8 @@ for (i in 1:nrow(params_sobol)) {
   save_experiment(
     params_sobol,
     i,
-    VERSION
+    MODEL_VERSION,
+    SUFFIX
   )
 }
 
@@ -132,7 +158,8 @@ if (GENERATE_DIAGNOSTICS) {
   png(
     paste0(
       "diagnostics/",
-      VERSION,
+      MODEL_VERSION,
+      SUFFIX,
       "_sobol_param_pairsPlot.png"
     ),
     width = 3000,
