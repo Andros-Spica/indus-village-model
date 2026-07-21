@@ -59,6 +59,7 @@ globals
   womenToMarry                   ; single individuals selected to marry ("<household who> <member index>")
   menToMarry
   orphanList                     ; orphan children left without adults ("<sex> <age>")
+  densityEffect
 
   ;;;; counters and final measures
   totalHouseholds                ; count households (integer)
@@ -371,6 +372,9 @@ to apply-mortality
 
   set carrying-capacity-demand sum [hh_get-total-carrying-capacity-demand] of households
 
+  ;;; density effect is distributed equally among members
+  set densityEffect get-density-effect carrying-capacity-demand carrying-capacity
+
   ask households
   [
     hh_update-members-survival
@@ -544,7 +548,7 @@ to-report get-kinship-degree [ household1 household2 ]
   ]
 
   ; get the total number of different elements in lineage IDs (i.e., number of household splits separating household1 and household2)
-  let numberOfDifferentElements sum (list (length lineage1 - numberOfCommonElements) (length lineage1 - numberOfCommonElements))
+  let numberOfDifferentElements sum (list (length lineage1 - numberOfCommonElements) (length lineage2 - numberOfCommonElements))
 
   ; case examples:
   ; between [1 2 1 5] and  [1 2 3 7],  it is 4 (diff. elements are 1 5 and 3 7)
@@ -819,9 +823,6 @@ to hh_update-members-survival
 end
 
 to-report hh_whichMembersDying
-
-  ;;; density effect is distributed equally among members
-  let densityEffect get-density-effect carrying-capacity-demand carrying-capacity
 
   ; returns a list with true/false values flagging which members is dying during the current year
   report map

@@ -10,6 +10,8 @@ to apply-mortality
 
   set carrying-capacity-demand sum [hh_get-total-carrying-capacity-demand] of households
 
+  set densityEffect get-density-effect-of-day carrying-capacity-demand carrying-capacity-effective
+
   ask households
   [
     hh_update-members-survival
@@ -48,13 +50,11 @@ end
 
 to-report hh_whichMembersDying
 
-  let densityEffect get-density-effect-of-day carrying-capacity-demand carrying-capacity
-
   ; returns a list with true/false values flagging which members is dying during the current day
   report map
   [
     memberIndex ->
-    (random-float 1 < get-mortality-prob-of-day (item memberIndex hh_membersSex) (item memberIndex hh_membersAge) densityEffect)
+    (random-float 1 < get-mortality-prob-of-day (item memberIndex hh_membersSex) (item memberIndex hh_membersAge))
   ] hh_membersIndexes
 
 end
@@ -76,7 +76,7 @@ to hh_update-marriages-after-deaths
 
 end
 
-to-report get-mortality-prob-of-day [ isFemale ageInDays densityEffect ]
+to-report get-mortality-prob-of-day [ isFemale ageInDays ]
 
   let ageInYears get-age-in-years-old ageInDays
 
@@ -92,7 +92,7 @@ to-report get-mortality-prob-from-table [ isFemale age ]
 
   let probDying 1
 
-  ifelse (age < length nuptialityTable-women) 
+  ifelse (age < length mortalityTable-women) 
   [
     ifelse (isFemale)
     [
@@ -112,11 +112,9 @@ end
 
 to-report get-density-effect-of-day [ carryingCapacityDemand carryingCapacity ]
 
-  let densityEffect get-density-effect carryingCapacityDemand carryingCapacity
-  
-  set densityEffect clamp01 densityEffect
+  let densityEffectYear clamp01 get-density-effect carryingCapacityDemand carryingCapacity
 
-  let densityEffectOfDay 1 - (1 - densityEffect) ^ (1 / year-length-in-days)
+  let densityEffectOfDay 1 - (1 - densityEffectYear) ^ (1 / year-length-in-days)
 
   report densityEffectOfDay
 
@@ -126,8 +124,6 @@ to-report get-density-effect [ carryingCapacityDemand carryingCapacity ]
 
   ; For example, in https://www.wolframalpha.com/, use:
   ;plot 0.05*(x / 200) ^ 3 for x=1..1000
-  let densityEffect density-effect-scaling-factor * (carryingCapacityDemand / (carryingCapacity + 1E-6)) ^ density-effect-steepness
-
-  report densityEffect
+  report density-effect-scaling-factor * (carryingCapacityDemand / (carryingCapacity + 1E-6)) ^ density-effect-steepness
 
 end

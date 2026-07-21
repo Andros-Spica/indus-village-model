@@ -99,6 +99,7 @@ globals
   womenToMarry                   ; single individuals selected to marry ("<household who> <member index>")
   menToMarry
   orphanList                     ; orphan children left without adults ("<sex> <age>")
+  densityEffect
 
   ;;;; counters and final measures
   totalHouseholds                ; count households (integer)

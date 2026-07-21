@@ -9,24 +9,21 @@ end
 
 to hh_reproduce
 
-  ; iterate for the members, up to the number of couples,
-  ; testing women for the corresponding fertility rate
+  ; iterate for the members,
+  ; testing coupled women for the corresponding fertility rate
   ; and generates a new born individual if passing test.
-
-  let couplesToTest hh_count-couples
 
   foreach hh_membersIndexes
   [
     memberIndex ->
     ; there is still a couple to consider and the member is female
-    if (couplesToTest > 0 and item memberIndex hh_membersSex)
+    if (item memberIndex hh_membersSex and (item memberIndex hh_membersMarriage != -1))
     [
       if (random-float 1 < get-fertility-prob-from-table (item memberIndex hh_membersAge))
       [
         hh_add-offspring 0 ; add a newborn
         if (hh_tellYourStory) [ print (word "Member " memberIndex " of household " self " give birth to a new child.") ]
       ]
-      set couplesToTest couplesToTest - 1
     ]
   ]
 

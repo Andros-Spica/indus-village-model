@@ -191,32 +191,29 @@ end
 
 to parameters-check2
 
+  ;;; check all integer parameters
+  check-integer-parameter
+    "initial-num-households"
+    initial-num-households
+
+  check-integer-parameter
+    "cdmlt-level"
+    cdmlt-level
+
+  check-integer-parameter
+    "amenorrhea-period-in-days"
+    amenorrhea-period-in-days
+
+  check-integer-parameter
+    "acceptable-kinship-degree-for-couples"
+    acceptable-kinship-degree-for-couples
+  
   ;;; initial parameter check (e.g., avoiding division per zero error)
   check-par-is-positive "initial-num-households" initial-num-households
 
   ;;; check if given min values are less than max values
   check-par-is-range "household-initial-age-distribution" household-initial-age-distribution
   check-par-is-range "max-couple-count-distribution" max-couple-count-distribution
-
-end
-
-to check-par-is-positive [ parName parValue ]
-
-  if (parValue <= 0)
-  [
-    print (word "ERROR: " parName " must be greater than zero")
-    stop
-  ]
-
-end
-
-to check-par-is-range [ parName parListMinMax ]
-
-  if ( item 0 parListMinMax > item 1 parListMinMax)
-  [
-    print (word "ERROR: " parName " minimum (first item) must be less than or equal to maximum (second item)")
-    stop
-  ]
 
 end
 

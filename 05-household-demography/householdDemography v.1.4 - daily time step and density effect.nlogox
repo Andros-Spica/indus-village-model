@@ -68,6 +68,7 @@ globals
   womenToMarry                   ; single individuals selected to marry ("<household who> <member index>")
   menToMarry
   orphanList                     ; orphan children left without adults ("<sex> <age>")
+  densityEffect
 
   ;;;; counters and final measures
   totalHouseholds                ; count households (integer)
@@ -442,6 +443,8 @@ end
 
 to apply-mortality
 
+  set densityEffect get-density-effect-of-day
+
   ask households
   [
     hh_update-members-survival
@@ -615,7 +618,7 @@ to-report get-kinship-degree [ household1 household2 ]
   ]
 
   ; get the total number of different elements in lineage IDs (i.e., number of household splits separating household1 and household2)
-  let numberOfDifferentElements sum (list (length lineage1 - numberOfCommonElements) (length lineage1 - numberOfCommonElements))
+  let numberOfDifferentElements sum (list (length lineage1 - numberOfCommonElements) (length lineage2 - numberOfCommonElements))
 
   ; case examples:
   ; between [1 2 1 5] and  [1 2 3 7],  it is 4 (diff. elements are 1 5 and 3 7)
@@ -1346,8 +1349,6 @@ end
 to-report get-net-mortality-of-day [ isFemale age ]
 
   let mortality (get-mortality-of-day isFemale age)
-
-  let densityEffect get-density-effect-of-day
 
   report clamp01 (mortality + densityEffect)
 

@@ -87,6 +87,7 @@ globals
   womenToMarry                   ; single individuals selected to marry ("<household who> <member index>")
   menToMarry
   orphanList                     ; orphan children left without adults ("<sex> <age>")
+  densityEffect
 
   ;;;; counters and final measures
   totalHouseholds                ; count households (integer)
@@ -1349,7 +1350,7 @@ ISSUES:
         <enumeratedValueSet variable="type-of-experiment">
           <value value="&quot;user-defined&quot;"></value>
         </enumeratedValueSet>
-        <steppedValueSet variable="SEED" first="0" step="1" last="99"></steppedValueSet>
+        <steppedValueSet variable="SEED" first="0" step="1" last="49"></steppedValueSet>
         <enumeratedValueSet variable="max-iterations">
           <value value="500"></value>
         </enumeratedValueSet>
@@ -1700,7 +1701,7 @@ ISSUES:
         <enumeratedValueSet variable="type-of-experiment">
           <value value="&quot;user-defined&quot;"></value>
         </enumeratedValueSet>
-        <steppedValueSet variable="SEED" first="0" step="5" last="99"></steppedValueSet>
+        <steppedValueSet variable="SEED" first="0" step="1" last="19"></steppedValueSet>
         <enumeratedValueSet variable="max-iterations">
           <value value="500"></value>
         </enumeratedValueSet>

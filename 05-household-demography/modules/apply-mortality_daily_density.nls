@@ -1,5 +1,9 @@
 to apply-mortality
 
+  let numberOfPeople sum ([length hh_membersAge] of households)
+
+  set densityEffect get-density-effect-of-day numberOfPeople carrying-capacity
+
   ask households
   [
     hh_update-members-survival
@@ -37,8 +41,6 @@ to hh_update-members-survival
 end
 
 to-report hh_whichMembersDying
-
-  let densityEffect get-density-effect-of-day
 
   ; returns a list with true/false values flagging which members is dying during the current day
   report map
@@ -100,11 +102,9 @@ to-report get-mortality-prob-from-table [ isFemale age ]
 
 end
 
-to-report get-density-effect-of-day
+to-report get-density-effect-of-day [ carryingCapacityDemand carryingCapacity ]
 
-  let densityEffect get-density-effect
-  
-  set densityEffect clamp01 densityEffect
+  let densityEffectOfYear clamp01 get-density-effect carryingCapacityDemand carryingCapacity
 
   let densityEffectOfDay 1 - (1 - densityEffect) ^ (1 / year-length-in-days)
 
@@ -112,16 +112,11 @@ to-report get-density-effect-of-day
 
 end
 
-to-report get-density-effect
-
-  ;;; Get a nutrition score as a function of the current population size and the carrying capacity (and a power that sets the shape of the relationship.
-  ;;; NOTE: this function is a rough approximation of the combined outcomes of the Nutrition and Food Storage model and is to be replaced in the integrated version.
-
-  let numberOfPeople sum ([length hh_membersAge] of households)
+to-report get-density-effect [ carryingCapacityDemand carryingCapacity ]
 
   ; For example, in https://www.wolframalpha.com/, use:
-  ;plot 0.05*((x - 200) / 200) ^ 3 for x=1..1000
-  let densityEffect density-effect-scaling-factor * (numberOfPeople / carrying-capacity) ^ density-effect-steepness
+  ;plot 0.05*(x / 200) ^ 3 for x=1..1000
+  let densityEffect density-effect-scaling-factor * (carryingCapacityDemand / (carryingCapacity + 1E-6)) ^ density-effect-steepness
 
   report densityEffect
 

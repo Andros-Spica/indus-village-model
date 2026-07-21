@@ -9,14 +9,27 @@ end
 
 to hh_reproduce
 
-  let couplesToTest hh_count-couples
-
-  ; decrease amenorrhea time, when greater than 0
-  set hh_membersAmenorrhea map [ i -> ifelse-value (i > 0) [i - 1] [i] ] hh_membersAmenorrhea
-
   foreach hh_membersIndexes
   [
     memberIndex ->
+
+    ; decrease amenorrhea time, when greater than 0 (safe clamp at 0)
+    if (item memberIndex hh_membersAmenorrhea > 0)
+    [
+      set hh_membersAmenorrhea
+        replace-item
+          memberIndex
+          hh_membersAmenorrhea
+          max (
+            list
+              0
+              (
+                item memberIndex
+                  hh_membersAmenorrhea
+                - 1
+              )
+          )
+    ]
 
     ; advance women gestation, if any, and, if it comes to 0,
     ; add the new offspring and account for mother postpartum amenorrhea
@@ -33,22 +46,21 @@ to hh_reproduce
       ]
     ]
 
-    ; iterate for the members, up to the number of couples,
-    ; testing women for the corresponding fertility rate and gestation/amenorrhea states
+    ; iterate for the members,
+    ; testing coupled women for the corresponding fertility rate and gestation/amenorrhea states
     ; and, if passing test, marking women as gestating.
 
     ; there is still a couple to consider and the member is female and not currently gestation or lactating
-    if (couplesToTest > 0 and item memberIndex hh_membersSex and (item memberIndex hh_membersGestation = 0) and (item memberIndex hh_membersAmenorrhea = 0))
+    if (item memberIndex hh_membersSex and (item memberIndex hh_membersMarriage != -1) 
+        and (item memberIndex hh_membersGestation = 0) and (item memberIndex hh_membersAmenorrhea = 0))
     [
       if (random-float 1 < get-fertility-of-day (item memberIndex hh_membersAge))
       [
         ; mark the female as gestating a child
-        set hh_membersGestation replace-item 0 hh_membersGestation gestation-period-in-days
+        set hh_membersGestation replace-item memberIndex hh_membersGestation gestation-period-in-days
 
         if (hh_tellYourStory) [ print (word "Member " memberIndex " of household " self " is pregnant with a new child.") ]
       ]
-
-      set couplesToTest couplesToTest - 1
     ]
   ]
 

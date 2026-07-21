@@ -1,6 +1,8 @@
 to apply-mortality
 
   set carrying-capacity-demand sum [hh_get-total-carrying-capacity-demand] of households
+
+  set densityEffect get-density-effect-of-day carrying-capacity-demand carrying-capacity
   
   ask households
   [
@@ -39,8 +41,6 @@ to hh_update-members-survival
 end
 
 to-report hh_whichMembersDying
-
-  let densityEffect get-density-effect-of-day carrying-capacity-demand carrying-capacity
 
   ; returns a list with true/false values flagging which members is dying during the current day
   report map
@@ -104,9 +104,7 @@ end
 
 to-report get-density-effect-of-day [ carryingCapacityDemand carryingCapacity ]
 
-  let densityEffect get-density-effect carryingCapacityDemand carryingCapacity
-  
-  set densityEffect clamp01 densityEffect
+  let densityEffectOfYear clamp01 get-density-effect carryingCapacityDemand carryingCapacity
 
   let densityEffectOfDay 1 - (1 - densityEffect) ^ (1 / year-length-in-days)
 

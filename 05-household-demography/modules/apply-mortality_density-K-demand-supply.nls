@@ -10,6 +10,9 @@ to apply-mortality
 
   set carrying-capacity-demand sum [hh_get-total-carrying-capacity-demand] of households
 
+  ;;; density effect is distributed equally among members
+  set densityEffect get-density-effect carrying-capacity-demand carrying-capacity-effective
+
   ask households
   [
     hh_update-members-survival
@@ -47,14 +50,11 @@ end
 
 to-report hh_whichMembersDying
 
-  ;;; density effect is distributed equally among members
-  let densityEffect get-density-effect carrying-capacity-demand carrying-capacity-effective
-
   ; returns a list with true/false values flagging which members is dying during the current year
   report map
   [
     memberIndex ->
-    (random-float 1 < get-mortality-prob (item memberIndex hh_membersSex) (item memberIndex hh_membersAge) densityEffect)
+    (random-float 1 < get-mortality-prob (item memberIndex hh_membersSex) (item memberIndex hh_membersAge))
   ] hh_membersIndexes
 
 end
@@ -75,7 +75,7 @@ to hh_update-marriages-after-deaths
 
 end
 
-to-report get-mortality-prob [ isFemale age densityEffect ]
+to-report get-mortality-prob [ isFemale age ]
 
   let mortality (get-mortality-prob-from-table isFemale age)
 
@@ -107,8 +107,6 @@ to-report get-density-effect [ carryingCapacityDemand carryingCapacity ]
 
   ; For example, in https://www.wolframalpha.com/, use:
   ;plot 0.05*(x / 200) ^ 3 for x=1..1000
-  let densityEffect density-effect-scaling-factor * (carryingCapacityDemand / (carryingCapacity + 1E-6)) ^ density-effect-steepness
-
-  report densityEffect
+  report density-effect-scaling-factor * (carryingCapacityDemand / (carryingCapacity + 1E-6)) ^ density-effect-steepness
 
 end
