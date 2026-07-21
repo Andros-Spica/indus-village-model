@@ -65,7 +65,8 @@ build_rf_models <- function(
                 select(
                     # Exclude any response variables other than the current response variable
                     -response_variables[response_variables != response_variable],
-                    -residence_rule
+                    -residence_rule,
+                    -model_version
                 )
                 
             rf_models[[response_variable]][[res_rule]] <- fit_random_forest(

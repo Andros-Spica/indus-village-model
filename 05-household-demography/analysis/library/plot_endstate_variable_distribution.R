@@ -10,7 +10,9 @@ plot_endstate_variable_distribution <- function(
     thresholds_linetype = 2:6,
     x_axis_log10 = TRUE,
     x_max = 10^4,
-    y_axis_log10 = TRUE
+    y_axis_log10 = TRUE,
+    legend_position = "right",
+    legend_title = NULL
 ) {
   variable_distribution_plot <- NULL
 
@@ -31,9 +33,10 @@ plot_endstate_variable_distribution <- function(
           end = 0,
           option = "turbo",
           guide = guide_legend(
-            title = "",
+            title = legend_title,
             override.aes = list(linewidth = 5, alpha = 1),
-            reverse = TRUE
+            reverse = TRUE,
+            position = legend_position
           )
         )
     } else if (fill_var == "survival" & any(endstates$survival != "Extinction")) {
@@ -48,9 +51,10 @@ plot_endstate_variable_distribution <- function(
           end = 0,
           option = "turbo",
           guide = guide_legend(
-            title = "",
+            title = legend_title,
             override.aes = list(linewidth = 5, alpha = 1),
-            reverse = TRUE
+            reverse = TRUE,
+            position = legend_position
           )
         )
     }

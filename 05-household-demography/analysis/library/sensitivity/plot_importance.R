@@ -28,13 +28,13 @@ plot_importance <- function(
   }
 
   # Global ordering across facets
-  parameter_order <- importance_df %>%
-    group_by(parameter) %>%
+  parameter_order <- importance_df |>
+    group_by(parameter) |>
     summarise(
       mean_importance =
         mean(.data[[metric]], na.rm = TRUE)
-    ) %>%
-    arrange(mean_importance) %>%
+    ) |>
+    arrange(mean_importance) |>
     pull(parameter)
 
   importance_df$parameter <- factor(
@@ -80,10 +80,14 @@ plot_importance_dumbbell <- function(
     importance_df,
     metric = "MeanDecreaseGini",
     groups,
-    param_color = "steelblue"
+    param_color = "steelblue",
+    parameter_names_size = 10,
+    point_size = 3,
+    line_width = 1,
+    point_label_size = 5,
+    point_label_dist = 0.02
 ) {
 
-  
   if (length(param_color) == 1) {
 
     importance_df$param_color <- param_color
@@ -99,13 +103,13 @@ plot_importance_dumbbell <- function(
     )
   }
 
-  importance_wide <- importance_df %>%
+  importance_wide <- importance_df |>
     select(
       parameter,
       .data[[groups]],
       .data[[metric]],
       param_color
-    ) %>%
+    ) |>
     pivot_wider(
       names_from = .data[[groups]],
       values_from = .data[[metric]]
@@ -114,13 +118,13 @@ plot_importance_dumbbell <- function(
   left_group <- colnames(importance_wide)[3]
   right_group <- colnames(importance_wide)[4]
 
-  parameter_order <- importance_wide %>%
+  parameter_order <- importance_wide |>
     mutate(
       mean_importance =
         (.data[[left_group]] +
          .data[[right_group]]) / 2
-    ) %>%
-    arrange(mean_importance) %>%
+    ) |>
+    arrange(mean_importance) |>
     pull(parameter)
 
   importance_wide$parameter <- factor(
@@ -138,7 +142,7 @@ plot_importance_dumbbell <- function(
         yend = parameter,
         color = param_color
       ),
-      linewidth = 1
+      linewidth = line_width
     ) +
 
     geom_point(
@@ -147,7 +151,7 @@ plot_importance_dumbbell <- function(
         y = parameter,
         color = param_color
       ),
-      size = 3
+      size = point_size
     ) +
 
     geom_point(
@@ -156,7 +160,7 @@ plot_importance_dumbbell <- function(
         y = parameter,
         color = param_color
       ),
-      size = 3
+      size = point_size
     ) +
 
     geom_text(
@@ -164,30 +168,34 @@ plot_importance_dumbbell <- function(
         # plot text slightly to the right or left of the points, depending on which group has the lowest or highest importance
         x = ifelse(
           .data[[left_group]] < .data[[right_group]],
-          .data[[left_group]] - 0.02 * max(.data[[left_group]], .data[[right_group]]),
-          .data[[left_group]] + 0.02 * max(.data[[left_group]], .data[[right_group]])
+          .data[[left_group]] - point_label_dist * max(.data[[left_group]], .data[[right_group]]),
+          .data[[left_group]] + point_label_dist * max(.data[[left_group]], .data[[right_group]])
         ),
         y = parameter
       ),
       label = "\u2640",
-      size = 5
+      size = point_label_size
     ) +
 
     geom_text(
       aes(
         x = ifelse(
           .data[[right_group]] < .data[[left_group]],
-          .data[[right_group]] - 0.02 * max(.data[[left_group]], .data[[right_group]]),
-          .data[[right_group]] + 0.02 * max(.data[[left_group]], .data[[right_group]])
+          .data[[right_group]] - point_label_dist * max(.data[[left_group]], .data[[right_group]]),
+          .data[[right_group]] + point_label_dist * max(.data[[left_group]], .data[[right_group]])
         ),
         y = parameter
       ),
       label = "\u2642",
-      size = 5
+      size = point_label_size
     ) +
 
     labs(
       x = metric,
       y = NULL
+    ) +
+
+    theme(
+      axis.text.y = element_text(size = parameter_names_size)
     )
 }

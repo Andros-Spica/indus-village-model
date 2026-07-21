@@ -16,7 +16,7 @@ parameter_ranges <- list(
 
     `cdmlt_level` = c(1, 25),
 
-    `c1_fert` = c(0, 0.5),
+    `c1_fert` = c(0, 1),
 
     `mu_fert` = c(15, 30),
 
@@ -58,7 +58,7 @@ parameter_ranges <- list(
 
     `cdmlt_level` = c(1, 25),
 
-    `c1_fert` = c(0, 0.5),
+    `c1_fert` = c(0, 1),
 
     `mu_fert` = c(15, 30),
 
@@ -104,7 +104,7 @@ parameter_ranges <- list(
 
     `cdmlt_level` = c(1, 25),
 
-    `c1_fert` = c(0, 0.5),
+    `c1_fert` = c(0, 1),
 
     `mu_fert` = c(15, 30),
 
@@ -152,7 +152,7 @@ parameter_ranges <- list(
 
     `cdmlt_level` = c(1, 25),
 
-    `c1_fert` = c(0, 0.5),
+    `c1_fert` = c(0, 1),
 
     `mu_fert` = c(15, 30),
 
@@ -196,7 +196,7 @@ parameter_ranges <- list(
 
     `cdmlt_level` = c(1, 25),
 
-    `c1_fert` = c(0, 0.5),
+    `c1_fert` = c(0, 1),
 
     `mu_fert` = c(15, 30),
 
@@ -244,7 +244,7 @@ parameter_ranges <- list(
 
     `cdmlt_level` = c(1, 25),
 
-    `c1_fert` = c(0, 0.5),
+    `c1_fert` = c(0, 1),
 
     `mu_fert` = c(15, 30),
 

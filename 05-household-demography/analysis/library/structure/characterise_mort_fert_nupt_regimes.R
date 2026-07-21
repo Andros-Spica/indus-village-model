@@ -105,4 +105,18 @@ characterise_mort_fert_nupt_regimes <- function(endstates) {
             "Narrow post-peak marriage spread men"
             )
     )
+
+    if ("amenorrhea_period_in_days" %in% names(endstates)) {
+        age_structures <- age_structures |>
+            mutate(
+                amenorrhea_length =
+                ifelse(
+                    amenorrhea_period_in_days > median(amenorrhea_period_in_days),
+                    "Long amenorrhea period",
+                    "Short amenorrhea period"
+                )
+            )
+    }
+    
+    age_structures
 }

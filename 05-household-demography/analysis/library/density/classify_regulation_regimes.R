@@ -83,3 +83,52 @@ classify_regulation_regimes <- function(
     )
 
 }
+
+simplify_regulation_regime <- function(
+    data
+) {
+
+    stopifnot("regulation_regime" %in% names(data))
+
+    data |>
+        mutate(
+          regulation_regime_simple = dplyr::case_when(
+                regulation_regime %in% c(
+                    "Stable",
+                    "Stable\n(growing)"
+                ) ~ "Stable",
+
+                regulation_regime %in% c(
+                    "Oscillatory",
+                    "Oscillatory\n(growing)",
+                    "Overshoot-prone",
+                    "Overshoot-prone\n(collapsing)"
+                ) ~ "Oscillatory",
+
+                regulation_regime %in% c(
+                    "Stress-prone",
+                    "Stress-prone\n(collapsing)"
+                ) ~ "Stress-prone",
+
+                regulation_regime == "Overshooting" ~
+                    "Overshooting",
+
+                regulation_regime == "Collapse" ~
+                    "Collapse",
+
+                TRUE ~
+                    "Unclassified"
+            ),
+            regulation_regime_simple = factor(
+                regulation_regime_simple,
+                levels = c(
+                    "Stable",
+                    "Oscillatory",
+                    "Stress-prone",
+                    "Overshooting",
+                    "Collapse",
+                    "Unclassified"
+                )
+            )
+        )
+}

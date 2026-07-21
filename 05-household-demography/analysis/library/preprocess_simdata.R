@@ -229,6 +229,7 @@ preprocess_simdata <- function(
   model_version,
   growth_threshold = 5000,
   overshooting_threshold = 0,
+  overshoot_magnitude_threshold = 0,
   full_trajectory = FALSE,
   trajectory_id_vars = c(
     # unique combinations of these variables id single runs
@@ -452,12 +453,39 @@ preprocess_simdata <- function(
       log_totalIndividuals = log10(totalIndividuals + 1),
       log_totalHouseholds = log10(totalHouseholds + 1)
     )
-  
+  # Step 5b: For versions with carrying capacity demand, ensure that the carrying_capacity_demand is set to 0 when totalIndividuals is 0. 
+  # This is important for accurately representing the state of the system when there are no individuals present, 
+  # given that the value of carrying capacity demand imported from NetLogo might not be the one updated. 
+  # Setting it to 0 in such cases avoids classifying extinct cases correctly.
+  if (model_version %in% versions_with_capacity_demand) {
+    df <- df |>
+      mutate(
+        carrying_capacity_demand = if_else(
+          totalIndividuals == 0,
+          0,
+          carrying_capacity_demand
+        )
+      )
+  }
+
   if (model_version %in% versions_with_labour_capacity) {
     df <- df |>
       mutate(
         log_carrying_capacity_effective = log10(carrying_capacity_effective + 1),
-        labour_ratio = labour_available / labour_required
+        labour_ratio = case_when(
+          labour_required > 0 ~
+            labour_available / labour_required,
+
+          labour_required == 0 &
+            labour_available == 0 ~
+            NA_real_,
+
+          labour_required == 0 &
+            labour_available > 0 ~
+            Inf,
+
+          TRUE ~ NA_real_
+        )
       )
   }
 

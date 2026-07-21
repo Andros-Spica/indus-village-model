@@ -4,7 +4,11 @@ plot_labour_ratio_distrib <- function(
     fill_var = NULL,
     facet_var = NULL,
     pos_doge_width = 1.0,
-    label_fill = ""
+    label_fill = "",
+    legend_position = "right",
+    threshold_linetype = 2,
+    threshold_linewidth = 1,
+    threshold_alpha = 0.4
 ) {
     endstates <- endstates |>
         filter(survival != "Extinction")
@@ -54,13 +58,24 @@ plot_labour_ratio_distrib <- function(
         color = "black"
     ) +
 
+    geom_hline(
+        yintercept = 1,
+        linetype = threshold_linetype,
+        linewidth = threshold_linewidth,
+        alpha = threshold_alpha
+    ) +
+
     labs(
         x = NULL,
         y = "Labour ratio",
         fill = label_fill
     ) +
 
-    theme_minimal()
+    theme_minimal() +
+
+    theme(
+        legend.position = legend_position
+    )
 
     if (!is.null(facet_var)) {
 

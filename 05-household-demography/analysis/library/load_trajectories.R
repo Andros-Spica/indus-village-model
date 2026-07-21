@@ -1,5 +1,6 @@
 load_trajectories <- function(
-  version, suffix = "",
+  model_version, 
+  suffix = "",
   selected_variables = NULL,
   ignored_variables = NULL,
   step_start = NULL,
@@ -20,7 +21,7 @@ load_trajectories <- function(
     "v1.4.2" = paste0("simdata/v1.4.2/household-demography-daily-main_density-K-demand-supply exp-trajectories", suffix, "-table.csv")
   )
 
-  paths <- version_paths[[version]]
+  paths <- version_paths[[model_version ]]
   if (is.null(paths)) {
     stop("Unknown version and/or suffix.")
   }

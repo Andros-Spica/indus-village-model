@@ -10,12 +10,13 @@ plot_parameter_dependence <- function(
     facet = NULL,
     lab_x = parameter,
     lab_y = response,
-    plot_title = NULL
+    plot_title = NULL,
+    plot_title_hjust = 0.5,
+    show_pd_legend = TRUE
 ) {
 
     # Check that parameter and response are in data
     if (!parameter %in% colnames(data)) {
-
         stop(
             paste("Parameter", parameter, "not found in data")
         )
@@ -101,7 +102,11 @@ plot_parameter_dependence <- function(
             y = lab_y
         ) +
 
-        ggtitle(plot_title)
+        ggtitle(plot_title) +
+
+        theme(
+            plot.title = element_text(hjust = plot_title_hjust)
+        )
 
     if (!is.null(max_count)) {
         
@@ -120,6 +125,13 @@ plot_parameter_dependence <- function(
             name = "Count",
             trans = "sqrt"
         )
+    }
+
+    if (!show_pd_legend) {
+        dependence_plot <- dependence_plot +
+            guides(
+                color = "none"
+            )
     }
 
     if (!is.null(facet)) {
@@ -190,9 +202,10 @@ plot_parameter_dependence_composite <- function(
     lab_x = NULL,
     lab_y = NULL,
     ncol = 2,
-    legend_key_width = unit(1.5, "cm"),
     plot_title_size = 10,
-    plot_title_margin_bottom = 5
+    plot_title_margin_bottom = 5,
+    plot_title_hjust = 0.5,
+    show_pd_legend = TRUE
 ) {
     data <- bind_rows(
         sensitivity_data$matri,
@@ -228,7 +241,9 @@ plot_parameter_dependence_composite <- function(
         lab_y = lab_y,
         plot_title = param,
         bins = bins,
-        max_count = GLOBAL_MAX_COUNT
+        max_count = GLOBAL_MAX_COUNT,
+        plot_title_hjust = plot_title_hjust,
+        show_pd_legend = show_pd_legend
     )
     
     }
@@ -240,7 +255,6 @@ plot_parameter_dependence_composite <- function(
     plot_layout(guides = "collect") &
     theme(
         legend.position = "bottom",
-        legend.key.width = legend_key_width,
         plot.title = element_text(
             size = plot_title_size,
             margin = ggplot2::margin(b = plot_title_margin_bottom)
@@ -248,4 +262,129 @@ plot_parameter_dependence_composite <- function(
     )
 
     param_pd_plots
+}
+
+plot_parameter_dependence_composite <- function(
+    sensitivity_data,
+    pd_results,
+    top_parameters,
+    response_variable,
+    pd_label = "Partial dependence",
+    bins = 30,
+    lab_x = NULL,
+    lab_y = NULL,
+    ncol = 2,
+    plot_title_size = 10,
+    plot_title_margin_bottom = 5,
+    plot_title_hjust = 0.5,
+    show_pd_legend = TRUE
+) {
+    data <- bind_rows(
+        sensitivity_data$matri,
+        sensitivity_data$patri
+    )
+
+    if (response_variable != "survival") {
+        data <- data |>
+            filter(
+                survival != "Extinction"
+            )
+    }
+
+    GLOBAL_MAX_COUNT <- compute_global_max_bin_count(
+        data = data,
+        parameters = top_parameters,
+        response = response_variable,
+        bins = bins
+    )
+
+    pd_plots <- list()
+
+    for (param in top_parameters) {
+    
+    pd_plots[[param]] <- plot_parameter_dependence(
+        data = data,
+        pd_data = pd_results[[param]],
+        parameter = param,
+        response = response_variable,
+        facet = "residence_rule",
+        pd_label = pd_label,
+        lab_x = lab_x,
+        lab_y = lab_y,
+        plot_title = param,
+        bins = bins,
+        max_count = GLOBAL_MAX_COUNT,
+        plot_title_hjust = plot_title_hjust,
+        show_pd_legend = show_pd_legend
+    )
+    
+    }
+
+    param_pd_plots <- wrap_plots(
+        pd_plots,
+        ncol = ncol
+    ) +
+    plot_layout(guides = "collect") &
+    theme(
+        legend.position = "bottom",
+        plot.title = element_text(
+            size = plot_title_size,
+            margin = ggplot2::margin(b = plot_title_margin_bottom)
+        )
+    )
+
+    param_pd_plots
+}
+
+plot_parameter_dependence_pair <- function(
+    sensitivity_data,
+    pd_results,
+    parameter,
+    response_variable,
+    pd_label = "Partial dependence",
+    bins = 30,
+    lab_x = NULL,
+    lab_y = NULL,
+    plot_title_size = 10,
+    plot_title_margin_bottom = 5,
+    plot_title_hjust = 0.5,
+    show_pd_legend = TRUE,
+    legend_position = "bottom"
+) {
+    data <- bind_rows(
+        sensitivity_data$matri,
+        sensitivity_data$patri
+    )
+
+    if (response_variable != "survival") {
+        data <- data |>
+            filter(
+                survival != "Extinction"
+            )
+    }
+
+    pd_plot <- plot_parameter_dependence(
+        data = data,
+        pd_data = pd_results[[parameter]],
+        parameter = parameter,
+        response = response_variable,
+        facet = "residence_rule",
+        pd_label = pd_label,
+        lab_x = lab_x,
+        lab_y = lab_y,
+        plot_title = parameter,
+        bins = bins,
+        plot_title_hjust = plot_title_hjust,
+        show_pd_legend = show_pd_legend
+        ) +
+        theme(
+            legend.position = legend_position,
+            plot.title = element_text(
+                size = plot_title_size,
+                margin = ggplot2::margin(b = plot_title_margin_bottom), 
+                face = "bold"
+            )
+        )
+
+    pd_plot
 }

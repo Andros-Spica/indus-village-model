@@ -29,9 +29,64 @@ prepare_sensitivity_data <- function(
 
   data |>
     select(
+      model_version,
       all_of(c(
         predictor_variables,
         variables_to_keep
       ))
+    ) |>
+    # guarantees there are no empty categories in survival
+    mutate(
+      survival = droplevels(survival)  
+    )
+}
+
+prepare_sensitivity_data_by_residence_rule <- function(
+    endstates,
+    response_variables,
+    parameter_metadata
+) {
+  list(
+    matri =
+      endstates |>
+      filter(
+        residence_rule ==
+          "matrilocal-matrilineal"
+      ) |>
+      prepare_sensitivity_data(
+        parameter_metadata,
+        model_version = endstates$model_version[1],
+        variables_to_keep = c(
+          response_variables,
+          "residence_rule"
+        )
+      ),
+
+    patri =
+      endstates |>
+      filter(
+        residence_rule ==
+          "patrilocal-patrilineal"
+      ) |>
+      prepare_sensitivity_data(
+        parameter_metadata,
+        model_version = endstates$model_version[1],
+        variables_to_keep = c(
+          response_variables,
+          "residence_rule"
+        )
+      )
+  )
+}
+
+filter_sensitivity_data <- function(
+    sensitivity_data,
+    this_model_version
+) {
+    list(
+        matri = sensitivity_data$matri |>
+            filter(model_version == this_model_version),
+        patri = sensitivity_data$patri |>
+        filter(model_version == this_model_version)
     )
 }
