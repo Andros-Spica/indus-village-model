@@ -168,6 +168,7 @@ load_and_preprocess_trajectories_v13_v14x_single <- function(
     sample_interval_days = 365,
     step_start = 1,
     step_end = 182500,
+    selected_variables = NULL,
     ignored_variables = c(
         "womenAgeStructure",
         "menAgeStructure"
@@ -194,7 +195,7 @@ load_and_preprocess_trajectories_v13_v14x_single <- function(
     trajectories <- load_daily_trajectories_raw(
         model_version = model_version,
         suffix = suffix,
-        selected_variables = NULL,
+        selected_variables = selected_variables,
         ignored_variables = ignored_variables,
         step_start = step_start,
         step_end = step_end
