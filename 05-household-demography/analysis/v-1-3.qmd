@@ -65,9 +65,7 @@ theme_set(
 
 ## Experiment design
 
-### Generate parameter values with Sobol Sampling
-
-Sobol sampling is used to generate a diverse set of parameter combinations across the defined parameter space. This allows us to explore how different parameter configurations affect the model's outcomes and to identify which parameters are most influential in driving population survival or extinction. The actual sampling was done with `generate_sobol.R` script, which generates a sample with 2000 parameter combinations across the parameter ranges defined in `parameter_ranges.R`. 
+Sobol sampling is used to generate a diverse set of parameter combinations across the defined parameter space. This allows us to explore how different parameter configurations affect the model's outcomes and to identify which parameters are most influential in driving population survival or extinction. The actual sampling was done with `generate_sobol.R` script, which generates a sample with 2000 parameter combinations across the parameter ranges defined in `parameter_ranges.R`. These were generated previously with `library/generate_sobol.R`.
 
 ```{r} 
 #| label: sobol_load
@@ -123,21 +121,40 @@ endstates <- load_endstates(MODEL_VERSION) |>
 ```{r} 
 #| label: preprocessing_trajectories
 file_name <- "data/v13_trajectories.RData"
-if (file.exists(file_name))
+if (!file.exists(file_name))
 {
-  sampled_trajectories <- readRDS(file_name)
-} else {
-  sampled_trajectories <- load_trajectories(
+  sampled_trajectories <- load_and_preprocess_trajectories_v13_v14x_single(
     MODEL_VERSION,
-    ignored_variables = c("womenAgeStructure", "menAgeStructure"),
+    growth_threshold = growth_threshold,
+    sample_interval_days = 365,
     step_start = 1,
-    step_end = 182500 # max-iterations is 500 years or 182500 days; cut down this number to save RAM
-  ) |>
-    preprocess_simdata(
-      model_version = MODEL_VERSION,
-      growth_threshold = growth_threshold,
-      full_trajectory = TRUE
+    step_end = 182500, # max-iterations is 500 years or 182500 days
+    ignored_variables = c(
+        "womenAgeStructure",
+        "menAgeStructure"
+    ),
+    keep_variables = c(
+        "model_version",
+        "run_unique_id",
+        "run_number",
+        "residence_rule",
+        "max_iterations",
+        "max_iterations_in_days",
+        "max_population", 
+        names(parameter_ranges_v13), 
+        "coale_demeny_region", 
+        "maturity_age_in_years", 
+        "gestation_period_in_days", 
+        "year_length_in_days",
+        "step",
+        "currentYear",
+        "currentDayOfYear",
+        "log_totalIndividuals",
+        "totalIndividuals",
+        "totalHouseholds",
+        "survival"
     )
+  )
   
   save_trajectories(
     sampled_trajectories,
@@ -154,18 +171,39 @@ if (file.exists(file_name))
 {
   sampled_trajectories_symmetric <- readRDS(file_name)
 } else {
-  sampled_trajectories_symmetric <- load_trajectories(
+  sampled_trajectories_symmetric <- load_and_preprocess_trajectories_v13_v14x_single(
     MODEL_VERSION,
     suffix = "symmetric",
-    ignored_variables = c("womenAgeStructure", "menAgeStructure"),
+    growth_threshold = growth_threshold,
+    sample_interval_days = 365,
     step_start = 1,
-    step_end = 182500 # max-iterations is 500 years or 182500 days; cut down this number to save RAM
-  ) |>
-    preprocess_simdata(
-      model_version = MODEL_VERSION,
-      growth_threshold = growth_threshold,
-      full_trajectory = TRUE
+    step_end = 182500, # max-iterations is 500 years or 182500 days
+    ignored_variables = c(
+        "womenAgeStructure",
+        "menAgeStructure"
+    ),
+    keep_variables = c(
+        "model_version",
+        "run_unique_id",
+        "run_number",
+        "residence_rule",
+        "max_iterations",
+        "max_iterations_in_days",
+        "max_population", 
+        names(parameter_ranges_v13), 
+        "coale_demeny_region", 
+        "maturity_age_in_years", 
+        "gestation_period_in_days", 
+        "year_length_in_days",
+        "step",
+        "currentYear",
+        "currentDayOfYear",
+        "log_totalIndividuals",
+        "totalIndividuals",
+        "totalHouseholds",
+        "survival"
     )
+  )
   
   save_trajectories(
     sampled_trajectories_symmetric,
@@ -183,18 +221,39 @@ if (file.exists(file_name))
 {
   sampled_trajectories_cdmlt_level <- readRDS(file_name)
 } else {
-  sampled_trajectories_cdmlt_level <- load_trajectories(
+  sampled_trajectories_cdmlt_level <- load_and_preprocess_trajectories_v13_v14x_single(
     MODEL_VERSION,
     suffix = "cdmlt-level",
-    ignored_variables = c("womenAgeStructure", "menAgeStructure"),
+    growth_threshold = growth_threshold,
+    sample_interval_days = 365,
     step_start = 1,
-    step_end = 182500 # max-iterations is 500 years or 182500 days; cut down this number to save RAM
-  ) |>
-    preprocess_simdata(
-      model_version = MODEL_VERSION,
-      growth_threshold = growth_threshold,
-      full_trajectory = TRUE
+    step_end = 182500, # max-iterations is 500 years or 182500 days
+    ignored_variables = c(
+        "womenAgeStructure",
+        "menAgeStructure"
+    ),
+    keep_variables = c(
+        "model_version",
+        "run_unique_id",
+        "run_number",
+        "residence_rule",
+        "max_iterations",
+        "max_iterations_in_days",
+        "max_population", 
+        names(parameter_ranges_v13), 
+        "coale_demeny_region", 
+        "maturity_age_in_years", 
+        "gestation_period_in_days", 
+        "year_length_in_days",
+        "step",
+        "currentYear",
+        "currentDayOfYear",
+        "log_totalIndividuals",
+        "totalIndividuals",
+        "totalHouseholds",
+        "survival"
     )
+  )
   
   save_trajectories(
     sampled_trajectories_cdmlt_level,
@@ -212,17 +271,39 @@ if (file.exists(file_name))
 {
   sampled_trajectories_c1_fert <- readRDS(file_name)
 } else {
-  sampled_trajectories_c1_fert <- load_trajectories(
-    MODEL_VERSION, 
+  sampled_trajectories_c1_fert <- load_and_preprocess_trajectories_v13_v14x_single(
+    MODEL_VERSION,
     suffix = "c1-fert",
-    ignored_variables = c("womenAgeStructure", "menAgeStructure"),
+    growth_threshold = growth_threshold,
+    sample_interval_days = 365,
     step_start = 1,
-    step_end = 182500 # max-iterations is 500 years or 182500 days; cut down this number to save RAM
-  ) |>
-    preprocess_simdata(
-      model_version = MODEL_VERSION,
-      full_trajectory = TRUE
+    step_end = 182500, # max-iterations is 500 years or 182500 days
+    ignored_variables = c(
+        "womenAgeStructure",
+        "menAgeStructure"
+    ),
+    keep_variables = c(
+        "model_version",
+        "run_unique_id",
+        "run_number",
+        "residence_rule",
+        "max_iterations",
+        "max_iterations_in_days",
+        "max_population", 
+        names(parameter_ranges_v13), 
+        "coale_demeny_region", 
+        "maturity_age_in_years", 
+        "gestation_period_in_days", 
+        "year_length_in_days",
+        "step",
+        "currentYear",
+        "currentDayOfYear",
+        "log_totalIndividuals",
+        "totalIndividuals",
+        "totalHouseholds",
+        "survival"
     )
+  )
   
   save_trajectories(
     sampled_trajectories_c1_fert,
@@ -438,6 +519,7 @@ Dynamics of population trajectories across time steps, faceted by residence rule
 #| fig.cap: "A sample of population trajectories across time steps, faceted by residence rule."
 pop_trajectories_plot <- sampled_trajectories |>
   plot_trajectories(
+    x_var = "currentYear",
     y_var = "log_totalIndividuals",
     trajectory_id = "run_unique_id",
     line_alpha = 0.08,
@@ -445,7 +527,7 @@ pop_trajectories_plot <- sampled_trajectories |>
     median_linewidth = 1,
     y_axis_log10 = TRUE,
     y_axis_label = "number of individuals",
-    group_var = NULL,
+    group_var = "survival",
     facet_var = "residence_rule",
     facet_ncol = 2,
     facet_scales = "free_x",
@@ -892,37 +974,10 @@ response_variables <- c(
   "median_age"
 )
 
-sensitivity_data <- list(
-
-  matri =
-    endstates |>
-    filter(
-      residence_rule ==
-        "matrilocal-matrilineal"
-    ) |>
-    prepare_sensitivity_data(
-      parameter_metadata,
-      model_version = MODEL_VERSION,
-      variables_to_keep = c(
-        response_variables,
-        "residence_rule"
-      )
-    ),
-
-  patri =
-    endstates |>
-    filter(
-      residence_rule ==
-        "patrilocal-patrilineal"
-    ) |>
-    prepare_sensitivity_data(
-      parameter_metadata,
-      model_version = MODEL_VERSION,
-      variables_to_keep = c(
-        response_variables,
-        "residence_rule"
-      )
-    )
+sensitivity_data <- prepare_sensitivity_data_by_residence_rule(
+  endstates,
+  response_variables,
+  parameter_metadata
 )
 ```
 
@@ -966,6 +1021,8 @@ rf_survival_importance <- bind_rows(
       residence_rule = "patrilocal-patrilineal"
     )
 )
+
+param_color <- parameter_metadata$color[match(rf_survival_importance$parameter, parameter_metadata$parameter)]
 ```
 
 Note: associated colours for parameters based on their domain (general, mortality, fertility, nuptiality).
@@ -975,7 +1032,7 @@ Note: associated colours for parameters based on their domain (general, mortalit
 #| fig.cap: "Variable importance for the Random Forest models predicting population survival, by residence rule."
 plot_importance(
   rf_survival_importance, 
-  param_color = parameter_metadata$color[match(rf_survival_importance$parameter, parameter_metadata$parameter)], 
+  param_color = param_color, 
   facet_var = "residence_rule")
 ```
 
@@ -985,7 +1042,7 @@ plot_importance(
 importance_dumbbell_plot <- plot_importance_dumbbell(
   rf_survival_importance, 
   groups = "residence_rule", 
-  param_color = parameter_metadata$color[match(rf_survival_importance$parameter, parameter_metadata$parameter)]
+  param_color = param_color
   )
 
 importance_dumbbell_plot
@@ -1098,7 +1155,7 @@ Note: associated colours for parameters based on their domain (general, mortalit
 #| fig.cap: "Variable importance for the Random Forest models predicting population size, by residence rule."
 plot_importance(
   rf_size_importance, 
-  param_color = parameter_metadata$color[match(rf_size_importance$parameter, parameter_metadata$parameter)], 
+  param_color = param_color, 
   facet_var = "residence_rule",
   metric = "%IncMSE")
 ```
@@ -1109,7 +1166,7 @@ plot_importance(
 importance_dumbbell_plot <- plot_importance_dumbbell(
   rf_size_importance, 
   groups = "residence_rule", 
-  param_color = parameter_metadata$color[match(rf_size_importance$parameter, parameter_metadata$parameter)],
+  param_color = param_color,
   metric = "%IncMSE"
   )
 
@@ -1222,7 +1279,7 @@ Note: associated colours for parameters based on their domain (general, mortalit
 #| fig.cap: "Variable importance for the Random Forest models predicting median age, by residence rule."
 plot_importance(
   rf_median_age_importance, 
-  param_color = parameter_metadata$color[match(rf_median_age_importance$parameter, parameter_metadata$parameter)], 
+  param_color = param_color, 
   facet_var = "residence_rule",
   metric = "%IncMSE")
 ```
@@ -1233,7 +1290,7 @@ plot_importance(
 importance_dumbbell_plot <- plot_importance_dumbbell(
   rf_median_age_importance, 
   groups = "residence_rule", 
-  param_color = parameter_metadata$color[match(rf_median_age_importance$parameter, parameter_metadata$parameter)],
+  param_color = param_color,
   metric = "%IncMSE"
   )
 

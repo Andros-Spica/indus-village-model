@@ -62,7 +62,7 @@ theme_set(
 
 ## Experiment design
 
-As version v1.2.2 introduce a new parameter, `labour_demand_per_capita`, an additional batch of Sobol sampled values is generated. As in v1.2.1, this model does require constants used to determine the correspondence between age and the adult-equivalent unit (i.e., 15, 45, and the exponential 10, which determines a steeper decline compared with the function for demand; see `get-labour-at-age`).
+As version v1.2.2 introduce a new parameter, `labour_demand_per_capita`, an additional batch of Sobol sampled values is generated. As in v1.2.1, this model does require constants used to determine the correspondence between age and the adult-equivalent unit (i.e., 15, 45, and the exponential 10, which determines a steeper decline compared with the function for demand; see `get-labour-at-age`). These were generated previously with `library/generate_sobol.R`.
 
 ```{r} 
 #| label: sobol_load
@@ -559,7 +559,7 @@ The plot is essentially reproducing the nominal carrying-capacity distribution. 
 ```{r}
 #| label: endstates_distrib_labour_ratio 
 #| fig.cap: "Distribution of labour ratio (available / required) in surviving populations across residence rules and Coale-Demeny regions."
-endstates_distrib_labour_ratio_plot<- endstates |>
+endstates_distrib_labour_ratio_plot <- endstates |>
   filter(survival != "Extinction") |>
   plot_endstate_variable_distribution(
     main_var = "labour_ratio",
@@ -637,12 +637,14 @@ if (EXPORT_FIGURES) {
 ```
 
 ```{r}
-sampled_trajectories |>
-group_by(survival) |>
-summarise(
-  mean_laboured_share = mean(laboured_share),
-  median_laboured_share = median(laboured_share),
-  min_laboured_share = min(laboured_share)
+knitr::kable(
+  sampled_trajectories |>
+    group_by(survival) |>
+    summarise(
+      mean_laboured_share = mean(laboured_share),
+      median_laboured_share = median(laboured_share),
+      min_laboured_share = min(laboured_share)
+    )
 )
 ```
 
@@ -975,37 +977,10 @@ response_variables <- c(
   "log_carrying_capacity_effective"
 )
 
-sensitivity_data <- list(
-
-  matri =
-    endstates |>
-    filter(
-      residence_rule ==
-        "matrilocal-matrilineal"
-    ) |>
-    prepare_sensitivity_data(
-      parameter_metadata,
-      model_version = MODEL_VERSION,
-      variables_to_keep = c(
-        response_variables,
-        "residence_rule"
-      )
-    ),
-
-  patri =
-    endstates |>
-    filter(
-      residence_rule ==
-        "patrilocal-patrilineal"
-    ) |>
-    prepare_sensitivity_data(
-      parameter_metadata,
-      model_version = MODEL_VERSION,
-      variables_to_keep = c(
-        response_variables,
-        "residence_rule"
-      )
-    )
+sensitivity_data <- prepare_sensitivity_data_by_residence_rule(
+  endstates,
+  response_variables,
+  parameter_metadata
 )
 ```
 
@@ -1049,6 +1024,8 @@ rf_survival_importance <- bind_rows(
       residence_rule = "patrilocal-patrilineal"
     )
 )
+
+param_color <- parameter_metadata$color[match(rf_survival_importance$parameter, parameter_metadata$parameter)]
 ```
 
 Note: associated colours for parameters based on their domain (general, mortality, fertility, nuptiality, density).
@@ -1058,7 +1035,7 @@ Note: associated colours for parameters based on their domain (general, mortalit
 #| fig.cap: "Variable importance for the Random Forest models predicting population survival, by residence rule."
 plot_importance(
   rf_survival_importance, 
-  param_color = parameter_metadata$color[match(rf_survival_importance$parameter, parameter_metadata$parameter)], 
+  param_color = param_color, 
   facet_var = "residence_rule")
 ```
 
@@ -1068,7 +1045,7 @@ plot_importance(
 importance_dumbbell_plot <- plot_importance_dumbbell(
   rf_survival_importance, 
   groups = "residence_rule", 
-  param_color = parameter_metadata$color[match(rf_survival_importance$parameter, parameter_metadata$parameter)]
+  param_color = param_color
   )
 
 importance_dumbbell_plot
@@ -1179,7 +1156,7 @@ Note: associated colours for parameters based on their domain (general, mortalit
 #| fig.cap: "Variable importance for the Random Forest models predicting population pressure, by residence rule."
 plot_importance(
   rf_pressure_importance, 
-  param_color = parameter_metadata$color[match(rf_pressure_importance$parameter, parameter_metadata$parameter)], 
+  param_color = param_color, 
   facet_var = "residence_rule",
   metric = "%IncMSE")
 ```
@@ -1190,7 +1167,7 @@ plot_importance(
 importance_dumbbell_plot <- plot_importance_dumbbell(
   rf_pressure_importance, 
   groups = "residence_rule", 
-  param_color = parameter_metadata$color[match(rf_pressure_importance$parameter, parameter_metadata$parameter)],
+  param_color = param_color,
   metric = "%IncMSE"
   )
 
@@ -1234,7 +1211,7 @@ pd_pressure <- load_or_build_pd_results(
   overwrite = REMAKE_DP, # set REMAKE_DP = TRUE (first code chunk) to overwrite any previous results
   sensitivity_data,
   rf_models,
-  parameters = top_parameters_pressure,
+  parameters = c(top_parameters_pressure, "cdmlt_level"), # force add cdmlt_level because it is not a top 10 in this version (so it is available for manuscript figure)
   response_variable = "pressure"
 )
 ```
@@ -1303,7 +1280,7 @@ Note: associated colours for parameters based on their domain (general, mortalit
 #| fig.cap: "Variable importance for the Random Forest models predicting median age, by residence rule."
 plot_importance(
   rf_median_age_importance, 
-  param_color = parameter_metadata$color[match(rf_median_age_importance$parameter, parameter_metadata$parameter)], 
+  param_color = param_color, 
   facet_var = "residence_rule",
   metric = "%IncMSE")
 ```
@@ -1314,7 +1291,7 @@ plot_importance(
 importance_dumbbell_plot <- plot_importance_dumbbell(
   rf_median_age_importance, 
   groups = "residence_rule", 
-  param_color = parameter_metadata$color[match(rf_median_age_importance$parameter, parameter_metadata$parameter)],
+  param_color = param_color,
   metric = "%IncMSE"
   )
 
@@ -1427,7 +1404,7 @@ Note: associated colours for parameters based on their domain (general, mortalit
 #| fig.cap: "Variable importance for the Random Forest models predicting effective carrying capacity, by residence rule."
 plot_importance(
   rf_log_carrying_capacity_effective_importance, 
-  param_color = parameter_metadata$color[match(rf_log_carrying_capacity_effective_importance$parameter, parameter_metadata$parameter)], 
+  param_color = param_color, 
   facet_var = "residence_rule",
   metric = "%IncMSE")
 ```
@@ -1438,7 +1415,7 @@ plot_importance(
 importance_dumbbell_plot <- plot_importance_dumbbell(
   rf_log_carrying_capacity_effective_importance, 
   groups = "residence_rule", 
-  param_color = parameter_metadata$color[match(rf_log_carrying_capacity_effective_importance$parameter, parameter_metadata$parameter)],
+  param_color = param_color,
   metric = "%IncMSE"
   )
 
@@ -2326,12 +2303,14 @@ survival_threshold_plot
 
 ```{r}
 #| label: trajectories_labour_demand_per_capita_survival_table
-sampled_trajectories_labour_demand_per_capita |>
-group_by(labour_demand_per_capita, survival) |>
-summarise(
-  mean_laboured_share = mean(laboured_share),
-  median_laboured_share = median(laboured_share),
-  min_laboured_share = min(laboured_share)
+knitr::kable(
+  sampled_trajectories_labour_demand_per_capita |>
+    group_by(labour_demand_per_capita, survival) |>
+    summarise(
+      mean_laboured_share = mean(laboured_share),
+      median_laboured_share = median(laboured_share),
+      min_laboured_share = min(laboured_share)
+    )
 )
 ```
 

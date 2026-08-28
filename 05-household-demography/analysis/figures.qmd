@@ -1,0 +1,406 @@
+---
+execute:
+  echo: true
+  warning: false
+  message: false
+params:
+  show_diagnostics: false
+---
+
+# Figures for publication
+
+## Setup
+
+Load libraries, sources and set ggplot theme for the notebook.
+
+```{r} 
+#| label: setup_libraries
+library(dplyr)
+library(tidyr)
+library(readr)
+library(ggplot2)
+library(zoo)
+library(stringr)
+library(effectsize)
+library(randomForest)
+library(pdp)
+library(forcats)
+library(patchwork)
+library(scales)
+```
+
+```{r} 
+#| label: setup_load_sources
+source("library/source_folder.R")
+source_folder("library")
+source_folder("library/structure")
+source_folder("library/sensitivity")
+source_folder("library/density")
+source_folder("library/figures")
+```
+
+```{r} 
+#| label: setup_ggplot_theme
+theme_set(
+  theme_minimal(base_size = 11) +
+    theme(
+      panel.grid.minor = element_blank(),
+      strip.text = element_text(face = "bold"),
+      plot.title = element_text(face = "bold")
+    )
+)
+```
+
+```{r}
+#| label: figure_size_constants
+FIGURE_SIZE_SINGLE <- list(
+  width = 3.5,
+  height = 4.8
+)
+
+FIGURE_SIZE_SINGLE_TALL <- list(
+  width = 3.5,
+  height = 6.2
+)
+
+FIGURE_SIZE_DOUBLE <- list(
+  width = 7.2,
+  height = 5.4
+)
+
+FIGURE_SIZE_DOUBLE_TALL <- list(
+  width = 7.2,
+  height = 6.2
+)
+```
+
+
+## Load and preprocess data (v1.1)
+
+```{r}
+#| label: load_data_v11
+endstates <- load_and_preprocess_endstates_v11()
+
+sampled_trajectories <- load_and_preprocess_trajectories_v11()
+```
+
+## Figure 4.1: Behaviour
+
+```{r}
+#| label: fig_4_1
+#| fig.caption: "Figure 4.1. Baseline demographic behaviour of the v1.1 model. (A) Distribution of final population sizes across all Sobol-sampled parameter combinations, classified by survival outcome and separated by residence rule. The dashed vertical line indicates the maximum simulated population size used to identify growth outcomes. (B) Representative population trajectories for a parameter configuration that produces long-term persistence, showing individual stochastic realisations (thin lines) and the median trajectory (thick line). The horizontal dashed line indicates the maximum population allowed (one of the simulation stop conditions)."
+
+file_name <- "fig4.1"
+
+compose_figure_behaviour(
+  endstates = endstates,
+  sampled_trajectories = sampled_trajectories,
+  group_var = "survival",
+  facet_var = "residence_rule",
+  y_threshold_var = "max_population",
+  file_name = file_name,
+  width = FIGURE_SIZE_SINGLE$width,
+  height = FIGURE_SIZE_SINGLE$height
+)
+
+knitr::include_graphics(paste0("plots/figures/", file_name, ".png"))
+```
+
+## Figure 4.2: Household organisation
+
+```{r}
+#| label: fig_4_2
+#| fig.caption: "Figure 4.2. Household organisation in the baseline (v1.1) model. (A) Relationship between the final number of households and the final population size across all Sobol-sampled parameter combinations, separated by residence rule. Points correspond to individual simulations and the fitted line summarises the overall scaling relationship. (B) Representative trajectories of household number for a parameter configuration that produces long-term persistence, showing individual stochastic realisations (thin lines) and the median trajectory (thick line)."
+file_name <- "fig4.2"
+
+compose_figure_organisation_households(
+  endstates = endstates,
+  sampled_trajectories = sampled_trajectories,
+  facet_var = "residence_rule",
+  file_name = file_name,
+  width = FIGURE_SIZE_SINGLE$width,
+  height = FIGURE_SIZE_SINGLE$height
+)
+
+knitr::include_graphics(paste0("plots/figures/", file_name, ".png"))
+```
+
+## Figure 4.3: Mechanisms
+
+```{r} 
+#| label: prepare_rf_data_v11
+response_variables <- c(
+  "log_totalIndividuals",
+  "survival"
+)
+
+sensitivity_data <- prepare_sensitivity_data_by_residence_rule(
+  endstates,
+  response_variables,
+  parameter_metadata
+)
+
+rf_importance_and_pd_results <- load_rf_importance_and_pd_results_v11()
+```
+
+```{r}
+#| label: fig_4_3
+#| fig.caption: "Figure 4.3. Principal demographic mechanisms governing baseline model behaviour. (A) Random Forest variable importance for predicting long-term population persistence, comparing matrilocal (female symbol) and patrilocal (male symbol) residence rules. Parameters are coloured according to their role in the demographic process. (B, C) Partial dependence of population size and the predicted probability of extinction on the two most influential parameters, adult mortality (cdmlt_level) and fertility intensity (c1_fert), showing Random Forest predictions (red lines) over the distribution of simulated parameter combinations."
+file_name <- "fig4.3"
+
+compose_figure_mechanisms(
+  rf_importance = rf_importance_and_pd_results$rf_importance,
+  sensitivity_data = sensitivity_data,
+  pd_results = rf_importance_and_pd_results$pd_results,
+  response_variable = "log_totalIndividuals",
+  highlighted_parameters = c(
+    "cdmlt_level",
+    "c1_fert"
+  ),
+  heights = c(0.5, 0.5),
+  file_name = file_name,
+  width = FIGURE_SIZE_SINGLE_TALL$width,
+  height = FIGURE_SIZE_SINGLE_TALL$height
+)
+
+knitr::include_graphics(paste0("plots/figures/", file_name, ".png"))
+```
+
+## Load and preprocess data (v1.2.x)
+
+```{r}
+#| label: load_data_v12x
+rm(endstates, sampled_trajectories)
+
+burn_in_fraction <- 0.5
+overshoot_magnitude_threshold <- 0
+overshoot_time_threshold <- 0.1
+oscillatory_threshold <- 0.05
+stress_threshold <- 0.5
+
+endstates <- load_and_preprocess_endstates_v12x()
+
+sampled_trajectories <- load_and_preprocess_trajectories_v12x(
+  burn_in_fraction = burn_in_fraction,
+  overshoot_magnitude_threshold = overshoot_magnitude_threshold,
+  overshoot_time_threshold = overshoot_time_threshold,
+  oscillatory_threshold = oscillatory_threshold,
+  stress_threshold = stress_threshold
+  )
+```
+
+## Figure 4.4: Behaviour (v1.2.x)
+
+```{r}
+#| label: fig_4_4
+#| fig.caption: "Figure 4.4. Demographic behaviour under successive density-regulation mechanisms (v1.2-v1.2.2). (A) Distribution of final population sizes across all Sobol-sampled parameter combinations, classified by survival and long-term regulatory outcome, separated by model version and residence rule. (B) Representative population trajectories for parameter configurations that produce contrasting regulatory regimes, showing individual stochastic realisations (thin lines) and the median trajectory (thick line). The horizontal dashed line indicates the carrying capacity associated with each parameter configuration."
+
+file_name <- "fig4.4"
+
+figure_4_1 <- compose_figure_behaviour(
+  endstates = endstates,
+  sampled_trajectories = sampled_trajectories,
+  group_var = "survival",
+  facet_var = c("residence_rule", "model_version"),
+  y_threshold_var = "carrying_capacity",
+  bins = 30,
+  file_name = file_name,
+  width = FIGURE_SIZE_DOUBLE_TALL$width,
+  height = FIGURE_SIZE_DOUBLE_TALL$height,
+  strip_text_size = 6
+)
+
+knitr::include_graphics(paste0("plots/figures/", file_name, ".png"))
+```
+
+## Figure 4.5: Ecological organisation
+
+```{r}
+#| label: fig_4_5
+#| fig.caption: "Figure 4.5. Emergent population pressure under successive density-regulation mechanisms (v1.2-v1.2.2). (A) Distribution of equilibrium population pressure among surviving simulations across all Sobol-sampled parameter combinations, classified by long-term demographic outcome and separated by model version and residence rule. The dashed and solid vertical lines indicate thresholds separating low- and high-pressure persistence and overshooting populations, respectively. (B) Mean equilibrium population pressure versus its coefficient of variation for representative simulation trajectories, coloured by simplified regulation regime. Dashed lines indicate thresholds distinguishing stable and oscillatory regulation (vertical) and low- and high-pressure regimes (horizontal)."
+file_name <- "fig4.5"
+
+compose_figure_organisation_pressure(
+  endstates = endstates,
+  sampled_trajectories = sampled_trajectories,
+  colour_var = "regulation_regime_simple",
+  shape_var = "residence_rule",
+  facet_var = c("residence_rule", "model_version"),
+  stress_threshold = stress_threshold,
+  oscillatory_threshold = oscillatory_threshold,
+  bins = 30,
+  file_name = file_name,
+  width = FIGURE_SIZE_DOUBLE$width,
+  height = FIGURE_SIZE_DOUBLE$height,
+  strip_text_size = 6
+)
+
+knitr::include_graphics(paste0("plots/figures/", file_name, ".png"))
+```
+
+## Figure 4.6: Mechanisms
+
+```{r} 
+#| label: prepare_rf_data_v12x
+response_variables <- c(
+  "pressure",
+  "survival"
+)
+
+sensitivity_data_v12x <- prepare_sensitivity_data_by_residence_rule(
+  endstates,
+  response_variables,
+  parameter_metadata
+)
+
+rf_importance_and_pd_results <- load_rf_importance_and_pd_results_v12x()
+```
+
+```{r}
+#| label: fig_4_6
+#| fig.caption: "Figure 4.6. Relative importance and effects of demographic and ecological mechanisms across the density-regulation model series (v1.2–v1.2.2). (A) Random Forest variable importance for equilibrium population pressure (%IncMSE), comparing the relative influence of demographic, household and ecological parameters under each residence rule. All versions share the same horizontal scale to facilitate comparison. (B) Partial dependence of equilibrium population pressure on the density-effect scaling factor, showing the expected response after accounting for variation in all other parameters, together with the empirical distribution of sampled simulations. (C) Partial dependence of equilibrium population pressure on fertility intensity (c1_fert). Together, the panels show how the introduction of density regulation, and subsequently labour-constrained carrying capacity, alters the relative importance of demographic and ecological mechanisms while preserving the qualitative direction of their effects on equilibrium population pressure."
+file_name <- "fig4.6"
+
+compose_figure_mechanisms_comparison(
+  sensitivity_data = sensitivity_data_v12x,
+  rf_importance_and_pd_results = rf_importance_and_pd_results,
+  response_variable = "pressure",
+  highlighted_parameters = c(
+    "density_effect_scaling_factor",
+    "c1_fert"
+  ),
+  pd_label = "Expected change in population pressure",
+  widths = c(0.5, 1),
+  heights = c(1, 1, 1),
+  file_name = file_name
+)
+
+knitr::include_graphics(paste0("plots/figures/", file_name, ".png"))
+```
+
+## Load and preprocess data (v1.3 and v1.4.x)
+
+```{r}
+#| label: load_data_v13_v14x
+rm(endstates, sampled_trajectories)
+
+burn_in_fraction <- 0.5
+overshoot_magnitude_threshold <- 0
+overshoot_time_threshold <- 0.1
+oscillatory_threshold <- 0.05
+stress_threshold <- 0.5
+
+endstates <-
+  load_and_preprocess_endstates_v13_v14x() |>
+  normalise_survival()
+
+sampled_trajectories <-
+    load_or_build_reduced_trajectories_v13_v14x(
+        sample_interval_days = 365,
+        overwrite = FALSE,
+        burn_in_fraction = burn_in_fraction,
+        overshoot_magnitude_threshold = overshoot_magnitude_threshold,
+        overshoot_time_threshold = overshoot_time_threshold,
+        oscillatory_threshold = oscillatory_threshold,
+        stress_threshold = stress_threshold
+    ) 
+
+sampled_trajectories <- sampled_trajectories |>
+  simplify_regulation_regime() |>
+  normalise_survival()
+```
+
+## Figure 4.7: Behaviour (v1.3 and v1.4.x)
+
+```{r}
+#| label: fig_4_7
+#| fig.caption: "Figure 4.7. Comparison of demographic behaviour across the daily model series (v1.3, v1.4, v1.4.1 and v1.4.2). (A) Distribution of final population sizes across all Sobol-sampled parameter combinations, classified by survival outcome and separated by model version and residence rule. The daily baseline model (v1.3) distinguishes growth, persistence and extinction outcomes, whereas the density-regulated variants (v1.4, v1.4.1 and v1.4.2) further distinguish persistent populations according to equilibrium population pressure (low or high pressure) and identify overshooting outcomes. (B) Representative population trajectories for parameter configurations producing each long-term outcome, showing individual stochastic realisations (thin lines) and the median trajectory (thick line). The dashed horizontal line indicates the carrying capacity parameter used by the density-regulated variants."
+
+file_name <- "fig4.7"
+
+compose_figure_behaviour(
+  endstates = endstates,
+  sampled_trajectories = sampled_trajectories,
+  group_var = "survival",
+  facet_var = c("residence_rule", "model_version"),
+  bins = 30,
+  file_name = file_name,
+  width = FIGURE_SIZE_DOUBLE_TALL$width,
+  height = FIGURE_SIZE_DOUBLE_TALL$height,
+  strip_text_size = 6
+  )
+
+knitr::include_graphics(paste0("plots/figures/", file_name, ".png"))
+```
+
+## Load and preprocess data (v1.2.2 and v1.4.2)
+
+```{r}
+#| label: load_data_labour
+rm(endstates, sampled_trajectories)
+
+burn_in_fraction <- 0.5
+overshoot_magnitude_threshold <- 0
+overshoot_time_threshold <- 0.1
+oscillatory_threshold <- 0.05
+stress_threshold <- 0.5
+
+endstates <-
+  load_and_preprocess_labour_endstates()
+
+sampled_trajectories <-
+    load_or_build_trajectories_labour(
+        sample_interval_days = 365,
+        overwrite = FALSE,
+        burn_in_fraction = burn_in_fraction,
+        overshoot_magnitude_threshold = overshoot_magnitude_threshold,
+        overshoot_time_threshold = overshoot_time_threshold,
+        oscillatory_threshold = oscillatory_threshold,
+        stress_threshold = stress_threshold
+    )
+```
+
+```{r} 
+#| label: prepare_rf_data_labour
+response_variable <- c(
+  "pressure",
+  "survival"
+)
+
+sensitivity_data_v122_v142 <- prepare_sensitivity_data_by_residence_rule(
+  endstates,
+  response_variable,
+  parameter_metadata
+)
+
+rf_importance_and_pd_results <- load_rf_importance_and_pd_results_labour()
+```
+
+## Figure 4.8: Labour-mediated carrying capacity (v1.2.2 vs v1.4.2)
+
+```{r}
+#| label: fig_4_8
+#| fig.caption: "Figure 4.8. Labour investment and demographic regulation in the labour-weighted density-dependent models (v1.2.2 and v1.4.2). (A) Distribution of the labour ratio (available labour divided by required labour) among surviving simulations, grouped by residence rule and survival outcome. The dashed horizontal line indicates labour equilibrium (labour ratio = 1), where available and required labour are equal. (B) Representative trajectories of the labour ratio through time, coloured by survival outcome. Thin lines represent individual simulations, whereas thick lines show median trajectories within each outcome category. Simulations reaching extinction terminate when populations disappear. To maintain computational feasibility, simulations in the daily-iteration model (v1.4.2) span fewer years than those in the yearly model (v1.2.2), although they comprise substantially more demographic updates because births, deaths and marriages occur on a daily time scale. (C) Partial dependence of population pressure on the labour demand per capita parameter by residence rule, showing the marginal effect estimated by the random forest models while holding all other parameters constant. Heat maps indicate the density of simulations across the parameter-response variable space."
+
+file_name <- "fig4.8"
+
+compose_figure_labour(
+  endstates = endstates,
+  sampled_trajectories = sampled_trajectories,
+  group_var = "survival",
+  facet_var = c("residence_rule", "model_version"),
+  sensitivity_data = sensitivity_data_v122_v142,
+  rf_importance_and_pd_results = rf_importance_and_pd_results,
+  response_variable = "pressure",
+  pd_label = "",#"Expected change in\npopulation pressure",
+  file_name = file_name,
+  heights = c(1, 1.4, 0.8),
+  width = FIGURE_SIZE_DOUBLE_TALL$width,
+  height = FIGURE_SIZE_DOUBLE_TALL$height,
+  strip_text_size_y = 5,
+  strip_text_size_x = 10
+  )
+
+knitr::include_graphics(paste0("plots/figures/", file_name, ".png"))
+```
+

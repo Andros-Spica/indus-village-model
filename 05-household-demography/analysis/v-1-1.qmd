@@ -61,9 +61,7 @@ theme_set(
 
 ## Experiment design
 
-### Generate parameter values with Sobol Sampling
-
-Sobol sampling is used to generate a diverse set of parameter combinations across the defined parameter space. This allows us to explore how different parameter configurations affect the model's outcomes and to identify which parameters are most influential in driving population survival or extinction. The actual sampling was done with `generate_sobol.R` script, which generates a sample with 2000 parameter combinations across the parameter ranges defined in `parameter_ranges.R`. 
+Sobol sampling is used to generate a diverse set of parameter combinations across the defined parameter space. This allows us to explore how different parameter configurations affect the model's outcomes and to identify which parameters are most influential in driving population survival or extinction. The actual sampling was done with `generate_sobol.R` script, which generates a sample with 2000 parameter combinations across the parameter ranges defined in `parameter_ranges.R`. These were generated previously with `library/generate_sobol.R`.
 
 ```{r} 
 #| label: sobol_load
@@ -772,37 +770,10 @@ response_variables <- c(
   "median_age"
 )
 
-sensitivity_data <- list(
-
-  matri =
-    endstates |>
-    filter(
-      residence_rule ==
-        "matrilocal-matrilineal"
-    ) |>
-    prepare_sensitivity_data(
-      parameter_metadata,
-      model_version = MODEL_VERSION,
-      variables_to_keep = c(
-        response_variables,
-        "residence_rule"
-      )
-    ),
-
-  patri =
-    endstates |>
-    filter(
-      residence_rule ==
-        "patrilocal-patrilineal"
-    ) |>
-    prepare_sensitivity_data(
-      parameter_metadata,
-      model_version = MODEL_VERSION,
-      variables_to_keep = c(
-        response_variables,
-        "residence_rule"
-      )
-    )
+sensitivity_data <- prepare_sensitivity_data_by_residence_rule(
+  endstates,
+  response_variables,
+  parameter_metadata
 )
 ```
 
@@ -846,6 +817,8 @@ rf_survival_importance <- bind_rows(
       residence_rule = "patrilocal-patrilineal"
     )
 )
+
+param_color <- parameter_metadata$color[match(rf_survival_importance$parameter, parameter_metadata$parameter)]
 ```
 
 Note: associated colours for parameters based on their domain (general, mortality, fertility, nuptiality).
@@ -855,7 +828,7 @@ Note: associated colours for parameters based on their domain (general, mortalit
 #| fig.cap: "Variable importance for the Random Forest models predicting population survival, by residence rule."
 plot_importance(
   rf_survival_importance, 
-  param_color = parameter_metadata$color[match(rf_survival_importance$parameter, parameter_metadata$parameter)], 
+  param_color = param_color, 
   facet_var = "residence_rule")
 ```
 
@@ -865,7 +838,7 @@ plot_importance(
 importance_dumbbell_plot <- plot_importance_dumbbell(
   rf_survival_importance, 
   groups = "residence_rule", 
-  param_color = parameter_metadata$color[match(rf_survival_importance$parameter, parameter_metadata$parameter)]
+  param_color = param_color
   )
 
 importance_dumbbell_plot
@@ -980,7 +953,7 @@ Note: associated colours for parameters based on their domain (general, mortalit
 #| fig.cap: "Variable importance for the Random Forest models predicting population size, by residence rule."
 plot_importance(
   rf_size_importance, 
-  param_color = parameter_metadata$color[match(rf_size_importance$parameter, parameter_metadata$parameter)], 
+  param_color = param_color, 
   facet_var = "residence_rule",
   metric = "%IncMSE")
 ```
@@ -991,7 +964,7 @@ plot_importance(
 importance_dumbbell_plot <- plot_importance_dumbbell(
   rf_size_importance, 
   groups = "residence_rule", 
-  param_color = parameter_metadata$color[match(rf_size_importance$parameter, parameter_metadata$parameter)],
+  param_color = param_color,
   metric = "%IncMSE"
   )
 
@@ -1108,7 +1081,7 @@ Note: associated colours for parameters based on their domain (general, mortalit
 #| fig.cap: "Variable importance for the Random Forest models predicting median age, by residence rule."
 plot_importance(
   rf_median_age_importance, 
-  param_color = parameter_metadata$color[match(rf_median_age_importance$parameter, parameter_metadata$parameter)], 
+  param_color = param_color,
   facet_var = "residence_rule",
   metric = "%IncMSE")
 ```
@@ -1119,7 +1092,7 @@ plot_importance(
 importance_dumbbell_plot <- plot_importance_dumbbell(
   rf_median_age_importance, 
   groups = "residence_rule", 
-  param_color = parameter_metadata$color[match(rf_median_age_importance$parameter, parameter_metadata$parameter)],
+  param_color = param_color,
   metric = "%IncMSE"
   )
 

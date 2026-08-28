@@ -62,9 +62,7 @@ theme_set(
 
 ## Experiment design
 
-### Generate parameter values with Sobol Sampling
-
-Sobol sampling is used to generate a diverse set of parameter combinations across the defined parameter space. This allows us to explore how different parameter configurations affect the model's outcomes and to identify which parameters are most influential in driving population survival or extinction. The actual sampling was done with `generate_sobol.R` script, which generates a sample with 2000 parameter combinations across the parameter ranges defined in `parameter_ranges.R`. Compared to v1.1, the sampled configurations for v1.2 introduce two additional parameters: `carrying_capacity` and `density_effect_scaling_factor`.
+Sobol sampling is used to generate a diverse set of parameter combinations across the defined parameter space. This allows us to explore how different parameter configurations affect the model's outcomes and to identify which parameters are most influential in driving population survival or extinction. The actual sampling was done with `generate_sobol.R` script, which generates a sample with 2000 parameter combinations across the parameter ranges defined in `parameter_ranges.R`. Compared to v1.1, the sampled configurations for v1.2 introduce two additional parameters: `carrying_capacity` and `density_effect_scaling_factor`. These were generated previously with `library/generate_sobol.R`.
 
 ```{r} 
 #| label: sobol_load
@@ -115,7 +113,10 @@ stress_threshold <- 0.5 # pressures over this value are considered as population
 ```{r} 
 #| label: preprocessing
 endstates <- load_endstates(MODEL_VERSION) |>
-  preprocess_simdata(MODEL_VERSION)
+  preprocess_simdata(
+    MODEL_VERSION,
+    overshoot_magnitude_threshold = overshoot_magnitude_threshold
+  )
 ```
 
 ```{r} 
@@ -839,37 +840,10 @@ response_variables <- c(
   "median_age"
 )
 
-sensitivity_data <- list(
-
-  matri =
-    endstates |>
-    filter(
-      residence_rule ==
-        "matrilocal-matrilineal"
-    ) |>
-    prepare_sensitivity_data(
-      parameter_metadata,
-      model_version = MODEL_VERSION,
-      variables_to_keep = c(
-        response_variables,
-        "residence_rule"
-      )
-    ),
-
-  patri =
-    endstates |>
-    filter(
-      residence_rule ==
-        "patrilocal-patrilineal"
-    ) |>
-    prepare_sensitivity_data(
-      parameter_metadata,
-      model_version = MODEL_VERSION,
-      variables_to_keep = c(
-        response_variables,
-        "residence_rule"
-      )
-    )
+sensitivity_data <- prepare_sensitivity_data_by_residence_rule(
+  endstates,
+  response_variables,
+  parameter_metadata
 )
 ```
 
@@ -915,6 +889,8 @@ rf_survival_importance <- bind_rows(
       residence_rule = "patrilocal-patrilineal"
     )
 )
+
+param_color <- parameter_metadata$color[match(rf_survival_importance$parameter, parameter_metadata$parameter)]
 ```
 
 Note: associated colours for parameters based on their domain (general, mortality, fertility, nuptiality, density).
@@ -924,7 +900,7 @@ Note: associated colours for parameters based on their domain (general, mortalit
 #| fig.cap: "Variable importance for the Random Forest models predicting population survival, by residence rule."
 plot_importance(
   rf_survival_importance, 
-  param_color = parameter_metadata$color[match(rf_survival_importance$parameter, parameter_metadata$parameter)], 
+  param_color = param_color,
   facet_var = "residence_rule")
 ```
 
@@ -934,7 +910,7 @@ plot_importance(
 importance_dumbbell_plot <- plot_importance_dumbbell(
   rf_survival_importance, 
   groups = "residence_rule", 
-  param_color = parameter_metadata$color[match(rf_survival_importance$parameter, parameter_metadata$parameter)]
+  param_color = param_color
   )
 
 importance_dumbbell_plot
@@ -1051,7 +1027,7 @@ Note: associated colours for parameters based on their domain (general, mortalit
 #| fig.cap: "Variable importance for the Random Forest models predicting population pressure, by residence rule."
 plot_importance(
   rf_pressure_importance, 
-  param_color = parameter_metadata$color[match(rf_pressure_importance$parameter, parameter_metadata$parameter)], 
+  param_color = param_color, 
   facet_var = "residence_rule",
   metric = "%IncMSE")
 ```
@@ -1062,7 +1038,7 @@ plot_importance(
 importance_dumbbell_plot <- plot_importance_dumbbell(
   rf_pressure_importance, 
   groups = "residence_rule", 
-  param_color = parameter_metadata$color[match(rf_pressure_importance$parameter, parameter_metadata$parameter)],
+  param_color = param_color,
   metric = "%IncMSE"
   )
 
@@ -1175,7 +1151,7 @@ Note: associated colours for parameters based on their domain (general, mortalit
 #| fig.cap: "Variable importance for the Random Forest models predicting median age, by residence rule."
 plot_importance(
   rf_median_age_importance, 
-  param_color = parameter_metadata$color[match(rf_median_age_importance$parameter, parameter_metadata$parameter)], 
+  param_color = param_color, 
   facet_var = "residence_rule",
   metric = "%IncMSE")
 ```
@@ -1186,7 +1162,7 @@ plot_importance(
 importance_dumbbell_plot <- plot_importance_dumbbell(
   rf_median_age_importance, 
   groups = "residence_rule", 
-  param_color = parameter_metadata$color[match(rf_median_age_importance$parameter, parameter_metadata$parameter)],
+  param_color = param_color,
   metric = "%IncMSE"
   )
 
@@ -2365,7 +2341,7 @@ if (EXPORT_FIGURES) {
 }
 ```
 
-!!!
+The density effect scaling factor experiment demonstrates that the strength of density-dependent mortality has a substantial impact on population trajectories. Populations with lower scaling factors (i.e., weaker density dependence) tend to overshoot carrying capacity more frequently, leading to pronounced oscillations and higher mortality events. In contrast, populations with higher scaling factors (i.e., stronger density dependence) can exhibit more stable trajectories, maintaining population sizes far from carrying capacity, but because of their lower numbers, they are more vulnerable to extinction. The control run, which uses a null density effect scaling factor, shows the most extreme overshooting and oscillatory behaviour, equivalent to the trajectories observed in v1.1, where growth is not constrained by carrying capacity.
 
 ## Discussion notes
 
