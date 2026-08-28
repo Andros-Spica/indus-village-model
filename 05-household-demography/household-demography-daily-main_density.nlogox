@@ -361,7 +361,7 @@ set-plot-y-range -0.001 (precision (max (list max nuptialityTable-women max nupt
     <slider x="250" step="0.001" y="863" max="40" width="208" display="mu-fert" height="50" min="0" direction="Horizontal" default="22.5" variable="mu-fert" units="(default: 23)"></slider>
     <slider x="251" step="0.001" y="973" max="6 * 5" width="234" display="sigma2-fert" height="50" min="0" direction="Horizontal" default="12.5" variable="sigma2-fert" units="(default: 10)"></slider>
     <slider x="250" step="0.001" y="918" max="2 * 5" width="235" display="sigma1-fert" height="50" min="0" direction="Horizontal" default="5.5" variable="sigma1-fert" units="(default: 5)"></slider>
-    <slider x="250" step="0.001" y="808" max="1" width="210" display="c1-fert" height="50" min="0" direction="Horizontal" default="0.25" variable="c1-fert" units="(default: 0.9)"></slider>
+    <slider x="250" step="0.001" y="808" max="1" width="210" display="c1-fert" height="50" min="0" direction="Horizontal" default="0.5" variable="c1-fert" units="(default: 0.9)"></slider>
     <chooser x="247" y="703" height="60" variable="coale-demeny-region" current="2" width="141" display="coale-demeny-region">
       <choice type="string" value="west"></choice>
       <choice type="string" value="east"></choice>
@@ -1506,7 +1506,7 @@ ISSUES:
         <enumeratedValueSet variable="type-of-experiment">
           <value value="&quot;defined by exp-number&quot;"></value>
         </enumeratedValueSet>
-        <steppedValueSet variable="exp-number" first="1" step="1" last="2000"></steppedValueSet>
+        <steppedValueSet variable="exp-number" first="1" step="1" last="512"></steppedValueSet>
         <enumeratedValueSet variable="SEED">
           <value value="0"></value>
           <value value="1"></value>
@@ -1604,7 +1604,7 @@ ISSUES:
         <enumeratedValueSet variable="type-of-experiment">
           <value value="&quot;defined by exp-number&quot;"></value>
         </enumeratedValueSet>
-        <steppedValueSet variable="exp-number" first="1" step="1" last="2000"></steppedValueSet>
+        <steppedValueSet variable="exp-number" first="1" step="1" last="512"></steppedValueSet>
         <enumeratedValueSet variable="SEED">
           <value value="0"></value>
           <value value="1"></value>

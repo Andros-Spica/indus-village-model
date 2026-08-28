@@ -1511,7 +1511,7 @@ ISSUES:
         <enumeratedValueSet variable="type-of-experiment">
           <value value="&quot;defined by exp-number&quot;"></value>
         </enumeratedValueSet>
-        <steppedValueSet variable="exp-number" first="1" step="1" last="2000"></steppedValueSet>
+        <steppedValueSet variable="exp-number" first="1" step="1" last="512"></steppedValueSet>
         <enumeratedValueSet variable="SEED">
           <value value="0"></value>
           <value value="1"></value>
@@ -1610,7 +1610,7 @@ ISSUES:
         <enumeratedValueSet variable="type-of-experiment">
           <value value="&quot;defined by exp-number&quot;"></value>
         </enumeratedValueSet>
-        <steppedValueSet variable="exp-number" first="1" step="1" last="2000"></steppedValueSet>
+        <steppedValueSet variable="exp-number" first="1" step="1" last="512"></steppedValueSet>
         <enumeratedValueSet variable="SEED">
           <value value="0"></value>
           <value value="1"></value>

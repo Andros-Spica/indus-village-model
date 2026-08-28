@@ -46,7 +46,7 @@ to-report hh_whichMembersDying
   report map
   [
     memberIndex ->
-    (random-float 1 < get-mortality-prob-of-day (item memberIndex hh_membersSex) (item memberIndex hh_membersAge) densityEffect)
+    (random-float 1 < get-mortality-prob-of-day (item memberIndex hh_membersSex) (item memberIndex hh_membersAge) )
   ] hh_membersIndexes
 
 end
@@ -68,7 +68,7 @@ to hh_update-marriages-after-deaths
 
 end
 
-to-report get-mortality-prob-of-day [ isFemale ageInDays densityEffect ]
+to-report get-mortality-prob-of-day [ isFemale ageInDays ]
 
   let ageInYears get-age-in-years-old ageInDays
 
@@ -116,8 +116,7 @@ to-report get-density-effect [ carryingCapacityDemand carryingCapacity ]
 
   ; For example, in https://www.wolframalpha.com/, use:
   ;plot 0.05*(x / 200) ^ 3 for x=1..1000
-  let densityEffect density-effect-scaling-factor * (carryingCapacityDemand / (carryingCapacity + 1E-6)) ^ density-effect-steepness
 
-  report densityEffect
+  report density-effect-scaling-factor * (carryingCapacityDemand / (carryingCapacity + 1E-6)) ^ density-effect-steepness
 
 end
