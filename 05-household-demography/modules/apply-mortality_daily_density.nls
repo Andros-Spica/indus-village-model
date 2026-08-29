@@ -106,7 +106,7 @@ to-report get-density-effect-of-day [ carryingCapacityDemand carryingCapacity ]
 
   let densityEffectOfYear clamp01 get-density-effect carryingCapacityDemand carryingCapacity
 
-  let densityEffectOfDay 1 - (1 - densityEffect) ^ (1 / year-length-in-days)
+  let densityEffectOfDay 1 - (1 - densityEffectOfYear) ^ (1 / year-length-in-days)
 
   report densityEffectOfDay
 
