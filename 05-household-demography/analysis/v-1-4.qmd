@@ -602,6 +602,7 @@ if (REMAKE_TRAJECTORY_PLOTS)
 #| label: trajectories_household_structure_plot_peaks_export
 #| echo: false
 if (EXPORT_FIGURES & REMAKE_TRAJECTORY_PLOTS) {
+  gc()
   export_figure(
     trajectories_household_structure_plot_peaks,
     "v14_household_structure_trajectories_peaks",
@@ -2536,12 +2537,19 @@ knitr::kable(sampled_trajectories_density_effect_scaling_factor |>
 #| fig.cap: "Population trajectories across different Coale-Demeny model levels, faceted by residence rule."
 if (REMAKE_TRAJECTORY_PLOTS)
 {
+  gc()
+  
+  sampled_trajectories_density_effect_scaling_factor <- sampled_trajectories_density_effect_scaling_factor |>
+    group_by(run_unique_id) |>
+    filter(step %% 100 == 0) |> # downsample
+    ungroup() |>
+    mutate(
+      density_effect_scaling_factor = factor(density_effect_scaling_factor)
+    )
+  
   log_max_population <- ceiling(max(sampled_trajectories_density_effect_scaling_factor$log_totalIndividuals))
   
   pop_trajectories_plot <- sampled_trajectories_density_effect_scaling_factor |>
-    mutate(
-      density_effect_scaling_factor = factor(density_effect_scaling_factor)
-    ) |>
     plot_trajectories(
       y_var = "log_totalIndividuals",
       trajectory_id = "run_unique_id",

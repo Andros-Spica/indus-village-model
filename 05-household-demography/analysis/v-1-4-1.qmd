@@ -462,6 +462,7 @@ if (EXPORT_FIGURES & REMAKE_TRAJECTORY_PLOTS) {
 
 ```{r}
 #| label: trajectories_household_structure_plot_peaks
+#| fig.cap: "A sample of household population trajectories across time steps, faceted by residence rule, highlighting in red the trajectories that achieve the maximum value in each subset."
 if (REMAKE_TRAJECTORY_PLOTS)
 {
   trajectories_household_structure_plot_peaks <- 
@@ -504,6 +505,7 @@ if (REMAKE_TRAJECTORY_PLOTS)
       linewidth = 1,
       alpha = 1
     )
+  trajectories_household_structure_plot_peaks
 } else {
   plotName = paste0("plots/v141_household_structure_trajectories_peaks.png")
 
@@ -522,14 +524,6 @@ if (EXPORT_FIGURES & REMAKE_TRAJECTORY_PLOTS) {
     height = 4
   )
 }
-```
-
-```{r} 
-#| label: trajectories_household_structure_plot_peaks_display 
-#| fig.cap: "A sample of household population trajectories across time steps, faceted by residence rule, highlighting in red the trajectories that achieve the maximum value in each subset."
-plotName = paste0("plots/v141_household_structure_trajectories_peaks.png")
-
-knitr::include_graphics(plotName)
 ```
 
 Household composition remains tightly constrained across both residence systems, with the number of individuals scaling almost linearly with household count. This indicates that the demographic rules governing household fission and extinction maintain a relatively stable household size despite wide variation in total population. Temporal trajectories show that average household size fluctuates only moderately for most runs, with occasional spikes corresponding to transient aggregation events before fragmentation or collapse. These peaks are more pronounced under matrilocal-matrilineal residence, suggesting a greater capacity for temporary household consolidation under demographic stress.
