@@ -1,0 +1,643 @@
+# Age-dependent demographic schedules and ecological weights {#sec-age-dependent-schedules}
+
+This chapter visualises the age-dependent functions used by the Household Demography model. Its purpose is diagnostic rather than inferential: the plots show the shapes produced by the model equations and make the consequences of changing their parameters easier to inspect.
+
+Three distinct components are considered:
+
+1. the Peristera--Kostaki function used for annual fertility and union-formation schedules;
+2. the Coale--Demeny model life tables used for age- and sex-specific mortality;
+3. the schematic adult-equivalent weights used for subsistence demand and labour availability.
+
+The first two components define event probabilities. The demand and labour functions instead assign relative weights to individuals according to age. None of the illustrative parameter sets below should be interpreted as calibration to a particular historical population.
+
+## Setup
+
+```{r}
+#| label: setup-age-dependent-schedules
+#| message: false
+#| warning: false
+
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+library(patchwork)
+library(demogR)
+
+FIGURE_DIR <- "plots/equation_visualisation"
+
+dir.create(
+  FIGURE_DIR,
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
+theme_schedule <- function(base_size = 11) {
+  theme_classic(base_size = base_size) +
+    theme(
+      legend.position = "right",
+      legend.title = element_text(size = rel(0.9)),
+      legend.text = element_text(size = rel(0.82)),
+      strip.background = element_blank(),
+      strip.text = element_text(face = "bold"),
+      plot.tag = element_text(face = "bold"),
+      plot.margin = margin(5.5, 8, 5.5, 5.5)
+    )
+}
+
+save_plot_set <- function(
+  plot,
+  filename,
+  width,
+  height,
+  dpi = 600
+) {
+  path_stem <- file.path(FIGURE_DIR, filename)
+
+  ggsave(
+    paste0(path_stem, ".png"),
+    plot = plot,
+    width = width,
+    height = height,
+    units = "in",
+    dpi = dpi,
+    bg = "white"
+  )
+
+  ggsave(
+    paste0(path_stem, ".pdf"),
+    plot = plot,
+    width = width,
+    height = height,
+    units = "in",
+    device = grDevices::cairo_pdf,
+    bg = "white"
+  )
+
+  ggsave(
+    paste0(path_stem, ".eps"),
+    plot = plot,
+    width = width,
+    height = height,
+    units = "in",
+    device = grDevices::cairo_ps,
+    onefile = FALSE,
+    fallback_resolution = dpi,
+    bg = "white"
+  )
+
+  invisible(plot)
+}
+```
+
+The export helper writes a high-resolution PNG for the notebook, a PDF for inspection, and an EPS file for the manuscript. The EPS output uses standard vector text and lines and contains no embedded title or equation.
+
+## Peristera--Kostaki schedules
+
+The Peristera--Kostaki function is:
+
+$$
+f_{\mathrm{PK}}(x)
+=
+c_1
+\exp\left[
+-\left(
+\frac{x-\mu}{\sigma(x)}
+\right)^2
+\right],
+\qquad
+\sigma(x)
+=
+\begin{cases}
+\sigma_1, & x \leq \mu,\\
+\sigma_2, & x > \mu.
+\end{cases}
+$$
+
+Here, \(c_1\) controls the maximum probability, \(\mu\) the modal age, and \(\sigma_1\) and \(\sigma_2\) the spread before and after the mode. The same functional form is used for fertility and union formation, with separate parameterisations.
+
+```{r}
+#| label: define-pk-schedule
+
+pk_probability <- function(
+  age,
+  c1,
+  mu,
+  sigma1,
+  sigma2
+) {
+  sigma <- if_else(age <= mu, sigma1, sigma2)
+
+  c1 * exp(
+    -((age - mu) / sigma)^2
+  )
+}
+
+generate_pk_schedule <- function(
+  c1,
+  mu,
+  sigma1,
+  sigma2,
+  max_age = 100
+) {
+  tibble(age = 0:max_age) |>
+    mutate(
+      probability = pk_probability(
+        age,
+        c1,
+        mu,
+        sigma1,
+        sigma2
+      )
+    )
+}
+```
+
+The vectorised function returns a tidy table rather than growing a vector inside a loop. This makes it easier to generate, combine, and label multiple schedules.
+
+```{r}
+#| label: pk-illustrative-data
+
+pk_profiles <- tribble(
+  ~profile, ~c1, ~mu, ~sigma1, ~sigma2,
+  "c1=.33, mu=25, sigma1=6, sigma2=10", 0.33, 25, 6, 10,
+  "c1=.45, mu=20, sigma1=2, sigma2=7",  0.45, 20, 2, 7,
+  "c1=.28, mu=25, sigma1=4, sigma2=15", 0.28, 25, 4, 15,
+  "c1=.30, mu=18, sigma1=2, sigma2=15", 0.30, 18, 2, 15
+)
+
+pk_data <- pk_profiles |>
+  mutate(
+    schedule = pmap(
+      list(c1, mu, sigma1, sigma2),
+      generate_pk_schedule
+    )
+  ) |>
+  select(profile, schedule) |>
+  unnest(schedule)
+```
+
+```{r}
+#| label: fig-pk-illustrative
+#| fig-cap: "Illustrative Peristera--Kostaki schedules. The selected profiles show how peak probability, modal age, and the pre- and post-modal spreads alter the timing and shape of annual fertility or union-formation probabilities."
+#| fig-width: 7.2
+#| fig-height: 3.4
+
+plot_pk <- ggplot(
+  pk_data,
+  aes(
+    x = age,
+    y = probability,
+    colour = profile
+  )
+) +
+  geom_line(linewidth = 0.8) +
+  scale_x_continuous(
+    limits = c(0, 100),
+    breaks = seq(0, 100, 20),
+    expand = expansion(mult = c(0, 0))
+  ) +
+  scale_y_continuous(
+    limits = c(0, 0.5),
+    expand = expansion(mult = c(0, 0.02))
+  ) +
+  labs(
+    x = "Age (years)",
+    y = "Annual event probability",
+    colour = NULL
+  ) +
+  theme_schedule()
+
+plot_pk
+```
+
+For closer inspection of parameter effects, a one-at-a-time grid is often more informative than adding further curves to the manuscript figure.
+
+```{r}
+#| label: fig-pk-parameter-effects
+#| fig-cap: "One-at-a-time exploration of the four Peristera--Kostaki parameters around a common reference schedule."
+#| fig-width: 8
+#| fig-height: 6
+
+pk_reference <- list(
+  c1 = 0.33,
+  mu = 25,
+  sigma1 = 6,
+  sigma2 = 10
+)
+
+pk_parameter_values <- list(
+  c1 = c(0.20, 0.33, 0.45),
+  mu = c(18, 25, 32),
+  sigma1 = c(2, 6, 10),
+  sigma2 = c(5, 10, 15)
+)
+
+pk_parameter_effects <- imap_dfr(
+  pk_parameter_values,
+  function(values, parameter) {
+    map_dfr(
+      values,
+      function(value) {
+        pars <- pk_reference
+        pars[[parameter]] <- value
+
+        generate_pk_schedule(
+          c1 = pars$c1,
+          mu = pars$mu,
+          sigma1 = pars$sigma1,
+          sigma2 = pars$sigma2
+        ) |>
+          mutate(
+            parameter = parameter,
+            value = as.character(value)
+          )
+      }
+    )
+  }
+)
+
+ggplot(
+  pk_parameter_effects,
+  aes(
+    x = age,
+    y = probability,
+    colour = value
+  )
+) +
+  geom_line(linewidth = 0.75) +
+  facet_wrap(
+    ~ parameter,
+    ncol = 2,
+    labeller = as_labeller(
+      c(
+        c1 = "Peak probability (c1)",
+        mu = "Modal age (mu)",
+        sigma1 = "Pre-modal spread (sigma1)",
+        sigma2 = "Post-modal spread (sigma2)"
+      )
+    )
+  ) +
+  scale_x_continuous(
+    limits = c(0, 100),
+    breaks = seq(0, 100, 20),
+    expand = expansion(mult = c(0, 0))
+  ) +
+  scale_y_continuous(
+    limits = c(0, 0.5),
+    expand = expansion(mult = c(0, 0.02))
+  ) +
+  labs(
+    x = "Age (years)",
+    y = "Annual event probability",
+    colour = "Value"
+  ) +
+  theme_schedule()
+```
+
+## Coale--Demeny mortality schedules
+
+The Coale--Demeny component supplies grouped probabilities of dying for four regional model families, two sexes, and 25 mortality levels. The model workflow converts these grouped schedules to annual lookup vectors with the same interpolation used when producing the NetLogo input tables.
+
+```{r}
+#| label: define-cd-schedule
+
+read_cd_schedule <- function(
+  region = "w",
+  sex = "F",
+  level = 8,
+  table_directory = "../demoTables",
+  max_age = 100
+) {
+  if (!region %in% c("w", "e", "s", "n")) {
+    stop("region must be one of: w, e, s, n.")
+  }
+
+  if (!sex %in% c("F", "M")) {
+    stop("sex must be F or M.")
+  }
+
+  if (!level %in% 1:25) {
+    stop("level must be between 1 and 25.")
+  }
+
+  mortality_table <- read.table(
+    file.path(
+      table_directory,
+      paste0("cdmlt", region, sex, ".txt")
+    ),
+    header = TRUE,
+    check.names = FALSE
+  )
+
+  data.frame(
+    region = region,
+    sex = sex,
+    level = level,
+    age = mortality_table$age,
+    probability =
+      mortality_table[[as.character(level)]]
+  ) |>
+    dplyr::filter(age <= max_age)
+}
+```
+
+The interpolation helper intentionally reproduces the lookup construction used by the model workflow. Its purpose here is visual consistency with the probabilities imported by NetLogo, rather than reconstruction of an alternative continuous mortality model.
+
+For the manuscript figure, a single regional family and sex are held constant while mortality level varies. This produces a more legible comparison than changing region, sex, and level simultaneously.
+
+```{r}
+#| label: cd-illustrative-data
+
+cd_levels <- tibble(
+  region = "w",
+  sex = "F",
+  level = c(3, 8, 25)
+)
+
+cd_data <- cd_levels |>
+  mutate(
+    schedule = pmap(
+      list(region, sex, level),
+      read_cd_schedule
+    )
+  ) |>
+  select(schedule) |>
+  unnest(schedule) |>
+  mutate(
+    level_label = factor(
+      paste("Level", level),
+      levels = paste("Level", c(3, 8, 25))
+    )
+  )
+```
+
+```{r}
+#| label: fig-cd-illustrative
+#| fig-cap: "Illustrative female Coale--Demeny West mortality schedules. Higher numbered levels represent lower mortality and greater life expectancy at age 10."
+#| fig-width: 7.2
+#| fig-height: 3.4
+
+plot_cd <- ggplot(
+  cd_data,
+  aes(
+    x = age,
+    y = probability,
+    colour = level_label
+  )
+) +
+  geom_line(linewidth = 0.8) +
+  scale_x_continuous(
+    limits = c(0, 100),
+    breaks = seq(0, 100, 20),
+    expand = expansion(mult = c(0, 0))
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    expand = expansion(mult = c(0, 0.02))
+  ) +
+  labs(
+    x = "Age (years)",
+    y = "Annual probability of dying",
+    colour = "West, female"
+  ) +
+  theme_schedule()
+
+plot_cd
+```
+
+Two compact diagnostics retain the broader comparisons that were present in the earlier visualisation.
+
+```{r}
+#| label: fig-cd-regions
+#| fig-cap: "Coale--Demeny regional mortality patterns for women at level 8."
+#| fig-width: 7.2
+#| fig-height: 3.8
+
+cd_regions <- crossing(
+  region = c("n", "w", "e", "s"),
+  sex = "F",
+  level = 8
+) |>
+  mutate(
+    schedule = pmap(
+      list(region, sex, level),
+      read_cd_schedule
+    )
+  ) |>
+  select(schedule) |>
+  unnest(schedule)
+
+ggplot(
+  cd_regions,
+  aes(
+    x = age,
+    y = probability,
+    colour = region
+  )
+) +
+  geom_line(linewidth = 0.8) +
+  scale_x_continuous(
+    limits = c(0, 100),
+    breaks = seq(0, 100, 20),
+    expand = expansion(mult = c(0, 0))
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    expand = expansion(mult = c(0, 0.02))
+  ) +
+  labs(
+    x = "Age (years)",
+    y = "Annual probability of dying",
+    colour = "Region"
+  ) +
+  theme_schedule()
+```
+
+```{r}
+#| label: fig-cd-levels
+#| fig-cap: "Selected mortality levels within the female Coale--Demeny West family."
+#| fig-width: 7.2
+#| fig-height: 3.8
+
+cd_level_diagnostic <- crossing(
+  region = "w",
+  sex = "F",
+  level = c(1, 3, 8, 25)
+) |>
+  mutate(
+    schedule = pmap(
+      list(region, sex, level),
+      read_cd_schedule
+    )
+  ) |>
+  select(schedule) |>
+  unnest(schedule)
+
+ggplot(
+  cd_level_diagnostic,
+  aes(
+    x = age,
+    y = probability,
+    colour = factor(level)
+  )
+) +
+  geom_line(linewidth = 0.8) +
+  scale_x_continuous(
+    limits = c(0, 100),
+    breaks = seq(0, 100, 20),
+    expand = expansion(mult = c(0, 0))
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    expand = expansion(mult = c(0, 0.02))
+  ) +
+  labs(
+    x = "Age (years)",
+    y = "Annual probability of dying",
+    colour = "Level"
+  ) +
+  theme_schedule()
+```
+
+## Publication Figure 2
+
+The manuscript figure combines the compact Peristera--Kostaki and Coale--Demeny illustrations without internal titles or equations. The equations are already given in the text and would compete with the plotted information inside the figure.
+
+```{r}
+#| label: fig-demographic-schedules
+#| fig-cap: "Illustrative age-dependent probability schedules used by the Household Demography model. (A) Selected Peristera--Kostaki profiles showing how peak probability, modal age, and pre- and post-modal spread shape annual fertility or union-formation schedules. (B) Selected female Coale--Demeny West mortality schedules, showing annual probabilities of dying across mortality levels. The curves illustrate model behaviour and are not calibrated to a particular population."
+#| fig-width: 7.2
+#| fig-height: 6.8
+
+figure_demographic_schedules <-
+  (plot_pk / plot_cd) +
+  plot_annotation(tag_levels = "A")
+
+figure_demographic_schedules
+
+save_plot_set(
+  figure_demographic_schedules,
+  filename = "figure2_demographic_schedules",
+  width = 7.2,
+  height = 6.8
+)
+```
+
+The exported EPS can replace the current manuscript graphic directly:
+
+```text
+plots/equation_visualisation/figure2_demographic_schedules.eps
+```
+
+## Age-weighted demand and labour
+
+Versions v1.2.1 and v1.4.1 replace head count with age-weighted subsistence demand. Versions v1.2.2 and v1.4.2 add an age-weighted labour contribution. Both functions equal one between the lower and upper adult-equivalent breakpoints, \(x_m=15\) and \(x_s=45\), but use different exponents outside that interval:
+
+$$
+w(x)=
+\begin{cases}
+\left(\dfrac{x}{x_m}\right)^{a}, & x<x_m,\\
+1, & x_m\leq x\leq x_s,\\
+\left(\dfrac{x_s}{x}\right)^{b}, & x>x_s.
+\end{cases}
+$$
+
+For demand, \(a=1.2\) and \(b=2\). For labour, \(a=b=10\). These functions are schematic assumptions rather than calibrated physiological or economic schedules.
+
+```{r}
+#| label: define-age-weight
+
+age_weight <- function(
+  age,
+  lower_age = 15,
+  upper_age = 45,
+  young_exponent,
+  old_exponent
+) {
+  case_when(
+    age < lower_age ~
+      (age / lower_age)^young_exponent,
+
+    age > upper_age ~
+      (upper_age / age)^old_exponent,
+
+    TRUE ~ 1
+  )
+}
+
+age_weights <- tibble(age = 0:100) |>
+  transmute(
+    age,
+    `Subsistence demand` = age_weight(
+      age,
+      young_exponent = 1.2,
+      old_exponent = 2
+    ),
+    `Labour contribution` = age_weight(
+      age,
+      young_exponent = 10,
+      old_exponent = 10
+    )
+  ) |>
+  pivot_longer(
+    -age,
+    names_to = "weighting",
+    values_to = "weight"
+  )
+```
+
+```{r}
+#| label: fig-age-weights
+#| fig-cap: "Age-dependent adult-equivalent weights used for subsistence demand and labour availability. Both functions equal one between ages 15 and 45, while labour contribution declines much more steeply outside this interval."
+#| fig-width: 7.2
+#| fig-height: 3.8
+
+plot_age_weights <- ggplot(
+  age_weights,
+  aes(
+    x = age,
+    y = weight,
+    colour = weighting,
+    linetype = weighting
+  )
+) +
+  geom_line(linewidth = 0.85) +
+  scale_x_continuous(
+    limits = c(0, 100),
+    breaks = c(0, 15, 45, 60, 80, 100),
+    expand = expansion(mult = c(0, 0))
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1.05),
+    breaks = seq(0, 1, 0.2),
+    expand = expansion(mult = c(0, 0))
+  ) +
+  labs(
+    x = "Age (years)",
+    y = "Relative adult-equivalent weight",
+    colour = NULL,
+    linetype = NULL
+  ) +
+  theme_schedule() +
+  theme(legend.position = "bottom")
+
+plot_age_weights
+
+save_plot_set(
+  plot_age_weights,
+  filename = "age_weighted_demand_and_labour",
+  width = 7.2,
+  height = 3.8
+)
+```
+
+Overlaying the two functions makes their modelling distinction clearer than presenting them as isolated diagrams. Demand changes gradually across childhood and later life, whereas labour is concentrated within the central adult-age interval.
+
+## Reproducibility notes
+
+- The Peristera--Kostaki implementation is shared by fertility and union formation, but each process and sex can use a separate parameter set.
+- The Coale--Demeny code uses `demogR` version 0.6.0, the version used to generate the NetLogo lookup tables.
+- The mortality plots visualise the baseline annual probabilities before any density-dependent increment is added.
+- The demand and labour functions are deterministic model assumptions. Their role is to make population composition consequential for total demand and effective capacity, not to reproduce a measured universal age profile.
+- Plot labels and captions use the terminology adopted in the manuscript: *subsistence demand*, *labour contribution*, *nominal environmental capacity*, and *labour-adjusted effective capacity*.
