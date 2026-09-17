@@ -7,7 +7,7 @@ params:
   show_diagnostics: false
 ---
 
-# Base model with daily iteration (v.1.3)
+# Base model with daily iteration (v1.3)
 
 ## Setup
 
@@ -65,7 +65,7 @@ theme_set(
 
 ## Experiment design
 
-Sobol sampling is used to generate a diverse set of parameter combinations across the defined parameter space. This allows us to explore how different parameter configurations affect the model's outcomes and to identify which parameters are most influential in driving population survival or extinction. The actual sampling was done with `generate_sobol.R` script, which generates a sample with 2000 parameter combinations across the parameter ranges defined in `parameter_ranges.R`. These were generated previously with `library/generate_sobol.R`.
+Sobol sampling is used to generate a diverse set of parameter combinations across the defined parameter space. This allows us to explore how different parameter configurations affect the model's outcomes and to identify which parameters are most influential in driving population survival or extinction. The actual sampling was done with `library/generate_sobol.R` script, which generates a sample with 2,000 parameter combinations across the parameter ranges defined in `parameter_ranges.R`. Note that given the higher computational cost of daily iterations, a nested subset of 512 combinations were subsequently selected to generate sufficiently-robust simulation results that can be compared to the yearly versions.
 
 ```{r} 
 #| label: sobol_load
@@ -98,7 +98,7 @@ plotName = paste0("diagnostics/", MODEL_VERSION, "_sobol_param_pairsPlot.png")
 knitr::include_graphics(plotName)
 ```
 
-The generated parameter combinations were then used to run simulations in NetLogo's Behaviour Space, for each combination of `residence-rule` ("matrilineal-matrilocal" and "patrilineal-patrilocal") and `coale-demeny-region` ("north", "south", "east", and "west"), varying the `SEED` parameter (n = 3) to introduce stochasticity, for a total of 48000 simulations. Moreover, all runs assume a fixed `maturity-age-in-years` of 15 years, a year length of 365 days (no leap years), and a gestation period of 280 days (40 weeks). Remember that `maturity-age-in-years` determines a conservative age solely for social maturity, used as a criterion for household viability, while marital and reproductive maturity is regulated probabilistically through the Peristera-Kostaki parameters in the fertility and nuptiality submodels.
+The 512-subset of the generated parameter combinations were then used to run simulations in NetLogo's Behaviour Space, for each combination of `residence-rule` ("matrilineal-matrilocal" and "patrilineal-patrilocal") and `coale-demeny-region` ("north", "south", "east", and "west"), varying the `SEED` parameter (n = 3) to introduce stochasticity, for a total of 12,288 simulations. Moreover, all runs assume a fixed `maturity-age-in-years` of 15 years, a year length of 365 days (no leap years), and a gestation period of 280 days (40 weeks). Remember that `maturity-age-in-years` determines a conservative age solely for social maturity, used as a criterion for household viability, while union-formation and reproductive maturity are regulated probabilistically through the Peristera-Kostaki parameters in the fertility and nuptiality submodels.
 
 ## Data loading and preprocessing
 
@@ -313,7 +313,7 @@ if (file.exists(file_name))
 }
 ```
 
-As with v1.1, the variable `survival` is created during preprocessing to classify whether populations get extinct, survive and/or grow within the maximum number of simulation steps (`max-iterations`)..
+As with v1.1, the variable `survival` is created during preprocessing to classify whether populations get extinct, survive and/or grow within the maximum number of simulation steps (`max-iterations`).
 
 Because of the sheer number of daily iterations required to approach comparable time scales of previous versions, trajectories datasets are simply too large to be loaded conventionally in R. For this reason, we need to use the function argument `ignored_variables` (alternatively also `selected_variables` is available) to skip loading unnecessary variables, as well as potentially restricting the span of the simulation data to a subset of iteration steps (`start_step`, `end_step`). The different trajectory-type data frames must be loaded, preprocessed, saved as RData, and clear, so that only one is in memory simultaneously.
 
@@ -330,14 +330,14 @@ group_vars = c(
   "fertility_timing",
   "fertility_spread_pre_peak",
   "fertility_spread_post_peak",
-  "marriage_timing_women",
-  "marriage_timing_men",
-  "marriage_intensity_women",
-  "marriage_intensity_men",
-  "marriage_spread_pre_peak_women",
-  "marriage_spread_pre_peak_men",
-  "marriage_spread_post_peak_women",
-  "marriage_spread_post_peak_men",
+  "union_timing_women",
+  "union_timing_men",
+  "union_intensity_women",
+  "union_intensity_men",
+  "union_spread_pre_peak_women",
+  "union_spread_pre_peak_men",
+  "union_spread_post_peak_women",
+  "union_spread_post_peak_men",
   "amenorrhea_length"
 )
 
@@ -372,7 +372,7 @@ endstates <- endstates |>
   )
 ```
 
-Age structures of surviving populations are prepared by categorising them according to the same grouping variables used in the sensitivity analysis, including categorical parameters (i.e., `residence_rule`, `coale_demeny_region`) and parameters converted into binomial categories based on their median value, exclusively those regulating demographic probabilites (e.g., `mortality_regime`, `fertility_intensity`, etc.).
+Age structures of surviving populations are prepared by categorising them according to the same grouping variables used in the sensitivity analysis, including categorical parameters (i.e., `residence_rule`, `coale_demeny_region`) and parameters converted into binary categories based on their median value, exclusively those regulating demographic probabilities (e.g., `mortality_regime`, `fertility_intensity`, etc.).
 
 Furthermore, this selection includes the categorical variable `survival` that distinguishes between populations that became extinct, persisted without reaching the maximum population size, and reached the maximum population size. 
 This allows us to compare the age structures of surviving populations across different demographic regimes and residence systems, and to identify patterns or differences associated with population persistence or growth.
@@ -478,7 +478,11 @@ if (EXPORT_FIGURES) {
 }
 ```
 
-As in previous versions, only a small fraction of simulations has populations that survive, with extinction remaining the dominant outcome across the explored parameter space. Compared with v1.1, persistence occurs across a wide range of population sizes, whereas growth cases are generally less frequent. However, in this version, growth cases are considerably more likely to occur under the patrilocal-patrilineal rule: c. 50% of surviving populations compared to c. 37% in cases under the matrilocal-matrilineal rule. Taken as the exploration as a whole, `coale-demeny-region` does not seem to have a strong influence on the overall distribution of end states.
+The transition to daily iteration shifts the distribution of demographic outcomes relative to v1.1, but extinction does not dominate the explored parameter space as strongly as previously inferred. Approximately half of the simulations survive to the end state, with a modestly higher survival frequency under matrilocal-matrilineal residence. Among surviving populations, Growth remains the most common outcome under both residence rules, accounting for roughly three quarters of survivors, while Persistence represents a substantially larger share than in v1.1.
+
+Daily demographic scheduling therefore appears to reduce the frequency and tempo of unconstrained expansion without eliminating it. Explicit gestation and postpartum amenorrhoea introduce delays into reproductive replacement, causing more viable populations to remain below the technical `max_population` threshold within the simulated time horizon.
+
+Differences associated with `coale_demeny_region` remain small, and residence-rule contrasts are modest relative to the overall effects of the demographic parameters explored.
 
 ### Temporal trajectories
 
@@ -488,7 +492,7 @@ rm(sampled_trajectories_symmetric, preprocessing_trajectories_cdmlt_level, sampl
 sampled_trajectories <- readRDS("data/v13_trajectories.RData")
 ```
 
-The parameter configuration use to generate the trajectories is the same across residence rules, except for the `residence_rule` parameter itself. This allows us to directly compare the population dynamics under different residence systems while controlling for other factors. The configuration used for this was:
+The parameter configuration used to generate the trajectories is the same across residence rules, except for the `residence_rule` parameter itself. This allows us to directly compare the population dynamics under different residence systems while controlling for other factors. The configuration used for this was:
 
 ```{r} 
 #| label: trajectories_size_params_display 
@@ -546,9 +550,10 @@ if (EXPORT_FIGURES) {
     "v13_pop_trajectories"
   )
 }
+rm(pop_trajectories_plot)
 ```
 
-Compared with v1.1, the overall trajectory shapes are smoother and less punctuated, reflecting the transition from annual to daily demographic events. Population expansion is no longer driven by abrupt cohort jumps, but by the gradual accumulation of births and deaths across time. Despite this finer temporal structure, the asymmetry between residence rules remains visible, with patrilocal-patrilineal populations reaching higher median growth trajectories under the same parameter configuration.
+Relative to the annual baseline, daily scheduling produces smooth, continuous population trajectories in which demographic gains accumulate progressively through time. Under this favourable parameter configuration, all trajectories grow towards `max_population`, but patrilocal-patrilineal populations tend to reach the ceiling somewhat earlier than matrilocal-matrilineal populations.
 
 In order to confirm that the above asymmetry is not caused by the asymmetry in the Peristera-Kostaki nuptiality parameters, the same experiment was performed with the following configuration:
 
@@ -613,9 +618,12 @@ if (EXPORT_FIGURES) {
     "v13_pop_trajectories_symmetric"
   )
 }
+rm(pop_trajectories_symmetric_plot)
 ```
 
-Again, we can confirm that the asymmetry between residence rules is not caused by the Peristera-Kostaki nuptiality parameters.
+Equalising the male and female Peristera-Kostaki union schedules reduces one potential source of asymmetry but does not eliminate the difference in growth tempo. The targeted experiment therefore indicates that the residence-rule contrast is not generated solely by sex differences in the union-formation schedules. It must also arise from the way residence rules determine household continuity and movements associated with union formation.
+
+This trajectory contrast remains conditional on the selected demographic configuration. The global exploration shows only modest differences in overall survival between residence rules, so faster growth in this experiment should not be interpreted as a general patrilocal survival advantage.
 
 ### Household composition
 
@@ -649,7 +657,7 @@ if (EXPORT_FIGURES) {
 }
 ```
 
-The scatter plot immediately shows that the relationship between `log_totalIndividuals` and `log_totalHouseholds` is almost perfectly linear. It means that household formation scales approximately proportionally to population growth. The interesting information is therefore not in the total counts but in the residual variation around that relationship.
+Household number remains strongly related to total population size under both residence systems, indicating that household formation broadly scales with demographic expansion. Nevertheless, considerable residual variation remains around this relationship. Across the Sobol exploration, mean household size is somewhat larger under matrilocal-matrilineal than patrilocal-patrilineal residence.
 
 ```{r}
 #| label: trajectories_load_2
@@ -695,6 +703,7 @@ if (EXPORT_FIGURES) {
     height = 4
   )
 }
+rm(trajectories_household_structure_plot)
 ```
 
 ```{r}
@@ -752,6 +761,7 @@ if (EXPORT_FIGURES) {
     height = 4
   )
 }
+rm(trajectories_household_structure_plot_peaks)
 ```
 
 ```{r} 
@@ -762,9 +772,9 @@ plotName = paste0("plots/v13_household_structure_trajectories_peaks.png")
 knitr::include_graphics(plotName)
 ```
 
-With the change to daily cycles, the two residence systems generate similar household structures, with patrilocal-patrilineal yielding a slightly lower average number of individuals per household. Discounting the greater stability and survivability of matrilocal-matrilineal populations, the general trend is to converge around a relatively stable ratio (c. 5, for this parameter configuration). 
+The targeted trajectories show a common temporal pattern: mean household size increases during the early phase of population expansion and subsequently declines towards a comparatively stable late-run range. Patrilocal-patrilineal trajectories display a somewhat larger early peak in this particular configuration, but both systems converge towards similar household sizes thereafter.
 
-The instability caused by escalating household size still seems associated with later collapse, consistent with what was observed in previous versions. As in v1.1 and in contrast to v1.2.x, patrilocal-patrilineal populations do not display higher ratio peaks.
+The sampled trajectories therefore provide little evidence that either residence system generates a sustained escalation of household size. Residence organisation appears to modify transient household growth and fission dynamics more strongly than long-run household size.
 
 ### Age structure
 
@@ -814,12 +824,11 @@ knitr::kable(
 )
 ```
 
-As in v1.1, populations that reach growth conditions tend to maintain substantially younger age structures than populations that merely persist. This distinction is stronger in v1.3, suggesting that the daily reformulation—especially the explicit modelling of gestation and postpartum amenorrhoea—amplifies the demographic effects of reproductive timing.
-Because births are distributed more gradually rather than accumulating in abrupt annual cohorts, v1.3 reinforces the contrast between populations characterised by sustained renewal and those drifting toward ageing persistence.
+Growth and Persistence remain strongly differentiated by age structure. Persistent populations have a mean median age of 30.8 years, compared with 21.5 years among populations reaching `max_population`, and they contain substantially smaller juvenile cohorts. The separation is large (\(d=1.73\)), although slightly weaker than the corresponding contrast in v1.1.
 
-The age structures observed in v1.3 end states differ noticeably from those produced by v1.1. In general, v1.3 generates smaller pre-adult cohorts (< 15 years old) and relatively larger adult and elder cohorts (15–75 years old), shifting median ages upward to approximately 21–25 years.
-Despite these differences, the relationship between survival category and age structure remains clear and consistent with previous model versions: larger and growing populations are generally younger, whereas lower-level persistent populations tend to be older and more balanced.
-This distinction is important because persistence does not always imply demographic security. Some persistent populations still display fragile age distributions that could lead to later collapse, including outlying cases in which the median age falls within elderly cohorts.
+The principal change is instead an upward shift in age structure. Both persistent and growing populations are older in v1.3 than in the annual baseline, consistent with the slower reproductive tempo introduced by explicit gestation and postpartum amenorrhoea. Daily scheduling therefore alters the quantitative expression of demographic renewal without changing the fundamental association between rapid growth and younger populations.
+
+Persistent populations also exhibit broader upper tails, but these should not be interpreted as intrinsically unstable. In this density-independent model, Persistence simply identifies viable configurations that do not reach the technical population ceiling within the simulated horizon.
 
 #### Residence rule and Coale-Demeny regions
 
@@ -883,7 +892,7 @@ if (EXPORT_FIGURES) {
 
 ```{r} 
 #| label: age_structure_indicators_plot_median_cdr_rr_display 
-#| fig.cap: "Aggregate age structures of surviving populations across residence rules and Coale-Demeny regions."
+#| fig.cap: "Distribution of median age of surviving populations across residence rules and Coale-Demeny regions."
 plotName = paste0("plots/v13_violin_residence_rule_region.png")
 
 knitr::include_graphics(plotName)
@@ -958,7 +967,11 @@ knitr::kable(
 )
 ```
 
-As in v1.1, residence rules continue to shape the age composition of surviving populations, although their effect is now more clearly expressed through cumulative differences in reproductive tempo. Patrilocal-patrilineal populations tend to show slightly older median ages and broader upper-age tails, especially among persistent cases, suggesting slower replacement dynamics. By contrast, matrilocal-matrilineal populations maintain somewhat younger and more compact age distributions, consistent with higher demographic turnover.
+Residence rule has only a very small aggregate association with age structure. Matrilocal-matrilineal populations have slightly higher median ages than patrilocal-patrilineal populations across all four Coale-Demeny regions, but the overall effect is negligible (\(d=0.055\)). Regional differences are similarly modest, with South generally producing the oldest and West the youngest surviving populations.
+
+By contrast, the distinction between Persistence and Growth remains large under both residence systems. It is slightly stronger under matrilocal-matrilineal residence (\(d=1.81\)) than under patrilocal-patrilineal residence (\(d=1.66\)). Thus, demographic growth regime remains much more consequential for age composition than residence organisation itself.
+
+Daily iteration therefore does not produce a strong residence-specific age-structure divergence. Its principal structural effect is the general ageing of surviving populations and the slower renewal associated with explicit reproductive delays.
 
 ## Sensitivity analysis
 
@@ -995,7 +1008,7 @@ rf_models <- load_or_build_rf_models(
 )
 ```
 
-Random forest models are fitted separately for each residence rule and response variable, using the same set of predictors. The primary response variable, `survival`, classifies end states as extinction, persistence, or growth, using parameter combinations as categorical outcomes. The more nuanced response variables `log_totalIndividuals` and `median_age` are used only after filtering the data to include cases where a population is present at the end state (i.e. `survival = "Extinction"`).
+Random forest models are fitted separately for each residence rule and response variable, using the same set of predictors. The primary response variable, `survival`, classifies end states as extinction, persistence, or growth, using parameter combinations as categorical outcomes. The more nuanced response variables `log_totalIndividuals` and `median_age` are used only after filtering the data to include cases where a population is present at the end state (i.e. `survival != "Extinction"`).
 
 The models are built using a consistent random seed to ensure reproducibility, and the option to overwrite existing models is controlled by the `REMAKE_RF` flag.
 
@@ -1124,9 +1137,15 @@ plotName = paste0("plots/v13_survival_param_pd.png")
 knitr::include_graphics(plotName)
 ```
 
-The parameter hierarchy closely mirrors that of v1.1, with mortality intensity (cdmlt_level) and fertility intensity (c1_fert) remaining the dominant predictors of extinction. However, v1.3 introduces a stronger influence of timing-related fertility parameters, indicating that reproductive spacing becomes more consequential once gestation and postpartum infertility are explicitly modelled. This reinforces the idea that temporal structure matters not only for realism but also for parameter interaction.
+Fertility peak intensity (`c1_fert`) remains overwhelmingly the strongest predictor of extinction in v1.3 under both residence rules. Its partial dependence retains the strongly nonlinear form observed in the annual baseline: extinction probability falls rapidly as fertility rises through the lower part of the explored range and then declines more gradually at higher values.
 
-#### Population (`log_totalIndividuals`)
+A secondary group of predictors includes female union timing (`mu_women`), baseline mortality intensity (`cdmlt_level`), post-peak fertility spread (`sigma2_fert`), and female pre-peak union spread and peak intensity. Higher Coale-Demeny levels reduce extinction risk, but mortality no longer approaches fertility peak intensity in predictive importance.
+
+Residence-specific asymmetry remains clearest among union-formation parameters, with female schedules generally receiving greater importance under matrilocal-matrilineal residence and male schedules under patrilocal-patrilineal residence. This reproduces the interaction between local retention and sex-specific union formation already observed in the annual baseline.
+
+The daily-specific `amenorrhea_period_in_days` parameter contributes to survival, but it is not among the dominant predictors. Explicit reproductive spacing therefore modifies demographic viability without replacing fertility peak intensity as the principal control.
+
+#### Final population size (`log_totalIndividuals`)
 
 ```{r} 
 #| label: sensitivity_size_importance
@@ -1184,7 +1203,7 @@ if (EXPORT_FIGURES) {
 }
 ```
 
-Select top parameters predicting survival:
+Select top parameters predicting population size:
 
 ```{r} 
 #| label: sensitivity_size_top_param
@@ -1248,9 +1267,13 @@ plotName = paste0("plots/v13_size_param_pd.png")
 knitr::include_graphics(plotName)
 ```
 
-Among surviving populations, final size remains primarily shaped by the balance between mortality and fertility, as in previous versions. Yet the daily formulation produces more gradual and differentiated responses, particularly around threshold regions where small changes in fertility or mortality now generate larger cumulative effects over time. This suggests that population growth in v1.3 is more path-dependent than in the yearly model.
+Among surviving populations, fertility peak intensity is again the strongest predictor of final population size. Baseline mortality occupies a clear but substantially lower second position, followed by union-formation and fertility-spread parameters. This hierarchy broadly preserves the demographic foundations observed in v1.1 while shifting their quantitative importance under daily scheduling.
 
-#### Median age in end state population
+Partial dependence indicates that higher fertility and lower mortality increase expected final population size, but interpretation remains constrained by the technical `max_population` stopping rule. Many successful trajectories accumulate at the same upper limit, so this response distinguishes slower-growing from ceiling-reaching configurations more effectively than it measures unconstrained long-term population size.
+
+The daily formulation therefore primarily changes the tempo with which demographic configurations approach the ceiling rather than introducing a qualitatively new determinant of population abundance.
+
+#### Median age
 
 ```{r} 
 #| label: sensitivity_median_age_importance
@@ -1372,17 +1395,21 @@ plotName = paste0("plots/v13_median_age_param_pd.png")
 knitr::include_graphics(plotName)
 ```
 
-Median age appears to be especially sensitive to fertility-related parameters, confirming that reproductive tempo is the main determinant of demographic rejuvenation. Mortality still contributes indirectly by altering survival into older cohorts, but fertility intensity and timing now exert clearer and more direct effects than in v1.1. This reflects the stronger coupling between birth spacing and age-structure formation in the daily model.
+Fertility peak intensity is again the dominant determinant of median age, with higher values producing substantially younger surviving populations. Several parameters describing the breadth of fertility and union-formation schedules form the secondary tier, while `amenorrhea_period_in_days` also emerges as a meaningful daily-specific predictor.
+
+Baseline mortality has comparatively little importance for median age. Daily scheduling therefore does not strengthen mortality control over age composition; instead, it makes reproductive pacing explicit through gestation, postpartum amenorrhoea, and the temporal distribution of fertility and union formation.
+
+The new amenorrhoea parameter is particularly informative in this respect. Its importance is well below fertility peak intensity but comparable to several established demographic schedule parameters, showing that birth spacing can alter age composition even when the broad fertility schedule remains unchanged.
 
 ### Age structure of surviving populations for selected parameters
 
-Note: parameters are ordered in importance towards median age. The binomial categories created earlier in preprocessing, which split the parameter range according to the distribution median, are used.
+Note: parameters are grouped by submodels and meaning, not by importance. The binary categories created earlier in preprocessing, which split the parameter range according to the distribution median, are used.
 
-#### `c1_fert`: high *versus* low fertility regimes
+#### `c1_fert`: high *versus* low fertility peak intensity regimes
 
 ```{r} 
 #| label: age_structure_c1_fert_pyramid_plot
-#| fig.cap: "Population pyramids across fertility intensity regimes, by residence rule."
+#| fig.cap: "Population pyramids across fertility peak intensity regimes, by residence rule."
 age_structures |>
   aggregate_age_structure(
     group_vars = c("fertility_intensity"),
@@ -1397,7 +1424,7 @@ age_structures |>
 
 ```{r} 
 #| label: age_structure_c1_fert_median_plot
-#| fig.cap: "Median age of surviving populations across fertility regimes, by residence rule."
+#| fig.cap: "Median age of surviving populations across fertility peak intensity regimes, by residence rule."
 plot_age_structure_indicators(
   age_structure_indicators, 
   x_var = "survival", 
@@ -1408,7 +1435,7 @@ plot_age_structure_indicators(
 
 ```{r} 
 #| label: age_structure_c1_fert_indicators_summary
-#| tab.cap: "Summary of age structure indicators across fertility regimes and residence rules."
+#| tab.cap: "Summary of age structure indicators across fertility peak intensity regimes and residence rules."
 knitr::kable(
   indicators_summary(
     age_structure_indicators, 
@@ -1417,7 +1444,7 @@ knitr::kable(
 )
 ```
 
-Cohen's d for median age across fertility regimes, by residence rule:
+Cohen's d for median age across fertility peak intensity regimes, by residence rule:
 
 ```{r} 
 #| label: age_structure_c1_fert_median_cohend_matri
@@ -1461,56 +1488,56 @@ knitr::kable(
 )
 ```
 
-High fertility regimes remain associated with younger populations. Additionally, as in v1.1, this effect is stronger under the patrilocal-patrilineal rule, given that these cases tend towards greater demographic instability.
+High fertility peak intensity produces markedly younger populations under both residence systems. The effect is large under matrilocal-matrilineal residence (\(d=-0.81\)) and medium under patrilocal-patrilineal residence (\(d=-0.72\)). The effect is therefore somewhat stronger under matrilocal-matrilineal, not patrilocal-patrilineal, residence, and is weaker than in v1.1 despite remaining the largest parameter-specific age-structure effect.
 
-#### `sigma2_fert`: broad *versus* narrow post-peak fertility regimes
+#### `mu_fert`: early *versus* late fertility timing
 
 ```{r} 
-#| label: age_structure_sigma2_fert_pyramid_plot
-#| fig.cap: "Population pyramids across fertility post-peak spread regimes, by residence rule."
+#| label: age_structure_mu_fert_pyramid_plot
+#| fig.cap: "Population pyramids across (female) fertility timing regimes, by residence rule."
 age_structures |>
   aggregate_age_structure(
-    group_vars = c("fertility_spread_post_peak"),
+    group_vars = c("fertility_timing"),
     smooth = FALSE
     ) |>
   prepare_pyramid_plot() |>
   plot_population_pyramid(
-    facet_var = "fertility_spread_post_peak",
+    facet_var = "fertility_timing",
     show_mean = TRUE
     )
 ```
 
 ```{r} 
-#| label: age_structure_sigma2_fert_median_plot
-#| fig.cap: "Median age of surviving populations across fertility post-peak spread regimes, by residence rule."
+#| label: age_structure_mu_fert_median_plot
+#| fig.cap: "Median age of surviving populations across (female) fertility timing regimes, by residence rule."
 plot_age_structure_indicators(
   age_structure_indicators, 
   x_var = "survival", 
   fill_var = "residence_rule", 
-  facet_var = "fertility_spread_post_peak"
+  facet_var = "fertility_timing"
 )
 ```
 
 ```{r} 
-#| label: age_structure_sigma2_fert_indicators_summary
-#| tab.cap: "Summary of age structure indicators across fertility post-peak spread regimes and residence rules."
+#| label: age_structure_mu_fert_indicators_summary
+#| tab.cap: "Summary of age structure indicators across (female) fertility timing regimes and residence rules."
 knitr::kable(
   indicators_summary(
     age_structure_indicators, 
-    group_vars = c("residence_rule", "fertility_spread_post_peak")
+    group_vars = c("residence_rule", "fertility_timing")
     )
 )
 ```
 
-Cohen's d for median age across fertility spread regimes, by residence rule:
+Cohen's d for median age across fertility timing regimes, by residence rule:
 
 ```{r} 
-#| label: age_structure_sigma2_fert_median_cohend_matri
+#| label: age_structure_mu_fert_median_cohend_matri
 #| tab.cap: "matrilocal-matrilineal"
 knitr::kable(
   interpret_cohens_d(
     effectsize::cohens_d(
-      median_age ~ fertility_spread_post_peak,
+      median_age ~ fertility_timing,
 
     data =
         age_structure_indicators |>
@@ -1526,12 +1553,12 @@ knitr::kable(
 ```
 
 ```{r} 
-#| label: age_structure_sigma2_fert_median_cohend_patri
+#| label: age_structure_mu_fert_median_cohend_patri
 #| tab.cap: "patrilocal-patrilineal"
 knitr::kable(
   interpret_cohens_d(
     effectsize::cohens_d(
-      median_age ~ fertility_spread_post_peak,
+      median_age ~ fertility_timing,
 
     data =
         age_structure_indicators |>
@@ -1546,429 +1573,7 @@ knitr::kable(
 )
 ```
 
-Broader post-peak fertility regimes tend to generate older populations by extending reproductive activity into later ages, increasing the weight of adult cohorts and slowing demographic turnover. This effect is consistent with v1.1, but appears stronger in v1.3 because delayed births accumulate more gradually. Narrower post-peak fertility schedules concentrate reproduction earlier and contribute to younger end-state populations.
-
-#### `cdmlt_level`: mortality regimes
-
-```{r}
-#| label: age_structure_cdmlt_level_pyramid_plot
-#| fig.cap: "Population pyramids across mortality regimes, by residence rule."
-age_structures |>
-  aggregate_age_structure(
-    group_vars = c("mortality_regime"),
-    smooth = FALSE
-    ) |>
-  prepare_pyramid_plot() |>
-  plot_population_pyramid(
-    facet_var = "mortality_regime",
-    show_mean = TRUE
-    )
-```
-
-```{r} 
-#| label: age_structure_cdmlt_level_median_plot
-#| fig.cap: "Median age of surviving populations across mortality regimes, by residence rule."
-plot_age_structure_indicators(
-  age_structure_indicators, 
-  x_var = "survival", 
-  fill_var = "residence_rule", 
-  facet_var = "mortality_regime"
-)
-```
-
-```{r} 
-#| label: age_structure_cdmlt_level_indicators_summary
-#| tab.cap: "Summary of age structure indicators across mortality regimes and residence rules."
-knitr::kable(
-  indicators_summary(age_structure_indicators, group_vars = c("residence_rule", "mortality_regime"))
-)
-```
-
-Cohen's d for median age across mortality regimes, by residence rule:
-
-```{r} 
-#| label: age_structure_cdmlt_level_median_cohend_matri
-#| tab.cap: "matrilocal-matrilineal"
-knitr::kable(
-  interpret_cohens_d(
-    effectsize::cohens_d(
-      median_age ~ mortality_regime,
-
-    data =
-        age_structure_indicators |>
-
-        filter(
-            residence_rule ==
-                "matrilocal-matrilineal"
-        )
-    ),
-    rules = "cohen1988"
-  )
-)
-```
-
-```{r} 
-#| label: age_structure_cdmlt_level_median_cohend_patri
-#| tab.cap: "patrilocal-patrilineal"
-knitr::kable(
-  interpret_cohens_d(
-    effectsize::cohens_d(
-      median_age ~ mortality_regime,
-
-      data =
-          age_structure_indicators |>
-
-          filter(
-              residence_rule ==
-                  "patrilocal-patrilineal"
-          )
-    ),
-    rules = "cohen1988"
-  )
-)
-```
-
-Mortality regimes continue to exert a strong influence on age structure, with lower mortality producing older and more top-heavy populations. This follows directly from increased survivorship into later life stages. As in v1.1, mortality affects not only survival probabilities but also the internal demographic composition of surviving populations, making it one of the most structurally important parameters.
-
-#### `c1_men`: high *versus* low male marriage intensity regimes
-
-```{r} 
-#| label: age_structure_c1_men_pyramid_plot
-#| fig.cap: "Population pyramids across male marriage intensity regimes, by residence rule."
-age_structures |>
-  aggregate_age_structure(
-    group_vars = c("marriage_intensity_men"),
-    smooth = FALSE
-    ) |>
-  prepare_pyramid_plot() |>
-  plot_population_pyramid(
-    facet_var = "marriage_intensity_men",
-    show_mean = TRUE
-    )
-```
-
-```{r} 
-#| label: age_structure_c1_men_median_plot
-#| fig.cap: "Median age of surviving populations across male marriage intensity regimes, by residence rule."
-plot_age_structure_indicators(
-  age_structure_indicators, 
-  x_var = "survival", 
-  fill_var = "residence_rule", 
-  facet_var = "marriage_intensity_men"
-)
-```
-
-```{r} 
-#| label: age_structure_c1_men_indicators_summary
-#| tab.cap: "Summary of age structure indicators across male marriage intensity regimes and residence rules."
-knitr::kable(
-  indicators_summary(
-    age_structure_indicators, 
-    group_vars = c("residence_rule", "marriage_intensity_men")
-    )
-)
-```
-
-Cohen's d for median age across male marriage intensity regimes, by residence rule:
-
-```{r} 
-#| label: age_structure_c1_men_median_cohend_matri
-#| tab.cap: "matrilocal-matrilineal"
-knitr::kable(
-  interpret_cohens_d(
-    effectsize::cohens_d(
-      median_age ~ marriage_intensity_men,
-
-    data =
-        age_structure_indicators |>
-
-        filter(
-            residence_rule ==
-                "matrilocal-matrilineal"
-        )
-    ),
-    rules = "cohen1988"
-  )
-)
-```
-
-```{r} 
-#| label: age_structure_c1_men_median_cohend_patri
-#| tab.cap: "patrilocal-patrilineal"
-knitr::kable(
-  interpret_cohens_d(
-    effectsize::cohens_d(
-      median_age ~ marriage_intensity_men,
-
-    data =
-        age_structure_indicators |>
-
-        filter(
-            residence_rule ==
-                "patrilocal-patrilineal"
-        )
-    ),
-    rules = "cohen1988"
-  )
-)
-```
-
-Higher male marriage intensity has a similar but somewhat weaker rejuvenating effect, primarily by facilitating the formation of reproductive pairs and reducing delays in household formation. Compared with female intensity, its impact is more indirect, but still contributes to maintaining younger demographic profiles.
-
-#### `sigma1_men`: broad *versus* narrow male pre-peak marriage spread regimes
-
-```{r} 
-#| label: age_structure_sigma1_men_pyramid_plot
-#| fig.cap: "Population pyramids across male pre-peak marriage spread regimes, by residence rule."
-age_structures |>
-  aggregate_age_structure(
-    group_vars = c("marriage_spread_pre_peak_men"),
-    smooth = FALSE
-    ) |>
-  prepare_pyramid_plot() |>
-  plot_population_pyramid(
-    facet_var = "marriage_spread_pre_peak_men",
-    show_mean = TRUE
-    )
-```
-
-```{r} 
-#| label: age_structure_sigma1_men_median_plot
-#| fig.cap: "Median age of surviving populations across male pre-peak marriage spread regimes, by residence rule."
-plot_age_structure_indicators(
-  age_structure_indicators, 
-  x_var = "survival", 
-  fill_var = "residence_rule", 
-  facet_var = "marriage_spread_pre_peak_men"
-)
-```
-
-```{r} 
-#| label: age_structure_sigma1_men_indicators_summary
-#| tab.cap: "Summary of age structure indicators across male pre-peak marriage spread regimes and residence rules."
-knitr::kable(
-  indicators_summary(
-    age_structure_indicators, 
-    group_vars = c("residence_rule", "marriage_spread_pre_peak_men")
-    )
-)
-```
-
-Cohen's d for median age across male pre-peak marriage spread regimes, by residence rule:
-
-```{r} 
-#| label: age_structure_sigma1_men_median_cohend_matri
-#| tab.cap: "matrilocal-matrilineal"
-knitr::kable(
-  interpret_cohens_d(
-    effectsize::cohens_d(
-      median_age ~ marriage_spread_pre_peak_men,
-
-    data =
-        age_structure_indicators |>
-
-        filter(
-            residence_rule ==
-                "matrilocal-matrilineal"
-        )
-    ),
-    rules = "cohen1988"
-  )
-)
-```
-
-```{r} 
-#| label: age_structure_sigma1_men_median_cohend_patri
-#| tab.cap: "patrilocal-patrilineal"
-knitr::kable(
-  interpret_cohens_d(
-    effectsize::cohens_d(
-      median_age ~ marriage_spread_pre_peak_men,
-
-    data =
-        age_structure_indicators |>
-
-        filter(
-            residence_rule ==
-                "patrilocal-patrilineal"
-        )
-  ),
-    rules = "cohen1988"
-  )
-)
-```
-
-Broader pre-peak marriage spread for males continues to be associated with younger populations, this effect remaining relatively small. However, in contrast with v1.1, this effect is higher under the matrilocal-matrilineal rule. 
-
-#### `c1_women`: high *versus* low female marriage intensity regimes
-
-```{r} 
-#| label: age_structure_c1_women_pyramid_plot
-#| fig.cap: "Population pyramids across female marriage intensity regimes, by residence rule."
-age_structures |>
-  aggregate_age_structure(
-    group_vars = c("marriage_intensity_women"),
-    smooth = FALSE
-    ) |>
-  prepare_pyramid_plot() |>
-  plot_population_pyramid(
-    facet_var = "marriage_intensity_women",
-    show_mean = TRUE
-    )
-```
-
-```{r} 
-#| label: age_structure_c1_women_median_plot
-#| fig.cap: "Median age of surviving populations across female marriage intensity regimes, by residence rule."
-plot_age_structure_indicators(
-  age_structure_indicators, 
-  x_var = "survival", 
-  fill_var = "residence_rule", 
-  facet_var = "marriage_intensity_women"
-)
-```
-
-```{r} 
-#| label: age_structure_c1_women_indicators_summary
-#| tab.cap: "Summary of age structure indicators across female marriage intensity regimes and residence rules."
-knitr::kable(
-  indicators_summary(
-    age_structure_indicators, 
-    group_vars = c("residence_rule", "marriage_intensity_women")
-    )
-)
-```
-
-Cohen's d for median age across female marriage intensity regimes, by residence rule:
-
-```{r} 
-#| label: age_structure_c1_women_median_cohend_matri
-#| tab.cap: "matrilocal-matrilineal"
-knitr::kable(
-  interpret_cohens_d(
-    effectsize::cohens_d(
-      median_age ~ marriage_intensity_women,
-
-    data =
-        age_structure_indicators |>
-
-        filter(
-            residence_rule ==
-                "matrilocal-matrilineal"
-        )
-    ),
-    rules = "cohen1988"
-  )
-)
-```
-
-```{r} 
-#| label: age_structure_c1_women_median_cohend_patri
-#| tab.cap: "patrilocal-patrilineal"
-knitr::kable(
-  interpret_cohens_d(
-    effectsize::cohens_d(
-      median_age ~ marriage_intensity_women,
-
-    data =
-        age_structure_indicators |>
-
-        filter(
-            residence_rule ==
-                "patrilocal-patrilineal"
-        )
-    ),
-    rules = "cohen1988"
-  )
-)
-```
-
-Higher female marriage intensity is associated with younger populations, reflecting faster coupling rates and earlier reproductive activation across the population. This effect is stronger under matrilocal-matrilineal residence, where household continuity depends more directly on the successful incorporation of women into reproductive units.
-
-#### `mu_men`: late *versus* early male marriage regimes
-
-```{r} 
-#| label: age_structure_mu_men_pyramid_plot
-#| fig.cap: "Population pyramids across male marriage timing regimes, by residence rule."
-age_structures |>
-  aggregate_age_structure(
-    group_vars = c("marriage_timing_men"),
-    smooth = FALSE
-    ) |>
-  prepare_pyramid_plot() |>
-  plot_population_pyramid(
-    facet_var = "marriage_timing_men",
-    show_mean = TRUE
-    )
-```
-
-```{r} 
-#| label: age_structure_mu_men_median_plot
-#| fig.cap: "Median age of surviving populations across male marriage timing regimes, by residence rule."
-plot_age_structure_indicators(
-  age_structure_indicators, 
-  x_var = "survival", 
-  fill_var = "residence_rule", 
-  facet_var = "marriage_timing_men"
-)
-```
-
-```{r} 
-#| label: age_structure_mu_men_indicators_summary
-#| tab.cap: "Summary of age structure indicators across male marriage timing regimes and residence rules."
-knitr::kable(
-  indicators_summary(
-    age_structure_indicators, 
-    group_vars = c("residence_rule", "marriage_timing_men")
-    )
-)
-```
-
-Cohen's d for median age across male marriage timing regimes, by residence rule:
-
-```{r} 
-#| label: age_structure_mu_men_median_cohend_matri
-#| tab.cap: "matrilocal-matrilineal"
-knitr::kable(
-  interpret_cohens_d(
-    effectsize::cohens_d(
-      median_age ~ marriage_timing_men,
-
-    data =
-        age_structure_indicators |>
-
-        filter(
-            residence_rule ==
-                "matrilocal-matrilineal"
-        )
-    ),
-    rules = "cohen1988"
-  )
-)
-```
-
-```{r} 
-#| label: age_structure_mu_men_median_cohend_patri
-#| tab.cap: "patrilocal-patrilineal"
-knitr::kable(
-  interpret_cohens_d(
-    effectsize::cohens_d(
-      median_age ~ marriage_timing_men,
-
-    data =
-        age_structure_indicators |>
-
-        filter(
-            residence_rule ==
-                "patrilocal-patrilineal"
-        )
-  ),
-    rules = "cohen1988"
-  )
-)
-```
-
-Later male marriage timing is associated with older age distributions, as delayed union formation reduces the onset of household reproduction and shifts birth cohorts forward in time. This effect is visible under both residence rules, but is stronger in patrilocal-patrilineal populations, where delayed male incorporation appears to slow household replacement more markedly.
+Fertility peak timing has little influence on median age. Earlier peak fertility is associated with only a very small decrease in median age under matrilocal-matrilineal residence (\(d=-0.09\)), while no detectable difference is present under patrilocal-patrilineal residence (\(d=0.02\)). Explicit gestation and postpartum amenorrhoea therefore do not translate into a stronger structural effect of the fertility peak location itself.
 
 #### `sigma1_fert`: broad *versus* narrow pre-peak fertility spread regimes
 
@@ -2053,48 +1658,385 @@ knitr::kable(
 )
 ```
 
-Broader pre-peak fertility schedules tend to produce younger populations by spreading reproductive entry across a wider age range while maintaining earlier births. This increases overlap between generations and supports more continuous replacement. Narrower schedules, by contrast, concentrate births into shorter reproductive windows, contributing to demographic ageing.
+Broader pre-peak fertility schedules are associated with slightly younger surviving populations, but the effects are very small (\(d=-0.18\) and \(-0.10\)). Earlier reproductive participation therefore contributes modestly to demographic rejuvenation, much less strongly than fertility peak intensity.
 
-#### `sigma1_women`: broad *versus* narrow pre-peak fertility spread regimes
+#### `sigma2_fert`: broad *versus* narrow post-peak fertility regimes
 
 ```{r} 
-#| label: age_structure_sigma1_women_pyramid_plot
-#| fig.cap: "Population pyramids across pre-peak fertility spread regimes, by residence rule."
+#| label: age_structure_sigma2_fert_pyramid_plot
+#| fig.cap: "Population pyramids across fertility post-peak spread regimes, by residence rule."
 age_structures |>
   aggregate_age_structure(
-    group_vars = c("marriage_spread_pre_peak_women"),
+    group_vars = c("fertility_spread_post_peak"),
     smooth = FALSE
     ) |>
   prepare_pyramid_plot() |>
   plot_population_pyramid(
-    facet_var = "marriage_spread_pre_peak_women",
+    facet_var = "fertility_spread_post_peak",
+    show_mean = TRUE
+    )
+```
+
+```{r} 
+#| label: age_structure_sigma2_fert_median_plot
+#| fig.cap: "Median age of surviving populations across fertility post-peak spread regimes, by residence rule."
+plot_age_structure_indicators(
+  age_structure_indicators, 
+  x_var = "survival", 
+  fill_var = "residence_rule", 
+  facet_var = "fertility_spread_post_peak"
+)
+```
+
+```{r} 
+#| label: age_structure_sigma2_fert_indicators_summary
+#| tab.cap: "Summary of age structure indicators across fertility post-peak spread regimes and residence rules."
+knitr::kable(
+  indicators_summary(
+    age_structure_indicators, 
+    group_vars = c("residence_rule", "fertility_spread_post_peak")
+    )
+)
+```
+
+Cohen's d for median age across fertility spread regimes, by residence rule:
+
+```{r} 
+#| label: age_structure_sigma2_fert_median_cohend_matri
+#| tab.cap: "matrilocal-matrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ fertility_spread_post_peak,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "matrilocal-matrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+```{r} 
+#| label: age_structure_sigma2_fert_median_cohend_patri
+#| tab.cap: "patrilocal-patrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ fertility_spread_post_peak,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "patrilocal-patrilineal"
+        )
+  ),
+    rules = "cohen1988"
+  )
+)
+```
+
+Broader post-peak fertility schedules produce younger, not older, surviving populations. The effect is small under both residence rules and somewhat stronger under patrilocal-patrilineal residence (\(d=-0.47\) versus \(-0.40\)). Extending fertility across later reproductive ages therefore sustains cohort renewal and lowers median age, rather than ageing the population. This effect is stronger than in the annual baseline.
+
+#### `cdmlt_level`: mortality regimes
+
+```{r}
+#| label: age_structure_cdmlt_level_pyramid_plot
+#| fig.cap: "Population pyramids across mortality regimes, by residence rule."
+age_structures |>
+  aggregate_age_structure(
+    group_vars = c("mortality_regime"),
+    smooth = FALSE
+    ) |>
+  prepare_pyramid_plot() |>
+  plot_population_pyramid(
+    facet_var = "mortality_regime",
+    show_mean = TRUE
+    )
+```
+
+```{r} 
+#| label: age_structure_cdmlt_level_median_plot
+#| fig.cap: "Median age of surviving populations across mortality regimes, by residence rule."
+plot_age_structure_indicators(
+  age_structure_indicators, 
+  x_var = "survival", 
+  fill_var = "residence_rule", 
+  facet_var = "mortality_regime"
+)
+```
+
+```{r} 
+#| label: age_structure_cdmlt_level_indicators_summary
+#| tab.cap: "Summary of age structure indicators across mortality regimes and residence rules."
+knitr::kable(
+  indicators_summary(age_structure_indicators, group_vars = c("residence_rule", "mortality_regime"))
+)
+```
+
+Cohen's d for median age across mortality regimes, by residence rule:
+
+```{r} 
+#| label: age_structure_cdmlt_level_median_cohend_matri
+#| tab.cap: "matrilocal-matrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ mortality_regime,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "matrilocal-matrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+```{r} 
+#| label: age_structure_cdmlt_level_median_cohend_patri
+#| tab.cap: "patrilocal-patrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ mortality_regime,
+
+      data =
+          age_structure_indicators |>
+
+          filter(
+              residence_rule ==
+                  "patrilocal-patrilineal"
+          )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+Lower-mortality regimes produce slightly older surviving populations, but the structural effect is weak in v1.3. It is effectively absent under matrilocal-matrilineal residence (\(d=-0.04\), confidence interval including zero) and very small under patrilocal-patrilineal residence (\(d=-0.12\)). Mortality remains relevant to survival and population growth, but it is not a major determinant of age composition among surviving populations.
+
+#### `c1_women`: high *versus* low female union peak intensity regimes
+
+```{r} 
+#| label: age_structure_c1_women_pyramid_plot
+#| fig.cap: "Population pyramids across female union peak intensity regimes, by residence rule."
+age_structures |>
+  aggregate_age_structure(
+    group_vars = c("union_intensity_women"),
+    smooth = FALSE
+    ) |>
+  prepare_pyramid_plot() |>
+  plot_population_pyramid(
+    facet_var = "union_intensity_women",
+    show_mean = TRUE
+    )
+```
+
+```{r} 
+#| label: age_structure_c1_women_median_plot
+#| fig.cap: "Median age of surviving populations across female union peak intensity regimes, by residence rule."
+plot_age_structure_indicators(
+  age_structure_indicators, 
+  x_var = "survival", 
+  fill_var = "residence_rule", 
+  facet_var = "union_intensity_women"
+)
+```
+
+```{r} 
+#| label: age_structure_c1_women_indicators_summary
+#| tab.cap: "Summary of age structure indicators across female union peak intensity regimes and residence rules."
+knitr::kable(
+  indicators_summary(
+    age_structure_indicators, 
+    group_vars = c("residence_rule", "union_intensity_women")
+    )
+)
+```
+
+Cohen's d for median age across female union peak intensity regimes, by residence rule:
+
+```{r} 
+#| label: age_structure_c1_women_median_cohend_matri
+#| tab.cap: "matrilocal-matrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ union_intensity_women,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "matrilocal-matrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+```{r} 
+#| label: age_structure_c1_women_median_cohend_patri
+#| tab.cap: "patrilocal-patrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ union_intensity_women,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "patrilocal-patrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+Higher female union peak intensity is associated with slightly younger populations under both residence rules. The effect is very small and nearly identical in magnitude (\(d=-0.14\) and \(-0.15\)), providing little evidence for a meaningful residence-specific difference.
+
+#### `mu_women`: late *versus* early female union regimes
+
+```{r} 
+#| label: age_structure_mu_women_pyramid_plot
+#| fig.cap: "Population pyramids across female union timing regimes, by residence rule."
+age_structures |>
+  aggregate_age_structure(
+    group_vars = c("union_timing_women"),
+    smooth = FALSE
+    ) |>
+  prepare_pyramid_plot() |>
+  plot_population_pyramid(
+    facet_var = "union_timing_women",
+    show_mean = TRUE
+    )
+```
+
+```{r} 
+#| label: age_structure_mu_women_median_plot
+#| fig.cap: "Median age of surviving populations across female union timing regimes, by residence rule."
+plot_age_structure_indicators(
+  age_structure_indicators, 
+  x_var = "survival", 
+  fill_var = "residence_rule", 
+  facet_var = "union_timing_women"
+)
+```
+
+```{r} 
+#| label: age_structure_mu_women_indicators_summary
+#| tab.cap: "Summary of age structure indicators across female union timing regimes and residence rules."
+knitr::kable(
+  indicators_summary(
+    age_structure_indicators, 
+    group_vars = c("residence_rule", "union_timing_women")
+    )
+)
+```
+
+Cohen's d for median age across female union timing regimes, by residence rule:
+
+```{r} 
+#| label: age_structure_mu_women_median_cohend_matri
+#| tab.cap: "matrilocal-matrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ union_timing_women,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "matrilocal-matrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+```{r} 
+#| label: age_structure_mu_women_median_cohend_patri
+#| tab.cap: "patrilocal-patrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ union_timing_women,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "patrilocal-patrilineal"
+        )
+  ),
+    rules = "cohen1988"
+  )
+)
+```
+
+Earlier female union timing is associated with younger populations under matrilocal-matrilineal residence, but the effect is very small (\(d=-0.14\)). Under patrilocal-patrilineal residence the effect is essentially absent (\(d\approx0\)). Female union timing therefore retains some structural importance where women form the locally retained line, but daily scheduling does not amplify this effect across both systems.
+
+#### `sigma1_women`: broad *versus* narrow pre-peak female union spread regimes
+
+```{r} 
+#| label: age_structure_sigma1_women_pyramid_plot
+#| fig.cap: "Population pyramids across pre-peak female union spread regimes, by residence rule."
+age_structures |>
+  aggregate_age_structure(
+    group_vars = c("union_spread_pre_peak_women"),
+    smooth = FALSE
+    ) |>
+  prepare_pyramid_plot() |>
+  plot_population_pyramid(
+    facet_var = "union_spread_pre_peak_women",
     show_mean = TRUE
     )
 ```
 
 ```{r} 
 #| label: age_structure_sigma1_women_median_plot
-#| fig.cap: "Median age of surviving populations across pre-peak fertility spread regimes, by residence rule."
+#| fig.cap: "Median age of surviving populations across pre-peak female union spread regimes, by residence rule."
 plot_age_structure_indicators(
   age_structure_indicators, 
   x_var = "survival", 
   fill_var = "residence_rule", 
-  facet_var = "marriage_spread_pre_peak_women"
+  facet_var = "union_spread_pre_peak_women"
 )
 ```
 
 ```{r} 
 #| label: age_structure_sigma1_women_indicators_summary
-#| tab.cap: "Summary of age structure indicators across pre-peak fertility spread regimes and residence rules."
+#| tab.cap: "Summary of age structure indicators across pre-peak female union spread regimes and residence rules."
 knitr::kable(
   indicators_summary(
     age_structure_indicators, 
-    group_vars = c("residence_rule", "marriage_spread_pre_peak_women")
+    group_vars = c("residence_rule", "union_spread_pre_peak_women")
     )
 )
 ```
 
-Cohen's d for median age across pre-peak fertility spread regimes, by residence rule:
+Cohen's d for median age across pre-peak female union spread regimes, by residence rule:
 
 ```{r} 
 #| label: age_structure_sigma1_women_median_cohend_matri
@@ -2102,7 +2044,7 @@ Cohen's d for median age across pre-peak fertility spread regimes, by residence 
 knitr::kable(
   interpret_cohens_d(
     effectsize::cohens_d(
-      median_age ~ marriage_spread_pre_peak_women,
+      median_age ~ union_spread_pre_peak_women,
 
     data =
         age_structure_indicators |>
@@ -2123,7 +2065,7 @@ knitr::kable(
 knitr::kable(
   interpret_cohens_d(
     effectsize::cohens_d(
-      median_age ~ marriage_spread_pre_peak_women,
+      median_age ~ union_spread_pre_peak_women,
 
     data =
         age_structure_indicators |>
@@ -2138,7 +2080,432 @@ knitr::kable(
 )
 ```
 
-Broader female pre-peak marriage schedules are associated with younger and more balanced age distributions, likely because they allow earlier and more varied entry into reproduction. As with the equivalent male parameter, this broadening appears to stabilise demographic renewal rather than concentrating it into narrow cohort windows.
+Broader pre-peak female union spread is associated with slightly younger populations under matrilocal-matrilineal residence (\(d=-0.17\)), but has no detectable effect under patrilocal-patrilineal residence. Its influence is therefore weak and strongly conditional on residence organisation.
+
+#### `sigma2_women`: broad *versus* narrow post-peak female union spread regimes
+
+```{r} 
+#| label: age_structure_sigma2_women_pyramid_plot
+#| fig.cap: "Population pyramids across post-peak female union spread regimes, by residence rule."
+age_structures |>
+  aggregate_age_structure(
+    group_vars = c("union_spread_post_peak_women"),
+    smooth = FALSE
+    ) |>
+  prepare_pyramid_plot() |>
+  plot_population_pyramid(
+    facet_var = "union_spread_post_peak_women",
+    show_mean = TRUE
+    )
+```
+
+```{r} 
+#| label: age_structure_sigma2_women_median_plot
+#| fig.cap: "Median age of surviving populations across post-peak female union spread regimes, by residence rule."
+plot_age_structure_indicators(
+  age_structure_indicators, 
+  x_var = "survival", 
+  fill_var = "residence_rule", 
+  facet_var = "union_spread_post_peak_women"
+)
+```
+
+```{r} 
+#| label: age_structure_sigma2_women_indicators_summary
+#| tab.cap: "Summary of age structure indicators across post-peak female union spread regimes and residence rules."
+knitr::kable(
+  indicators_summary(
+    age_structure_indicators, 
+    group_vars = c("residence_rule", "union_spread_post_peak_women")
+    )
+)
+```
+
+Cohen's d for median age across post-peak female union spread regimes, by residence rule:
+
+```{r} 
+#| label: age_structure_sigma2_women_median_cohend_matri
+#| tab.cap: "matrilocal-matrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ union_spread_post_peak_women,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "matrilocal-matrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+```{r} 
+#| label: age_structure_sigma2_women_median_cohend_patri
+#| tab.cap: "patrilocal-patrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ union_spread_post_peak_women,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "patrilocal-patrilineal"
+        )
+  ),
+    rules = "cohen1988"
+  )
+)
+```
+
+Post-peak female union spread has little influence on age structure. The effect is effectively absent under matrilocal-matrilineal residence, while broader schedules are associated with only a very small reduction in median age under patrilocal-patrilineal residence (\(d=-0.10\)). Results therefore provide no evidence that extending female union formation into later ages systematically ages surviving populations.
+
+#### `c1_men`: high *versus* low male union peak intensity regimes
+
+```{r} 
+#| label: age_structure_c1_men_pyramid_plot
+#| fig.cap: "Population pyramids across male union peak intensity regimes, by residence rule."
+age_structures |>
+  aggregate_age_structure(
+    group_vars = c("union_intensity_men"),
+    smooth = FALSE
+    ) |>
+  prepare_pyramid_plot() |>
+  plot_population_pyramid(
+    facet_var = "union_intensity_men",
+    show_mean = TRUE
+    )
+```
+
+```{r} 
+#| label: age_structure_c1_men_median_plot
+#| fig.cap: "Median age of surviving populations across male union peak intensity regimes, by residence rule."
+plot_age_structure_indicators(
+  age_structure_indicators, 
+  x_var = "survival", 
+  fill_var = "residence_rule", 
+  facet_var = "union_intensity_men"
+)
+```
+
+```{r} 
+#| label: age_structure_c1_men_indicators_summary
+#| tab.cap: "Summary of age structure indicators across male union peak intensity regimes and residence rules."
+knitr::kable(
+  indicators_summary(
+    age_structure_indicators, 
+    group_vars = c("residence_rule", "union_intensity_men")
+    )
+)
+```
+
+Cohen's d for median age across male union peak intensity regimes, by residence rule:
+
+```{r} 
+#| label: age_structure_c1_men_median_cohend_matri
+#| tab.cap: "matrilocal-matrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ union_intensity_men,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "matrilocal-matrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+```{r} 
+#| label: age_structure_c1_men_median_cohend_patri
+#| tab.cap: "patrilocal-patrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ union_intensity_men,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "patrilocal-patrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+Higher male union peak intensity is associated with slightly younger populations under both residence systems, but the effect is very small (\(d=-0.12\) and \(-0.11\)). Its structural influence is therefore modest and similar in magnitude to that of female union peak intensity.
+
+#### `mu_men`: late *versus* early male union regimes
+
+```{r} 
+#| label: age_structure_mu_men_pyramid_plot
+#| fig.cap: "Population pyramids across male union timing regimes, by residence rule."
+age_structures |>
+  aggregate_age_structure(
+    group_vars = c("union_timing_men"),
+    smooth = FALSE
+    ) |>
+  prepare_pyramid_plot() |>
+  plot_population_pyramid(
+    facet_var = "union_timing_men",
+    show_mean = TRUE
+    )
+```
+
+```{r} 
+#| label: age_structure_mu_men_median_plot
+#| fig.cap: "Median age of surviving populations across male union timing regimes, by residence rule."
+plot_age_structure_indicators(
+  age_structure_indicators, 
+  x_var = "survival", 
+  fill_var = "residence_rule", 
+  facet_var = "union_timing_men"
+)
+```
+
+```{r} 
+#| label: age_structure_mu_men_indicators_summary
+#| tab.cap: "Summary of age structure indicators across male union timing regimes and residence rules."
+knitr::kable(
+  indicators_summary(
+    age_structure_indicators, 
+    group_vars = c("residence_rule", "union_timing_men")
+    )
+)
+```
+
+Cohen's d for median age across male union timing regimes, by residence rule:
+
+```{r} 
+#| label: age_structure_mu_men_median_cohend_matri
+#| tab.cap: "matrilocal-matrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ union_timing_men,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "matrilocal-matrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+```{r} 
+#| label: age_structure_mu_men_median_cohend_patri
+#| tab.cap: "patrilocal-patrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ union_timing_men,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "patrilocal-patrilineal"
+        )
+  ),
+    rules = "cohen1988"
+  )
+)
+```
+
+Earlier male union timing produces younger populations under both residence systems, with small effects of \(d=-0.41\) under matrilocal-matrilineal and \(d=-0.38\) under patrilocal-patrilineal residence. The effect is therefore marginally stronger under matrilocal-matrilineal residence, although the difference between systems is small.
+
+#### `sigma1_men`: broad *versus* narrow male pre-peak union spread regimes
+
+```{r} 
+#| label: age_structure_sigma1_men_pyramid_plot
+#| fig.cap: "Population pyramids across male pre-peak union spread regimes, by residence rule."
+age_structures |>
+  aggregate_age_structure(
+    group_vars = c("union_spread_pre_peak_men"),
+    smooth = FALSE
+    ) |>
+  prepare_pyramid_plot() |>
+  plot_population_pyramid(
+    facet_var = "union_spread_pre_peak_men",
+    show_mean = TRUE
+    )
+```
+
+```{r} 
+#| label: age_structure_sigma1_men_median_plot
+#| fig.cap: "Median age of surviving populations across male pre-peak union spread regimes, by residence rule."
+plot_age_structure_indicators(
+  age_structure_indicators, 
+  x_var = "survival", 
+  fill_var = "residence_rule", 
+  facet_var = "union_spread_pre_peak_men"
+)
+```
+
+```{r} 
+#| label: age_structure_sigma1_men_indicators_summary
+#| tab.cap: "Summary of age structure indicators across male pre-peak union spread regimes and residence rules."
+knitr::kable(
+  indicators_summary(
+    age_structure_indicators, 
+    group_vars = c("residence_rule", "union_spread_pre_peak_men")
+    )
+)
+```
+
+Cohen's d for median age across male pre-peak union spread regimes, by residence rule:
+
+```{r} 
+#| label: age_structure_sigma1_men_median_cohend_matri
+#| tab.cap: "matrilocal-matrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ union_spread_pre_peak_men,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "matrilocal-matrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+```{r} 
+#| label: age_structure_sigma1_men_median_cohend_patri
+#| tab.cap: "patrilocal-patrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ union_spread_pre_peak_men,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "patrilocal-patrilineal"
+        )
+  ),
+    rules = "cohen1988"
+  )
+)
+```
+
+Broader pre-peak male union spread is associated with younger surviving populations under both residence systems. The effect is very small under matrilocal-matrilineal residence (\(d=-0.19\)) but substantially stronger under patrilocal-patrilineal residence (\(d=-0.38\)). This is one of the clearer residence-dependent union-formation effects in v1.3.
+
+#### `sigma2_men`: broad *versus* narrow post-peak male union spread regimes
+
+```{r} 
+#| label: age_structure_sigma2_men_pyramid_plot
+#| fig.cap: "Population pyramids across post-peak male union spread regimes, by residence rule."
+age_structures |>
+  aggregate_age_structure(
+    group_vars = c("union_spread_post_peak_men"),
+    smooth = FALSE
+    ) |>
+  prepare_pyramid_plot() |>
+  plot_population_pyramid(
+    facet_var = "union_spread_post_peak_men",
+    show_mean = TRUE
+    )
+```
+
+```{r} 
+#| label: age_structure_sigma2_men_median_plot
+#| fig.cap: "Median age of surviving populations across post-peak male union spread regimes, by residence rule."
+plot_age_structure_indicators(
+  age_structure_indicators, 
+  x_var = "survival", 
+  fill_var = "residence_rule", 
+  facet_var = "union_spread_post_peak_men"
+)
+```
+
+```{r} 
+#| label: age_structure_sigma2_men_indicators_summary
+#| tab.cap: "Summary of age structure indicators across post-peak male union spread regimes and residence rules."
+knitr::kable(
+  indicators_summary(
+    age_structure_indicators, 
+    group_vars = c("residence_rule", "union_spread_post_peak_men")
+    )
+)
+```
+
+Cohen's d for median age across post-peak male union spread regimes, by residence rule:
+
+```{r} 
+#| label: age_structure_sigma2_men_median_cohend_matri
+#| tab.cap: "matrilocal-matrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ union_spread_post_peak_men,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "matrilocal-matrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+```{r} 
+#| label: age_structure_sigma2_men_median_cohend_patri
+#| tab.cap: "patrilocal-patrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ union_spread_post_peak_men,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "patrilocal-patrilineal"
+        )
+  ),
+    rules = "cohen1988"
+  )
+)
+```
+
+Broader post-peak male union spread is associated with marginally older populations under both residence systems, but the effect is extremely small (\(d\approx0.06\)–0.08) and the matrilocal-matrilineal confidence interval includes zero. No strong demographic interpretation is therefore warranted.
 
 #### `amenorrhea_period_in_days`: long *versus* short amenorrhea period
 
@@ -2223,353 +2590,17 @@ knitr::kable(
 )
 ```
 
-Amenorrhea duration has a relatively weak but consistent ageing effect. Longer postpartum infertility slows reproductive tempo by increasing birth intervals, reducing juvenile recruitment over time. Unlike fertility intensity or timing, its influence is incremental rather than structural, acting mainly as a modulator of demographic pacing.
-
-#### `sigma2_men`: broad *versus* narrow post-peak male marriage spread regimes
-
-```{r} 
-#| label: age_structure_sigma2_men_pyramid_plot
-#| fig.cap: "Population pyramids across post-peak male marriage spread regimes, by residence rule."
-age_structures |>
-  aggregate_age_structure(
-    group_vars = c("marriage_spread_post_peak_men"),
-    smooth = FALSE
-    ) |>
-  prepare_pyramid_plot() |>
-  plot_population_pyramid(
-    facet_var = "marriage_spread_post_peak_men",
-    show_mean = TRUE
-    )
-```
-
-```{r} 
-#| label: age_structure_sigma2_men_median_plot
-#| fig.cap: "Median age of surviving populations across post-peak male marriage spread regimes, by residence rule."
-plot_age_structure_indicators(
-  age_structure_indicators, 
-  x_var = "survival", 
-  fill_var = "residence_rule", 
-  facet_var = "marriage_spread_post_peak_men"
-)
-```
-
-```{r} 
-#| label: age_structure_sigma2_men_indicators_summary
-#| tab.cap: "Summary of age structure indicators across post-peak male marriage spread regimes and residence rules."
-knitr::kable(
-  indicators_summary(
-    age_structure_indicators, 
-    group_vars = c("residence_rule", "marriage_spread_post_peak_men")
-    )
-)
-```
-
-Cohen's d for median age across post-peak male marriage spread regimes, by residence rule:
-
-```{r} 
-#| label: age_structure_sigma2_men_median_cohend_matri
-#| tab.cap: "matrilocal-matrilineal"
-knitr::kable(
-  interpret_cohens_d(
-    effectsize::cohens_d(
-      median_age ~ marriage_spread_post_peak_men,
-
-    data =
-        age_structure_indicators |>
-
-        filter(
-            residence_rule ==
-                "matrilocal-matrilineal"
-        )
-    ),
-    rules = "cohen1988"
-  )
-)
-```
-
-```{r} 
-#| label: age_structure_sigma2_men_median_cohend_patri
-#| tab.cap: "patrilocal-patrilineal"
-knitr::kable(
-  interpret_cohens_d(
-    effectsize::cohens_d(
-      median_age ~ marriage_spread_post_peak_men,
-
-    data =
-        age_structure_indicators |>
-
-        filter(
-            residence_rule ==
-                "patrilocal-patrilineal"
-        )
-  ),
-    rules = "cohen1988"
-  )
-)
-```
-
-Broader post-peak male marriage schedules tend to increase median age by extending male participation in union formation into later life stages. This prolongs the reproductive contribution of older cohorts and slightly slows generational replacement. The effect is modest but consistent across residence systems.
-
-#### `mu_fert`: early *versus* late fertility timing
-
-```{r} 
-#| label: age_structure_mu_fert_pyramid_plot
-#| fig.cap: "Population pyramids across (female) fertility timing regimes, by residence rule."
-age_structures |>
-  aggregate_age_structure(
-    group_vars = c("fertility_timing"),
-    smooth = FALSE
-    ) |>
-  prepare_pyramid_plot() |>
-  plot_population_pyramid(
-    facet_var = "fertility_timing",
-    show_mean = TRUE
-    )
-```
-
-```{r} 
-#| label: age_structure_mu_fert_median_plot
-#| fig.cap: "Median age of surviving populations across (female) fertility timing regimes, by residence rule."
-plot_age_structure_indicators(
-  age_structure_indicators, 
-  x_var = "survival", 
-  fill_var = "residence_rule", 
-  facet_var = "fertility_timing"
-)
-```
-
-```{r} 
-#| label: age_structure_mu_fert_indicators_summary
-#| tab.cap: "Summary of age structure indicators across (female) fertility timing regimes and residence rules."
-knitr::kable(
-  indicators_summary(
-    age_structure_indicators, 
-    group_vars = c("residence_rule", "fertility_timing")
-    )
-)
-```
-
-Cohen's d for median age across female marriage timing regimes, by residence rule:
-
-```{r} 
-#| label: age_structure_mu_fert_median_cohend_matri
-#| tab.cap: "matrilocal-matrilineal"
-knitr::kable(
-  interpret_cohens_d(
-    effectsize::cohens_d(
-      median_age ~ fertility_timing,
-
-    data =
-        age_structure_indicators |>
-
-        filter(
-            residence_rule ==
-                "matrilocal-matrilineal"
-        )
-    ),
-    rules = "cohen1988"
-  )
-)
-```
-
-```{r} 
-#| label: age_structure_mu_fert_median_cohend_patri
-#| tab.cap: "patrilocal-patrilineal"
-knitr::kable(
-  interpret_cohens_d(
-    effectsize::cohens_d(
-      median_age ~ fertility_timing,
-
-    data =
-        age_structure_indicators |>
-
-        filter(
-            residence_rule ==
-                "patrilocal-patrilineal"
-        )
-  ),
-    rules = "cohen1988"
-  )
-)
-```
-
-Earlier fertility timing is strongly associated with younger age structures, as it accelerates generational turnover and increases the proportion of juveniles and young adults. This pattern is fully consistent with demographic theory and with v1.1, but appears more pronounced in v1.3 due to the explicit modelling of gestation and postpartum intervals.
-
-#### `mu_women`: late *versus* early female marriage regimes
-
-```{r} 
-#| label: age_structure_mu_women_pyramid_plot
-#| fig.cap: "Population pyramids across female marriage timing regimes, by residence rule."
-age_structures |>
-  aggregate_age_structure(
-    group_vars = c("marriage_timing_women"),
-    smooth = FALSE
-    ) |>
-  prepare_pyramid_plot() |>
-  plot_population_pyramid(
-    facet_var = "marriage_timing_women",
-    show_mean = TRUE
-    )
-```
-
-```{r} 
-#| label: age_structure_mu_women_median_plot
-#| fig.cap: "Median age of surviving populations across female marriage timing regimes, by residence rule."
-plot_age_structure_indicators(
-  age_structure_indicators, 
-  x_var = "survival", 
-  fill_var = "residence_rule", 
-  facet_var = "marriage_timing_women"
-)
-```
-
-```{r} 
-#| label: age_structure_mu_women_indicators_summary
-#| tab.cap: "Summary of age structure indicators across female marriage timing regimes and residence rules."
-knitr::kable(
-  indicators_summary(
-    age_structure_indicators, 
-    group_vars = c("residence_rule", "marriage_timing_women")
-    )
-)
-```
-
-Cohen's d for median age across female marriage timing regimes, by residence rule:
-
-```{r} 
-#| label: age_structure_mu_women_median_cohend_matri
-#| tab.cap: "matrilocal-matrilineal"
-knitr::kable(
-  interpret_cohens_d(
-    effectsize::cohens_d(
-      median_age ~ marriage_timing_women,
-
-    data =
-        age_structure_indicators |>
-
-        filter(
-            residence_rule ==
-                "matrilocal-matrilineal"
-        )
-    ),
-    rules = "cohen1988"
-  )
-)
-```
-
-```{r} 
-#| label: age_structure_mu_women_median_cohend_patri
-#| tab.cap: "patrilocal-patrilineal"
-knitr::kable(
-  interpret_cohens_d(
-    effectsize::cohens_d(
-      median_age ~ marriage_timing_women,
-
-    data =
-        age_structure_indicators |>
-
-        filter(
-            residence_rule ==
-                "patrilocal-patrilineal"
-        )
-  ),
-    rules = "cohen1988"
-  )
-)
-```
-
-As expected, later female marriage timing produces older end-state populations by postponing the beginning of reproductive careers. This effect remains one of the clearest pathways linking nuptiality to demographic ageing. Compared with v1.1, the daily structure makes this delay more cumulative, reinforcing its influence on age composition.
-
-#### `sigma2_women`: broad *versus* narrow post-peak female marriage spread regimes
-
-```{r} 
-#| label: age_structure_sigma2_women_pyramid_plot
-#| fig.cap: "Population pyramids across post-peak female marriage spread regimes, by residence rule."
-age_structures |>
-  aggregate_age_structure(
-    group_vars = c("marriage_spread_post_peak_women"),
-    smooth = FALSE
-    ) |>
-  prepare_pyramid_plot() |>
-  plot_population_pyramid(
-    facet_var = "marriage_spread_post_peak_women",
-    show_mean = TRUE
-    )
-```
-
-```{r} 
-#| label: age_structure_sigma2_women_median_plot
-#| fig.cap: "Median age of surviving populations across post-peak female marriage spread regimes, by residence rule."
-plot_age_structure_indicators(
-  age_structure_indicators, 
-  x_var = "survival", 
-  fill_var = "residence_rule", 
-  facet_var = "marriage_spread_post_peak_women"
-)
-```
-
-```{r} 
-#| label: age_structure_sigma2_women_indicators_summary
-#| tab.cap: "Summary of age structure indicators across post-peak female marriage spread regimes and residence rules."
-knitr::kable(
-  indicators_summary(
-    age_structure_indicators, 
-    group_vars = c("residence_rule", "marriage_spread_post_peak_women")
-    )
-)
-```
-
-Cohen's d for median age across post-peak female marriage spread regimes, by residence rule:
-
-```{r} 
-#| label: age_structure_sigma2_women_median_cohend_matri
-#| tab.cap: "matrilocal-matrilineal"
-knitr::kable(
-  interpret_cohens_d(
-    effectsize::cohens_d(
-      median_age ~ marriage_spread_post_peak_women,
-
-    data =
-        age_structure_indicators |>
-
-        filter(
-            residence_rule ==
-                "matrilocal-matrilineal"
-        )
-    ),
-    rules = "cohen1988"
-  )
-)
-```
-
-```{r} 
-#| label: age_structure_sigma2_women_median_cohend_patri
-#| tab.cap: "patrilocal-patrilineal"
-knitr::kable(
-  interpret_cohens_d(
-    effectsize::cohens_d(
-      median_age ~ marriage_spread_post_peak_women,
-
-    data =
-        age_structure_indicators |>
-
-        filter(
-            residence_rule ==
-                "patrilocal-patrilineal"
-        )
-  ),
-    rules = "cohen1988"
-  )
-)
-```
-
-As with fertility post-peak spread, broader female post-peak marriage schedules contribute to older age structures by delaying the closure of reproductive careers. This increases the representation of older adults while reducing the concentration of early-life births. The effect is clearer in persistence than in growth cases.
+Longer postpartum amenorrhoea is associated with slightly older surviving populations under both residence systems (\(d=0.18\) and \(0.16\)). The effect is very small but consistent with longer birth intervals reducing the rate of juvenile recruitment. Amenorrhoea therefore acts as a secondary regulator of demographic tempo rather than a dominant structural control.
 
 #### Interpretation
 
-Taken together, these results confirm that the age structure of surviving populations in v1.3 is shaped primarily by fertility tempo and mortality intensity, with nuptiality parameters exerting secondary but still meaningful effects. Compared with v1.1, the daily iteration model sharpens these relationships by making demographic delays explicit. This produces older, smoother, and more differentiated age structures, particularly among populations that persist without sustained growth.
+Age structure in v1.3 remains dominated by reproductive recruitment rather than mortality. Fertility peak intensity produces the largest structural effect, while fertility spread, male union timing and pre-peak union spread, and several female union parameters provide weaker secondary effects. Postpartum amenorrhoea adds a new, explicitly temporal influence by modulating birth spacing.
 
-## Mortality intensity threshold experiment
+Baseline mortality has comparatively little direct effect on median age among survivors, despite remaining relevant to survival and population growth. Daily scheduling therefore separates the roles of demographic mechanisms more clearly: fertility and union formation shape cohort renewal, amenorrhoea regulates reproductive pacing, and mortality primarily influences whether populations persist and how rapidly they expand.
+
+Relative to v1.1, surviving populations are generally older and growth is slower, but the principal fertility-driven architecture of age composition remains intact.
+
+## Mortality intensity sweep experiment
 
 Simulations using the same parameter configuration, except `residence-rule`, and varying `cdmlt_level` and `SEED`.
 
@@ -2638,13 +2669,18 @@ if (EXPORT_FIGURES) {
     "v13_pop_trajectories_cdmlt_level"
   )
 }
+rm(pop_trajectories_plot)
 ```
 
-Compared with v1.1 parallel results, the threshold value for this key parameter is placed considerably higher (i.e. c. 8-11 compared to c. 5-8 in v1.1). Still, the difference between the matrilineal-matrilocal and patrilineal-patrilocal rules continue within the same scale (i.e. 8 vs 11 or less in v1.3, compared to 5 and 8 or less in v1.1).
+The mortality sweep does not reveal a viability threshold within the range examined. Populations under both residence systems grow across all tested Coale-Demeny levels, and the median trajectories eventually approach or reach `max_population`.
 
-## Fertility intensity threshold experiment
+Mortality intensity instead controls growth tempo. Higher Coale-Demeny levels, corresponding to lower mortality, produce more rapid population expansion and reach the technical ceiling substantially earlier. At the lowest levels, growth is much slower, particularly under patrilocal-patrilineal residence, but remains positive.
 
-Simulations using the same parameter configuration, except `residence-rule`, and varying `c1_fert` and `SEED`. `cdmlt_level` is kept just above the safe value under both residence rules.
+The targeted experiment therefore complements the global sensitivity analysis: mortality remains an important secondary determinant of demographic performance, but favourable fertility and union parameters can compensate for high mortality within this particular configuration. No universal mortality threshold should be inferred from these trajectories.
+
+## Fertility peak intensity sweep experiment
+
+Simulations using the same parameter configuration, except `residence-rule`, and varying `c1_fert` and `SEED`.
 
 ```{r}
 #| label: trajectories_c1_fert_load
@@ -2654,7 +2690,7 @@ sampled_trajectories_c1_fert <- readRDS("data/v13_trajectories_c1_fert.RData")
 
 ```{r} 
 #| label: trajectories_params_c1_fert_display
-#| fig.cap: "Parameter configuration for the population trajectories sampled across different fertility intensity levels."
+#| fig.cap: "Parameter configuration for the population trajectories sampled across different fertility peak intensity levels."
 knitr::kable(sampled_trajectories_c1_fert |> 
                mutate(
                  max_iterations_in_days = max_iterations * year_length_in_days,
@@ -2677,7 +2713,7 @@ knitr::kable(sampled_trajectories_c1_fert |>
 
 ```{r} 
 #| label: trajectories_c1_fert
-#| fig.cap: "Population trajectories across different fertility intensity levels, faceted by residence rule."
+#| fig.cap: "Population trajectories across different fertility peak intensity levels, faceted by residence rule."
 log_max_population <- ceiling(max(sampled_trajectories_c1_fert$log_totalIndividuals))
 
 pop_trajectories_plot <- sampled_trajectories_c1_fert |>
@@ -2711,36 +2747,51 @@ if (EXPORT_FIGURES) {
     "v13_pop_trajectories_c1_fert"
   )
 }
+rm(pop_trajectories_plot)
 ```
 
-As in the case of `cdmlt_level`, `c1_fert` presents a local threshold value, less definitive but still very influential, that differs under the two residence rules. However, v1.3 presents a higher extinction probability overall, so this parameter setting already hardly allows for persistence, even under the most intense fertility. Still, the asymmetry between residence rules are hinted, by having only matrilocal-matrilinial cases, with 0.9 intensity, avoiding extinction. This confirms the importance of mortality intensity for survival, since a higher `c1_fert` can barely compasate the effect of a low `cdmlt_level` (higher mortality intensity). 
+The targeted fertility sweep shows a strong monotonic effect on demographic growth rate but no extinction threshold within the range examined. Populations grow under every tested `c1_fert` value from 0.3 to 0.9 in both residence systems.
+
+Higher fertility peak intensity substantially shortens the time required to reach `max_population`. At intermediate and high values, populations reach the technical ceiling increasingly rapidly, whereas at `c1_fert = 0.3` growth remains positive but is too slow to reach the ceiling within the 500-year simulation horizon.
+
+The experiment therefore clarifies the dominant random-forest importance of `c1_fert`: fertility peak intensity regulates replacement and growth tempo continuously rather than imposing a universal critical value separating survival from extinction. Whether low fertility produces extinction in the broader Sobol exploration depends on its interaction with mortality, union formation, amenorrhoea, initial conditions, and stochastic history.
+
+Differences between residence rules are modest compared with the effect of fertility itself.
 
 ## Discussion notes
 
-The key thing about v1.3 is that it is not just “v1.1 with smaller timesteps”; it inserts gestation and postpartum amenorrhea as explicit reproductive delays, which changes tempo and cohort spacing while preserving the broader demographic logic.
+### Same demographic foundations, altered quantitative hierarchy
 
-Overall, v1.3 preserves the same general demographic attractors observed in v1.1, indicating that the transition to daily iteration does not alter the model’s fundamental behaviour. Instead, it refines the internal timing of demographic events, producing smoother trajectories, more realistic reproductive spacing, and sharper differentiation in age structure between persistent and growing populations.
+Version 1.3 preserves the density-independent demographic architecture of v1.1 while replacing annual event scheduling with daily demographic processes and explicit gestation and postpartum amenorrhoea. Fertility peak intensity remains the dominant predictor of survival, final population size, and median age, demonstrating strong continuity in the model's underlying demographic logic.
 
-### Same hierarchy of demographic drivers, stronger temporal realism
+Mortality remains an important secondary predictor of survival and final size, but it no longer approaches fertility peak intensity in importance and has little direct effect on median age. The daily model therefore preserves the main causal architecture of v1.1 while changing its quantitative expression rather than simply reproducing the same parameter hierarchy.
 
-Like v1.1, mortality (cdmlt_level) and fertility intensity (c1_fert) remain the dominant determinants of survival and final size. This is expected because daily scaling preserves annual cumulative probabilities. But the daily structure makes these effects unfold more gradually and with more path dependence. Therefore, v1.3 validates the structural robustness of v1.1 while increasing temporal fidelity.
+### Growth becomes slower and persistence more common
 
-### Growth becomes harder, persistence more differentiated
+Daily reproductive scheduling reduces demographic tempo. Growth remains the most common outcome among surviving populations, but Persistence occupies a noticeably larger share than in v1.1, and overall extinction is more frequent. Explicit gestation and postpartum amenorrhoea delay the conversion of reproductive opportunity into births, so viable populations take longer to accumulate demographic gains.
 
-In v1.1, “growth” could emerge rapidly because births were instantaneous yearly events. In v1.3, births are delayed by pregnancy and followed by infertile postpartum periods. This introduces friction into expansion. Growth cases still exist, but become less explosive, persistence occupies a broader middle ground, and extinction still dominates most parameter space. This makes the model demographically more realistic.
+The targeted mortality and fertility sweeps reinforce this interpretation. Neither displays a sharp viability threshold under favourable conditions; instead, both parameters primarily alter the time required to approach the technical population ceiling.
 
-### Age structure becomes smoother and older
+### Age structure becomes older, but Growth-Persistence separation does not strengthen
 
-The Cohen’s d values in the residence-rule comparison (0.56 matri, 0.85 patri across survival categories) suggest a stronger separation between persistence and growth than in v1.1. This likely means growth populations remain younger, persistence populations age more visibly, and temporal spacing between births reduces abrupt juvenile bulges. In other words: the demographic “pulse” becomes stretched.
+Surviving populations are systematically older in v1.3 than in v1.1. Growth populations have a mean median age of about 21.5 years and persistent populations about 30.8 years, compared with approximately 18.6 and 29.6 years in the annual baseline. The Persistence-Growth contrast nevertheless becomes slightly weaker in standardised terms (\(d=1.73\) versus \(1.92\)), not stronger.
 
-### Residence-rule differences persist
+Daily scheduling therefore shifts demographic composition towards older ages while preserving the strong association between rapid recruitment and youthful age structure.
 
-Patrilocal-patrilineal populations continue to show older median ages and stronger divergence between survival outcomes, consistent with v1.1. This suggests kinship structure still mediates demographic resilience, daily iteration does not erase those structural asymmetries, but may amplify them through cumulative household turnover effects.
+### Residence-rule differences remain secondary
 
-### Additional comments
+Aggregate residence-rule effects remain small. Matrilocal-matrilineal populations are marginally older on average and show a slightly larger Persistence-Growth age contrast, while patrilocal-patrilineal populations grow somewhat faster in the targeted trajectory experiments. These differences are conditional and modest compared with the influence of fertility and reproductive scheduling.
 
-The explicit incorporation of gestation and postpartum infertility reveals that reproductive timing parameters play a larger role than previously visible in annual models. This suggests that coarse temporal resolution may underestimate the cumulative effects of demographic delays. At the same time, the persistence of the same dominant parameter hierarchy confirms that the model remains structurally stable across scales, strengthening confidence in its underlying demographic logic.
+The clearest residence effects continue to occur through sex-specific union parameters rather than through a general survival or age-structure advantage.
+
+### Explicit reproductive delays add information without replacing the baseline
+
+Postpartum amenorrhoea provides the clearest genuinely new demographic control introduced by v1.3. Longer amenorrhoea modestly increases median age by extending birth intervals, but its influence remains secondary to fertility peak intensity and fertility spread.
+
+The daily formulation therefore demonstrates that temporal resolution is a substantive modelling choice. It changes reproductive tempo, cohort structure, and the time required for population expansion while preserving the broad fertility-driven demographic logic of the annual baseline.
 
 ## Chapter conclusion
 
-Version 1.3 demonstrates that increasing temporal resolution can substantially improve demographic realism without disrupting the broader parameter sensitivities identified in the yearly model. This makes it an important intermediary step toward integrating ecological feedbacks at finer temporal scales in the subsequent v1.4.x models.
+Version 1.3 demonstrates that introducing daily demographic scheduling changes the quantitative expression of the Household Demography model without replacing its underlying demographic architecture. Fertility peak intensity remains the principal determinant of survival, population growth, and age composition, while explicit gestation and postpartum amenorrhoea slow reproductive turnover, increase the frequency of persistent outcomes, and produce generally older surviving populations.
+
+Daily iteration therefore contributes more than finer numerical resolution: it makes reproductive delays and birth spacing explicit and changes the tempo through which demographic outcomes emerge. At the same time, the persistence of the baseline fertility-driven hierarchy provides a clear point of continuity with v1.1 and establishes the appropriate daily baseline for the density-regulated v1.4 series.
