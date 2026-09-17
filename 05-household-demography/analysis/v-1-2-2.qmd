@@ -7,7 +7,7 @@ params:
   show_diagnostics: false
 ---
 
-# Demand- and supply-weighted density dependent model (v.1.2.2)
+# Demand- and supply-weighted density dependent model (v1.2.2)
 
 ## Setup
 
@@ -62,7 +62,7 @@ theme_set(
 
 ## Experiment design
 
-As version v1.2.2 introduce a new parameter, `labour_demand_per_capita`, an additional batch of Sobol sampled values is generated. As in v1.2.1, this model does require constants used to determine the correspondence between age and the adult-equivalent unit (i.e., 15, 45, and the exponential 10, which determines a steeper decline compared with the function for demand; see `get-labour-at-age`). These were generated previously with `library/generate_sobol.R`.
+As version v1.2.2 introduces a new parameter, `labour_demand_per_capita`, an additional batch of Sobol sampled values is generated. As in v1.2.1, this model does require constants used to determine the correspondence between age and the adult-equivalent unit (i.e., 15, 45, and the exponent 10, which determines a steeper decline compared with the function for demand; see `get-labour-at-age`). These were generated previously with `library/generate_sobol.R`.
 
 ```{r} 
 #| label: sobol_load
@@ -161,7 +161,7 @@ sampled_trajectories_labour_demand_per_capita <- load_trajectories(
   )
 ```
 
-A particularity in processing the data with age-weighted variables is that we need to use (or compute) the total carrying capacity demand (`carrying_capacity_demand`) and use it to calculate `pressure` instead of using `totalIndividuals` directly (i.e., `pressure = carrying_capacity_demand / carrying_capacity`). Although this variable can be exported through NetLogo's Behavior Space, it was not specified for all massive Sobol sampled experiments, so it is necessary to calculate it using `womenAgeStructure` and `menAgeStructure` (see "library/density/compute_carrying_capacity_demand.R").
+A particularity in processing the data with age-weighted variables is that we need to use (or compute) the total carrying capacity demand (`carrying_capacity_demand`) and use it to calculate `pressure` instead of using `totalIndividuals` directly (i.e., `pressure = carrying_capacity_demand / carrying_capacity_effective`). Although this variable can be exported through NetLogo's Behavior Space, it was not specified for all massive Sobol sampled experiments, so it is necessary to calculate it using `womenAgeStructure` and `menAgeStructure` (see "library/density/compute_carrying_capacity_demand.R" and "library/density/compute_effective_carrying_capacity.R").
 
 ### Surviving population structure
 
@@ -176,14 +176,14 @@ group_vars = c(
   "fertility_timing",
   "fertility_spread_pre_peak",
   "fertility_spread_post_peak",
-  "marriage_timing_women",
-  "marriage_timing_men",
-  "marriage_intensity_women",
-  "marriage_intensity_men",
-  "marriage_spread_pre_peak_women",
-  "marriage_spread_pre_peak_men",
-  "marriage_spread_post_peak_women",
-  "marriage_spread_post_peak_men"
+  "union_timing_women",
+  "union_timing_men",
+  "union_intensity_women",
+  "union_intensity_men",
+  "union_spread_pre_peak_women",
+  "union_spread_pre_peak_men",
+  "union_spread_post_peak_women",
+  "union_spread_post_peak_men"
 )
 
 age_structures <- endstates |>
@@ -202,7 +202,7 @@ age_structures <- endstates |>
 
 age_structure_indicators <- age_structures |>
   compute_age_structure_indicators(group_vars = group_vars) |>
-  # make a binomial classification for Cohen's d test
+  # make a binary classification for Cohen's d test
   mutate(
     pressure_regime = ifelse(
       survival == "Persistence\n(low pressure)",
@@ -319,9 +319,9 @@ if (EXPORT_FIGURES) {
 }
 ```
 
-Although the overall structure of end-state outcomes remains comparable to that of v1.2.1, the introduction of labour-constrained carrying capacity substantially shifts the balance toward extinction. The proportion of non-extinction cases is considerably lower for all combination of `residence-rule` and `coale-demeny-region` (mean surviving proportion is ```r endstates |> filter(survival != "Extinction") |> nrow()```). This indicates that the additional supply-side constraint imposes a stronger viability filter on the system. As in previous versions, residence rule and mortality regime continue to shape survival asymmetrically, but their effects are now expressed under a narrower range of viable demographic configurations.
+The introduction of labour-mediated effective carrying capacity produces the largest change in overall viability observed so far in the density-dependent model series. Only 8,659 of the 48,000 simulations, approximately 18.0%, avoid extinction, compared with about 62.5% in v1.2.1. The additional supply-side constraint therefore acts as a strong demographic viability filter: parameter configurations that remain viable when ecological pressure depends only on demand frequently collapse when the population must also generate sufficient labour to realise carrying capacity.
 
-Still, patterns present in v1.2.1 continue, such as the small asymmetry between matrilineal-matrilocal rule (n = ```r endstates |> filter(residence_rule == "matrilocal-matrilineal", survival != "Extinction") |> nrow()```) and patrilineal-patrilocal rule (n = ```r endstates |> filter(residence_rule == "patrilocal-patrilineal", survival != "Extinction") |> nrow()```) and the slightly higher overshooting under patrilineal-patrilocal (n = ```r endstates |> filter(residence_rule == "patrilocal-patrilineal", survival == "Overshooting") |> nrow()``` compared to matrilineal-matrilocal's ```r endstates |> filter(residence_rule == "matrilocal-matrilineal", survival == "Overshooting") |> nrow()```).
+Residence rule and Coale-Demeny region remain secondary at the aggregate level. Matrilocal-matrilineal residence produces 4,361 surviving runs and patrilocal-patrilineal residence 4,298, a very small difference relative to the size of the experiment. Overshooting is similarly balanced between residence rules (539 and 541 cases, respectively). Thus, the substantial increase in extinction is attributable to the introduction of labour limitation across the parameter space rather than to a strong residence-specific shift in viability.
 
 ### Temporal trajectories
 
@@ -343,7 +343,7 @@ knitr::kable(sampled_trajectories |>
 )
 ```
 
-Dynamics of population trajectories across time steps, faceted by residence rule. The plot shows individual trajectories with low opacity and the median trajectory with higher opacity. The y-axis is on a logarithmic scale to better visualise differences in population sizes over time, especially when trajectories vary widely.
+Under this favourable reference configuration, both residence systems remain viable despite the addition of labour-dependent carrying capacity. Following the initial demographic expansion, trajectories settle into comparatively stable population bands rather than undergoing the widespread extinction observed across the full Sobol exploration.
 
 ```{r} 
 #| label: trajectories 
@@ -378,7 +378,9 @@ if (EXPORT_FIGURES) {
 }
 ```
 
-Matrilocal-matrilineal systems clearly exhibit bifurcation: either stable high-pressure persistence near carrying capacity, or delayed collapse after prolonged demographic stress. The fact that collapse is here protracted is significant. Patrilocal-patrilineal systems show a much steeper and faster collapse gradient, suggesting lower resilience once the population enters under-replacement dynamics.
+The two residence systems show only modest differences in their realised population levels and stochastic variation. In this particular configuration, labour supply remains sufficient to support the demographic demand generated by the population, allowing effective carrying capacity to remain close to its nominal environmental maximum.
+
+These trajectories are therefore best interpreted as examples of configurations that have passed the strong labour-related viability filter revealed by the global exploration. They do not demonstrate that labour constraints are generally weak; rather, they show that once a favourable demographic configuration maintains sufficient productive labour, long-run regulation can resemble that observed in v1.2.1.
 
 ### Household composition
 
@@ -523,15 +525,15 @@ plotName = paste0("plots/v122_household_structure_trajectories_peaks.png")
 knitr::include_graphics(plotName)
 ```
 
-Household-level outcomes remain broadly consistent with those observed in v1.2.1, suggesting that the labour constraint primarily modifies population-level viability rather than household-level social organisation. The mechanisms governing household formation, division, and persistence therefore remain structurally stable, while ecological and demographic constraints act mainly through aggregate labour availability and mortality feedback.
+Household-level organisation remains broadly similar to v1.2.1. Population size scales closely with household number under both residence systems, and the sampled trajectories converge towards comparable ranges of mean household size. The introduction of labour-dependent carrying capacity therefore does not directly reorganise the mechanisms of household formation and fission.
 
-Worth noticing is that the trajectory with the maximum household size peak under the matrilineal-matrilocal rule collapses while those with more modest peaks remain persistent. This reinforces the still preliminary interpretation that a population peaking on this indicator might be associated with extinction.
+Instead, labour limitation acts primarily by determining which demographic and household configurations remain viable at the population level. Household structure may contribute indirectly through the age composition and productive labour generated by households, but the reference trajectories provide no evidence that exceptionally large households are themselves associated with subsequent collapse.
 
 ### Effective carrying capacity and labour
 
 ```{r}
 #| label: endstates_distrib_log_carrying_capacity_effective 
-#| fig.cap: "Distribution of effective carrying capacity ratio over parametric carrying capacity in surviving populations across residence rules and Coale-Demeny regions."
+#| fig.cap: "Distribution of effective carrying capacity in surviving populations across residence rules and Coale-Demeny regions."
 endstates_distrib_log_carrying_capacity_effective_plot <- endstates |>
   filter(survival != "Extinction") |>
   plot_endstate_variable_distribution(
@@ -553,8 +555,6 @@ if (EXPORT_FIGURES) {
   )
 }
 ```
-
-The plot is essentially reproducing the nominal carrying-capacity distribution. This means that surviving populations are almost always operating at full effective capacity.
 
 ```{r}
 #| label: endstates_distrib_labour_ratio 
@@ -584,7 +584,7 @@ if (EXPORT_FIGURES) {
 
 ```{r} 
 #| label: labour_ratio_survival_plot 
-#| fig.cap: "Labour ratio distribution of simulations across survival category, residence rules and Coale-Demeny regions."
+#| fig.cap: "Labour ratio distribution of simulations across survival category and residence rules."
 labour_ratio_survival_plot <- endstates |>
   plot_labour_ratio_distrib(
     x_var = "survival",
@@ -670,31 +670,13 @@ pop_trajectories_labour_plot <- sampled_trajectories |>
 pop_trajectories_labour_plot
 ```
 
-**_Labour limitation as a viability filter_**
+Among surviving populations, effective carrying capacity largely reproduces the distribution of nominal carrying capacity. The corresponding `laboured_share` values cluster very close to one, indicating that populations which remain viable generally generate sufficient labour to realise nearly the full environmental capacity available to them.
 
-The initial working questions focused on whether labour-dependent carrying capacity separates survival outcomes in a systematic way:
+The labour-ratio distributions reinforce this pattern. Surviving populations commonly maintain available labour at or above the amount required, although considerable variation remains among individual runs and survival categories. Labour limitation therefore does not generally produce a continuum of strongly reduced equilibrium capacities among survivors.
 
-- Do low-pressure populations maintain higher effective carrying capacities? The results do not support this interpretation.  
-- Are high-pressure populations labour constrained? No; surviving high-pressure populations generally maintain sufficient labour.  
-- Do overshooting populations occupy a distinct parameter range? Not clearly, although the few observed cases appear unusual.  
+Combined with the much higher extinction frequency in the global experiment, this points to a strong selection effect. Configurations unable to maintain adequate productive labour tend not to survive long enough to appear among the late-run distributions, whereas successful configurations have largely escaped direct labour limitation. Labour thus behaves primarily as a viability constraint in the yearly implementation: it determines whether the demographic system can sustain the environmental capacity available to it more strongly than it determines the equilibrium capacity of populations that have already survived.
 
-Overall, labour does not appear to act as a limiting factor among surviving populations. Almost every surviving run ends with `laboured_share` close to 1, meaning that `labour_available` is greater than or equal to `labour_required`. As a result, `carrying_capacity_effective` is approximately equal to the nominal `carrying_capacity` for nearly all surviving populations.
-
-This pattern suggests a strong filtering process. Populations that cannot maintain adequate labour availability tend to collapse, while those that survive have effectively escaped labour limitation. In this sense, labour limitation behaves less like a continuous regulator of population size and more like a viability constraint.
-
-Introducing labour-dependent carrying capacity therefore does not produce a broad continuum of labour-constrained equilibria. Instead, it appears to operate primarily as a viability filter: populations that cannot meet labour requirements disappear, whereas surviving populations overwhelmingly retain enough labour to realise the nominal carrying capacity. Surviving populations are therefore not simply balancing labour supply and demand; they maintain an excess of productive capacity.
-
-**_Main visual patterns_**
-
-- Strong viability boundary. There is an almost empty region below the diagonal, indicating that `labour_available < labour_required` is rarely observed among surviving populations. This reinforces the interpretation of labour sufficiency as a threshold condition.  
-- High-pressure populations extend further right. The “Persistence (high pressure)” panel includes runs with `labour_required > 3000` while still maintaining labour_available > labour_required. This suggests that high-pressure populations are not labour-limited; rather, they are labour-sufficient but ecologically stressed, which is precisely the distinction version 1.2.2 was designed to capture.  
-- Overshooting populations are unusual. The overshooting panel is sparse, but the few observed points are informative. Several occupy extreme regions with high labour availability and/or high labour requirements, suggesting that overshooters may represent populations capable of maintaining unusually large productive cohorts. Given their rarity, however, this pattern should be interpreted cautiously.  
-
-**_Interpretation of labour demand_**
-
-The broad overlap in labour-demand-per-capita values across survival categories suggests that this parameter does not operate as a simple deterministic threshold under the full Sobol exploration. This is also one of the most striking features of the figure: although the points are coloured by labour-demand-per-capita, all three survival categories contain a wide range of values. The parameter is therefore important, but not because it directly determines collapse or persistence on its own.
-
-Instead, labour-demand-per-capita appears to move populations closer to, or further from, the viability boundary defined by `labour_available = labour_required`. Whether a population ultimately collapses, persists under high pressure, or overshoots then depends on interactions with the demographic structure generated by fertility, mortality, nuptiality, and initial age composition. This interpretation is consistent with the random-forest results, where labour demand is influential because it modulates proximity to the viability boundary, while fertility and mortality parameters remain important even after labour demand is introduced.
+This also explains why `labour_demand_per_capita` can become the strongest predictor of survival while remaining a comparatively weak predictor of effective carrying capacity conditional on survival. The two analyses describe different sides of the same filter.
 
 ### Density regulation dynamics
 
@@ -730,7 +712,7 @@ if (EXPORT_FIGURES) {
 
 ```{r} 
 #| label: regulation_dynamics_rr_prop_plot_display 
-#| fig.cap: "Distribution of density regulation regimes accross residence rules, for the trajectories sampled."
+#| fig.cap: "Distribution of density regulation regimes across residence rules, for the trajectories sampled."
 plotName = paste0("plots/v122_regulation_dynamics_rr_prop.png")
 
 knitr::include_graphics(plotName)
@@ -763,13 +745,17 @@ if (EXPORT_FIGURES) {
 
 ```{r} 
 #| label: regulation_dynamics_rr_mean_cv_plot_display 
-#| fig.cap: "Distribution of mean and CV of population pressure accross density regulation regimes and residence rules, for the trajectories sampled."
+#| fig.cap: "Distribution of mean and CV of population pressure across density regulation regimes and residence rules, for the trajectories sampled."
 plotName = paste0("plots/v122_regulation_dynamics_rr_mean_cv.png")
 
 knitr::include_graphics(plotName)
 ```
 
-In v1.2.2, the pressure metric becomes even more structurally informative than in v1.2.1. Pressure now reflects both age-weighted carrying-capacity demand and age-weighted labour supply, meaning that populations of equivalent size can experience very different effective pressures depending on their demographic composition. Ecological regulation is therefore no longer reducible to abundance alone, but emerges from the balance between demographic dependency and productive capacity.
+All reference trajectories are classified as Overshooting under the current operational criteria, yet their late-run pressures have very low coefficients of variation. As in the previous density-dependent versions, overshooting in this targeted sample therefore represents stable regulation slightly above the relevant capacity threshold rather than uncontrolled population growth.
+
+In v1.2.2, however, the ecological meaning of that threshold is more complex. Population pressure depends on age-weighted subsistence demand relative to the capacity that can actually be realised through available labour. Populations of similar abundance can therefore experience different pressure depending on both the demand generated by their age composition and the productive contribution of that composition.
+
+The reference trajectories demonstrate that once labour sufficiency is maintained, stable high-pressure states remain possible. The principal effect of labour supply is therefore expressed more strongly in the global probability of reaching such a viable state than in the late-run variability of those trajectories that do.
 
 ### Age structure
 
@@ -819,7 +805,9 @@ knitr::kable(
 )
 ```
 
-Surviving populations under lower pressure tend to exhibit older age structures and broader upper tails. This pattern does not necessarily indicate senescence or decline, but rather demographic efficiency: these populations maintain sufficient productive adults while avoiding the large dependent juvenile cohorts associated with high reproductive expansion. In this sense, lower pressure reflects not lower abundance, but a more balanced allocation between labour supply and carrying-capacity demand.
+Population pressure remains strongly associated with demographic composition. Low-pressure populations are older on average and contain smaller juvenile shares and lower dependency ratios than high-pressure and overshooting populations. The low- versus high-pressure difference remains large (\(d=-0.82\)), although it is appreciably weaker than in v1.2.1.
+
+Surviving populations are also generally younger than in the preceding version. This shift is consistent with labour-dependent viability selectively favouring demographic configurations capable of maintaining sufficiently large productive cohorts, although the age-structure comparison alone cannot establish that mechanism directly. The labour constraint therefore appears to narrow the range of viable demographic structures while preserving the broader association between rapid recruitment, younger populations, and higher ecological pressure.
 
 #### Residence rule and Coale-Demeny regions
 
@@ -883,7 +871,7 @@ if (EXPORT_FIGURES) {
 
 ```{r} 
 #| label: age_structure_indicators_plot_median_cdr_rr_display 
-#| fig.cap: "Aggregate age structures of surviving populations across residence rules and Coale-Demeny regions."
+#| fig.cap: "Distribution of median age of surviving populations across residence rules and Coale-Demeny regions."
 plotName = paste0("plots/v122_violin_residence_rule_region.png")
 
 knitr::include_graphics(plotName)
@@ -958,9 +946,15 @@ knitr::kable(
 )
 ```
 
+!!!
+
 #### Interpretation
 
-The age-structure analyses indicate that v1.2.2 introduces a tighter feedback between demographic composition and ecological regulation. In v1.2.1, age structure affected mortality through carrying-capacity demand; in v1.2.2 it additionally affects the productive capacity required to sustain that demand. Population viability therefore depends not only on dependency ratios but on the balance between consumers and effective labour contributors. This creates a more explicit coupling between reproduction, ageing, and ecological resilience.
+Residence rule again has only a very small direct association with median age (\(d=0.12\)), while pressure regime remains much more informative. However, the strength of the pressure-age relationship now differs more clearly between residence systems: the low- versus high-pressure contrast is medium under matrilocal-matrilineal residence (\(d=-0.61\)) and large under patrilocal-patrilineal residence (\(d=-1.02\)).
+
+Relative to v1.2.1, the addition of labour-dependent productive capacity therefore attenuates the association between pressure and age structure, particularly under matrilocal-matrilineal residence. Age composition now contributes simultaneously to demographic demand and to the labour available to satisfy that demand, so similar age structures can have different ecological consequences depending on their balance of consumers and productive adults.
+
+The important result is not that labour demand directly determines age structure, but that it changes which demographic configurations remain viable. Among those that survive, fertility and nuptiality continue to shape age composition more strongly than the labour parameter itself.
 
 ## Sensitivity analysis
 
@@ -998,7 +992,7 @@ rf_models <- load_or_build_rf_models(
 )
 ```
 
-Random forest models are fitted separately for each residence rule, using the same set of predictors. The response variables include `pressure`, `survival`, `median_age`, and `log_carrying_capacity_effective` allowing us to assess the importance of predictors for different aspects of population dynamics and structure. Notice that the model built for `median_age` uses only cases with surviving populations.
+Random forest models are fitted separately for each residence rule, using the same set of predictors. The response variables include `pressure`, `survival`, `median_age`, and `log_carrying_capacity_effective` allowing us to assess the importance of predictors for different aspects of population dynamics and structure. Notice that the model built for `median_age` and `log_carrying_capacity_effective` uses only cases with surviving populations.
 
 The models are built using a consistent random seed to ensure reproducibility, and the option to overwrite existing models is controlled by the `REMAKE_RF` flag.
 
@@ -1079,7 +1073,7 @@ top_parameters_survival <- rf_survival_importance |>
   pull(parameter)
 ```
 
-For each top parameter, calculate PDs for the corresponding RFs using `survival` as response variable and no population ("Extinction") as response class. Plot each PD result with `pressure` and per `residence_rule`.
+For each top parameter, calculate PDs for the corresponding RFs using `survival` as response variable and no population ("Extinction") as response class. Plot each PD result with `survival` and per `residence_rule`.
 
 ```{r} 
 #| label: sensitivity_survival_pd
@@ -1126,6 +1120,14 @@ plotName = paste0("plots/v122_survival_param_pd.png")
 
 knitr::include_graphics(plotName)
 ```
+
+The introduction of labour demand fundamentally reorganises the sensitivity of population survival. `labour_demand_per_capita` becomes by far the strongest predictor of extinction under both residence rules, displacing fertility peak intensity from the leading position it occupied in earlier versions. Its partial dependence shows a steep nonlinear increase in extinction probability as labour requirements rise, followed by a broad high-risk plateau.
+
+`density_effect_scaling_factor` remains the second most influential predictor and retains its previous direction: stronger density-dependent mortality increases extinction risk. Fertility peak intensity (`c1_fert`) now occupies third place but continues to act in the opposite direction, with higher fertility reducing extinction probability by strengthening demographic replacement.
+
+Sex-specific nuptiality and fertility-schedule parameters remain secondary and preserve some of the residence-dependent asymmetries observed in earlier versions. The dominant new result, however, is that survival has shifted from being primarily recruitment-limited to being strongly conditioned by the ability of the population to generate sufficient productive labour.
+
+Labour demand should therefore be interpreted as a context-dependent viability constraint rather than as a deterministic threshold parameter. Its effect is very strong across the heterogeneous Sobol parameter space, but, as the targeted experiment in Section 7.6 shows, favourable demographic configurations can remain viable over a wide range of labour requirements.
 
 #### Population pressure
 
@@ -1249,9 +1251,13 @@ plotName = paste0("plots/v122_pressure_param_pd.png")
 knitr::include_graphics(plotName)
 ```
 
-The overall parameter ranking in relation to pressure remains structurally comparable to v1.2.1, but the introduction of labour supply introduces an additional layer of demographic mediation. Fertility and mortality parameters now affect pressure not only by shaping total population size, but by shaping the age composition that determines both demand and productive capacity.
+Population pressure remains dominated by `density_effect_scaling_factor`, confirming that the strength of density-dependent mortality continues to determine how closely surviving populations approach their ecological limit. Its partial dependence is strongly negative, whereas fertility peak intensity (`c1_fert`) again raises expected pressure.
 
-#### Median age in end state population
+Labour demand now joins nominal carrying capacity among the most influential secondary predictors. Increasing `labour_demand_per_capita` raises expected population pressure by increasing the productive effort required to realise a given carrying capacity. This provides the supply-side counterpart to fertility-driven demand: fertility increases the demographic burden placed on the system, while labour requirements determine how difficult it is to sustain the productive capacity needed to meet that burden.
+
+Nuptiality and mortality parameters remain consequential but substantially less important than the leading ecological and fertility controls. Pressure in v1.2.2 therefore reflects a genuinely coupled demand-supply process rather than demographic abundance alone.
+
+#### Median age
 
 ```{r} 
 #| label: sensitivity_median_age_importance
@@ -1373,7 +1379,11 @@ plotName = paste0("plots/v122_median_age_param_pd.png")
 knitr::include_graphics(plotName)
 ```
 
-The determinants of median age remain broadly similar to those observed in previous versions, indicating that labour constraints do not fundamentally alter the demographic mechanisms generating age structure. Instead, they selectively filter which age structures remain viable.
+Median age remains primarily controlled by reproductive and nuptiality parameters rather than by labour demand itself. `c1_fert` is again the strongest predictor, while male pre-peak union spread, male union intensity, and male union timing occupy particularly prominent positions, especially under patrilocal-patrilineal residence.
+
+`labour_demand_per_capita`, `carrying_capacity`, and `density_effect_scaling_factor` have considerably smaller importance for median age than for survival or pressure. This supports the interpretation that labour constraints act mainly by filtering viable demographic configurations rather than by continuously restructuring the age composition of populations once they survive.
+
+The age structures observed in v1.2.2 are consequently the product of two processes: fertility and nuptiality generate demographic composition, while labour sufficiency determines which of those compositions remain viable.
 
 #### Effective carrying capacity
 
@@ -1497,17 +1507,21 @@ plotName = paste0("plots/v122_log_carrying_capacity_effective_param_pd.png")
 knitr::include_graphics(plotName)
 ```
 
-The importance ranking for effective carrying capacity differs from that of survival and pressure. Notably, labour-demand-per-capita has comparatively weaker direct effects here. This apparent paradox reflects the fact that the parameter primarily determines whether populations persist at all, rather than the equilibrium effective capacity they occupy once survival has been achieved.
+Effective carrying capacity displays yet another sensitivity hierarchy. Nominal `carrying_capacity` overwhelmingly dominates the response, while fertility and nuptiality parameters exert smaller secondary effects through their influence on demographic composition and labour availability. `labour_demand_per_capita`, despite dominating survival, has only moderate importance for effective capacity among surviving populations.
+
+This is not contradictory. The effective-capacity model is fitted only to populations that survive, and those populations overwhelmingly have `laboured_share` values close to one. Once labour sufficiency has been achieved, effective carrying capacity therefore largely tracks the externally specified nominal capacity. Labour demand determines which populations reach this labour-sufficient subset much more strongly than it determines the effective capacity realised within it.
+
+The partial-dependence results consequently reveal a strong selection effect: nominal environmental capacity determines the scale of realised capacity among survivors, while labour demand acts primarily at the prior stage of demographic viability.
 
 ### Age structure of surviving populations for selected parameters
 
-Note: parameters are ordered in importance towards median age. The binomial categories created earlier in preprocessing, which split the parameter range according to the distribution median, are used.
+Note: parameters are grouped by submodels and meaning, not by importance. The binary categories created earlier in preprocessing, which split the parameter range according to the distribution median, are used.
 
-#### `c1-fert`: high *versus* low fertility regimes
+#### `c1-fert`: high *versus* low fertility peak intensity regimes
 
 ```{r} 
 #| label: age_structure_c1_fert_pyramid_plot
-#| fig.cap: "Population pyramids across fertility intensity regimes, by residence rule."
+#| fig.cap: "Population pyramids across fertility peak intensity regimes, by residence rule."
 age_structures |>
   aggregate_age_structure(
     group_vars = c("fertility_intensity"),
@@ -1522,7 +1536,7 @@ age_structures |>
 
 ```{r} 
 #| label: age_structure_c1_fert_median_plot
-#| fig.cap: "Median age of surviving populations across fertility regimes, by residence rule."
+#| fig.cap: "Median age of surviving populations across fertility peak intensity regimes, by residence rule."
 #| fig.width: 10
 #| fig.height: 4
 plot_age_structure_indicators(
@@ -1535,7 +1549,7 @@ plot_age_structure_indicators(
 
 ```{r} 
 #| label: age_structure_c1_fert_indicators_summary
-#| tab.cap: "Summary of age structure indicators across fertility regimes and residence rules."
+#| tab.cap: "Summary of age structure indicators across fertility peak intensity regimes and residence rules."
 knitr::kable(
   indicators_summary(
     age_structure_indicators, 
@@ -1544,7 +1558,7 @@ knitr::kable(
 )
 ```
 
-Cohen's d for median age across fertility regimes, by residence rule:
+Cohen's d for median age across fertility peak intensity regimes, by residence rule:
 
 ```{r} 
 #| label: age_structure_c1_fert_median_cohend_matri
@@ -1588,53 +1602,56 @@ knitr::kable(
 )
 ```
 
-#### `cdmlt-level`: mortality regimes
+High-fertility peak intensity regimes produce substantially younger surviving populations under both residence systems. The effect remains large (\(d=-0.96\) under matrilocal-matrilineal and \(d=-1.05\) under patrilocal-patrilineal residence), confirming that fertility intensity continues to dominate age structure even after labour constraints strongly reshape survival.
 
-```{r}
-#| label: age_structure_cdmlt_level_pyramid_plot
-#| fig.cap: "Population pyramids across mortality regimes, by residence rule."
+#### `mu_fert`: early *versus* late fertility timing
+
+```{r} 
+#| label: age_structure_mu_fert_pyramid_plot
+#| fig.cap: "Population pyramids across fertility timing regimes, by residence rule."
 age_structures |>
   aggregate_age_structure(
-    group_vars = c("mortality_regime"),
+    group_vars = c("fertility_timing"),
     smooth = FALSE
     ) |>
   prepare_pyramid_plot() |>
   plot_population_pyramid(
-    facet_var = "mortality_regime",
+    facet_var = "fertility_timing",
     show_mean = TRUE
     )
 ```
 
 ```{r} 
-#| label: age_structure_cdmlt_level_median_plot
-#| fig.cap: "Median age of surviving populations across mortality regimes, by residence rule."
-#| fig.width: 10
-#| fig.height: 4
+#| label: age_structure_mu_fert_median_plot
+#| fig.cap: "Median age of surviving populations across fertility timing regimes, by residence rule."
 plot_age_structure_indicators(
   age_structure_indicators, 
   x_var = "survival", 
   fill_var = "residence_rule", 
-  facet_var = "mortality_regime"
+  facet_var = "fertility_timing"
 )
 ```
 
 ```{r} 
-#| label: age_structure_cdmlt_level_indicators_summary
-#| tab.cap: "Summary of age structure indicators across mortality regimes and residence rules."
+#| label: age_structure_mu_fert_indicators_summary
+#| tab.cap: "Summary of age structure indicators across fertility timing regimes and residence rules."
 knitr::kable(
-  indicators_summary(age_structure_indicators, group_vars = c("residence_rule", "mortality_regime"))
+  indicators_summary(
+    age_structure_indicators, 
+    group_vars = c("residence_rule", "fertility_timing")
+    )
 )
 ```
 
-Cohen's d for median age across mortality regimes, by residence rule:
+Cohen's d for median age across fertility timing regimes, by residence rule:
 
 ```{r} 
-#| label: age_structure_cdmlt_level_median_cohend_matri
+#| label: age_structure_mu_fert_median_cohend_matri
 #| tab.cap: "matrilocal-matrilineal"
 knitr::kable(
   interpret_cohens_d(
     effectsize::cohens_d(
-      median_age ~ mortality_regime,
+      median_age ~ fertility_timing,
 
     data =
         age_structure_indicators |>
@@ -1650,25 +1667,112 @@ knitr::kable(
 ```
 
 ```{r} 
-#| label: age_structure_cdmlt_level_median_cohend_patri
+#| label: age_structure_mu_fert_median_cohend_patri
 #| tab.cap: "patrilocal-patrilineal"
 knitr::kable(
   interpret_cohens_d(
     effectsize::cohens_d(
-      median_age ~ mortality_regime,
+      median_age ~ fertility_timing,
 
-      data =
-          age_structure_indicators |>
+    data =
+        age_structure_indicators |>
 
-          filter(
-              residence_rule ==
-                  "patrilocal-patrilineal"
-          )
+        filter(
+            residence_rule ==
+                "patrilocal-patrilineal"
+        )
+  ),
+    rules = "cohen1988"
+  )
+)
+```
+
+Earlier fertility timing is associated with younger populations under both residence rules, with a small effect under matrilocal-matrilineal residence (\(d=-0.21\)) and a very small effect under patrilocal-patrilineal residence (\(d=-0.15\)). The relationship therefore persists after the introduction of labour constraints but remains secondary to fertility intensity.
+
+#### `sigma1_fert`: broad *versus* narrow pre-peak fertility spread regimes
+
+```{r} 
+#| label: age_structure_sigma1_fert_pyramid_plot
+#| fig.cap: "Population pyramids across pre-peak fertility spread regimes, by residence rule."
+age_structures |>
+  aggregate_age_structure(
+    group_vars = c("fertility_spread_pre_peak"),
+    smooth = FALSE
+    ) |>
+  prepare_pyramid_plot() |>
+  plot_population_pyramid(
+    facet_var = "fertility_spread_pre_peak",
+    show_mean = TRUE
+    )
+```
+
+```{r} 
+#| label: age_structure_sigma1_fert_median_plot
+#| fig.cap: "Median age of surviving populations across pre-peak fertility spread regimes, by residence rule."
+plot_age_structure_indicators(
+  age_structure_indicators, 
+  x_var = "survival", 
+  fill_var = "residence_rule", 
+  facet_var = "fertility_spread_pre_peak"
+)
+```
+
+```{r} 
+#| label: age_structure_sigma1_fert_indicators_summary
+#| tab.cap: "Summary of age structure indicators across pre-peak fertility spread regimes and residence rules."
+knitr::kable(
+  indicators_summary(
+    age_structure_indicators, 
+    group_vars = c("residence_rule", "fertility_spread_pre_peak")
+    )
+)
+```
+
+Cohen's d for median age across pre-peak fertility spread regimes, by residence rule:
+
+```{r} 
+#| label: age_structure_sigma1_fert_median_cohend_matri
+#| tab.cap: "matrilocal-matrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ fertility_spread_pre_peak,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "matrilocal-matrilineal"
+        )
     ),
     rules = "cohen1988"
   )
 )
 ```
+
+```{r} 
+#| label: age_structure_sigma1_fert_median_cohend_patri
+#| tab.cap: "patrilocal-patrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ fertility_spread_pre_peak,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "patrilocal-patrilineal"
+        )
+  ),
+    rules = "cohen1988"
+  )
+)
+```
+
+Broader pre-peak fertility schedules produce younger surviving populations, particularly under matrilocal-matrilineal residence. The effect is small there (\(d=-0.34\)) but very small under patrilocal-patrilineal residence (\(d=-0.18\)), indicating greater residence-specific attenuation than in v1.2.1.
 
 #### `sigma2_fert`: broad *versus* narrow post-peak fertility regimes
 
@@ -1755,48 +1859,134 @@ knitr::kable(
 )
 ```
 
-#### `c1_women`: high *versus* low female marriage intensity regimes
+Post-peak fertility spread has no detectable effect on median age among surviving populations in v1.2.2. Effect sizes are essentially zero under both residence systems and their confidence intervals span zero. This differs from earlier versions, where broader post-peak fertility was associated with slightly younger populations, suggesting that labour-mediated viability filtering removes or obscures this comparatively weak structural effect.
 
-```{r} 
-#| label: age_structure_c1_women_pyramid_plot
-#| fig.cap: "Population pyramids across female marriage intensity regimes, by residence rule."
+#### `cdmlt-level`: mortality regimes
+
+```{r}
+#| label: age_structure_cdmlt_level_pyramid_plot
+#| fig.cap: "Population pyramids across mortality regimes, by residence rule."
 age_structures |>
   aggregate_age_structure(
-    group_vars = c("marriage_intensity_women"),
+    group_vars = c("mortality_regime"),
     smooth = FALSE
     ) |>
   prepare_pyramid_plot() |>
   plot_population_pyramid(
-    facet_var = "marriage_intensity_women",
+    facet_var = "mortality_regime",
     show_mean = TRUE
     )
 ```
 
 ```{r} 
-#| label: age_structure_c1_women_median_plot
-#| fig.cap: "Median age of surviving populations across female marriage intensity regimes, by residence rule."
+#| label: age_structure_cdmlt_level_median_plot
+#| fig.cap: "Median age of surviving populations across mortality regimes, by residence rule."
 #| fig.width: 10
 #| fig.height: 4
 plot_age_structure_indicators(
   age_structure_indicators, 
   x_var = "survival", 
   fill_var = "residence_rule", 
-  facet_var = "marriage_intensity_women"
+  facet_var = "mortality_regime"
+)
+```
+
+```{r} 
+#| label: age_structure_cdmlt_level_indicators_summary
+#| tab.cap: "Summary of age structure indicators across mortality regimes and residence rules."
+knitr::kable(
+  indicators_summary(age_structure_indicators, group_vars = c("residence_rule", "mortality_regime"))
+)
+```
+
+Cohen's d for median age across mortality regimes, by residence rule:
+
+```{r} 
+#| label: age_structure_cdmlt_level_median_cohend_matri
+#| tab.cap: "matrilocal-matrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ mortality_regime,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "matrilocal-matrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+```{r} 
+#| label: age_structure_cdmlt_level_median_cohend_patri
+#| tab.cap: "patrilocal-patrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ mortality_regime,
+
+      data =
+          age_structure_indicators |>
+
+          filter(
+              residence_rule ==
+                  "patrilocal-patrilineal"
+          )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+Lower-mortality regimes produce older surviving populations under both residence systems, with small effects (\(d=-0.32\) and \(-0.35\)). The relationship is somewhat stronger than in v1.2.1, although it remains far weaker than the effect of fertility intensity.
+
+#### `c1_women`: high *versus* low female union peak intensity regimes
+
+```{r} 
+#| label: age_structure_c1_women_pyramid_plot
+#| fig.cap: "Population pyramids across female union peak intensity regimes, by residence rule."
+age_structures |>
+  aggregate_age_structure(
+    group_vars = c("union_intensity_women"),
+    smooth = FALSE
+    ) |>
+  prepare_pyramid_plot() |>
+  plot_population_pyramid(
+    facet_var = "union_intensity_women",
+    show_mean = TRUE
+    )
+```
+
+```{r} 
+#| label: age_structure_c1_women_median_plot
+#| fig.cap: "Median age of surviving populations across female union peak intensity regimes, by residence rule."
+#| fig.width: 10
+#| fig.height: 4
+plot_age_structure_indicators(
+  age_structure_indicators, 
+  x_var = "survival", 
+  fill_var = "residence_rule", 
+  facet_var = "union_intensity_women"
 )
 ```
 
 ```{r} 
 #| label: age_structure_c1_women_indicators_summary
-#| tab.cap: "Summary of age structure indicators across female marriage intensity regimes and residence rules."
+#| tab.cap: "Summary of age structure indicators across female union peak intensity regimes and residence rules."
 knitr::kable(
   indicators_summary(
     age_structure_indicators, 
-    group_vars = c("residence_rule", "marriage_intensity_women")
+    group_vars = c("residence_rule", "union_intensity_women")
     )
 )
 ```
 
-Cohen's d for median age across female marriage intensity regimes, by residence rule:
+Cohen's d for median age across female union peak intensity regimes, by residence rule:
 
 ```{r} 
 #| label: age_structure_c1_women_median_cohend_matri
@@ -1804,7 +1994,7 @@ Cohen's d for median age across female marriage intensity regimes, by residence 
 knitr::kable(
   interpret_cohens_d(
     effectsize::cohens_d(
-      median_age ~ marriage_intensity_women,
+      median_age ~ union_intensity_women,
 
     data =
         age_structure_indicators |>
@@ -1825,7 +2015,7 @@ knitr::kable(
 knitr::kable(
   interpret_cohens_d(
     effectsize::cohens_d(
-      median_age ~ marriage_intensity_women,
+      median_age ~ union_intensity_women,
 
     data =
         age_structure_indicators |>
@@ -1840,139 +2030,58 @@ knitr::kable(
 )
 ```
 
-#### `sigma1_men`: broad *versus* narrow male pre-peak marriage spread regimes
+Female union peak intensity shows a strongly residence-dependent pattern. Higher peak intensity is associated with younger populations under matrilocal-matrilineal residence (\(d=-0.24\)), whereas the effect is very small and slightly reversed under patrilocal-patrilineal residence (\(d=0.07\)). Given the small magnitude of the latter estimate, the safest interpretation is that female union peak intensity retains structural relevance mainly under matrilocal-matrilineal organisation.
+
+#### `mu_women`: late *versus* early female union regimes
 
 ```{r} 
-#| label: age_structure_sigma1_men_pyramid_plot
-#| fig.cap: "Population pyramids across male pre-peak marriage spread regimes, by residence rule."
+#| label: age_structure_mu_women_pyramid_plot
+#| fig.cap: "Population pyramids across female union timing regimes, by residence rule."
 age_structures |>
   aggregate_age_structure(
-    group_vars = c("marriage_spread_pre_peak_men"),
+    group_vars = c("union_timing_women"),
     smooth = FALSE
     ) |>
   prepare_pyramid_plot() |>
   plot_population_pyramid(
-    facet_var = "marriage_spread_pre_peak_men",
+    facet_var = "union_timing_women",
     show_mean = TRUE
     )
 ```
 
 ```{r} 
-#| label: age_structure_sigma1_men_median_plot
-#| fig.cap: "Median age of surviving populations across male pre-peak marriage spread regimes, by residence rule."
-plot_age_structure_indicators(
-  age_structure_indicators, 
-  x_var = "survival", 
-  fill_var = "residence_rule", 
-  facet_var = "marriage_spread_pre_peak_men"
-)
-```
-
-```{r} 
-#| label: age_structure_sigma1_men_indicators_summary
-#| tab.cap: "Summary of age structure indicators across male pre-peak marriage spread regimes and residence rules."
-knitr::kable(
-  indicators_summary(
-    age_structure_indicators, 
-    group_vars = c("residence_rule", "marriage_spread_pre_peak_men")
-    )
-)
-```
-
-Cohen's d for median age across male pre-peak marriage spread regimes, by residence rule:
-
-```{r} 
-#| label: age_structure_sigma1_men_median_cohend_matri
-#| tab.cap: "matrilocal-matrilineal"
-knitr::kable(
-  interpret_cohens_d(
-    effectsize::cohens_d(
-      median_age ~ marriage_spread_pre_peak_men,
-
-    data =
-        age_structure_indicators |>
-
-        filter(
-            residence_rule ==
-                "matrilocal-matrilineal"
-        )
-    ),
-    rules = "cohen1988"
-  )
-)
-```
-
-```{r} 
-#| label: age_structure_sigma1_men_median_cohend_patri
-#| tab.cap: "patrilocal-patrilineal"
-knitr::kable(
-  interpret_cohens_d(
-    effectsize::cohens_d(
-      median_age ~ marriage_spread_pre_peak_men,
-
-    data =
-        age_structure_indicators |>
-
-        filter(
-            residence_rule ==
-                "patrilocal-patrilineal"
-        )
-  ),
-    rules = "cohen1988"
-  )
-)
-```
-
-#### `mu_men`: late *versus* early male marriage regimes
-
-```{r} 
-#| label: age_structure_mu_men_pyramid_plot
-#| fig.cap: "Population pyramids across male marriage timing regimes, by residence rule."
-age_structures |>
-  aggregate_age_structure(
-    group_vars = c("marriage_timing_men"),
-    smooth = FALSE
-    ) |>
-  prepare_pyramid_plot() |>
-  plot_population_pyramid(
-    facet_var = "marriage_timing_men",
-    show_mean = TRUE
-    )
-```
-
-```{r} 
-#| label: age_structure_mu_men_median_plot
-#| fig.cap: "Median age of surviving populations across male marriage timing regimes, by residence rule."
+#| label: age_structure_mu_women_median_plot
+#| fig.cap: "Median age of surviving populations across female union timing regimes, by residence rule."
 #| fig.width: 10
 #| fig.height: 4
 plot_age_structure_indicators(
   age_structure_indicators, 
   x_var = "survival", 
   fill_var = "residence_rule", 
-  facet_var = "marriage_timing_men"
+  facet_var = "union_timing_women"
 )
 ```
 
 ```{r} 
-#| label: age_structure_mu_men_indicators_summary
-#| tab.cap: "Summary of age structure indicators across male marriage timing regimes and residence rules."
+#| label: age_structure_mu_women_indicators_summary
+#| tab.cap: "Summary of age structure indicators across female union timing regimes and residence rules."
 knitr::kable(
   indicators_summary(
     age_structure_indicators, 
-    group_vars = c("residence_rule", "marriage_timing_men")
+    group_vars = c("residence_rule", "union_timing_women")
     )
 )
 ```
 
-Cohen's d for median age across male marriage timing regimes, by residence rule:
+Cohen's d for median age across female union timing regimes, by residence rule:
 
 ```{r} 
-#| label: age_structure_mu_men_median_cohend_matri
+#| label: age_structure_mu_women_median_cohend_matri
 #| tab.cap: "matrilocal-matrilineal"
 knitr::kable(
   interpret_cohens_d(
     effectsize::cohens_d(
-      median_age ~ marriage_timing_men,
+      median_age ~ union_timing_women,
 
     data =
         age_structure_indicators |>
@@ -1988,12 +2097,12 @@ knitr::kable(
 ```
 
 ```{r} 
-#| label: age_structure_mu_men_median_cohend_patri
+#| label: age_structure_mu_women_median_cohend_patri
 #| tab.cap: "patrilocal-patrilineal"
 knitr::kable(
   interpret_cohens_d(
     effectsize::cohens_d(
-      median_age ~ marriage_timing_men,
+      median_age ~ union_timing_women,
 
     data =
         age_structure_indicators |>
@@ -2008,46 +2117,48 @@ knitr::kable(
 )
 ```
 
-#### `sigma1_women`: broad *versus* narrow pre-peak fertility spread regimes
+Earlier female union is associated with only slightly younger populations in v1.2.2. The effect is very small under matrilocal-matrilineal residence (\(d=-0.09\)) and indistinguishable from zero under patrilocal-patrilineal residence, indicating substantial attenuation relative to earlier versions.
+
+#### `sigma1_women`: broad *versus* narrow pre-peak female union spread regimes
 
 ```{r} 
 #| label: age_structure_sigma1_women_pyramid_plot
-#| fig.cap: "Population pyramids across pre-peak fertility spread regimes, by residence rule."
+#| fig.cap: "Population pyramids across pre-peak female union spread regimes, by residence rule."
 age_structures |>
   aggregate_age_structure(
-    group_vars = c("fertility_timing"),
+    group_vars = c("union_spread_pre_peak_women"),
     smooth = FALSE
     ) |>
   prepare_pyramid_plot() |>
   plot_population_pyramid(
-    facet_var = "fertility_timing",
+    facet_var = "union_spread_pre_peak_women",
     show_mean = TRUE
     )
 ```
 
 ```{r} 
 #| label: age_structure_sigma1_women_median_plot
-#| fig.cap: "Median age of surviving populations across pre-peak fertility spread regimes, by residence rule."
+#| fig.cap: "Median age of surviving populations across pre-peak female union spread regimes, by residence rule."
 plot_age_structure_indicators(
   age_structure_indicators, 
   x_var = "survival", 
   fill_var = "residence_rule", 
-  facet_var = "fertility_timing"
+  facet_var = "union_spread_pre_peak_women"
 )
 ```
 
 ```{r} 
 #| label: age_structure_sigma1_women_indicators_summary
-#| tab.cap: "Summary of age structure indicators across pre-peak fertility spread regimes and residence rules."
+#| tab.cap: "Summary of age structure indicators across pre-peak female union spread regimes and residence rules."
 knitr::kable(
   indicators_summary(
     age_structure_indicators, 
-    group_vars = c("residence_rule", "fertility_timing")
+    group_vars = c("residence_rule", "union_spread_pre_peak_women")
     )
 )
 ```
 
-Cohen's d for median age across pre-peak fertility spread regimes, by residence rule:
+Cohen's d for median age across pre-peak female union spread regimes, by residence rule:
 
 ```{r} 
 #| label: age_structure_sigma1_women_median_cohend_matri
@@ -2055,7 +2166,7 @@ Cohen's d for median age across pre-peak fertility spread regimes, by residence 
 knitr::kable(
   interpret_cohens_d(
     effectsize::cohens_d(
-      median_age ~ fertility_timing,
+      median_age ~ union_spread_pre_peak_women,
 
     data =
         age_structure_indicators |>
@@ -2076,7 +2187,7 @@ knitr::kable(
 knitr::kable(
   interpret_cohens_d(
     effectsize::cohens_d(
-      median_age ~ fertility_timing,
+      median_age ~ union_spread_pre_peak_women,
 
     data =
         age_structure_indicators |>
@@ -2091,48 +2202,135 @@ knitr::kable(
 )
 ```
 
-#### `c1_men`: high *versus* low male marriage intensity regimes
+Broader pre-peak female union spread is associated with slightly younger populations under matrilocal-matrilineal residence (\(d=-0.13\)), but has no detectable effect under patrilocal-patrilineal residence. As with other female nuptiality parameters, its influence is therefore concentrated in the residence system where women form the locally retained line.
+
+#### `sigma2_women`: broad *versus* narrow post-peak female union spread regimes
 
 ```{r} 
-#| label: age_structure_c1_men_pyramid_plot
-#| fig.cap: "Population pyramids across male marriage intensity regimes, by residence rule."
+#| label: age_structure_sigma2_women_pyramid_plot
+#| fig.cap: "Population pyramids across post-peak female union spread regimes, by residence rule."
 age_structures |>
   aggregate_age_structure(
-    group_vars = c("marriage_intensity_men"),
+    group_vars = c("union_spread_post_peak_women"),
     smooth = FALSE
     ) |>
   prepare_pyramid_plot() |>
   plot_population_pyramid(
-    facet_var = "marriage_intensity_men",
+    facet_var = "union_spread_post_peak_women",
+    show_mean = TRUE
+    )
+```
+
+```{r} 
+#| label: age_structure_sigma2_women_median_plot
+#| fig.cap: "Median age of surviving populations across post-peak female union spread regimes, by residence rule."
+plot_age_structure_indicators(
+  age_structure_indicators, 
+  x_var = "survival", 
+  fill_var = "residence_rule", 
+  facet_var = "union_spread_post_peak_women"
+)
+```
+
+```{r} 
+#| label: age_structure_sigma2_women_indicators_summary
+#| tab.cap: "Summary of age structure indicators across post-peak female union spread regimes and residence rules."
+knitr::kable(
+  indicators_summary(
+    age_structure_indicators, 
+    group_vars = c("residence_rule", "union_spread_post_peak_women")
+    )
+)
+```
+
+Cohen's d for median age across post-peak female union spread regimes, by residence rule:
+
+```{r} 
+#| label: age_structure_sigma2_women_median_cohend_matri
+#| tab.cap: "matrilocal-matrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ union_spread_post_peak_women,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "matrilocal-matrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+```{r} 
+#| label: age_structure_sigma2_women_median_cohend_patri
+#| tab.cap: "patrilocal-patrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ union_spread_post_peak_women,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "patrilocal-patrilineal"
+        )
+  ),
+    rules = "cohen1988"
+  )
+)
+```
+
+Post-peak female union spread has no meaningful influence on median age under either residence system. Both effect sizes are very small and their confidence intervals include zero, providing no evidence for a substantive residence-dependent effect.
+
+#### `c1_men`: high *versus* low male union peak intensity regimes
+
+```{r} 
+#| label: age_structure_c1_men_pyramid_plot
+#| fig.cap: "Population pyramids across male union peak intensity regimes, by residence rule."
+age_structures |>
+  aggregate_age_structure(
+    group_vars = c("union_intensity_men"),
+    smooth = FALSE
+    ) |>
+  prepare_pyramid_plot() |>
+  plot_population_pyramid(
+    facet_var = "union_intensity_men",
     show_mean = TRUE
     )
 ```
 
 ```{r} 
 #| label: age_structure_c1_men_median_plot
-#| fig.cap: "Median age of surviving populations across male marriage intensity regimes, by residence rule."
+#| fig.cap: "Median age of surviving populations across male union peak intensity regimes, by residence rule."
 #| fig.width: 10
 #| fig.height: 4
 plot_age_structure_indicators(
   age_structure_indicators, 
   x_var = "survival", 
   fill_var = "residence_rule", 
-  facet_var = "marriage_intensity_men"
+  facet_var = "union_intensity_men"
 )
 ```
 
 ```{r} 
 #| label: age_structure_c1_men_indicators_summary
-#| tab.cap: "Summary of age structure indicators across male marriage intensity regimes and residence rules."
+#| tab.cap: "Summary of age structure indicators across male union peak intensity regimes and residence rules."
 knitr::kable(
   indicators_summary(
     age_structure_indicators, 
-    group_vars = c("residence_rule", "marriage_intensity_men")
+    group_vars = c("residence_rule", "union_intensity_men")
     )
 )
 ```
 
-Cohen's d for median age across male marriage intensity regimes, by residence rule:
+Cohen's d for median age across male union peak intensity regimes, by residence rule:
 
 ```{r} 
 #| label: age_structure_c1_men_median_cohend_matri
@@ -2140,7 +2338,7 @@ Cohen's d for median age across male marriage intensity regimes, by residence ru
 knitr::kable(
   interpret_cohens_d(
     effectsize::cohens_d(
-      median_age ~ marriage_intensity_men,
+      median_age ~ union_intensity_men,
 
     data =
         age_structure_indicators |>
@@ -2161,7 +2359,7 @@ knitr::kable(
 knitr::kable(
   interpret_cohens_d(
     effectsize::cohens_d(
-      median_age ~ marriage_intensity_men,
+      median_age ~ union_intensity_men,
 
     data =
         age_structure_indicators |>
@@ -2176,11 +2374,274 @@ knitr::kable(
 )
 ```
 
+Higher male union peak intensity produces younger surviving populations under both residence systems, with small and broadly comparable effects (\(d=-0.31\) under matrilocal-matrilineal and \(-0.28\) under patrilocal-patrilineal residence). Unlike several other male nuptiality parameters, this effect is not strongly residence-specific.
+
+#### `mu_men`: late *versus* early male union regimes
+
+```{r} 
+#| label: age_structure_mu_men_pyramid_plot
+#| fig.cap: "Population pyramids across male union timing regimes, by residence rule."
+age_structures |>
+  aggregate_age_structure(
+    group_vars = c("union_timing_men"),
+    smooth = FALSE
+    ) |>
+  prepare_pyramid_plot() |>
+  plot_population_pyramid(
+    facet_var = "union_timing_men",
+    show_mean = TRUE
+    )
+```
+
+```{r} 
+#| label: age_structure_mu_men_median_plot
+#| fig.cap: "Median age of surviving populations across male union timing regimes, by residence rule."
+#| fig.width: 10
+#| fig.height: 4
+plot_age_structure_indicators(
+  age_structure_indicators, 
+  x_var = "survival", 
+  fill_var = "residence_rule", 
+  facet_var = "union_timing_men"
+)
+```
+
+```{r} 
+#| label: age_structure_mu_men_indicators_summary
+#| tab.cap: "Summary of age structure indicators across male union timing regimes and residence rules."
+knitr::kable(
+  indicators_summary(
+    age_structure_indicators, 
+    group_vars = c("residence_rule", "union_timing_men")
+    )
+)
+```
+
+Cohen's d for median age across male union timing regimes, by residence rule:
+
+```{r} 
+#| label: age_structure_mu_men_median_cohend_matri
+#| tab.cap: "matrilocal-matrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ union_timing_men,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "matrilocal-matrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+```{r} 
+#| label: age_structure_mu_men_median_cohend_patri
+#| tab.cap: "patrilocal-patrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ union_timing_men,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "patrilocal-patrilineal"
+        )
+  ),
+    rules = "cohen1988"
+  )
+)
+```
+
+Earlier male union is associated with younger age structures under both residence rules, but the effect is clearly stronger under patrilocal-patrilineal residence (\(d=-0.42\)) than under matrilocal-matrilineal residence (\(d=-0.27\)). Male union timing therefore remains one of the clearest residence-dependent nuptiality effects after labour constraints are introduced.
+
+#### `sigma1_men`: broad *versus* narrow pre-peak male union spread regimes
+
+```{r} 
+#| label: age_structure_sigma1_men_pyramid_plot
+#| fig.cap: "Population pyramids across pre-peak male union spread regimes, by residence rule."
+age_structures |>
+  aggregate_age_structure(
+    group_vars = c("union_spread_pre_peak_men"),
+    smooth = FALSE
+    ) |>
+  prepare_pyramid_plot() |>
+  plot_population_pyramid(
+    facet_var = "union_spread_pre_peak_men",
+    show_mean = TRUE
+    )
+```
+
+```{r} 
+#| label: age_structure_sigma1_men_median_plot
+#| fig.cap: "Median age of surviving populations across pre-peak male union spread regimes, by residence rule."
+plot_age_structure_indicators(
+  age_structure_indicators, 
+  x_var = "survival", 
+  fill_var = "residence_rule", 
+  facet_var = "union_spread_pre_peak_men"
+)
+```
+
+```{r} 
+#| label: age_structure_sigma1_men_indicators_summary
+#| tab.cap: "Summary of age structure indicators across pre-peak male union spread regimes and residence rules."
+knitr::kable(
+  indicators_summary(
+    age_structure_indicators, 
+    group_vars = c("residence_rule", "union_spread_pre_peak_men")
+    )
+)
+```
+
+Cohen's d for median age across pre-peak male union spread regimes, by residence rule:
+
+```{r} 
+#| label: age_structure_sigma1_men_median_cohend_matri
+#| tab.cap: "matrilocal-matrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ union_spread_pre_peak_men,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "matrilocal-matrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+```{r} 
+#| label: age_structure_sigma1_men_median_cohend_patri
+#| tab.cap: "patrilocal-patrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ union_spread_pre_peak_men,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "patrilocal-patrilineal"
+        )
+  ),
+    rules = "cohen1988"
+  )
+)
+```
+
+Broader pre-peak male union spread likewise produces younger surviving populations, with a small effect under matrilocal-matrilineal residence (\(d=-0.34\)) and a considerably stronger effect under patrilocal-patrilineal residence (\(d=-0.46\)). Together with male union timing, this confirms the continued importance of earlier and more broadly distributed male union formation under patrilocal-patrilineal organisation.
+
+#### `sigma2_men`: broad *versus* narrow post-peak male union spread regimes
+
+```{r} 
+#| label: age_structure_sigma2_men_pyramid_plot
+#| fig.cap: "Population pyramids across post-peak male union spread regimes, by residence rule."
+age_structures |>
+  aggregate_age_structure(
+    group_vars = c("union_spread_post_peak_men"),
+    smooth = FALSE
+    ) |>
+  prepare_pyramid_plot() |>
+  plot_population_pyramid(
+    facet_var = "union_spread_post_peak_men",
+    show_mean = TRUE
+    )
+```
+
+```{r} 
+#| label: age_structure_sigma2_men_median_plot
+#| fig.cap: "Median age of surviving populations across post-peak male union spread regimes, by residence rule."
+plot_age_structure_indicators(
+  age_structure_indicators, 
+  x_var = "survival", 
+  fill_var = "residence_rule", 
+  facet_var = "union_spread_post_peak_men"
+)
+```
+
+```{r} 
+#| label: age_structure_sigma2_men_indicators_summary
+#| tab.cap: "Summary of age structure indicators across post-peak male union spread regimes and residence rules."
+knitr::kable(
+  indicators_summary(
+    age_structure_indicators, 
+    group_vars = c("residence_rule", "union_spread_post_peak_men")
+    )
+)
+```
+
+Cohen's d for median age across post-peak male union spread regimes, by residence rule:
+
+```{r} 
+#| label: age_structure_sigma2_men_median_cohend_matri
+#| tab.cap: "matrilocal-matrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ union_spread_post_peak_men,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "matrilocal-matrilineal"
+        )
+    ),
+    rules = "cohen1988"
+  )
+)
+```
+
+```{r} 
+#| label: age_structure_sigma2_men_median_cohend_patri
+#| tab.cap: "patrilocal-patrilineal"
+knitr::kable(
+  interpret_cohens_d(
+    effectsize::cohens_d(
+      median_age ~ union_spread_post_peak_men,
+
+    data =
+        age_structure_indicators |>
+
+        filter(
+            residence_rule ==
+                "patrilocal-patrilineal"
+        )
+  ),
+    rules = "cohen1988"
+  )
+)
+```
+
+Post-peak male union spread has effectively no influence on median age in either residence system. Effect sizes are approximately \(d=0.01\), with confidence intervals spanning zero, indicating no meaningful demographic or residence-specific effect.
+
 ### Interpretation
 
-As the effect of labour constraints on median age already indicated, the patterns in age structure are broadly similar to those observed in previous versions.
+Version 1.2.2 produces a clear differentiation among the mechanisms controlling different model outcomes. `labour_demand_per_capita` becomes the dominant predictor of survival, `density_effect_scaling_factor` remains the strongest predictor of population pressure, fertility peak intensity continues to dominate median age, and nominal `carrying_capacity` overwhelmingly determines effective carrying capacity among survivors.
 
-## Labour-demand threshold experiment
+These distinct sensitivity hierarchies clarify the role of the newly introduced labour mechanism. Labour demand determines whether demographic configurations remain viable, but has relatively little direct influence on age structure or realised carrying capacity once populations have survived. Fertility and nuptiality continue to shape demographic composition, while density-dependent mortality regulates the pressure generated by that composition.
+
+Labour supply therefore adds a new viability layer rather than replacing the demographic mechanisms identified in earlier versions. The model now distinguishes more explicitly between generating demographic demand, generating the labour required to meet that demand, and regulating the resulting population pressure.
+
+## Labour-demand sweep experiment
 
 To better isolate the effect of labour demand per capita, an additional targeted experiment was conducted in which this parameter was varied while all others were held constant. Unlike the Sobol exploration, this threshold experiment was designed specifically to identify viability boundaries under changing labour requirements.
 
@@ -2195,7 +2656,7 @@ Strategy:
 
 ```{r} 
 #| label: trajectories_params_labour_demand_per_capita_display
-#| fig.cap: "Parameter configuration for the population trajectories sampled across different Coale-Demeny model levels."
+#| fig.cap: "Parameter configuration for the population trajectories sampled across different labour-demand-per-capita values."
 knitr::kable(sampled_trajectories_labour_demand_per_capita |> 
   select(all_of(c("max_iterations", "max_population", 
                   names(parameter_ranges_v122), 
@@ -2246,6 +2707,7 @@ if (EXPORT_FIGURES) {
 
 ```{r}
 #| label: trajectories_labour_demand_per_capita_survival_plot
+#| fig.cap: ""
 # collapse trajectories into endstates (one row per run)
 survival_by_labour_demand <- sampled_trajectories_labour_demand_per_capita |>
   group_by(
@@ -2291,11 +2753,6 @@ survival_threshold_plot <- survival_by_labour_demand |>
   labs(
     x = "Labour demand per capita",
     y = "Proportion surviving"
-  ) +
-  geom_vline(
-    xintercept = c(0.3, 0.45),
-    linetype = 2,
-    alpha = 0.5
   )
 
 survival_threshold_plot
@@ -2314,56 +2771,34 @@ knitr::kable(
 )
 ```
 
-**_Nonlinear labour-demand thresholds_**
+This targeted experiment does not reveal a collapse threshold within the range examined. All runs survive across `labour_demand_per_capita` values from 0.01 to 0.60 under both residence systems, and all are classified as Overshooting under the current end-state criteria.
 
-The targeted threshold experiment shows that labour_demand_per_capita has a strongly nonlinear effect on demographic viability. In both residence systems, values below approximately 0.2 produce near-stable persistence. Beyond this range, however, survival declines rapidly, especially between 0.3 and 0.6. The pattern is therefore not one of gradual linear attrition, but of a viability threshold: once labour demand passes a critical point, collapse accelerates.
+Labour sufficiency also remains remarkably stable. Median `laboured_share` is equal to one at every tested value, while the mean remains almost exactly one through 0.50 and declines only slightly at 0.60. Under this favourable demographic configuration, the population therefore continues to generate sufficient productive labour even as per-capita labour requirements increase substantially.
 
-**Matrilocal-matrilineal system: delayed but abrupt collapse**
+This result does not conflict with the global random-forest analysis, in which `labour_demand_per_capita` is the strongest predictor of extinction. Rather, it demonstrates that its effect is strongly conditional on demographic context. Across the full Sobol exploration, increasing labour requirements pushes many parameter combinations beyond their viability boundary; under this particular high-fertility, favourable-mortality configuration, however, the demographic system remains sufficiently productive throughout the tested range.
 
-- 0.0–0.4: effectively full persistence  
-- 0.5: near-total collapse  
-- 0.6: total collapse  
-
-This pattern indicates a relatively wide viable labour-demand envelope. The approximate threshold lies between 0.4 and 0.5, after which persistence gives way rapidly to collapse.
-
-**Patrilocal-patrilineal system: earlier and more gradual decline**
-
-The patrilocal-patrilineal system begins to lose viability much sooner. Its decline is evident even at low levels of labour demand:
-
-- Survival is already below full persistence at 0.0.  
-- Substantial losses occur by 0.2.  
-- Collapse is nearly complete by 0.3.  
-- No persistence is observed thereafter.  
-
-The approximate threshold is therefore lower, around 0.2–0.3. Unlike the matrilocal-matrilineal system, however, the transition is smoother: less a sudden cliff than a progressive landslide. This suggests lower resilience, but also a more graded pathway into failure.
-
-**_Residence-rule comparison_**
-
-These results support a stronger interpretation of version 1.2.2 than simply stating that labour demand affects survival. Labour-dependent carrying capacity introduces a regime-dependent viability threshold, and both the position and shape of that threshold differ systematically by residence rule.
-
-| System	| Threshold position | Transition shape |
-| ------- | ------------------ | ---------------- |
-| Matrilocal-matrilineal | Higher, around 0.4–0.5	| Abrupt
-| Patrilocal-patrilineal | Lower, around 0.2–0.3 | Gradual
-
-The key implication is that kinship structure mediates tolerance to labour scarcity. The two systems do not merely differ in how much labour demand they can absorb; they also display different geometries of failure. Matrilocal-matrilineal organisation increases tolerance to labour inefficiency before demographic viability is compromised, whereas patrilocal-patrilineal organisation shows earlier vulnerability.
-
-The patrilocal-patrilineal system is already below full survival when labour demand is negligible. This indicates that labour demand is not the sole determinant of failure. Rather, it acts as a stress amplifier: higher labour requirements intensify existing demographic vulnerabilities, but do not create them alone.
-
-**_Mechanism_**
-
-The mechanism can be summarised as follows:
-
-- Higher labour demand reduces effective carrying capacity.  
-- Lower effective carrying capacity increases density-related mortality pressure.  
-- Higher mortality pressure produces population decline and, beyond the threshold, collapse.  
-
-However, the same perturbation propagates differently depending on kinship structure. A targeted threshold experiment varying labour demand per capita while holding all other parameters constant showed that the two residence systems differ not only in their critical labour-demand threshold but also in the shape of the transition from persistence to collapse. Matrilocal-matrilineal systems exhibit a higher and sharper viability threshold, whereas patrilocal-patrilineal systems display an earlier but more gradual decline in survival probability.
+No meaningful residence-rule difference appears in this experiment. The previously inferred thresholds around 0.4–0.5 and 0.2–0.3 are therefore not supported by simulations and should be removed. The experiment instead illustrates that there is no universal labour-demand threshold independent of the surrounding demographic configuration.
 
 ## Discussion notes
 
-The introduction of age-dependent carrying-capacity demand in v1.2.1 allows a fixed carrying capacity to sustain larger nominal populations by reducing the effective burden imposed by children and elders. In v1.2.2, this same demographic logic is extended to labour supply, making productive capacity itself age-dependent. While this preserves the structural advantages of demographic efficiency, it also imposes stricter viability constraints, substantially increasing the frequency of extinction and collapse-prone trajectories. Across all model variants from v1.1 to v1.2.2, populations following the matrilocal-matrilineal rule consistently exhibit higher survivability, suggesting that their demographic organisation provides greater resilience under increasingly complex ecological constraints.
+Version 1.2.2 adds the supply side of demographic regulation by allowing age-dependent labour availability to determine how much of the nominal environmental carrying capacity can actually be realised. This produces a much stronger behavioural change than the demand weighting introduced in v1.2.1: the proportion of surviving simulations falls from approximately 62.5% to 18.0%.
+
+The sensitivity analysis identifies the source of this shift clearly. `labour_demand_per_capita` becomes the strongest predictor of extinction, ahead of density-effect strength and fertility intensity. Labour availability therefore introduces a new demographic bottleneck: populations must not only generate sufficient reproductive replacement, but also maintain enough productive labour to sustain the carrying capacity on which that population depends.
+
+At the same time, labour limitation is largely absent from the equilibrium states of populations that survive. Their `laboured_share` values cluster close to one and their effective carrying capacities consequently approach nominal carrying capacity. This apparent contrast is best understood as selection. Labour-deficient configurations disproportionately disappear, leaving a surviving subset that is predominantly labour-sufficient.
+
+Population pressure remains governed most strongly by `density_effect_scaling_factor`, while fertility continues to determine much of the demographic demand placed on the system. Age structure likewise remains primarily controlled by fertility and nuptiality. The new labour mechanism therefore adds a viability constraint without replacing the demographic drivers already established in earlier versions.
+
+The age structures of surviving populations nevertheless shift towards younger configurations relative to v1.2.1, and the contrast between low- and high-pressure populations becomes weaker. This is consistent with labour-dependent selection favouring populations containing sufficient productive-age cohorts, although the surviving-state comparisons alone cannot establish a unique causal pathway.
+
+Residence rule continues to modify particular sex-specific nuptiality effects, but its aggregate effect on survival remains very small. Results therefore do not support a general claim that matrilocal-matrilineal populations are consistently more resilient across model versions.
+
+Finally, the targeted labour-demand experiment demonstrates that the strong global influence of labour demand does not imply a universal deterministic threshold. Under the favourable reference configuration, both residence systems survive throughout the tested range. Labour demand instead alters viability in interaction with fertility, mortality, nuptiality, age structure, and environmental capacity.
 
 ## Chapter conclusion
 
-Version 1.2.2 completes the transition from purely abundance-based ecological regulation to a demographically mediated model of population viability. Whereas earlier versions treated carrying capacity as a fixed external constraint, the combined demand- and supply-weighted formulation makes ecological pressure an emergent property of age structure itself. Population persistence is therefore no longer determined simply by how many individuals exist, but by who those individuals are in demographic terms and how they balance consumption against productive labour. This substantially deepens the ecological realism of the model and establishes the conceptual foundations for the daily-cycle versions introduced in the following chapter.
+Version 1.2.2 completes the yearly demand-and-supply formulation by making realised carrying capacity contingent on the productive labour generated by the population itself. Its main effect is not to maintain surviving populations at persistently reduced carrying capacity, but to impose a strong viability filter: many demographic configurations collapse when they cannot generate sufficient labour, whereas those that survive generally realise nearly the full nominal environmental capacity.
+
+This produces a clear division among model mechanisms. Labour demand primarily governs survival, density-effect strength governs population pressure, fertility and nuptiality govern demographic composition, and nominal carrying capacity governs the scale of effective capacity among surviving populations. Ecological regulation thus emerges from the interaction of external limits with age-dependent demographic demand and productive supply rather than from population abundance alone.
+
+The model therefore establishes the full yearly demographic-ecological framework against which the subsequent daily-iteration versions can be evaluated.
