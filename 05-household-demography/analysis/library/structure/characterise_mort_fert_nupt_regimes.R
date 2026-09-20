@@ -13,8 +13,8 @@ characterise_mort_fert_nupt_regimes <- function(endstates) {
         fertility_intensity =
         ifelse(
             c1_fert > median(c1_fert),
-            "High fertility",
-            "Low fertility"
+            "High peak fertility",
+            "Low peak fertility"
         )
     ) |>
     mutate(
@@ -42,67 +42,67 @@ characterise_mort_fert_nupt_regimes <- function(endstates) {
             )
     ) |>
     mutate(
-        marriage_timing_women =
+        union_timing_women =
             ifelse(
             mu_women > median(mu_women),
-            "Late female marriage",
-            "Early female marriage"
+            "Late female union",
+            "Early female union"
             )
     ) |>
     mutate(
-        marriage_timing_men =
+        union_timing_men =
             ifelse(
             mu_men > median(mu_men),
-            "Late male marriage",
-            "Early male marriage"
+            "Late male union",
+            "Early male union"
             )
     ) |>
     mutate(
-        marriage_intensity_women =
+        union_intensity_women =
             ifelse(
             c1_women > median(c1_women),
-            "High women marriage intensity",
-            "Low women marriage intensity"
+            "High women union peak intensity",
+            "Low women union peak intensity"
             )
     ) |>
     mutate(
-        marriage_intensity_men =
+        union_intensity_men =
             ifelse(
             c1_men > median(c1_men),
-            "High men marriage intensity",
-            "Low men marriage intensity"
+            "High men union peak intensity",
+            "Low men union peak intensity"
             )
     ) |>
     mutate(
-        marriage_spread_pre_peak_women =
+        union_spread_pre_peak_women =
             ifelse(
             sigma1_women > median(sigma1_women),
-            "Broad pre-peak marriage spread women",
-            "Narrow pre-peak marriage spread women"
+            "Broad pre-peak union spread women",
+            "Narrow pre-peak union spread women"
             )
     ) |>
     mutate(
-        marriage_spread_pre_peak_men =
+        union_spread_pre_peak_men =
             ifelse(
             sigma1_men > median(sigma1_men),
-            "Broad pre-peak marriage spread men",
-            "Narrow pre-peak marriage spread men"
+            "Broad pre-peak union spread men",
+            "Narrow pre-peak union spread men"
             )
     ) |>
     mutate(
-        marriage_spread_post_peak_women =
+        union_spread_post_peak_women =
             ifelse(
             sigma2_women > median(sigma2_women),
-            "Broad post-peak marriage spread women",
-            "Narrow post-peak marriage spread women"
+            "Broad post-peak union spread women",
+            "Narrow post-peak union spread women"
             )
     ) |>
     mutate(
-        marriage_spread_post_peak_men =
+        union_spread_post_peak_men =
             ifelse(
             sigma2_men > median(sigma2_men),
-            "Broad post-peak marriage spread men",
-            "Narrow post-peak marriage spread men"
+            "Broad post-peak union spread men",
+            "Narrow post-peak union spread men"
             )
     )
 
