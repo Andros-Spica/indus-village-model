@@ -26,7 +26,7 @@ compose_figure_organisation_pressure <- function(
             fill_var = "survival",
             facet_var = facet_var,
             bins = bins,
-            x_axis_label = "Equilibrium population pressure",
+            x_axis_label = "Final population pressure",
             y_axis_label = "Simulation count",
             threshold_values = c(stress_threshold, 1),
             thresholds_linetype = c(2, 1),
