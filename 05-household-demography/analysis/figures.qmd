@@ -88,7 +88,7 @@ sampled_trajectories <- load_and_preprocess_trajectories_v11()
 
 ```{r}
 #| label: fig_4_1
-#| fig.caption: "Figure 4.1. Baseline demographic behaviour of the v1.1 model. (A) Distribution of final population sizes across all Sobol-sampled parameter combinations, classified by survival outcome and separated by residence rule. The dashed vertical line indicates the maximum simulated population size used to identify growth outcomes. (B) Representative population trajectories for a parameter configuration that produces long-term persistence, showing individual stochastic realisations (thin lines) and the median trajectory (thick line). The horizontal dashed line indicates the maximum population allowed (one of the simulation stop conditions)."
+#| fig.caption: "Figure 4.1. Baseline demographic behaviour of the v1.1 model. (A) Distribution of final population sizes across all Sobol-sampled parameter combinations, classified by survival outcome and separated by residence rule. The dashed vertical line indicates the maximum simulated population size used to identify growth outcomes. (B) Representative population trajectories under a favourable demographic configuration that produces sustained growth towards the technical population ceiling, showing individual stochastic realisations (thin lines) and the median trajectory (thick line). The horizontal dashed line indicates the maximum population allowed, one of the simulation stopping conditions."
 
 file_name <- "fig4.1"
 
@@ -110,7 +110,7 @@ knitr::include_graphics(paste0("plots/figures/", file_name, ".png"))
 
 ```{r}
 #| label: fig_4_2
-#| fig.caption: "Figure 4.2. Household organisation in the baseline (v1.1) model. (A) Relationship between the final number of households and the final population size across all Sobol-sampled parameter combinations, separated by residence rule. Points correspond to individual simulations and the fitted line summarises the overall scaling relationship. (B) Representative trajectories of household number for a parameter configuration that produces long-term persistence, showing individual stochastic realisations (thin lines) and the median trajectory (thick line)."
+#| fig.caption: "Figure 4.2. Household organisation in the baseline (v1.1) model. (A) Relationship between the final number of households and final population size across all Sobol-sampled parameter combinations, separated by residence rule. Points correspond to individual simulations and the fitted line summarises the overall scaling relationship. (B) Representative trajectories of mean household size under the reference demographic configuration, showing individual stochastic realisations (thin lines) and the median trajectory (thick line)."
 file_name <- "fig4.2"
 
 compose_figure_organisation_households(
@@ -145,7 +145,7 @@ rf_importance_and_pd_results <- load_rf_importance_and_pd_results_v11()
 
 ```{r}
 #| label: fig_4_3
-#| fig.caption: "Figure 4.3. Principal demographic mechanisms governing baseline model behaviour. (A) Random Forest variable importance for predicting long-term population persistence, comparing matrilocal (female symbol) and patrilocal (male symbol) residence rules. Parameters are coloured according to their role in the demographic process. (B, C) Partial dependence of population size and the predicted probability of extinction on the two most influential parameters, adult mortality (cdmlt_level) and fertility intensity (c1_fert), showing Random Forest predictions (red lines) over the distribution of simulated parameter combinations."
+#| fig.caption: "Figure 4.3. Principal demographic mechanisms governing baseline model behaviour. (A) Random Forest variable importance for predicting long-term population persistence, comparing matrilocal (female symbol) and patrilocal (male symbol) residence rules. Parameters are coloured according to their role in the demographic process. (B, C) Partial dependence of the predicted probability of extinction on selected mortality and fertility parameters, respectively: the Coale--Demeny mortality level (`cdmlt_level`) and fertility peak intensity (`c1_fert`), showing Random Forest predictions over the empirical distribution of simulated parameter combinations."
 file_name <- "fig4.3"
 
 compose_figure_mechanisms(
@@ -193,7 +193,7 @@ sampled_trajectories <- load_and_preprocess_trajectories_v12x(
 
 ```{r}
 #| label: fig_4_4
-#| fig.caption: "Figure 4.4. Demographic behaviour under successive density-regulation mechanisms (v1.2-v1.2.2). (A) Distribution of final population sizes across all Sobol-sampled parameter combinations, classified by survival and long-term regulatory outcome, separated by model version and residence rule. (B) Representative population trajectories for parameter configurations that produce contrasting regulatory regimes, showing individual stochastic realisations (thin lines) and the median trajectory (thick line). The horizontal dashed line indicates the carrying capacity associated with each parameter configuration."
+#| fig.caption: "Figure 4.4. Demographic behaviour under successive density-regulation mechanisms (v1.2-v1.2.2). (A) Distribution of final population sizes across all Sobol-sampled parameter combinations, classified by survival and long-term regulatory outcome, separated by model version and residence rule. (B) Representative population trajectories for parameter configurations that produce contrasting regulatory regimes, showing individual stochastic realisations (thin lines) and the median trajectory (thick line). In the demand-weighted versions, K is expressed in adult-equivalent demand units and should not be interpreted as a head-count population threshold."
 
 file_name <- "fig4.4"
 
@@ -217,7 +217,7 @@ knitr::include_graphics(paste0("plots/figures/", file_name, ".png"))
 
 ```{r}
 #| label: fig_4_5
-#| fig.caption: "Figure 4.5. Emergent population pressure under successive density-regulation mechanisms (v1.2-v1.2.2). (A) Distribution of equilibrium population pressure among surviving simulations across all Sobol-sampled parameter combinations, classified by long-term demographic outcome and separated by model version and residence rule. The dashed and solid vertical lines indicate thresholds separating low- and high-pressure persistence and overshooting populations, respectively. (B) Mean equilibrium population pressure versus its coefficient of variation for representative simulation trajectories, coloured by simplified regulation regime. Dashed lines indicate thresholds distinguishing stable and oscillatory regulation (vertical) and low- and high-pressure regimes (horizontal)."
+#| fig.caption: "Figure 4.5. Emergent population pressure under successive density-regulation mechanisms (v1.2--v1.2.2). (A) Distribution of end-state population pressure among surviving Sobol-sampled simulations, classified by demographic outcome and separated by model version and residence rule. The dashed and solid vertical lines indicate thresholds separating low- and high-pressure persistence and Overshooting outcomes, respectively. (B) Late-run mean population pressure versus its coefficient of variation for representative simulation trajectories, coloured by simplified regulation regime. Dashed lines indicate thresholds distinguishing stable and oscillatory regulation (vertical) and low- and high-pressure regimes (horizontal)."
 file_name <- "fig4.5"
 
 compose_figure_organisation_pressure(
@@ -258,7 +258,7 @@ rf_importance_and_pd_results <- load_rf_importance_and_pd_results_v12x()
 
 ```{r}
 #| label: fig_4_6
-#| fig.caption: "Figure 4.6. Relative importance and effects of demographic and ecological mechanisms across the density-regulation model series (v1.2–v1.2.2). (A) Random Forest variable importance for equilibrium population pressure (%IncMSE), comparing the relative influence of demographic, household and ecological parameters under each residence rule. All versions share the same horizontal scale to facilitate comparison. (B) Partial dependence of equilibrium population pressure on the density-effect scaling factor, showing the expected response after accounting for variation in all other parameters, together with the empirical distribution of sampled simulations. (C) Partial dependence of equilibrium population pressure on fertility intensity (c1_fert). Together, the panels show how the introduction of density regulation, and subsequently labour-constrained carrying capacity, alters the relative importance of demographic and ecological mechanisms while preserving the qualitative direction of their effects on equilibrium population pressure."
+#| fig.caption: "Figure 4.6. Relative importance and effects of demographic and ecological mechanisms across the density-regulation model series (v1.2--v1.2.2). (A) Random Forest variable importance for end-state population pressure (% IncMSE), comparing the relative influence of demographic, household, and ecological parameters under each residence rule. All versions share the same horizontal scale to facilitate comparison. (B) Partial dependence of end-state population pressure on the density-effect scaling factor, showing the expected response after accounting for variation in all other parameters, together with the empirical distribution of sampled simulations. (C) Partial dependence of end-state population pressure on fertility peak intensity (`c1_fert`)."
 file_name <- "fig4.6"
 
 compose_figure_mechanisms_comparison(
@@ -314,7 +314,7 @@ sampled_trajectories <- sampled_trajectories |>
 
 ```{r}
 #| label: fig_4_7
-#| fig.caption: "Figure 4.7. Comparison of demographic behaviour across the daily model series (v1.3, v1.4, v1.4.1 and v1.4.2). (A) Distribution of final population sizes across all Sobol-sampled parameter combinations, classified by survival outcome and separated by model version and residence rule. The daily baseline model (v1.3) distinguishes growth, persistence and extinction outcomes, whereas the density-regulated variants (v1.4, v1.4.1 and v1.4.2) further distinguish persistent populations according to equilibrium population pressure (low or high pressure) and identify overshooting outcomes. (B) Representative population trajectories for parameter configurations producing each long-term outcome, showing individual stochastic realisations (thin lines) and the median trajectory (thick line). The dashed horizontal line indicates the carrying capacity parameter used by the density-regulated variants."
+#| fig.caption: "Figure 4.7. Comparison of demographic behaviour across the daily model series (v1.3, v1.4, v1.4.1 and v1.4.2). (A) Distribution of final population sizes across all Sobol-sampled parameter combinations, classified by survival outcome and separated by model version and residence rule. The daily baseline model (v1.3) distinguishes growth, persistence and extinction outcomes, whereas the density-regulated variants (v1.4, v1.4.1 and v1.4.2) further distinguish persistent populations according to end-state population pressure (low or high pressure) and identify Overshooting outcomes. (B) Population trajectories for Sobol-sampled parameter combinations producing each long-term outcome, showing individual stochastic realisations (thin lines) and the median trajectory (thick line). In the demand-weighted versions, K is expressed in adult-equivalent demand units and should not be interpreted as a head-count population threshold."
 
 file_name <- "fig4.7"
 
@@ -380,7 +380,7 @@ rf_importance_and_pd_results <- load_rf_importance_and_pd_results_labour()
 
 ```{r}
 #| label: fig_4_8
-#| fig.caption: "Figure 4.8. Labour investment and demographic regulation in the labour-weighted density-dependent models (v1.2.2 and v1.4.2). (A) Distribution of the labour ratio (available labour divided by required labour) among surviving simulations, grouped by residence rule and survival outcome. The dashed horizontal line indicates labour equilibrium (labour ratio = 1), where available and required labour are equal. (B) Representative trajectories of the labour ratio through time, coloured by survival outcome. Thin lines represent individual simulations, whereas thick lines show median trajectories within each outcome category. Simulations reaching extinction terminate when populations disappear. To maintain computational feasibility, simulations in the daily-iteration model (v1.4.2) span fewer years than those in the yearly model (v1.2.2), although they comprise substantially more demographic updates because births, deaths and marriages occur on a daily time scale. (C) Partial dependence of population pressure on the labour demand per capita parameter by residence rule, showing the marginal effect estimated by the random forest models while holding all other parameters constant. Heat maps indicate the density of simulations across the parameter-response variable space."
+#| fig.caption: "Figure 4.8. Labour investment and demographic regulation in the labour-weighted density-dependent models (v1.2.2 and v1.4.2). (A) Distribution of the labour ratio (available labour divided by required labour) among surviving simulations, grouped by residence rule and survival outcome. The dashed horizontal line indicates labour equilibrium (labour ratio = 1), where available and required labour are equal. (B) Representative trajectories of the labour ratio through time, coloured by survival outcome. Thin lines represent individual simulations, whereas thick lines show median trajectories within each outcome category. Simulations reaching extinction terminate when populations disappear. To maintain computational feasibility, simulations in the daily-iteration model (v1.4.2) span fewer years than those in the yearly model (v1.2.2), although they comprise substantially more demographic updates because births, deaths, and unions occur on a daily timescale. (C) Partial dependence of population pressure on the labour demand per capita parameter by residence rule, showing the marginal effect estimated by the Random Forest models while averaging over the remaining sampled predictors. Heat maps indicate the empirical density of simulations across the parameter--response space."
 
 file_name <- "fig4.8"
 
