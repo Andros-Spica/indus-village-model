@@ -30,13 +30,16 @@ book:
   chapters:
     - index.qmd
     - intro.qmd
+    - equation-visualisation.qmd
     - v-1-1.qmd
     - v-1-2.qmd
     - v-1-2-1.qmd
     - v-1-2-2.qmd
-    #- v-1-3.qmd
-    #- v-1-4.qmd
-    #- v-1-4-2.qmd
+    - v-1-3.qmd
+    - v-1-4.qmd
+    - v-1-4-1.qmd
+    - v-1-4-2.qmd
+    - figures.qmd
     #- womenFertility.qmd
 
 format:
