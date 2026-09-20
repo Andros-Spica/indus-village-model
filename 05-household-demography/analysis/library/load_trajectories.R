@@ -11,14 +11,14 @@ load_trajectories <- function(
   }
 
   version_paths <- list(
-    "v1.1"   = paste0("simdata/v1.1/household-demography-main exp-trajectories", suffix, "-table.csv"),
-    "v1.2"   = paste0("simdata/v1.2/household-demography-main_density exp-trajectories", suffix, "-table.csv"),
-    "v1.2.1" = paste0("simdata/v1.2.1/household-demography-main_density-K-demand exp-trajectories", suffix, "-table.csv"),
-    "v1.2.2" = paste0("simdata/v1.2.2/household-demography-main_density-K-demand-supply exp-trajectories", suffix, "-table.csv"),
-    "v1.3"   = paste0("simdata/v1.3/household-demography-daily-main exp-trajectories", suffix, "-table.csv"),
-    "v1.4"   = paste0("simdata/v1.4/household-demography-daily-main_density exp-trajectories", suffix, "-table.csv"),
-    "v1.4.1" = paste0("simdata/v1.4.1/household-demography-daily-main_density-K-demand exp-trajectories", suffix, "-table.csv"),
-    "v1.4.2" = paste0("simdata/v1.4.2/household-demography-daily-main_density-K-demand-supply exp-trajectories", suffix, "-table.csv")
+    "v1.1"   = paste0("simdata/v1.1/household-demography-main exp-trajectories", suffix, "-table.csv.gz"),
+    "v1.2"   = paste0("simdata/v1.2/household-demography-main_density exp-trajectories", suffix, "-table.csv.gz"),
+    "v1.2.1" = paste0("simdata/v1.2.1/household-demography-main_density-K-demand exp-trajectories", suffix, "-table.csv.gz"),
+    "v1.2.2" = paste0("simdata/v1.2.2/household-demography-main_density-K-demand-supply exp-trajectories", suffix, "-table.csv.gz"),
+    "v1.3"   = paste0("simdata/v1.3/household-demography-daily-main exp-trajectories", suffix, "-table.csv.gz"),
+    "v1.4"   = paste0("simdata/v1.4/household-demography-daily-main_density exp-trajectories", suffix, "-table.csv.gz"),
+    "v1.4.1" = paste0("simdata/v1.4.1/household-demography-daily-main_density-K-demand exp-trajectories", suffix, "-table.csv.gz"),
+    "v1.4.2" = paste0("simdata/v1.4.2/household-demography-daily-main_density-K-demand-supply exp-trajectories", suffix, "-table.csv.gz")
   )
 
   paths <- version_paths[[model_version ]]
