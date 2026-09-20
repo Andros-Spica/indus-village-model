@@ -524,7 +524,7 @@ preprocess_simdata <- function(
         ) |>
         mutate(
           survival = classify_survival_density(
-            endstate_total_individuals,
+            endstate_carrying_capacity_demand,
             endstate_capacity
           )
         ) |>
