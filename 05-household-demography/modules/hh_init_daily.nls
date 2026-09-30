@@ -49,39 +49,51 @@ to hh_initialise-members
   [ print (word "WARNING: Initialisation of individual(s) with age in years higher than " (length fertilityTable) " (" max hh_membersAge ") detected in " self ": " hh_membersAge ) ]
   
   ; calculate offspring and offspring age
-  let offspringProb 0
   let i hh_age
   repeat hh_age
   [
-    ; check fertility only if woman is not in postpartum amenorrhea
-    ifelse (item 0 hh_membersAmenorrhea = 0)
+    ; decrease amenorrhea time, when greater than 0 (safe clamp at 0)
+    if (item 0 hh_membersAmenorrhea > 0)
     [
-      ; get the probability of the couple having descendence for a past day i
-      ; i.e. woman fertility at the corresponding age
-      set offspringProb get-fertility-of-day ((item 0 hh_membersAge) - i)
-      
-      ; test the fertility probability and mark gestation
-      if (random-float 1 < offspringProb)
+      set hh_membersAmenorrhea
+        replace-item
+          0
+          hh_membersAmenorrhea
+          max (
+            list
+              0
+              (
+                item 0
+                  hh_membersAmenorrhea
+                - 1
+              )
+          )
+    ]
+
+    ; advance women gestation, if any, and, if it comes to 0,
+    ; add the new offspring and account for mother postpartum amenorrhea
+    if (item 0 hh_membersGestation > 0)
+    [
+      set hh_membersGestation replace-item 0 hh_membersGestation (max (list 0 (item 0 hh_membersGestation - 1)))
+      if (item 0 hh_membersGestation = 0)
+      [
+        hh_add-offspring i ; a child with i days old
+
+        set hh_membersAmenorrhea replace-item 0 hh_membersAmenorrhea amenorrhea-period-in-days
+      ]
+    ]
+
+    ; test women for the corresponding fertility rate and gestation/amenorrhea states
+    ; and, if passing test, marking women as gestating.
+
+    ; woman not currently gestation or lactating
+    if ((item 0 hh_membersGestation = 0) and (item 0 hh_membersAmenorrhea = 0))
+    [
+      if (random-float 1 < get-fertility-of-day ((item 0 hh_membersAge) - i))
       [
         ; mark the female as gestating a child
         set hh_membersGestation replace-item 0 hh_membersGestation gestation-period-in-days
       ]
-
-      ; advance gestation, if any, and, if it comes to 0, add the offspring with the corresponding age and account for mother amenorrhea
-      if (item 0 hh_membersGestation > 0)
-      [
-        set hh_membersGestation replace-item 0 hh_membersGestation (max (list 0 (item 0 hh_membersGestation - 1)))
-        if (item 0 hh_membersGestation = 0)
-        [
-          hh_add-offspring i ; a child with i days old
-
-          ; account for the postpartum amenorrhea period, discouting child age
-          set hh_membersAmenorrhea replace-item 0 hh_membersAmenorrhea amenorrhea-period-in-days
-        ]
-      ]
-    ]
-    [
-      set hh_membersAmenorrhea replace-item 0 hh_membersAmenorrhea (max (list 0 (amenorrhea-period-in-days - i)))
     ]
 
     set i i - 1
