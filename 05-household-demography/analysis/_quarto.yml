@@ -10,7 +10,7 @@ book:
   author: # vgl. https://quarto.org/docs/journals/authors.html
   - name: Andreas Angourakis
     orcid: 0000-0002-9946-8142
-    email: Andreas.Angourakis@ruhr-uni-bochum.de
+    email: Andreas.Angourakis@ruhr-uni-bochum.de, aangoura@uni-koeln.de, aa2112@cantab.ac.uk, andros.spica@gmail.com
     affiliation: 
       - name: Institut für Archäologische Wissenschaften, Ruhr University Bochum
         url: https://www.ruhr-uni-bochum.de/archaeologie
@@ -29,7 +29,6 @@ book:
     collapse-level: 1
   chapters:
     - index.qmd
-    - intro.qmd
     - equation-visualisation.qmd
     - v-1-1.qmd
     - v-1-2.qmd
