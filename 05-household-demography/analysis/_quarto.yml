@@ -22,8 +22,8 @@ book:
   date: today
   date-format: DD MMMM, YYYY
   search: true
-  repo-url: https://github.com/Andros-Spica/indus-village-model/05-household-demography
-  site-url: https://github.com/Andros-Spica/indus-village-model
+  repo-url: https://github.com/Two-Rains/Household-Demography-Angourakis-Petrie-2026
+  site-url: https://two-rains.github.io/Household-Demography-Angourakis-Petrie-2026/
   page-navigation: true
   sidebar:
     collapse-level: 1
