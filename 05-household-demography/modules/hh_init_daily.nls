@@ -104,14 +104,13 @@ end
 to-report get-initial-marriage-age [ isFemale ]
 
   ; get a marriage age in days as a stochastic function of nuptiality rates in earlier years
-  let notMarried true
   let ageInYears 0
 
-  while [notMarried AND ageInYears < 100]
+  while [ageInYears < 100]
   [
     if ((get-nuptiality-prob-from-table isFemale ageInYears) > random-float 1)
     [
-      set notMarried false
+      report (ageInYears * year-length-in-days) + (random year-length-in-days)
     ]
     set ageInYears ageInYears + 1
   ]
@@ -123,13 +122,11 @@ to-report get-initial-marriage-age [ isFemale ]
     ;print (word "WARNING: Initialisation of marriage age forced to parametric mean (mu) in " self )
     ifelse (isFemale)
     [
-      set ageInYears mu-women 
+      report (mu-women  * year-length-in-days) + (random year-length-in-days)
     ]
     [
-      set ageInYears mu-men
+      report (mu-men * year-length-in-days) + (random year-length-in-days)
     ]
   ]
-
-  report (ageInYears * year-length-in-days) + (random year-length-in-days)
 
 end
