@@ -84,7 +84,7 @@ to-report get-mortality-prob-from-table [ isFemale age ]
 
   let probDying 1
 
-  ifelse (age < length nuptialityTable-women) 
+  ifelse (age < length mortalityTable-women) 
   [
     ifelse (isFemale)
     [
@@ -95,7 +95,7 @@ to-report get-mortality-prob-from-table [ isFemale age ]
     ]
   ]
   [
-    print (word "WARNING: individual with age higher than " (length nuptialityTable-women) " (" age ") detected in " self)
+    print (word "WARNING: individual with age higher than " (length mortalityTable-women) " (" age ") detected in " self)
   ]
 
   report probDying
