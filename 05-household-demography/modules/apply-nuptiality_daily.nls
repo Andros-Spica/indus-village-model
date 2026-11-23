@@ -263,8 +263,9 @@ end
 to hh_household-fission [ selfIndex spouseData ]
 
   ; creates a new household descending from self household,
-  ; adding self and spouse and
-  ; deleting them from the respective parent households
+  ; adding self and spouse.
+  ; Note that hh_add-member-from and hh_add-spouse deletes the rooted member 
+  ; from the respective parent household.
 
   ;print (word self " is fissioning")
 
