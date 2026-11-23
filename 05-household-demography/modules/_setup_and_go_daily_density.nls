@@ -178,6 +178,7 @@ to parameters-to-default
 
   set par_household-initial-age-distribution   "0 30"
   set par_max-couple-count-distribution        "1 6"
+  set par_acceptable-kinship-degree-for-couples  8
   set amenorrhea-period-in-weeks                    24
 
   set carrying-capacity                   200
@@ -189,6 +190,7 @@ to parameters-check2
 
   ;;; initial parameter check (e.g., avoiding division per zero error)
   check-par-is-positive "initial-num-households" initial-num-households
+  check-par-is-positive "acceptable-kinship-degree-for-couples" acceptable-kinship-degree-for-couples
 
   ;;; check if given min values are less than max values
   check-par-is-range "household-initial-age-distribution" household-initial-age-distribution

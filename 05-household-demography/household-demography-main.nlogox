@@ -34,6 +34,7 @@ __includes [
   "modules/fertility-nuptiality_peristera-kostaki.nls"
   "modules/mortality_coale-demeny.nls"
   "modules/output-stats.nls"
+  "modules/demographic-validation.nls"
   "modules/experiments.nls"
   "../utils/plot-table.nls"
 ]
@@ -94,6 +95,15 @@ globals
   couplesRejected                ; number of couples rejected due to kinship restrictions (integer)
   totalOrphans                   ; number of children moving from an household where all adults are dead
   stopCondition                  ; registry of condition met causing simulation to halt
+  
+  ;;;; demographic validation
+  validation-steps-per-year      ; number of validation steps per year (integer)
+  validation-start-step          ; step at which validation starts (integer)
+  validation-end-step            ; step at which validation ends (integer)
+  validation-observed-steps      ; number of steps for which observed data is available (integer)
+  validation-person-years        ; number of person-years for which observed data is available (integer)
+  validation-union-flows         ; number of unions formed during the validation period (list of four integers: [womenIn menIn womenOut menOut])
+  validation-internal-unions     ; number of unions formed internally during the validation period (integer)
 ]
 
 ;;; agents variables
@@ -122,7 +132,6 @@ households-own
       <choice type="string" value="random"></choice>
       <choice type="string" value="defined by exp-number"></choice>
     </chooser>
-    <button x="159" actionKey="3" y="11" height="40" disableUntilTicks="false" forever="true" kind="Observer" width="55">go</button>
     <input x="111" multiline="false" y="60" height="60" variable="max-iterations" type="number" width="100">2000.0</input>
     <button x="30" y="201" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="135">export-households</button>
     <input x="186" multiline="false" y="127" height="60" variable="exp-number" type="number" width="100">65.0</input>
@@ -235,8 +244,6 @@ update-plots</button>
     <monitor x="834" precision="4" y="202" height="60" fontSize="11" width="140" display="women emigration rate">womenOut / totalWomen</monitor>
     <monitor x="982" precision="4" y="202" height="60" fontSize="11" width="134" display="men immigration rate">menIn / totalMen</monitor>
     <monitor x="1123" precision="4" y="202" height="60" fontSize="11" width="135" display="men emigration rate">menOut / totalMen</monitor>
-    <monitor x="1145" precision="2" y="39" height="60" fontSize="14" width="210" display="total population growth (%)">totalPopulationGrowth</monitor>
-    <monitor x="1146" precision="0" y="101" height="60" fontSize="11" width="100" display="orphans count">totalOrphans</monitor>
     <monitor x="1143" precision="4" y="299" height="60" fontSize="11" width="114" display="women birth rate">womenBirths / totalWomen</monitor>
     <monitor x="1261" precision="4" y="299" height="60" fontSize="11" width="100" display="men birth rate">menBirths / totalMen</monitor>
     <monitor x="1144" precision="4" y="362" height="60" fontSize="11" width="113" display="women death rate">womenDeaths / totalWomen</monitor>
@@ -304,7 +311,6 @@ carefully [ set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)
         <update>carefully [ histogram menAgeStructure ] [ ]</update>
       </pen>
     </plot>
-    <monitor x="1250" precision="4" y="102" height="60" fontSize="11" width="100">femaleRatio</monitor>
     <plot x="1137" autoPlotX="true" yMax="10.0" autoPlotY="true" yAxis="mean members age" y="877" xMin="0.0" height="262" legend="false" xMax="10.0" yMin="0.0" width="290" xAxis="members count" display="Household structure">
       <setup></setup>
       <update>clear-plot</update>
@@ -335,7 +341,16 @@ carefully [ set-plot-x-range -1 max (sentence womenAgeStructure menAgeStructure)
         <update>carefully [ plot (couplesAccepted / (couplesAccepted + couplesRejected)) ] [ plot 0 ]</update>
       </pen>
     </plot>
-    <slider x="393" step="1" y="411" max="10" width="279" display="par_acceptable-kinship-degree-for-couples" height="50" min="-1" direction="Horizontal" default="-1.0" variable="par_acceptable-kinship-degree-for-couples"></slider>
+    <slider x="393" step="1" y="411" max="10" width="279" display="par_acceptable-kinship-degree-for-couples" height="50" min="-1" direction="Horizontal" default="8.0" variable="par_acceptable-kinship-degree-for-couples"></slider>
+    <button x="158" actionKey="3" y="11" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="83" display="+ 25 years">repeat 25 [ go ]</button>
+    <button x="253" actionKey="4" y="11" height="40" disableUntilTicks="false" forever="true" kind="Observer" width="55">go</button>
+    <input x="1261" multiline="false" y="168" height="60" variable="validation-start-year" type="number" width="124">0.0</input>
+    <monitor x="1140" precision="2" y="34" height="60" fontSize="14" width="172" display="total population growth (%)">totalPopulationGrowth</monitor>
+    <monitor x="1245" precision="4" y="97" height="60" fontSize="11" width="100">femaleRatio</monitor>
+    <monitor x="1141" precision="0" y="96" height="60" fontSize="11" width="100" display="orphans count">totalOrphans</monitor>
+    <input x="1389" multiline="false" y="169" height="60" variable="validation-duration-years" type="number" width="151">25.0</input>
+    <monitor x="1263" precision="17" y="232" height="60" fontSize="11" width="158">validation-observed-years</monitor>
+    <monitor x="1423" precision="17" y="232" height="60" fontSize="11" width="176">validation-window-complete?</monitor>
   </widgets>
   <info>## Development notes
 
@@ -1266,6 +1281,18 @@ ISSUES:
         <metric>couplesRejected</metric>
         <metric>totalOrphans</metric>
         <metric>stopCondition</metric>
+        <metric>mean-household-size</metric>
+        <metric>validation-start-step</metric>
+        <metric>validation-end-step</metric>
+        <metric>validation-steps-per-year</metric>
+        <metric>validation-observed-years</metric>
+        <metric>validation-window-complete?</metric>
+        <metric>validation-person-years</metric>
+        <metric>validation-union-flows</metric>
+        <metric>validation-internal-unions</metric>
+        <metric>external-union-in-rate</metric>
+        <metric>external-union-out-rate</metric>
+        <metric>external-union-share</metric>
       </metrics>
       <constants>
         <enumeratedValueSet variable="type-of-experiment">
@@ -1336,6 +1363,12 @@ ISSUES:
         <enumeratedValueSet variable="sigma2-women">
           <value value="8"></value>
         </enumeratedValueSet>
+        <enumeratedValueSet variable="validation-start-year">
+          <value value="0"/>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="validation-duration-years">
+          <value value="25"/>
+        </enumeratedValueSet>
       </constants>
     </experiment>
     <experiment name="exp-endstates-patri" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="false">
@@ -1385,6 +1418,19 @@ ISSUES:
         <metric>couplesAccepted</metric>
         <metric>couplesRejected</metric>
         <metric>totalOrphans</metric>
+        <metric>stopCondition</metric>
+        <metric>mean-household-size</metric>
+        <metric>validation-start-step</metric>
+        <metric>validation-end-step</metric>
+        <metric>validation-steps-per-year</metric>
+        <metric>validation-observed-years</metric>
+        <metric>validation-window-complete?</metric>
+        <metric>validation-person-years</metric>
+        <metric>validation-union-flows</metric>
+        <metric>validation-internal-unions</metric>
+        <metric>external-union-in-rate</metric>
+        <metric>external-union-out-rate</metric>
+        <metric>external-union-share</metric>
       </metrics>
       <constants>
         <enumeratedValueSet variable="type-of-experiment">
@@ -1404,6 +1450,12 @@ ISSUES:
         </enumeratedValueSet>
         <enumeratedValueSet variable="residence-rule">
           <value value="&quot;patrilocal-patrilineal&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="validation-start-year">
+          <value value="0"/>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="validation-duration-years">
+          <value value="25"/>
         </enumeratedValueSet>
       </constants>
     </experiment>
@@ -1454,6 +1506,19 @@ ISSUES:
         <metric>couplesAccepted</metric>
         <metric>couplesRejected</metric>
         <metric>totalOrphans</metric>
+        <metric>stopCondition</metric>
+        <metric>mean-household-size</metric>
+        <metric>validation-start-step</metric>
+        <metric>validation-end-step</metric>
+        <metric>validation-steps-per-year</metric>
+        <metric>validation-observed-years</metric>
+        <metric>validation-window-complete?</metric>
+        <metric>validation-person-years</metric>
+        <metric>validation-union-flows</metric>
+        <metric>validation-internal-unions</metric>
+        <metric>external-union-in-rate</metric>
+        <metric>external-union-out-rate</metric>
+        <metric>external-union-share</metric>
       </metrics>
       <constants>
         <enumeratedValueSet variable="type-of-experiment">
@@ -1473,6 +1538,12 @@ ISSUES:
         </enumeratedValueSet>
         <enumeratedValueSet variable="residence-rule">
           <value value="&quot;matrilocal-matrilineal&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="validation-start-year">
+          <value value="0"/>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="validation-duration-years">
+          <value value="25"/>
         </enumeratedValueSet>
       </constants>
     </experiment>
@@ -1522,6 +1593,18 @@ ISSUES:
         <metric>couplesRejected</metric>
         <metric>totalOrphans</metric>
         <metric>stopCondition</metric>
+        <metric>mean-household-size</metric>
+        <metric>validation-start-step</metric>
+        <metric>validation-end-step</metric>
+        <metric>validation-steps-per-year</metric>
+        <metric>validation-observed-years</metric>
+        <metric>validation-window-complete?</metric>
+        <metric>validation-person-years</metric>
+        <metric>validation-union-flows</metric>
+        <metric>validation-internal-unions</metric>
+        <metric>external-union-in-rate</metric>
+        <metric>external-union-out-rate</metric>
+        <metric>external-union-share</metric>
       </metrics>
       <constants>
         <enumeratedValueSet variable="type-of-experiment">
@@ -1590,6 +1673,12 @@ ISSUES:
         <enumeratedValueSet variable="sigma2-women">
           <value value="8"></value>
         </enumeratedValueSet>
+        <enumeratedValueSet variable="validation-start-year">
+          <value value="0"/>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="validation-duration-years">
+          <value value="25"/>
+        </enumeratedValueSet>
       </constants>
     </experiment>
     <experiment name="exp-trajectories-c1-fert" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="true">
@@ -1638,6 +1727,18 @@ ISSUES:
         <metric>couplesRejected</metric>
         <metric>totalOrphans</metric>
         <metric>stopCondition</metric>
+        <metric>mean-household-size</metric>
+        <metric>validation-start-step</metric>
+        <metric>validation-end-step</metric>
+        <metric>validation-steps-per-year</metric>
+        <metric>validation-observed-years</metric>
+        <metric>validation-window-complete?</metric>
+        <metric>validation-person-years</metric>
+        <metric>validation-union-flows</metric>
+        <metric>validation-internal-unions</metric>
+        <metric>external-union-in-rate</metric>
+        <metric>external-union-out-rate</metric>
+        <metric>external-union-share</metric>
       </metrics>
       <constants>
         <enumeratedValueSet variable="type-of-experiment">
@@ -1706,6 +1807,12 @@ ISSUES:
         <enumeratedValueSet variable="sigma2-women">
           <value value="8"></value>
         </enumeratedValueSet>
+        <enumeratedValueSet variable="validation-start-year">
+          <value value="0"/>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="validation-duration-years">
+          <value value="25"/>
+        </enumeratedValueSet>
       </constants>
     </experiment>
     <experiment name="exp-trajectories-symmetric" repetitions="1" sequentialRunOrder="true" runMetricsEveryStep="true">
@@ -1754,6 +1861,18 @@ ISSUES:
         <metric>couplesRejected</metric>
         <metric>totalOrphans</metric>
         <metric>stopCondition</metric>
+        <metric>mean-household-size</metric>
+        <metric>validation-start-step</metric>
+        <metric>validation-end-step</metric>
+        <metric>validation-steps-per-year</metric>
+        <metric>validation-observed-years</metric>
+        <metric>validation-window-complete?</metric>
+        <metric>validation-person-years</metric>
+        <metric>validation-union-flows</metric>
+        <metric>validation-internal-unions</metric>
+        <metric>external-union-in-rate</metric>
+        <metric>external-union-out-rate</metric>
+        <metric>external-union-share</metric>
       </metrics>
       <constants>
         <enumeratedValueSet variable="type-of-experiment">
@@ -1823,6 +1942,12 @@ ISSUES:
         </enumeratedValueSet>
         <enumeratedValueSet variable="sigma2-women">
           <value value="10"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="validation-start-year">
+          <value value="0"/>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="validation-duration-years">
+          <value value="25"/>
         </enumeratedValueSet>
       </constants>
     </experiment>

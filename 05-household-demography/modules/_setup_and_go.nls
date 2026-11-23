@@ -2,19 +2,34 @@ to setup
 
   clear-all
 
+  ; --- loading/testing parameters -----------
+
   set-constants
 
   set-parameters
 
   build-demography-tables
 
+  ; --- core procedures ----------------------
+
   setup-households
+
+  ; --- counters -----------------------------
 
   reset-demography-stats
 
   update-demography-stats
 
+  ; --- tick ---------------------------------
+
   reset-ticks
+
+  ; --- demographic validation ----------------
+
+  setup-union-validation
+    validation-start-year
+    validation-duration-years
+    1
 
 end
 
@@ -148,6 +163,7 @@ to parameters-to-default
 
   set par_household-initial-age-distribution   "0 30"
   set par_max-couple-count-distribution        "1 6"
+  set par_acceptable-kinship-degree-for-couples  8
 
 end
 
@@ -155,6 +171,7 @@ to parameters-check2
 
   ;;; initial parameter check (e.g., avoiding division per zero error)
   check-par-is-positive "initial-num-households" initial-num-households
+  check-par-is-positive "acceptable-kinship-degree-for-couples" acceptable-kinship-degree-for-couples
 
   ;;; check if given min values are less than max values
   check-par-is-range "household-initial-age-distribution" household-initial-age-distribution
@@ -212,11 +229,19 @@ to go
   
   if (stopCondition != 0) [ stop ]
 
+  let validation-population-start totalIndividuals
+
   reset-demography-stats
 
   update-households
 
   update-demography-stats
+
+  record-union-validation
+    validation-population-start
+    totalIndividuals
+    (list womenIn menIn womenOut menOut)
+    couplesAccepted
 
   check-stop-condition ;;; triggers stop in the next step
   

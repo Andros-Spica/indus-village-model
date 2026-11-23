@@ -1,0 +1,108 @@
+to-report mean-household-size
+
+  ; Mean residents per extant household at the current census.
+  ; An empty string denotes an undefined value after extinction.
+
+  if totalHouseholds = 0 [
+    report ""
+  ]
+
+  report totalIndividuals / totalHouseholds
+
+end
+
+to setup-union-validation [ start-year duration-years steps-per-year ]
+
+  if start-year < 0 or start-year != floor start-year [
+    error "Validation start-year must be a non-negative whole year."
+  ]
+  if duration-years <= 0 or duration-years != floor duration-years [
+    error "Validation duration must be a positive number of whole years."
+  ]
+  if steps-per-year <= 0 or steps-per-year != floor steps-per-year [
+    error "Validation steps-per-year must be a positive integer."
+  ]
+
+  set validation-steps-per-year steps-per-year
+  set validation-start-step start-year * steps-per-year
+  set validation-end-step (start-year + duration-years) * steps-per-year
+
+  set validation-observed-steps 0
+  set validation-person-years 0
+  set validation-union-flows (list 0 0 0 0)
+  set validation-internal-unions 0
+
+end
+
+to record-union-validation [
+  population-at-start
+  population-at-end
+  interval-flows
+  interval-internal-unions
+]
+
+  ; Called after demographic events and before tick.
+  ; The selected intervals have start ticks in [start-step, end-step).
+
+  if ticks >= validation-start-step and ticks < validation-end-step [
+
+    set validation-observed-steps validation-observed-steps + 1
+
+    ; Approximate person-years using the mean of the two census totals.
+    set validation-person-years validation-person-years
+      + ((population-at-start + population-at-end) / 2)
+      / validation-steps-per-year
+
+    set validation-union-flows
+      (map [[accumulated current] -> accumulated + current]
+        validation-union-flows
+        interval-flows)
+
+    set validation-internal-unions
+      validation-internal-unions + interval-internal-unions
+  ]
+
+end
+
+to-report validation-observed-years
+  report validation-observed-steps / validation-steps-per-year
+end
+
+
+to-report validation-window-complete?
+  report validation-observed-steps =
+    (validation-end-step - validation-start-step)
+end
+
+to-report external-union-in-rate
+
+  if validation-person-years = 0 [ report "" ]
+
+  let incoming
+    (item 0 validation-union-flows + item 1 validation-union-flows)
+
+  report 1000 * incoming / validation-person-years
+
+end
+
+to-report external-union-out-rate
+
+  if validation-person-years = 0 [ report "" ]
+
+  let outgoing
+    (item 2 validation-union-flows + item 3 validation-union-flows)
+
+  report 1000 * outgoing / validation-person-years
+
+end
+
+to-report external-union-share
+
+  let external-unions sum validation-union-flows
+  let all-unions external-unions + validation-internal-unions
+
+  if all-unions = 0 [ report "" ]
+
+  report external-unions / all-unions
+
+end

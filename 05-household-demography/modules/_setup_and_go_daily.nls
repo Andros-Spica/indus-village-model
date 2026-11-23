@@ -26,6 +26,13 @@ to setup
 
   reset-ticks
 
+  ; --- demographic validation ----------------
+
+  setup-union-validation
+    validation-start-year
+    validation-duration-years
+    year-length-in-days
+
 end
 
 to set-constants
@@ -167,6 +174,7 @@ to parameters-to-default
 
   set par_household-initial-age-distribution   "0 30"
   set par_max-couple-count-distribution        "1 6"
+  set par_acceptable-kinship-degree-for-couples  8
   set amenorrhea-period-in-weeks                    24
 
 end
@@ -175,6 +183,7 @@ to parameters-check2
 
   ;;; initial parameter check (e.g., avoiding division per zero error)
   check-par-is-positive "initial-num-households" initial-num-households
+  check-par-is-positive "acceptable-kinship-degree-for-couples" acceptable-kinship-degree-for-couples
 
   ;;; check if given min values are less than max values
   check-par-is-range "household-initial-age-distribution" household-initial-age-distribution
@@ -233,13 +242,21 @@ to go
   
   if (stopCondition != 0) [ stop ]
 
-  ; --- core procedures -------------------------
+  let validation-population-start totalIndividuals
 
   reset-demography-stats-day
+
+  ; --- core procedures -------------------------
 
   update-households
 
   update-demography-stats
+
+  record-union-validation
+    validation-population-start
+    totalIndividuals
+    (list womenInToday menInToday womenOutToday menOutToday)
+    couplesAcceptedToday
 
   ; -- time -------------------------------------
 

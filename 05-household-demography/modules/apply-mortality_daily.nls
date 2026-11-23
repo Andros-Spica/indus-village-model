@@ -42,7 +42,10 @@ to-report hh_whichMembersDying
   report map
   [
     memberIndex ->
-    (random-float 1 < get-mortality-prob-of-day (item memberIndex hh_membersSex) (item memberIndex hh_membersAge))
+    (random-float 1 < 
+      get-mortality-prob-of-day 
+        (item memberIndex hh_membersSex) 
+        ((item memberIndex hh_membersAge) - 1))
   ] hh_membersIndexes
 
 end
@@ -78,22 +81,19 @@ end
 
 to-report get-mortality-prob-from-table [ isFemale age ]
 
-  let probDying 1
-
-  ifelse (age < length mortalityTable-women) 
-  [
-    ifelse (isFemale)
-    [
-      set probDying item age mortalityTable-women
-    ]
-    [
-      set probDying item age mortalityTable-men
-    ]
-  ]
-  [
-    print (word "WARNING: individual with age higher than " (length mortalityTable-women) " (" age ") detected in " self)
+  let mortality-table mortalityTable-men
+  if isFemale [
+    set mortality-table mortalityTable-women
   ]
 
-  report probDying
+  if age < 0 or age != floor age [
+    error (word "Invalid mortality-table age: " age)
+  ]
+
+  if age >= length mortality-table [
+    report 1
+  ]
+
+  report item age mortality-table
 
 end
